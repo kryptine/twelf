@@ -1321,5 +1321,18 @@ struct
 	  ()
 	end
 
+    (* coverageCheckCases (Cs, G) = R
+     
+       Invariant:
+       If   Cs = [(G1, s1) .... (Gn, sn)] 
+       and  Gi |- si : G
+       and  for all worlds Phi
+       and  instantiations Phi |- s : G
+       there exists at least one index k and substitution   Phi |- t : Gk
+       s.t.  sk o t = s        
+    *)
+    fun coverageCheckCases (Cs, Psi) = 
+      raise Error "Link still to be completed"
+
   end
 end;  (* functor Cover *)
