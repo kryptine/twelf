@@ -42,19 +42,9 @@ local
     (* no case for FVar, Skonst *)
 
   fun fromHead (G, I.BVar(n)) = T.bvar (Names.bvarName (G, n))
-    | fromHead (G, I.Const(cid)) =
-      let
-        val Names.Qid (ids, id) = Names.constQid (cid)
-      in
-        T.const (ids, id)
-      end
+    | fromHead (G, I.Const(cid)) = T.const (Names.constName (cid))
     (* | fromHead (G, I.Skonst (cid)) = T.skonst (Names.constName (cid)) *)
-    | fromHead (G, I.Def (cid)) =
-      let
-        val Names.Qid (ids, id) = Names.constQid (cid)
-      in
-        T.def (ids, id)
-      end
+    | fromHead (G, I.Def (cid)) = T.def (Names.constName (cid))
     (* | fromHead (G, FVar (name, _, _)) = T.fvar (name) *)
     | fromHead _ = raise Error ("Head not recognized")
 
@@ -129,7 +119,7 @@ local
     *)
 
   (* ignore a : K, d : A = M, b : K = A, and skolem constants *)
-  fun fromConDec (I.ConDec (c, parent, i, _, V, I.Type)) =
+  fun fromConDec (I.ConDec (c, i, _, V, I.Type)) =
         SOME (T.objdec (c, fromTp (I.Null, (V, I.id))))
     | fromConDec _ = NONE
 
@@ -138,14 +128,11 @@ in
   val fromConDec = fromConDec
 
   fun const (name) =
-      let val qid = case Names.stringToQid name
-                      of NONE => raise Error ("Malformed qualified identifier " ^ name)
-                       | SOME qid => qid
-          val cidOpt = Names.constLookup qid
-          fun getConDec (NONE) = raise Error ("Undeclared identifier " ^ Names.qidToString qid)
-            | getConDec (SOME cid) = IntSyn.sgnLookup cid
+      let val cidOpt = Names.nameLookup name
+	  fun getConDec (NONE) = raise Error ("Unknown constant" ^ name)
+	    | getConDec (SOME(cid)) = IntSyn.sgnLookup cid
 	  val conDec = getConDec cidOpt
-	  val _ = Names.varReset IntSyn.Null
+	  val _ = Names.varReset ()
 	  fun result (NONE) = raise Error ("Wrong kind of declaration")
 	    | result (SOME(r)) = r
       in 

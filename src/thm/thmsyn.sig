@@ -8,7 +8,6 @@ sig
   structure ModeSyn : MODESYN
     sharing ModeSyn.IntSyn = IntSyn
   structure Paths : PATHS
-  structure Names : NAMES
 
   exception Error of string
 
@@ -47,12 +46,10 @@ sig
     PDecl of int * TDecl
 
   (* World declaration *)
-(*  datatype WDecl = 
+  datatype WDecl = 
     WDecl of (IntSyn.Dec IntSyn.Ctx * 
 	      IntSyn.Dec IntSyn.Ctx) list * Callpats
-*)
-  datatype WDecl = 
-    WDecl of Names.Qid list * Callpats
+
 
   val theoremDecToConDec : ((string * ThDecl) * Paths.region) -> 
                            (IntSyn.Dec IntSyn.Ctx * IntSyn.Dec IntSyn.Ctx) list * IntSyn.ConDec

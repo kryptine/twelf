@@ -6,7 +6,6 @@ signature INTSYN =
 sig
 
   type cid = int			(* Constant identifier        *)
-  type mid = int                        (* Structure identifier       *)
   type csid = int                       (* CS module identifier       *)
  
   (* Contexts *)
@@ -52,7 +51,6 @@ sig
   and Head =				(* Head:                      *)
     BVar  of int			(* H ::= k                    *)
   | Const of cid			(*     | c                    *)
-  | Proj  of Block * int		(*     | #k(b)                *)
   | Skonst of cid			(*     | c#                   *)
   | Def   of cid			(*     | d (strict)           *)
   | NSDef of cid			(*     | d (non strict)       *)
@@ -71,20 +69,12 @@ sig
   and Front =				(* Fronts:                    *)
     Idx of int				(* Ft ::= k                   *)
   | Exp of Exp				(*     | U                    *)
-  | Block of Block			(*     | _x                   *)
   | Undef				(*     | _                    *)
 
   and Dec =				(* Declarations:              *)
     Dec of string option * Exp		(* D ::= x:V                  *)
-  | BDec of cid * Sub			(*     | v:l[s]               *)
 
-  and Block =				(* Blocks:                    *)
-    Bidx of int				(* b ::= v                    *)
-  | LVar of Block option ref * cid * Sub 
-                                        (*     | L(l,s)               *)
-  | BClo of Block * Sub                 (*     | b[s]                 *)
-
-  (* constraints *)
+  (* Constraints *)
 
   and Cnstr =				(* Constraint:                *)
     Solved                      	(* Cnstr ::= solved           *)
@@ -117,50 +107,34 @@ sig
   (* Global signature *)
 
   and ConDec =			        (* Constant declaration       *)
-    ConDec of string * mid option * int * Status
-                                        (* a : K : kind  or           *)
+    ConDec of string * int * Status    	(* a : K : kind  or           *)
               * Exp * Uni	        (* c : A : type               *)
-  | ConDef of string * mid option * int	(* a = A : K : kind  or       *)
+  | ConDef of string * int		(* a = A : K : kind  or       *)
               * Exp * Exp * Uni		(* d = M : A : type           *)
-  | AbbrevDef of string * mid option * int
-                                        (* a = A : K : kind  or       *)
+  | AbbrevDef of string * int		(* a = A : K : kind  or       *)
               * Exp * Exp * Uni		(* d = M : A : type           *)
-  | BlockDec of string * mid option     (* %block l : SOME G1 PI G2   *)
-              * Dec Ctx * Dec list
-  | SkoDec of string * mid option * int	(* sa: K : kind  or           *)
+  | SkoDec of string * int		(* sa: K : kind  or           *)
               * Exp * Uni	        (* sc: A : type               *)
-
-  datatype StrDec =                     (* Structure declaration      *)
-      StrDec of string * mid option
 
   (* Type abbreviations *)
   type dctx = Dec Ctx			(* G = . | G,D                *)
   type eclo = Exp * Sub   		(* Us = U[s]                  *)
-  type bclo = Block * Sub   		(* Bs = B[s]                  *)
   type cnstr = Cnstr ref
 
   exception Error of string		(* raised if out of space     *)
   
   val conDecName   : ConDec -> string
-  val conDecParent : ConDec -> mid option
   val conDecImp    : ConDec -> int
   val conDecStatus : ConDec -> Status
   val conDecType   : ConDec -> Exp
-  val conDecBlock  : ConDec -> dctx * Dec list   
-
-  val strDecName   : StrDec -> string
-  val strDecParent : StrDec -> mid option
-
-  val sgnReset     : unit -> unit
-  val sgnSize      : unit -> cid * mid
 
   val sgnAdd   : ConDec -> cid
   val sgnLookup: cid -> ConDec
+  val sgnReset : unit -> unit
+  val sgnSize  : unit -> int
+
   val sgnApp   : (cid -> unit) -> unit
-
-  val sgnStructAdd    : StrDec -> mid
-  val sgnStructLookup : mid -> StrDec
-
+    
   val constType   : cid -> Exp		(* type of c or d             *)
   val constDef    : cid -> Exp		(* definition of d            *)
   val constImp    : cid -> int
@@ -170,7 +144,6 @@ sig
   (* Declaration Contexts *)
 
   val ctxDec    : dctx * int -> Dec	(* get variable declaration   *)
-  val blockDec  : dctx * Block * int -> Dec 
 
   (* Explicit substitutions *)
 

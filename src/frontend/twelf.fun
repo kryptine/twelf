@@ -1,7 +1,7 @@
 (* Front End Interface *)
 (* Author: Frank Pfenning *)
 (* Modified: Carsten Schuermann, Jeff Polakow *)
-(* Modified: Brigitte Pientka, Roberto Virga *)
+(* Modified: Brigitte Pientka *)
 
 functor Twelf
   (structure Global : GLOBAL
@@ -38,8 +38,6 @@ functor Twelf
      sharing type TpRecon.condec = Parser.ExtSyn.condec
      sharing type TpRecon.term = Parser.ExtSyn.term
      (* sharing type TpRecon.Paths.occConDec = Origins.Paths.occConDec *)
-
-   structure DefineRecon : DEFINE_RECON
 
    structure ModeSyn : MODESYN
      sharing ModeSyn.IntSyn = IntSyn'
@@ -83,20 +81,13 @@ functor Twelf
    structure AbsMachine : ABSMACHINE
      sharing AbsMachine.IntSyn = IntSyn'
      sharing AbsMachine.CompSyn = CompSyn'
-   structure Tabled : TABLED
-     sharing Tabled.IntSyn = IntSyn'
-     sharing Tabled.CompSyn = CompSyn'
-   structure TableIndex : TABLEINDEX
-     sharing TableIndex.IntSyn = IntSyn'
    structure Solve : SOLVE
      sharing Solve.IntSyn = IntSyn'
      sharing type Solve.ExtSyn.term = Parser.ExtSyn.term
      sharing type Solve.ExtSyn.query = Parser.ExtSyn.query
-     sharing type Solve.ExtDefine.define = Parser.ExtDefine.define
      sharing Solve.Paths = Paths
    structure ThmSyn : THMSYN
      sharing ThmSyn.Paths = Paths
-     sharing ThmSyn.Names = Names
    structure Thm : THM
      sharing Thm.ThmSyn = ThmSyn
      sharing Thm.Paths = Paths
@@ -119,17 +110,6 @@ functor Twelf
      sharing WorldSyn.IntSyn = IntSyn'
    structure WorldPrint : WORLDPRINT
      sharing WorldPrint.WorldSyn = WorldSyn
-
-   structure ModSyn : MODSYN
-     sharing ModSyn.IntSyn = IntSyn'
-     sharing ModSyn.Names = Names
-     sharing ModSyn.Paths = Paths
-   structure ModRecon : MOD_RECON
-     sharing ModRecon.ModSyn = ModSyn
-     sharing type ModRecon.sigdef = Parser.ModExtSyn.sigdef
-     sharing type ModRecon.structdec = Parser.ModExtSyn.structdec
-     sharing type ModRecon.sigexp = Parser.ModExtSyn.sigexp
-     sharing type ModRecon.strexp = Parser.ModExtSyn.strexp
 
    structure MetaGlobal : METAGLOBAL
    structure FunSyn : FUNSYN
@@ -255,7 +235,6 @@ struct
 	 handle TpRecon.Error (msg) => abortFileMsg (fileName, msg)
 	      | ModeRecon.Error (msg) => abortFileMsg (fileName, msg)
 	      | ThmRecon.Error (msg) => abortFileMsg (fileName, msg)
-              | ModRecon.Error (msg) => abortFileMsg (fileName, msg)
 	      | TypeCheck.Error (msg) => abort ("Double-checking types fails: " ^ msg ^ "\n"
 						^ "This indicates a bug in Twelf.\n")
 	      | Abstract.Error (msg) => abortFileMsg (fileName, msg)
@@ -265,7 +244,6 @@ struct
 	      | Reduces.Error (msg) => abort (msg ^ "\n") (* Reduces includes filename *)
               | Compile.Error (msg) => abortFileMsg (fileName, msg)
 	      | Thm.Error (msg) => abortFileMsg (fileName, msg)
-              | DefineRecon.Error (msg) => abortFileMsg (fileName, msg)
 	      | ModeSyn.Error (msg) => abortFileMsg (fileName, msg)
 	      | ModeCheck.Error (msg) => abort (msg ^ "\n") (* ModeCheck includes filename *)
 	      | ModeDec.Error (msg) => abortFileMsg (fileName, msg)
@@ -281,27 +259,8 @@ struct
 	      | Strict.Error (msg) => abortFileMsg (fileName, msg)
               | Subordinate.Error (msg) => abortFileMsg (fileName, msg)
 	      | WorldSyn.Error (msg) => abort (msg ^ "\n") (* includes filename *)
-              | ModSyn.Error (msg) => abortFileMsg (fileName, msg)
               | CSManager.Error (msg) => abort ("Constraint Solver Manager error: " ^ msg ^ "\n")
 	      | exn => (abort ("Unrecognized exception\n"); raise exn))
-
-    (* During elaboration of a signature expression, each constant
-       that that the user declares is added to this table.  At top level,
-       however, the reference holds NONE (in particular, shadowing is
-       allowed).
-    *)
-    val context : Names.namespace option ref = ref NONE
-
-    fun installConst fromCS (cid, fileNameocOpt) =
-        let
-          val _ = Origins.installOrigin (cid, fileNameocOpt)
-          val _ = Index.install (IntSyn.Const cid)
-          val _ = IndexSkolem.install (IntSyn.Const cid)
-          val _ = (Timers.time Timers.compiling Compile.install) fromCS cid
-          val _ = (Timers.time Timers.subordinate Subordinate.install) cid
-        in
-          ()
-        end
 
     (* installConDec fromCS (conDec, ocOpt)
        installs the constant declaration conDec which originates at ocOpt
@@ -309,95 +268,37 @@ struct
        Note: if fromCS = true then the declaration comes from a Constraint
        Solver and some limitations on the types are lifted.
     *)
-    fun installConDec fromCS (conDec, fileNameocOpt as (fileName, ocOpt), r) =
+    fun installConDec fromCS (conDec, fileNameocOpt as (fileName, ocOpt)) =
 	let
-	  val _ = (Timers.time Timers.modes ModeCheck.checkD) (conDec, fileName, ocOpt)
-	  val cid = IntSyn.sgnAdd conDec
-	  val _ = (case (fromCS, !context)
-		     of (false, SOME namespace) =>
-		       Names.insertConst (namespace, cid)
-		   | _ => ())
-	          handle Names.Error msg =>
-		    raise Names.Error (Paths.wrap (r, msg))
-	  val _ = Names.installConstName cid
-	  val _ = installConst fromCS (cid, fileNameocOpt)
-	  val _ = Origins.installLinesInfo (fileName, Paths.getLinesInfo ())
+	    val cid = IntSyn.sgnAdd conDec
+	    val _ = Names.installName (IntSyn.conDecName conDec, cid)
+	    val _ = Origins.installOrigin (cid, fileNameocOpt)
+	    val _ = Origins.installLinesInfo (fileName, Paths.getLinesInfo ())
+	    val _ = Index.install (IntSyn.Const cid)
+	    val _ = IndexSkolem.install (IntSyn.Const cid)
+	    val _ = (Timers.time Timers.compiling Compile.install) fromCS cid
+	    val _ = (Timers.time Timers.subordinate Subordinate.install) cid
 	in 
 	  cid
 	end
-
-    fun installBlockDec fromCS (conDec, fileNameocOpt as (fileName, ocOpt), r) =
-	let
-	  val cid = IntSyn.sgnAdd conDec
-	  val _ = (case (fromCS, !context)
-		     of (false, SOME namespace) =>
-		       Names.insertConst (namespace, cid)
-		   | _ => ())
-	           handle Names.Error msg =>
-		     raise Names.Error (Paths.wrap (r, msg))
-	  val _ = Names.installConstName cid
-	  val _ = Origins.installLinesInfo (fileName, Paths.getLinesInfo ())
-	in 
-	  cid
-	end
-
-
-    fun installStrDec (strdec, module, r, isDef) =
-        let
-          fun installAction (data as (cid, _)) =
-              (installConst false data;
-	       if !Global.chatter >= 4
-                 then print (Print.conDecToString (IntSyn.sgnLookup cid) ^ "\n")
-               else ())
-
-
-          val _ = ModSyn.installStruct (strdec, module, !context,
-                                        installAction, isDef)
-                  handle Names.Error msg =>
-                           raise Names.Error (Paths.wrap (r, msg))
-        in
-          ()
-        end
-
-    fun includeSig (module, r, isDef) =
-        let
-          fun installAction (data as (cid, _)) =
-              (installConst false data;
-	       if !Global.chatter >= 4
-                 then print (Print.conDecToString (IntSyn.sgnLookup cid) ^ "\n")
-               else ())
-
-          val _ = ModSyn.installSig (module, !context,
-                                     installAction, isDef)
-                  handle Names.Error msg =>
-                           raise Names.Error (Paths.wrap (r, msg))
-        in
-          ()
-        end
 
     (* install1 (decl) = ()
        Installs one declaration
        Effects: global state
                 may raise standard exceptions
     *)
-    fun install1 (fileName, (Parser.ConDec condec, r)) =
+    fun install1 (fileName, Parser.ConDec(condec, r)) =
         (* Constant declarations c : V, c : V = U plus variations *)
         (let
 	   val (optConDec, ocOpt) = TpRecon.condecToConDec (condec, Paths.Loc (fileName,r), false)
-	   fun icd (SOME (conDec as IntSyn.BlockDec _)) = 
-	       let
-		 (* allocate new cid. *)
-		 val cid = installBlockDec false (conDec, (fileName, ocOpt), r)
-	       in
-		 ()
-	       end
-	     | icd (SOME (conDec)) =
+	   fun icd (SOME(conDec)) =
 	       let
 		 (* names are assigned in TpRecon *)
 		 (* val conDec' = nameConDec (conDec) *)
 		 (* should print here, not in TpRecon *)
+		 val _ = (Timers.time Timers.modes ModeCheck.checkD) (conDec, fileName, ocOpt)
 		 (* allocate new cid after checking modes! *)
-		 val cid = installConDec false (conDec, (fileName, ocOpt), r)
+		 val cid = installConDec false (conDec, (fileName, ocOpt))
 	       in
 		 ()
 	       end
@@ -409,7 +310,7 @@ struct
 	 handle Constraints.Error (eqns) =>
 	        raise TpRecon.Error (Paths.wrap (r, constraintsMsg eqns)))
 
-      | install1 (fileName, (Parser.AbbrevDec condec, r)) =
+      | install1 (fileName, Parser.AbbrevDec(condec, r)) =
         (* Abbreviations %abbrev c = U and %abbrev c : V = U *)
         (let
 	  val (optConDec, ocOpt) = TpRecon.condecToConDec (condec, Paths.Loc (fileName,r), true)
@@ -420,12 +321,12 @@ struct
 		  (* should print here, not in TpRecon *)
 		  val _ = (Timers.time Timers.modes ModeCheck.checkD) (conDec, fileName, ocOpt)
 		  (* allocate new cid after checking modes! *)
-		  val cid = installConDec false (conDec, (fileName, ocOpt), r)
+		  val cid = installConDec false (conDec, (fileName, ocOpt))
 	      in
 		()
 	      end
 	    | icd (NONE) = (* anonymous definition for type-checking *)
-	        ()
+	      ()
 	in
 	  icd optConDec
 	end
@@ -433,92 +334,45 @@ struct
 	       raise TpRecon.Error (Paths.wrap (r, constraintsMsg eqns)))
 
       (* Solve declarations %solve c : A *)
-      | install1 (fileName, (Parser.Solve (defineL,name,tm), r)) =
+      | install1 (fileName, Parser.Solve((name,tm), r)) =
 	(let
-	  val conDecL = Solve.solve ((defineL, name, tm), Paths.Loc (fileName, r))
-	                handle Solve.AbortQuery (msg) =>
-			 raise Solve.AbortQuery (Paths.wrap (r, msg))
-          fun icd conDec =
-          (let
-	     val conDec' = Names.nameConDec (conDec)
-	     (* allocate cid after strictness has been checked! *)
-	     val cid = (installConDec false (conDec, (fileName, NONE), r)
-                        handle DefineRecon.Error (msg) =>
-                         raise DefineRecon.Error (Paths.wrap (r, msg)))
-	     val _ = if !Global.chatter >= 3
-		     then print ((Timers.time Timers.printing Print.conDecToString)
-			         conDec' ^ "\n")
-		     else if !Global.chatter >= 2
-			  then print (" OK\n")
-		          else ();
-	   in
-	     ()
-	   end)
-         in
-           List.app icd conDecL
-         end
-         handle Constraints.Error (eqns) =>
-	        raise TpRecon.Error (Paths.wrap (r, constraintsMsg eqns)))
+	  val conDec = Solve.solve ((name, tm), Paths.Loc (fileName, r))
+	               handle Solve.AbortQuery (msg) =>
+			raise Solve.AbortQuery (Paths.wrap (r, msg))
+	  val conDec' = Names.nameConDec (conDec)
+	  (* allocate cid after strictness has been checked! *)
+	  val cid = installConDec false (conDec', (fileName, NONE))
+	  val _ = if !Global.chatter >= 3
+		    then print ((Timers.time Timers.printing Print.conDecToString)
+				       conDec' ^ "\n")
+		  else if !Global.chatter >= 2
+			 then print (" OK\n")
+		       else ();
+	in
+	  ()
+	end
+        handle Constraints.Error (eqns) =>
+	       raise TpRecon.Error (Paths.wrap (r, constraintsMsg eqns)))
 
       (* %query <expected> <try> A or %query <expected> <try> X : A *)
-      | install1 (fileName, (Parser.Query(expected,try,query), r)) =
+      | install1 (fileName, Parser.Query(expected,try,query, r)) =
         (* Solve.query might raise Solve.AbortQuery (msg) *)
 	(Solve.query ((expected, try, query), Paths.Loc (fileName, r))
 	 handle Solve.AbortQuery (msg)
 	        => raise Solve.AbortQuery (Paths.wrap (r, msg)))
-      (* %queryTabled <expected> <try> A or %query <expected> <try> X : A *)
-      | install1 (fileName, (Parser.Querytabled(try,query), r)) =
-        (* Solve.query might raise Solve.AbortQuery (msg) *)
-	(Solve.querytabled ((try, query), Paths.Loc (fileName, r))
-	 handle Solve.AbortQuery (msg)
-	        => raise Solve.AbortQuery (Paths.wrap (r, msg)))
-
-      (* %freeze <qid> ... *)
-      | install1 (fileName, (Parser.FreezeDec (qids), r)) = 
-        let
-          fun toCid qid =
-              case Names.constLookup qid
-                of NONE => raise Names.Error ("Undeclared identifier "
-                                              ^ Names.qidToString (valOf (Names.constUndef qid))
-                                              ^ " in freeze assertion")
-                 | SOME cid => cid
-          val cids = List.map toCid qids
-                     handle Names.Error (msg) => raise Names.Error (Paths.wrap (r, msg))
-        in
-          Subordinate.installFrozen cids
-          handle Subordinate.Error (msg) => raise Subordinate.Error (Paths.wrap (r, msg));
-          if !Global.chatter >= 3
-          then print ((if !Global.chatter >= 4 then "%" else "")
-                      ^ "freeze"
-                      ^ List.foldr (fn (a, s) => " " ^ Names.qidToString (Names.constQid a) ^ s) ".\n" cids)
-          else ()
-        end
 
       (* Fixity declaration for operator precedence parsing *)
-      | install1 (fileName, (Parser.FixDec ((qid,r),fixity), _)) =
-        (case Names.constLookup qid
-           of NONE => raise Names.Error ("Undeclared identifier "
-                                         ^ Names.qidToString (valOf (Names.constUndef qid))
-                                         ^ " in fixity declaration")
-            | SOME cid => (Names.installFixity (cid, fixity);
-                           if !Global.chatter >= 3
-                             then print ((if !Global.chatter >= 4 then "%" else "")
-                                         ^ Names.Fixity.toString fixity ^ " "
-                                         ^ Names.qidToString (Names.constQid cid) ^ ".\n")
-                           else ())
+      | install1 (fileName, Parser.FixDec ((name,r),fixity)) =
+	(Names.installFixity (name, fixity)
 	 handle Names.Error (msg) => raise Names.Error (Paths.wrap (r,msg)))
 
       (* Name preference declaration for printing *)
-      | install1 (fileName, (Parser.NamePref ((qid,r), namePref), _)) =
-        (case Names.constLookup qid
-           of NONE => raise Names.Error ("Undeclared identifier "
-                                         ^ Names.qidToString (valOf (Names.constUndef qid))
-                                         ^ " in name preference")
-            | SOME cid => Names.installNamePref (cid, namePref)
+      | install1 (fileName, Parser.NamePref ((name,r), namePref)) =
+	(Names.installNamePref (name, namePref)
 	 handle Names.Error (msg) => raise Names.Error (Paths.wrap (r,msg)))
 
       (* Mode declaration *)
-      | install1 (fileName, (Parser.ModeDec mterms, _)) =
+      | install1 (fileName, Parser.ModeDec mterms) =
 	let 
 	  val mdecs = List.map ModeRecon.modeToMode mterms
 	  val _ = List.app (fn (mdec, r) => ModeSyn.installMode mdec
@@ -537,7 +391,7 @@ struct
 	end
 
       (* Coverage declaration *)
-      | install1 (fileName, (Parser.CoversDec mterms, _)) =
+      | install1 (fileName, Parser.CoversDec mterms) =
 	let
 	  val mdecs = List.map ModeRecon.modeToMode mterms
 	  val _ = List.app (fn (mdec, r) => Cover.checkCovers mdec
@@ -553,7 +407,7 @@ struct
 	end
 
       (* Total declaration *)
-      | install1 (fileName, (Parser.TotalDec lterm, _)) =
+      | install1 (fileName, Parser.TotalDec lterm) =
 	let
 	  val (T, rrs as (r,rs)) = ThmRecon.tdeclTotDecl lterm
 	  val La = Thm.installTotal (T, rrs)
@@ -570,7 +424,7 @@ struct
 	end
 
       (* Termination declaration *)
-      | install1 (fileName, (Parser.TerminatesDec lterm, _)) =
+      | install1 (fileName, Parser.TerminatesDec lterm) =
 	let
 	  val (T, rrs) = ThmRecon.tdeclTotDecl lterm 
 	  val La = Thm.installTerminates (T, rrs)
@@ -584,7 +438,7 @@ struct
 
         (* -bp *)
 	(* Reduces declaration *)
-      | install1 (fileName, (Parser.ReducesDec lterm, _)) =
+      | install1 (fileName, Parser.ReducesDec lterm) =
 	let
 	  val (R, rrs) = ThmRecon.rdeclTorDecl lterm 
 	  val La = Thm.installReduces (R, rrs)
@@ -598,15 +452,15 @@ struct
 	end
 
       (* Theorem declaration *)
-      | install1 (fileName, (Parser.TheoremDec tdec, r)) =
+      | install1 (fileName, Parser.TheoremDec tdec) =
 	let 
-	  val Tdec = ThmRecon.theoremDecToTheoremDec tdec
-	  val (GBs, E as IntSyn.ConDec (name, _, k, _, V, L)) = ThmSyn.theoremDecToConDec (Tdec, r)
+	  val (Tdec, r) = ThmRecon.theoremDecToTheoremDec tdec
+	  val (GBs, E as IntSyn.ConDec (name, k, _, V, L)) = ThmSyn.theoremDecToConDec (Tdec, r)
 	  val _ = FunSyn.labelReset ()
 	  val _ = List.foldr (fn ((G1, G2), k) => FunSyn.labelAdd 
 			    (FunSyn.LabelDec (Int.toString k, FunSyn.ctxToList G1, FunSyn.ctxToList G2))) 0 GBs
 								       
-	  val cid = installConDec false (E, (fileName, NONE), r)
+	  val cid = installConDec false (E, (fileName, NONE))
 	  val MS = ThmSyn.theoremDecToModeSpine (Tdec, r)
 	  val _ = ModeSyn.installMode (cid, MS)
 	  val _ = if !Global.chatter >= 3
@@ -617,7 +471,7 @@ struct
 	end
 
       (* Prove declaration *)
-      | install1 (fileName, (Parser.ProveDec lterm, r)) =
+      | install1 (fileName, Parser.ProveDec lterm) =
 	let
 	  val (ThmSyn.PDecl (depth, T), rrs) = ThmRecon.proveToProve lterm 
 	  val La = Thm.installTerminates (T, rrs)  (* La is the list of type constants *)
@@ -640,12 +494,12 @@ struct
 		  else ()
 		    
 	in
-	  (Prover.install (fn E => installConDec false (E, (fileName, NONE), r));
+	  (Prover.install (fn E => installConDec false (E, (fileName, NONE)));
 	   Skolem.install La) 
 	end 
 
       (* Establish declaration *)
-      | install1 (fileName, (Parser.EstablishDec lterm, r)) =
+      | install1 (fileName, Parser.EstablishDec lterm) =
         let 
 	  val (ThmSyn.PDecl (depth, T), rrs) = ThmRecon.establishToEstablish lterm 
 	  val La = Thm.installTerminates (T, rrs)  (* La is the list of type constants *)
@@ -663,11 +517,11 @@ struct
 	  val _ = Prover.auto () handle Prover.Error msg => raise Prover.Error (Paths.wrap (joinregion rrs, msg)) (* times itself *)
 		    
 	in
-	  Prover.install (fn E => installConDec false (E, (fileName, NONE), r))
+	  Prover.install (fn E => installConDec false (E, (fileName, NONE)))
 	end 
 
       (* Establish declaration *)
-      | install1 (fileName, (Parser.AssertDec aterm, _)) =
+      | install1 (fileName, Parser.AssertDec aterm) =
 	let 
 	  val _ = if not (!Global.unsafe)
 		    then raise ThmSyn.Error "%assert not safe: Toggle `unsafe' flag"
@@ -685,26 +539,15 @@ struct
 	in
 	  Skolem.install La
 	end
-      | install1 (fileName, (Parser.WorldDec wdecl, _)) =
+      | install1 (fileName, Parser.WorldDec wdecl) =
 	let
-	  val (ThmSyn.WDecl (qids, cp as ThmSyn.Callpats cpa), rs) =
+	  val (ThmSyn.WDecl (GBs, cp as ThmSyn.Callpats cpa), rs) =
 	         ThmRecon.wdeclTowDecl wdecl
 	  fun hack nil = WorldSyn.Closed
-	    | hack (qid :: qids) = 
-	        let 
-		  val cid =  case Names.constLookup qid
-		               of NONE => raise Names.Error ("Undeclared label "
-                                         ^ Names.qidToString (valOf (Names.constUndef qid))
-                                         ^ ".")
-			        | SOME cid => cid
-		in 
-		  case (IntSyn.sgnLookup cid)
-		    of IntSyn.BlockDec (name, _, Gsome, Lblock) =>
-			 WorldSyn.Schema (hack qids, 
-					  WorldSyn.LabelDec (name, WorldSyn.ctxToList Gsome, Lblock))
-		     | _ => raise IntSyn.Error "Label does not correspond to a context block declaration" 
-		end
-	  val W = hack qids
+	    | hack ((some, pi) :: GBs) = 
+	        WorldSyn.Schema (hack GBs, WorldSyn.LabelDec
+				 ("", WorldSyn.ctxToList some, WorldSyn.ctxToList pi))
+	  val W = hack GBs
 	  val _ = List.app (fn (a, _) => WorldSyn.install (a, W)) cpa
 	          handle WorldSyn.Error (msg)
 		         (* error location inaccurate here *)
@@ -716,153 +559,8 @@ struct
 	in
 	  (map (fn (a, _) => WorldSyn.worldcheck W a) cpa ; ())
 	end
-      | install1 (fileName, declr as (Parser.SigDef _, _)) =
-          install1WithSig (fileName, NONE, declr)
-      | install1 (fileName, declr as (Parser.StructDec _, _)) =
-          install1WithSig (fileName, NONE, declr)
-      | install1 (fileName, declr as (Parser.Include _, _)) =
-          install1WithSig (fileName, NONE, declr)
-      | install1 (fileName, declr as (Parser.Open _, _)) =
-          install1WithSig (fileName, NONE, declr)
-      | install1 (fileName, (Parser.Use name, r)) =
-        (case !context
-           of NONE => CSManager.useSolver (name)
-            | _ => raise ModSyn.Error (Paths.wrap (r, "%use declaration needs to be at top level")))
-
-    and install1WithSig (fileName, moduleOpt, (Parser.SigDef sigdef, r)) =
-        (* Signature declaration *)
-        let
-          (* FIX: should probably time this -kw *)
-          val (idOpt, module, wherecls) =
-                ModRecon.sigdefToSigdef (sigdef, moduleOpt)
-          val module' = foldl (fn (inst, module) => ModRecon.moduleWhere (module, inst)) module wherecls
-          val name = (case idOpt
-                        of SOME id => (ModSyn.installSigDef (id, module');
-                                       id)
-                         | NONE => "_" (* anonymous *))
-                  handle ModSyn.Error msg => raise ModSyn.Error (Paths.wrap (r, msg))
-	  val _ = if !Global.chatter >= 3 
-		    then print ("%sig " ^ name ^ " = { ... }.\n")
-		  else ()
-        in
-          ()
-        end
-      | install1WithSig (fileName, moduleOpt, (Parser.StructDec structdec, r)) =
-        (* Structure declaration *)
-        (case ModRecon.structdecToStructDec (structdec, moduleOpt)
-           of ModRecon.StructDec (idOpt, module, wherecls) =>
-              let
-                val module' = foldl (fn (inst, module) => ModRecon.moduleWhere (module, inst)) module wherecls
-                val name = (case idOpt
-                              of SOME id =>
-                                   (installStrDec (IntSyn.StrDec (id, NONE), module', r, false);
-                                    id)
-                               | NONE => "_" (* anonymous *))
-                val _ = if !Global.chatter = 3
-                          then print ("%struct " ^ name ^ " : { ... }.\n")
-                        else ()
-              in
-                ()
-              end
-            | ModRecon.StructDef (idOpt, mid) =>
-              let
-                val ns = Names.getComponents mid
-                val module = ModSyn.abstractModule (ns, SOME mid)
-                val name = (case idOpt
-                              of SOME id =>
-                                   (installStrDec (IntSyn.StrDec (id, NONE), module, r, true);
-                                    id)
-                               | NONE => "_" (* anonymous *))
-                val _ = if !Global.chatter = 3
-                          then print ("%struct " ^ name ^ " = " ^ Names.qidToString (Names.structQid mid) ^ ".\n")
-                        else ()
-              in
-                ()
-              end)
-          
-      | install1WithSig (fileName, moduleOpt, (Parser.Include sigexp, r)) =
-        (* Include declaration *)
-        let
-          val (module, wherecls) = ModRecon.sigexpToSigexp (sigexp, moduleOpt)
-          val module' = foldl (fn (inst, module) => ModRecon.moduleWhere (module, inst)) module wherecls
-          val _ = includeSig (module', r, false)
-          val _ = if !Global.chatter = 3
-                    then print ("%include { ... }.\n")
-                  else ()
-        in
-          ()
-        end
-
-      | install1WithSig (fileName, NONE, (Parser.Open strexp, r)) =
-        (* Open declaration *)
-        let
-          val mid = ModRecon.strexpToStrexp strexp
-          val ns = Names.getComponents mid
-          val module = ModSyn.abstractModule (ns, SOME mid)
-          val _ = includeSig (module, r, true)
-          val _ = if !Global.chatter = 3
-                    then print ("%open " ^ Names.qidToString (Names.structQid mid) ^ ".\n")
-                  else ()
-        in
-          ()
-        end
-
-    fun installSubsig (fileName, s) =
-        let
-          val namespace = Names.newNamespace ()
-
-          val (mark, markStruct) = IntSyn.sgnSize ()
-          val markSigDef = ModSyn.sigDefSize ()
-          val oldContext = !context
-          val _ = context := SOME namespace
-          val _ = if !Global.chatter >= 4
-                    then print ("\n% begin subsignature\n")
-                  else ()
-
-          fun install s = install' ((Timers.time Timers.parsing S.expose) s)
-          and install' (S.Cons ((Parser.BeginSubsig, _), s')) =
-                install (installSubsig (fileName, s'))
-            | install' (S.Cons ((Parser.EndSubsig, _), s')) = s'
-            | install' (S.Cons (declr, s')) =
-                (install1 (fileName, declr); install s')
-
-          val result =
-              let
-                val s' = install s
-                val module = ModSyn.abstractModule (namespace, NONE)
-                val _ = if !Global.chatter >= 4
-                          then print ("% end subsignature\n\n")
-                        else ()
-              in
-                Value (module, s')
-              end
-              handle exn => Exception exn
-
-          val _ = context := oldContext
-
-          val _ = Names.resetFrom (mark, markStruct)
-          val _ = Index.resetFrom mark
-          val _ = IndexSkolem.resetFrom mark
-          val _ = ModSyn.resetFrom markSigDef
-          (* val _ = ModeSyn.resetFrom mark *)
-          (* val _ = Total.resetFrom mark *)
-          (* val _ = Subordinate.resetFrom mark (* ouch! *) *)
-          (* val _ = Reduces.resetFrom mark *)
-          (* Origins, CompSyn, FunSyn harmless? -kw *)
-          (* val _ = IntSyn.resetFrom (mark, markStruct)
-             FIX: DON'T eliminate out-of-scope cids for now -kw *)
-        in
-          case result
-            of Value (module, s') =>
-               let
-                 val S.Cons (declr, s'') =
-                       (Timers.time Timers.parsing S.expose) s'
-               in
-                 install1WithSig (fileName, SOME module, declr);
-                 s''
-               end
-             | Exception exn => raise exn
-        end
+      | install1 (fileName, Parser.Use name) =
+          CSManager.useSolver (name)
 
     (* loadFile (fileName) = status
        reads and processes declarations from fileName in order, issuing
@@ -873,13 +571,11 @@ struct
 	handleExceptions fileName (withOpenIn fileName)
 	 (fn instream =>
 	  let
-            val _ = TpRecon.resetErrors fileName
+	    val _ = TpRecon.resetErrors fileName
 	    fun install s = install' ((Timers.time Timers.parsing S.expose) s)
 	    and install' (S.Empty) = OK
 	        (* Origins.installLinesInfo (fileName, Paths.getLinesInfo ()) *)
 	        (* now done in installConDec *)
-              | install' (S.Cons((Parser.BeginSubsig, _), s')) =
-                  install (installSubsig (fileName, s'))
 	      | install' (S.Cons(decl, s')) =
 	        (install1 (fileName, decl); install s')
 	  in
@@ -900,19 +596,13 @@ struct
     fun installCSMDec (conDec, optFixity, optMdec) = 
 	let
 	  val _ = ModeCheck.checkD (conDec, "%use", NONE)
-          (* put a more reasonable region here? -kw *)
-	  val cid = installConDec true (conDec, ("", NONE), Paths.Reg (0,0))
+	  val cid = installConDec true (conDec, ("", NONE))
 	  val _ = if !Global.chatter >= 3
 		  then print (Print.conDecToString (conDec) ^ "\n")
 		  else ()
 	  val _ = (case optFixity
 		     of SOME(fixity) =>
-			  (Names.installFixity (cid, fixity);
-                           if !Global.chatter >= 3
-                             then print ((if !Global.chatter >= 4 then "%" else "")
-                                         ^ Names.Fixity.toString fixity ^ " "
-                                         ^ Names.qidToString (Names.constQid cid) ^ ".\n")
-                           else ())
+			  Names.installFixity (IntSyn.conDecName (conDec), fixity)
 		      | NONE => ())
 	  val _ = (case optMdec
 		     of SOME(mdec) =>
@@ -936,34 +626,25 @@ struct
 		    Reduces.reset ();	(* -bp *)
 		    FunSyn.labelReset ();
 		    CompSyn.sProgReset (); (* necessary? -fp *)
-                    ModSyn.reset ();
-                    CSManager.resetSolvers ();
-                    context := NONE
+                    CSManager.resetSolvers ()
 		    )
 
     fun readDecl () =
         handleExceptions "stdIn"
 	(fn () =>
 	 let val _ = TpRecon.resetErrors "stdIn"
-             fun install s = install' ((Timers.time Timers.parsing S.expose) s)
+	     fun install s = install' ((Timers.time Timers.parsing S.expose) s)
 	     and install' (S.Empty) = ABORT
-               | install' (S.Cons((Parser.BeginSubsig, _), s')) =
-                   (installSubsig ("stdIn", s'); OK)
 	       | install' (S.Cons (decl, s')) =
-	           (install1 ("stdIn", decl); OK)
+	         (install1 ("stdIn", decl); OK)
 	 in
 	   install (Parser.parseStream TextIO.stdIn)
 	 end) ()
 
     (* decl (id) = () prints declaration of constant id *)
-    fun decl (id) =
-        (case Names.stringToQid id
-           of NONE => (print (id ^ " is not a well-formed qualified identifier\n"); ABORT)
-            | SOME qid => 
-        (case Names.constLookup qid
-           of NONE => (print (Names.qidToString (valOf (Names.constUndef qid)) ^ " has not been declared\n"); ABORT)
-            | SOME cid => decl' (cid)))
-    and decl' (cid) =
+    fun decl (id) = decl' (id, Names.nameLookup id)
+    and decl' (id, NONE) = (print (id ^ " has not been declared\n"); ABORT)
+      | decl' (id, SOME(cid)) =
         let
 	  val conDec = IntSyn.sgnLookup (cid)
 	  (* val fixity = Names.getFixity (cid) *)
@@ -1205,43 +886,5 @@ struct
     val make = make
 
     val version = "Twelf 1.3R1, Mar 19 2001 (with coverage and totality checking for closed worlds)"
-
-
-    val printTable = TableIndex.printTable      (* bp *)
-
-    structure Tabled : 
-      sig
-	structure IntSyn : INTSYN
-	structure CompSyn : COMPSYN
-	structure Unify : UNIFY
-	
-	  val SuspGoals :  ((((IntSyn.Exp * IntSyn.Sub) * CompSyn.DProg * (IntSyn.Exp  -> unit)) * 
-			     Unify.unifTrail) 
-			    list) ref 
-
-(* 	val expToString : IntSyn.dctx * IntSyn.Exp -> string *)
-
-      end 
-    = Tabled
-
-
-    structure TableIndex : 
-      sig 
-	structure IntSyn : INTSYN
-	type answer = {solutions : (IntSyn.dctx * IntSyn.Sub) list,
-		       lookup: int}
-	  
-	val table : ((IntSyn.dctx * IntSyn.dctx * IntSyn.Exp * IntSyn.Exp) * answer) list ref 
-	  
-	datatype Strategy = Variant | Subsumption
-	  
-      (* global tabled search parameters *)
-	val strategy : Strategy ref
-	val termDepth : int option ref
-	val strengthen : bool ref
-
-      end 
-    = TableIndex
-
   end  (* local *)
 end; (* functor Twelf *)

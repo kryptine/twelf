@@ -101,7 +101,9 @@ struct
     (* strictTop ((U, V), ocdOpt) = ()
        
        Invariant:
-       condec has form c = U : V where . |- U : V
+       condec has form c = U : V where . |- U : Vmk_i_const0 : rational -> rational -> rational -> rational -> rational =
+
+ [op][rd][rs1][rs2] (16 * 16 * 16 * op + 16 * 16 * rd + 16 * rs1 + rs2).
        and U is in nf (normal form)
        then function returns () if U every argument parameter of U
 	    has at least one strict and rigid occurrence in U
@@ -117,7 +119,7 @@ struct
 	        if strictArgParm (1, U')
 		  then strictArgParms (U', V', Paths.body occ)
 		else raise Error (occToString (ocdOpt, occ)
-                                  ^ "No strict occurrence of " ^ decToVarName D ^ ", use %abbrev")
+				  ^ "No strict occurrence of " ^ decToVarName D ^ ", use %abbrev")
 	in
 	  strictArgParms (U, V, Paths.top)
 	end

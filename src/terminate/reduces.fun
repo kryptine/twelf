@@ -74,8 +74,8 @@ struct
 	   of (fileName, NONE) => raise Error (fileName ^ ":" ^ msg)
             | (fileName, SOME occDec) => 
 		raise Error (P.wrapLoc' (P.Loc (fileName, P.occToRegionDec occDec occ),
-                                         Origins.linesInfoLookup (fileName),
-                                         msg)))
+					 Origins.linesInfoLookup (fileName),
+					 msg)))
 
    fun union (I.Null, G) = G
      | union (G, I.Null) = G
@@ -240,7 +240,7 @@ struct
     fun selectOcc (c, (S, s), occ) =
         select (c, (S, s))
 	handle R.Error (msg) =>
-	  raise Error' (occ, "Termination violation: no order assigned for " ^ N.qidToString (N.constQid c))
+	  raise Error' (occ, "Termination violation: no order assigned for " ^ N.constName c)
 
     (* selectROrder (c, (S, s)) = P
        
@@ -282,7 +282,7 @@ struct
     fun selectROrderOcc (c, (S, s), occ) =
         selectROrder (c, (S, s))
 	handle R.Error (msg) =>
-	  raise Error' (occ, "Reduction violation: no order assigned for " ^ N.qidToString (N.constQid c))
+	  raise Error' (occ, "Reduction violation: no order assigned for " ^ N.constName c)
 
     fun conv ((Us, Vs), (Us', Vs')) =
         Conv.conv (Vs, Vs') andalso  
@@ -352,9 +352,8 @@ struct
 
       (* -bp  not sure, if this is right ... *)
      *)
-    fun isAtomic(G, Q, Us) = isAtomicW (G, Q, Whnf.normalize Us) (* improve... -fp *)
+    fun isAtomic(G, Q, Us) = isAtomicW (G, Q, Whnf.normalize Us)
     and isAtomicW (G, Q, (X as (I.Root (I.Const c, I.Nil)))) = true
-      | isAtomicW (G, Q, (X as (I.Root (I.Def c, I.Nil)))) = false (* added Sun Jun  3 2001 -fp *)
       | isAtomicW (G, Q, (X as (I.Root (I.BVar n, I.Nil)))) =
           true
       | isAtomicW (G, Q, (X as (I.Root (I.BVar n, S)))) = 
@@ -422,24 +421,10 @@ struct
 		shiftCtx PG (fn s => I.comp(s,I.shift)),
 	       ((U', I.dot1 s1'), (V', I.dot1 s2')),
 	       ((U'', I.dot1 s1''),(V'', I.dot1 s2'')), sc)
-      | eqRAW (G, Q, TG, PG, UsVs as ((I.Root (I.Const c, S'), s'), Vs), 
+    | eqRAW (G, Q, TG, PG, UsVs as ((I.Root (I.Const c, S'), s'), Vs), 
 	     UsVs' as ((I.Root (I.Const c1, S1), s1), Vs'), sc) = 
-        (* don't understand this code Sun Jun  3 12:25:16 2001 -fp *)
 	if (isAtomic (G, Q, (I.Root (I.Const c, S'), s')) orelse 
 	    isAtomic (G, Q, (I.Root (I.Const c1, S1), s1))) then
-	  focusL (G, Q, TG, PG, Eq(R.Arg UsVs, R.Arg UsVs'), sc)
-	else 
-	  (if c = c1 then 
-	     eqSpineRA (G, Q, TG, PG, ((S', s'),(I.constType c, I.id)), 
-			((S1, s1),(I.constType c1, I.id)), sc)
-	    else 
-	      false  (* ? - bp *))
-      | eqRAW (G, Q, TG, PG, UsVs as ((I.Root (I.Def c, S'), s'), Vs), 
-	     UsVs' as ((I.Root (I.Def c1, S1), s1), Vs'), sc) = 
-        (* don't understand this code Sun Jun  3 12:25:16 2001 -fp *)
-	(* modified to allow definitions that are NOT expanded -fp *)
-	if (isAtomic (G, Q, (I.Root (I.Def c, S'), s')) orelse 
-	    isAtomic (G, Q, (I.Root (I.Def c1, S1), s1))) then
 	  focusL (G, Q, TG, PG, Eq(R.Arg UsVs, R.Arg UsVs'), sc)
 	else 
 	  (if c = c1 then 
@@ -636,21 +621,6 @@ struct
 
      | ltRFW (G, Q, TG, UsVs, (Us' as (I.Root (I.Const c, S'), s'), Vs'), sc) = 
 	if isAtomic (G, Q, (I.Root (I.Const c, S'), s')) then (* atomic term not a param. *)
-	  ((if (!Global.chatter) > 6 then  
-	    print ("\n atomic const - transition to focusT \n" ^ 
-		   "focusT: " ^ fmtRGCtx(G, TG) ^
-		   " L==>" ^  F.makestring_fmt (fmtPredicate(G, Less(R.Arg UsVs, R.Arg (Us', Vs'))))
-		     ^"\n")
-	  else 
-	    ());
-	  false )
-	  (*  -bp8/7/00. focusT (G, Q, TG, Less(R.Arg UsVs, R.Arg (Us', Vs')), sc)) *)
-	else 
-	  ltSpineRF (G, Q, TG, UsVs,((S', s'), (I.constType c, I.id)), sc)
-
-     | ltRFW (G, Q, TG, UsVs, (Us' as (I.Root (I.Def c, S'), s'), Vs'), sc) = 
-        (* copied from above Sun Jun  3 12:26:33 2001 -fp *)
-	if isAtomic (G, Q, (I.Root (I.Def c, S'), s')) then (* atomic term not a param. *)
 	  ((if (!Global.chatter) > 6 then  
 	    print ("\n atomic const - transition to focusT \n" ^ 
 		   "focusT: " ^ fmtRGCtx(G, TG) ^
@@ -1069,10 +1039,6 @@ struct
 	      (Us' as (I.Root (I.Const c, S'), s'), Vs'), P, sc) = 
 	(* note: ... M < c L--> P trivially true *)
 	ltSpineLA (G, Q, TG, PG, AG, UsVs,((S', s'), (I.constType c, I.id)), P, sc) 
-     | ltLAW (G, Q, TG, PG, AG, UsVs,
-	      (Us' as (I.Root (I.Def c, S'), s'), Vs'), P, sc) = 
-	(* copied from above Sun Jun  3 12:27:24 2001 -fp *)
-	ltSpineLA (G, Q, TG, PG, AG, UsVs,((S', s'), (I.constType c, I.id)), P, sc) 
      | ltLAW (G, Q, TG, PG, AG, UsVs as ((I.Lam (_, U), s1), (I.Pi ((D, _), V), s2)), 
 	      (Us' as (I.Root (I.BVar c, S'), s'), Vs'), P, sc) = 
 	let 
@@ -1144,15 +1110,6 @@ struct
 	activeL (G, Q, TG, I.Decl(PG, Eq(R.Arg UsVs, R.Arg UsVs')), AG, P, sc)
       | eqLAW (G, Q, TG, PG, AG, ((I.Root (I.Const c, S'), s'), Vs),
 	      ((I.Root (I.Const c1, S1'), s1'), Vs'), P, sc) = 
-	if c = c1 then 	  
-	  eqSpineLA (G, Q, TG, PG, AG, ((S', s'),(I.constType c, I.id)), 
-		       ((S1', s1'),(I.constType c1, I.id)), P, sc)
-	else 
-	    (* trivially true *)
-	    true
-      | eqLAW (G, Q, TG, PG, AG, ((I.Root (I.Def c, S'), s'), Vs),
-	      ((I.Root (I.Def c1, S1'), s1'), Vs'), P, sc) = 
-        (* copied from above; no expansion of definitions Sun Jun  3 12:28:16 2001 -fp *)
 	if c = c1 then 	  
 	  eqSpineLA (G, Q, TG, PG, AG, ((S', s'),(I.constType c, I.id)), 
 		       ((S1', s1'),(I.constType c1, I.id)), P, sc)
@@ -1656,10 +1613,10 @@ struct
 	  fun checkFam' [] = ()
 	    | checkFam' (I.Const b::bs) = 
 		(if (!Global.chatter) > 4 then 
-		   print ("[" ^ N.qidToString (N.constQid b) ^ ":")
+		   print ("[" ^ N.constName b ^ ":")
 		 else ();
 		 (* reuse variable names when tracing *)
-		 if (!Global.chatter) > 5 then N.varReset IntSyn.Null else ();
+		 if (!Global.chatter) > 5 then N.varReset () else ();
 		 ((if (!Global.chatter) > 5 
 		     then (* print ("\nTermination Check successful") *)
 		       print ("\n Reduction Checking") 
@@ -1686,10 +1643,10 @@ struct
 	  fun checkFam' [] = ()
 	    | checkFam' (I.Const b::bs) = 
 		(if (!Global.chatter) > 4 then 
-		   print ("[" ^ N.qidToString (N.constQid b) ^ ":")
+		   print ("[" ^ N.constName b ^ ":")
 		 else ();
 		 (* reuse variable names when tracing *)
-		 if (!Global.chatter) > 5 then N.varReset IntSyn.Null else ();
+		 if (!Global.chatter) > 5 then N.varReset () else ();
 	        (checkClause (I.Null, I.Null, I.Null, (I.constType (b), I.id), P.top)
 		 handle Error' (occ, msg) => error (b, occ, msg)
 		      | Order.Error (msg) => raise Error (msg));

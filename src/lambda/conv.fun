@@ -23,7 +23,7 @@ struct
        If   G |- s1 : G1    G1 |- U1 : V1    (U1,s1) in whnf
             G |- s2 : G2    G2 |- U2 : V2    (U2,s2) in whnf
             G |- V1[s1] == V2[s2] == V : L
-       then B iff G |- U1[s1] == U2[s2] : V
+       then B iff G |- U1[s1] = U2[s2] : V
 
        Effects: EVars may be lowered
     *)
@@ -40,8 +40,6 @@ struct
 	       (c1 = c2) andalso convSpine ((S1, s1), (S2, s2))
 	   | (Skonst c1, Skonst c2) =>
 	       (c1 = c2) andalso convSpine ((S1, s1), (S2, s2))
-	   | (Proj (Bidx v1, i1), Proj (Bidx v2, i2)) =>
-	       (v1 = v2) andalso (i1 = i2) andalso convSpine ((S1, s1), (S2, s2))
 	   | (FVar (n1,_,s1'), FVar (n2,_,s2')) =>
   	       (* s1' = s2' = ^|G| *)
 	       (n1 = n2) andalso convSpine ((S1, s1), (S2, s2))
@@ -157,6 +155,5 @@ struct
   in
     val conv = convExp 
     val convDec = convDec
-    val convSub = convSub
   end (* local *)
 end;  (* functor Conv *)

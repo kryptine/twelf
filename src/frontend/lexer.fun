@@ -22,7 +22,6 @@ struct
   datatype Token =
       EOF				(* end of file or stream, also `%.' *)
     | DOT				(* `.' *)
-    | PATHSEP                           (* `.' between <id>s *)
     | COLON				(* `:' *)
     | LPAREN | RPAREN			(* `(' `)' *)
     | LBRACKET | RBRACKET		(* `[' `]' *)
@@ -34,28 +33,19 @@ struct
     | UNDERSCORE			(* `_' *)
     | INFIX | PREFIX | POSTFIX		(* `%infix' `%prefix' `%postfix' *)
     | NAME				(* `%name' *)
-    | DEFINE				(* `%define' *) (* -rv 8/27/01 *)
     | SOLVE				(* `%solve' *)
     | QUERY	  			(* `%query' *)
-    | QUERYTABLED  			(* `%querytabled *)
     | MODE				(* `%mode' *)
     | COVERS				(* `%covers' *) (* -fp 3/7/01 *)
     | TOTAL				(* `%total' *) (* -fp 3/18/01 *)
     | TERMINATES			(* `%terminates' *)
     | REDUCES                           (* `%reduces' *) (* -bp 6/5/99 *)
     | THEOREM                           (* `%theorem' *)
-    | BLOCK				(* `%block' *) (* -cs 5/29/01 *)
     | WORLDS                            (* `%worlds' *)
     | PROVE                             (* `%prove' *)
     | ESTABLISH				(* `%establish' *)
     | ASSERT				(* `%assert' *)
     | ABBREV				(* `%abbrev' *)
-    | FREEZE                            (* `%freeze' *)
-    | SIG                               (* `%sig' *)
-    | STRUCT                            (* `%struct' *)
-    | WHERE                             (* `%where' *)
-    | INCLUDE                           (* `%include' *)
-    | OPEN                              (* `%open' *)
     | USE                               (* `%use' *)
     | STRING of string                  (* string constants *)
 
@@ -99,7 +89,7 @@ struct
       val s = ref ""			(* current string (line) *)
       and left = ref 0			(* position of first character in s *)
       and right = ref 0			(* position after last character in s *)
-      val _ = P.resetLines ()   	(* initialize line counter *)
+      val _ = P.resetLines ()	(* initialize line counter *)
 
       (* neither lexer nor parser should ever try to look beyond EOF *)
       val EOFString = String.str #"\^D"
@@ -213,7 +203,6 @@ struct
       | lexPragmaKey (ID(_, "postfix"), r) = (POSTFIX, r)
       | lexPragmaKey (ID(_, "mode"), r) = (MODE, r)
       | lexPragmaKey (ID(_, "terminates"), r) = (TERMINATES, r)
-      | lexPragmaKey (ID(_, "block"), r) = (BLOCK, r) (* -cs 6/3/01 *)
       | lexPragmaKey (ID(_, "worlds"), r) = (WORLDS, r)
       | lexPragmaKey (ID(_, "covers"), r) = (COVERS, r)
       | lexPragmaKey (ID(_, "total"), r) = (TOTAL, r) (* -fp 3/18/01 *)
@@ -224,16 +213,8 @@ struct
       | lexPragmaKey (ID(_, "assert"), r) = (ASSERT, r)
       | lexPragmaKey (ID(_, "abbrev"), r) = (ABBREV, r)
       | lexPragmaKey (ID(_, "name"), r) = (NAME, r)
-      | lexPragmaKey (ID(_, "define"), r) = (DEFINE, r) (* -rv 8/27/01 *)
       | lexPragmaKey (ID(_, "solve"), r) = (SOLVE, r)
       | lexPragmaKey (ID(_, "query"), r) = (QUERY, r)
-      | lexPragmaKey (ID(_, "querytabled"), r) = (QUERYTABLED, r)
-      | lexPragmaKey (ID(_, "freeze"), r) = (FREEZE, r)
-      | lexPragmaKey (ID(_, "sig"), r) = (SIG, r)
-      | lexPragmaKey (ID(_, "struct"), r) = (STRUCT, r)
-      | lexPragmaKey (ID(_, "where"), r) = (WHERE, r)
-      | lexPragmaKey (ID(_, "include"), r) = (INCLUDE, r)
-      | lexPragmaKey (ID(_, "open"), r) = (OPEN, r)
       | lexPragmaKey (ID(_, "use"), r) = (USE, r)
       | lexPragmaKey (ID(_, s), r) =
         error (r, "Unknown keyword %" ^ s ^ " (single line comment starts with `%<whitespace>' or `%%')")
@@ -287,20 +268,8 @@ struct
     fun lexContinue (j) = Stream.delay (fn () => lexContinue' (j))
     and lexContinue' (j) = lexContinue'' (lexInitial (char(j), j+1))
 
-    and lexContinue'' (mt as (ID _, P.Reg (i,j))) =
-          Stream.Cons (mt, lexContinueQualId (j))
-      | lexContinue'' (mt as (token, P.Reg (i,j))) =
+    and lexContinue'' (mt as (token, P.Reg (i,j))) =
           Stream.Cons (mt, lexContinue (j))
-
-    and lexContinueQualId (j) =
-          Stream.delay (fn () => lexContinueQualId' (j))
-    and lexContinueQualId' (j) =
-          if char (j) = #"."
-            then if isIdChar (char (j+1))
-                   then Stream.Cons ((PATHSEP, P.Reg (j,j+1)), lexContinue (j+1))
-                 else Stream.Cons ((DOT, P.Reg (j,j+1)), lexContinue (j+1))
-          else lexContinue' (j)
-
   in
     lexContinue (0)
   end  (* fun lex (inputFun) = let ... in ... end *)
@@ -314,7 +283,6 @@ struct
 		      TextIO.inputLine (TextIO.stdIn)))
 
   fun toString' (DOT) = "."
-    | toString' (PATHSEP) = "."
     | toString' (COLON) = ":"
     | toString' (LPAREN) = "("
     | toString' (RPAREN) = ")"
@@ -331,15 +299,12 @@ struct
     | toString' (PREFIX) = "%prefix"
     | toString' (POSTFIX) = "%postfix"
     | toString' (NAME) = "%name"
-    | toString' (DEFINE) = "%define"    (* -rv 8/27/01 *)
     | toString' (SOLVE) = "%solve"
     | toString' (QUERY) = "%query"
-    | toString' (QUERYTABLED) = "%querytabled"
     | toString' (MODE) = "%mode"
     | toString' (COVERS) = "%covers"
     | toString' (TOTAL) = "%total"
     | toString' (TERMINATES) = "%terminates"
-    | toString' (BLOCK) = "%block"	(* -cs 6/3/01. *)
     | toString' (WORLDS) = "%worlds"
     | toString' (REDUCES) = "%reduces"              (*  -bp6/5/99. *)
     | toString' (THEOREM) = "%theorem"
@@ -347,12 +312,6 @@ struct
     | toString' (ESTABLISH) = "%establish"
     | toString' (ASSERT) = "%assert"
     | toString' (ABBREV) = "%abbrev"
-    | toString' (FREEZE) = "%freeze"
-    | toString' (SIG) = "%sig"
-    | toString' (STRUCT) = "%struct"
-    | toString' (WHERE) = "%where"
-    | toString' (INCLUDE) = "%include"
-    | toString' (OPEN) = "%open"
     | toString' (USE) = "%use"
 
  fun toString (ID(_,s)) = "identifier `" ^ s ^ "'"

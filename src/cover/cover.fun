@@ -569,11 +569,7 @@ struct
 	  SOME (getCases ())
 	end
         (* Constraints.Error could be raise by abstract *)
-        handle Constraints.Error (constrs) =>
-	  (if !Global.chatter >= 6
-	     then print ("Inactive split:\n" ^ Print.cnstrsToString (constrs))
-	   else ();
-	     NONE)
+        handle Constraints.Error (constrs) => NONE
 
     (*********************************)
     (* Checking for Impossible Cases *)
@@ -628,7 +624,7 @@ struct
 
     fun formatCGoal (V, ms) =
         let
-	  val _ = Names.varReset I.Null
+	  val _ = Names.varReset ()
 	in
 	  Print.formatExp (I.Null, abbrevCGoal (I.Null, V, ms))
 	end

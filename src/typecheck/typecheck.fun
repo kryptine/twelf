@@ -111,16 +111,10 @@ struct
     *)
     and inferCon (G, I.BVar (k')) = 
         let 
-	  val I.Dec (_, V) = I.ctxDec (G, k')
+	  val I.Dec (_,V) = I.ctxDec (G, k')
 	in
 	  V
 	end
-      | inferCon (G, I.Proj (v, i)) =
-	let 
-	  val I.Dec (_, V) = I.blockDec (G, v, i)   
-	in
-	  V
-	end 
       | inferCon (G, I.Const(c)) = I.constType (c)
       | inferCon (G, I.Def(d))  = I.constType (d)
       | inferCon (G, I.Skonst(c)) = I.constType (c) (* this is just a hack. --cs 
@@ -180,28 +174,11 @@ struct
 	in
 	  checkSub (G', s', G)
 	end
-      | checkSub (G', I.Dot (I.Idx (w), t), I.Decl (G, (I.BDec (l, s)))) =
-	let
-	  val I.BDec (l', s') = I.ctxLookup (G', w)
-	in
-	  if (l <> l') 
-	    then raise Error "Incompatible block labels found"
-	  else if Conv.convSub (I.comp (s, t), s')
-		 then raise Error "Incompatible SOME substitutions found" 
-	       else checkSub (G', t, G)
-	end
 
-    fun checkConv (U1, U2) =
-          if Conv.conv ((U1, I.id), (U2, I.id)) then ()
-          else raise Error ("Terms not equal\n  left: " ^
-                            Print.expToString (I.Null, U1) ^ "\n  right:" ^
-                            Print.expToString (I.Null, U2))
-
-
+    
   in
       val check = check
       val checkDec = checkDec
-      val checkConv = checkConv
 
       val infer = infer
       val infer' = infer'

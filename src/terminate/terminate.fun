@@ -54,8 +54,8 @@ struct
 	   of (fileName, NONE) => raise Error (fileName ^ ":" ^ msg)
             | (fileName, SOME occDec) => 
 	      raise Error (P.wrapLoc' (P.Loc (fileName, P.occToRegionDec occDec occ),
-                                       Origins.linesInfoLookup (fileName),
-                                       msg)))
+				       Origins.linesInfoLookup (fileName),
+				       msg)))
 
     fun fmtOrder (G, O) =
         let
@@ -422,16 +422,16 @@ struct
 		if (f a) then a's else lookup (a's', f)
 	  val P = select (a, (S, s))	(* only if a terminates? *)
 	    handle Order.Error (msg)
-	    => raise Error' (occ, "Termination violation: no order assigned for " ^ N.qidToString (N.constQid a))
+	    => raise Error' (occ, "Termination violation: no order assigned for " ^ N.constName a)
 	  val P' = select (a', (S', s')) (* only if a' terminates? *)
 	    handle Order.Error (msg)
-	    => raise Error' (occ, "Termination violation: no order assigned for " ^ N.qidToString (N.constQid a'))
+	    => raise Error' (occ, "Termination violation: no order assigned for " ^ N.constName a')
 	  val a's = Order.mutLookup a	(* always succeeds? -fp *)
 	    handle Order.Error (msg)
-	    => raise Error' (occ, "Termination violation: no order assigned for " ^ N.qidToString (N.constQid a))
+	    => raise Error' (occ, "Termination violation: no order assigned for " ^ N.constName a)
 	  val _ = Order.selLookup a'	(* check if a' terminates --- should always succeed? -fp *)
 	    handle Order.Error (msg)
-	    => raise Error' (occ, "Termination violation: no order assigned for " ^ N.qidToString (N.constQid a))
+	    => raise Error' (occ, "Termination violation: no order assigned for " ^ N.constName a)
 	in
 	  case lookup (a's, fn x' => x' = a')
 	    of Order.Empty => ()
@@ -511,10 +511,10 @@ struct
 	  fun checkFam' nil = ()
 	    | checkFam' (I.Const b::bs) = 
 		(if (!Global.chatter) >= 4 then 
-		   print ("[" ^ N.qidToString (N.constQid b) ^ ":")
+		   print ("[" ^ N.constName b ^ ":")
 		 else ();
 		 (* reuse variable names when tracing *)
-		 if (!Global.chatter) >= 5 then N.varReset IntSyn.Null else ();
+		 if (!Global.chatter) >= 5 then N.varReset () else ();
 		 (checkClause (I.Null, I.Null, (I.constType (b), I.id), P.top)
 		   handle Error' (occ, msg) => error (b, occ, msg)
 			| Order.Error (msg) => (print "!!!\n"; raise Error (msg)));

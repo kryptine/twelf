@@ -17,12 +17,8 @@ functor TpRecon (structure Global : GLOBAL
 		   sharing Unify.IntSyn = IntSyn'
 		 structure Abstract : ABSTRACT
 		   sharing Abstract.IntSyn = IntSyn'
-		 structure Constraints : CONSTRAINTS
-		   sharing Constraints.IntSyn = IntSyn'
 		 structure TypeCheck : TYPECHECK
 		   sharing TypeCheck.IntSyn = IntSyn'
-                 structure Conv : CONV
-                   sharing Conv.IntSyn = IntSyn'
 		 structure Strict : STRICT
 		   sharing Strict.IntSyn = IntSyn'
 		   sharing Strict.Paths = Paths'
@@ -73,9 +69,9 @@ struct
 
     datatype Term =
       Typ of Paths.region
-    | Lam of Dec * Term
+    | Lam of Dec * Term * Paths.region
     | Arrow of Term * Term
-    | Pi of Dec * Term
+    | Pi of Dec * Term * Paths.region
     | Omitobj of IntSyn.Exp * Paths.region
     | Implicit of IntSyn.Exp * Paths.region
     | Hastype of Term * Term
@@ -83,7 +79,7 @@ struct
     | Redex of Term * Spine
 
     and Head =
-      EVar of string * int * Paths.region
+      EVar of string * Paths.region
     | FVar of string * Paths.region
     | BVar of int * Paths.region
     | Const of IntSyn.Head * IntSyn.ConDec * Paths.region
@@ -92,12 +88,16 @@ struct
       Nil
     | App of Term * Spine
 
-    and Dec = Dec of name option * Term option * IntSyn.Exp * Paths.region
+    and Dec = Dec of name option * Term option * IntSyn.Exp
 
   end
 
-  type term = IntSyn.dctx * int option -> TermSyn.Term
-  type dec = IntSyn.dctx * int option -> TermSyn.Dec
+  type approxDec = TermSyn.Dec
+  type approxExp = TermSyn.Term
+  type approxCtx = approxDec IntSyn.Ctx
+
+  type term = approxCtx * bool -> TermSyn.Term
+  type dec = approxCtx * bool -> TermSyn.Dec
 
   (* Various error-related functions *)
 
@@ -137,8 +137,8 @@ struct
   *)
   fun findBVar (name, Ga) =
       let fun findBVar' (IntSyn.Null, k) = NONE
-	    | findBVar' (IntSyn.Decl (Ga', IntSyn.Dec (NONE, _)), k) = findBVar' (Ga', k+1)
-            | findBVar' (IntSyn.Decl (Ga', IntSyn.Dec (SOME(name'), _)), k) =
+	    | findBVar' (IntSyn.Decl (Ga', TermSyn.Dec (NONE, _, _)), k) = findBVar' (Ga', k+1)
+            | findBVar' (IntSyn.Decl (Ga', TermSyn.Dec (SOME(name'), _, _)), k) =
 	      if name = name' then SOME(k)
 	      else findBVar' (Ga', k+1)
       in
@@ -149,15 +149,15 @@ struct
       = SOME (c, i, V) where  c : V and c has i implicit arguments, c is called name
       = NONE  if so such c exists.
   *)
-  fun findConst (qid) =
-      (case Names.constLookup qid
-         of NONE => (case Option.mapPartial CSManager.parse (Names.unqualified qid)
+  fun findConst (name) =
+      (case Names.nameLookup (name)
+	 of NONE => (case CSManager.parse (name)
                        of NONE => NONE
-                        | SOME (cs, conDec) => SOME (IntSyn.FgnConst (cs, conDec), conDec))
+                        | SOME(cs, conDec) => SOME (IntSyn.FgnConst (cs, conDec), conDec))
           | SOME(cid) => (case IntSyn.sgnLookup(cid)
-			    of (conDec as IntSyn.ConDec _) => SOME (IntSyn.Const(cid), conDec)
-			     | (conDec as IntSyn.ConDef _) => SOME (IntSyn.Def(cid), conDec)
-                             | (conDec as IntSyn.AbbrevDef _) => SOME (IntSyn.NSDef(cid), conDec)))
+			    of (conDec as IntSyn.ConDec _) => SOME(IntSyn.Const(cid), conDec)
+			     | (conDec as IntSyn.ConDef _) => SOME(IntSyn.Def(cid), conDec)
+                             | (conDec as IntSyn.AbbrevDef _) => SOME(IntSyn.NSDef(cid), conDec)))
 
   (* Translating identifiers once they have been classified *)
   (* as constant, bound variable, or free variable *)
@@ -177,19 +177,16 @@ struct
   (* Bound variable *)
   fun bvar (n, r) = TermSyn.Root (TermSyn.BVar (n, r), TermSyn.Nil)
 
-  fun inc NONE = NONE
-    | inc (SOME depth) = SOME (depth+1)
-
   (* Free variable *)
   (* Translated to FVar in declarations, to EVar in queries *)
-  fun var (name, r, SOME depth) =
+  fun var (name, r, true) =
       let
         val _ = Names.getEVar name (* get the variable into the Names
                                       table before we do any printing *)
       in
-        TermSyn.Root (TermSyn.EVar (name, depth, r), TermSyn.Nil)
+        TermSyn.Root (TermSyn.EVar (name, r), TermSyn.Nil)
       end
-    | var (name, r, NONE) =
+    | var (name, r, false) =
       let
         val _ = Names.getFVarType name (* get the variable into the Names
                                           table before we do any printing *)
@@ -197,60 +194,43 @@ struct
         TermSyn.Root (TermSyn.FVar (name, r), TermSyn.Nil)
       end
 
-  fun undeclError (qid, r, depth) =
-      (error (r, "Undeclared identifier " ^
-              Names.qidToString (valOf (Names.constUndef qid)));
-       (* translate to FVar or EVar *)
-       var (Names.qidToString qid, r, depth))
-
   (* The remaining functions appear in the interface *)
 
   (* Resolving lower-case, upper-case or quoted identifiers *)
   (* lcid -- lower case identifier *)
-  fun lcid (ids, name, r) (Ga, depth) =
-      let
-        val qid = Names.Qid (ids, name)
-      in
-        case Option.mapPartial (fn name => findBVar (name, Ga))
-                               (Names.unqualified qid)
-          of NONE => (case findConst (qid)
-                        of NONE => undeclError (qid, r, depth)
-                         | SOME info => (const (info, r)))
-           | SOME n => bvar (n, r)
-      end
+  fun lcid (name, r) (Ga, qf) =
+      (case findBVar (name, Ga)
+	 of NONE => (case findConst (name)
+		       of NONE => (error (r, "Undeclared constant " ^ name);
+				   (* translate to FVar or EVar *)
+				   var (name, r, qf))
+			| SOME info => (const (info, r)))
+          | SOME n => bvar (n, r))
 
   (* ucid -- upper case identifier *)
-  fun ucid (ids, name, r) (Ga, depth) =
-      let
-        val qid = Names.Qid (ids, name)
-      in
-        case Option.mapPartial (fn name => findBVar (name, Ga))
-                               (Names.unqualified qid)
-          of NONE => (case findConst (qid)
-                        of NONE => (case Names.unqualified qid
-                                      of SOME name => var (name, r, depth)
-                                       | NONE => undeclError (qid, r, depth))
-                         | SOME info => const (info, r))
-           | SOME n => bvar (n, r)
-      end
+  fun ucid (name, r) (Ga, qf) =
+      (case findBVar (name, Ga)
+	 of NONE => (case findConst (name)
+		       of NONE => var (name, r, qf)
+			| SOME info => const (info, r))
+	  | SOME n => bvar (n, r))
 
   (* quid -- quoted identifier *)
   (* currently not used *)
-  fun quid (ids, name, r) (Ga, depth) =
-      let
-        val qid = Names.Qid (ids, name)
-      in
-        case findConst (qid)
-          of NONE => undeclError (qid, r, depth)
-           | SOME info => const (info, r)
-      end
+  fun quid (name, r) (Ga, qf) =
+      (case findConst (name)
+	 of NONE => (error (r, "Undeclared quoted constant " ^ name);
+		     (* translate to FVar or EVar *)
+		     var (name, r, qf))
+	  | SOME info => const (info, r))
 
   (* scon -- string constants *)
-  fun scon (name, r) (Ga, depth) =
-      (case CSManager.parse name
+  fun scon (name,r) (Ga, qf) =
+      (case findConst (name)
          of NONE => (error (r, "Strings unsupported in current signature");
-                     var (name, r, depth))
-          | SOME (cs, conDec) => const ((IntSyn.FgnConst (cs, conDec), conDec), r))
+		     (* translate to FVar or EVar *)
+		     var (name, r, qf))
+          | SOME info => const (info, r))
 
   fun spineAppend (TermSyn.Nil, Ua) =
         TermSyn.App (Ua, TermSyn.Nil)
@@ -258,54 +238,52 @@ struct
         TermSyn.App (Ua1, spineAppend (Ua2, Ua3))
 
   (* Application "tm1 tm2" *)
-  fun app (tm1, tm2) (Ga, depth) =
-      (case tm1 (Ga, depth)
+  fun app (tm1, tm2) (Ga, qf) =
+      (case tm1 (Ga, qf)
          of TermSyn.Root (hd, sp) =>
-              TermSyn.Root (hd, spineAppend (sp, tm2 (Ga, depth)))
+              TermSyn.Root (hd, spineAppend (sp, tm2 (Ga, qf)))
           | TermSyn.Redex (tm, sp) =>
-              TermSyn.Redex (tm, spineAppend (sp, tm2 (Ga, depth)))
-          | tm1 => TermSyn.Redex (tm1, TermSyn.App (tm2 (Ga, depth), TermSyn.Nil)))
+              TermSyn.Redex (tm, spineAppend (sp, tm2 (Ga, qf)))
+          | tm1 => TermSyn.Redex (tm1, TermSyn.App (tm2 (Ga, qf), TermSyn.Nil)))
 
   (* Non-dependent function type "tm1 -> tm2" *)
-  fun arrow (tm1, tm2) (Ga, depth) = TermSyn.Arrow (tm1 (Ga, depth), tm2 (Ga, depth))
+  fun arrow (tm1, tm2) (Ga, qf) = TermSyn.Arrow (tm1 (Ga, qf), tm2 (Ga, qf))
 
   (* Non-dependent function type "tm2 <- tm1" *)
-  fun backarrow (tm2, tm1) (Ga, depth) = arrow (tm1, tm2) (Ga, depth)
+  fun backarrow (tm2, tm1) (Ga, qf) = arrow (tm1, tm2) (Ga, qf)
 
   (* Explicit type ascription "tm1 : tm2" *)
-  fun hastype (tm1, tm2) (Ga, depth) = TermSyn.Hastype (tm1 (Ga, depth), tm2 (Ga, depth))
+  fun hastype (tm1, tm2) (Ga, qf) = TermSyn.Hastype (tm1 (Ga, qf), tm2 (Ga, qf))
 
   (* Omitted objects (from underscore) "_" *)
-  fun omitobj (r) (Ga, depth) = TermSyn.Omitobj (IntSyn.newTypeVar (IntSyn.Null), r)
+  fun omitobj (r) (Ga, qf) = TermSyn.Omitobj (IntSyn.newTypeVar (IntSyn.Null), r)
 
   (* Dependent function type "{id:tm} tm" where dec = "id:tm" *)
-  fun pi (d, tm) (Ga, depth) =
+  fun pi (dec, tm, r) (Ga, qf) =
       let
-        val dec as TermSyn.Dec (x, _, Va, _) = d (Ga, depth)
-        val Da = IntSyn.Dec (x, Va)
+        val Da = dec (Ga, qf)
       in
-        TermSyn.Pi (dec, tm (IntSyn.Decl (Ga, Da), inc depth))
+        TermSyn.Pi (Da, tm (IntSyn.Decl (Ga, Da), qf), r)
       end
 
   (* Lambda abstraction "[id:tm] tm" where dec = "id:tm" *)
-  fun lam (d, tm) (Ga, depth) =
+  fun lam (dec, tm, r) (Ga, qf) =
       let
-        val dec as TermSyn.Dec (x, _, Va, _) = d (Ga, depth)
-        val Da = IntSyn.Dec (x, Va)
+        val Da = dec (Ga, qf)
       in
-        TermSyn.Lam (dec, tm (IntSyn.Decl (Ga, Da), inc depth))
+        TermSyn.Lam (Da, tm (IntSyn.Decl (Ga, Da), qf), r)
       end
 
   (* Type "type" *)
-  fun typ (r) (Ga, depth) = TermSyn.Typ (r)
+  fun typ (r) (Ga, qf) = TermSyn.Typ (r)
 
   (* Declarations "id:tm" *)
-  fun dec (x, tm, r) (Ga, depth) =
-        TermSyn.Dec (x, SOME (tm (Ga, depth)), IntSyn.newTypeVar (IntSyn.Null), r)
+  fun dec (x, tm) (Ga, qf) =
+        TermSyn.Dec (x, SOME (tm (Ga, qf)), IntSyn.newTypeVar (IntSyn.Null))
 
   (* Declarations with implicit type "id" *)
-  fun dec0 (x, r) (Ga, depth) =
-        TermSyn.Dec (x, NONE, IntSyn.newTypeVar (IntSyn.Null), r)
+  fun dec0 (x) (Ga, qf) =
+        TermSyn.Dec (x, NONE, IntSyn.newTypeVar (IntSyn.Null))
 
   fun joinRegions (oc1, oc2) = Paths.join (Paths.toRegion oc1, Paths.toRegion oc2)
 
@@ -379,8 +357,9 @@ struct
   (* End tracing code *)
   (* ------------------------------------------------------------------------ *)
 
-  fun mismatchError (G, (V1', s), ((U2, V2), r), msg) =
+  fun mismatchError (G, (V1', s), ((U2, V2), oc2), msg) =
       let
+	val r = Paths.toRegion oc2
 	val V1'fmt = formatExp (G, IntSyn.EClo (V1', s))
 	val V2fmt = formatExp (G, V2)
 	val diff = F.Vbox0 0 1
@@ -392,47 +371,7 @@ struct
 	           ^ msg)
       end
 
-  fun instError (G, U1, (U2, r), msg) =
-      let
-        val U1fmt = formatExp (G, U1)
-        val U2fmt = formatExp (G, U2)
-        val diff = F.Vbox0 0 1
-                   [F.String "Existing:    ", F.Space, U1fmt, F.Break,
-                    F.String "Instantiator:", F.Space, U2fmt]
-      in
-        error (r, "Inconsistent instantiation\n"
-               ^ F.makestring_fmt diff ^ "\n" ^ msg)
-      end
-
-  fun closedError (G, (U, r)) =
-      let
-        val Ufmt = formatExp (G, U)
-        val nonClosed = F.HVbox [F.String "Instantiator:", F.Space, Ufmt, F.Break,
-                                 F.String "contains free variables after term reconstruction"]
-      in
-        error (r, "Ambiguous instantiation\n"
-               ^ F.makestring_fmt nonClosed)
-      end
-
-  fun checkHasTypeUnis ((level1, r1), (level2, r2), msg) =
-      (case (level1, level2)
-         of (IntSyn.Type, IntSyn.Type) => ()
-          | (IntSyn.Type, IntSyn.Kind) =>
-              error (Paths.join (r1, r2), msg ^ "\nSubject is an object, classifier is kind")
-          | (IntSyn.Kind, IntSyn.Type) =>
-              error (Paths.join (r1, r2), msg ^ "\nSubject is type family, classifier is type")
-          | (IntSyn.Kind, IntSyn.Kind) => ())
-
-  fun checkInstUnis (level1, (level2, r2), msg) =
-      (case (level1, level2)
-         of (IntSyn.Type, IntSyn.Type) => ()
-          | (IntSyn.Type, IntSyn.Kind) =>
-              error (r2, msg ^ "\nExisting constant is an object, instantiator is a type family")
-          | (IntSyn.Kind, IntSyn.Type) =>
-              error (r2, msg ^ "\nExisting constant is a type family, instantiator is a type")
-          | (IntSyn.Kind, IntSyn.Kind) => ())
-
-  fun hasTypeError (G, (V1, oc1), (V2, oc2), msg1, msg2) =
+  fun hasTypeError (G, (V1, oc1), (V2, oc2), msg) =
       let
 	val r2 = Paths.toRegion oc2
 	val V1fmt = formatExp (G, V1)
@@ -441,15 +380,15 @@ struct
 	           [F.String "Synthesized: ", V1fmt, F.Break,
 		    F.String "Ascribed:    ", V2fmt]
       in
-	error (r2, msg1 ^ "\n"
+	error (r2, "Type ascription error\n"
 	           ^ F.makestring_fmt diff ^ "\n"
-	           ^ msg2)
+	           ^ msg)
       end
 
   fun extraneousError (G, (V1, s), (U2, oc2)) =
       let
 	val V1fmt = formatExp (G, IntSyn.EClo (V1, s))
-	val nonFun = F.HVbox [F.String "Reconstructed:", F.Space, V1fmt, F.Break,
+	val nonFun = F.HVbox [F.Space, V1fmt, F.Break,
 			      F.String "is not a function type"]
 	val r2 = Paths.toRegion oc2
       in
@@ -462,7 +401,7 @@ struct
         val amb = F.HVbox [F.String "Reconstructed:", F.Space, Vfmt, F.Break,
                            F.String "contains type variables"]
       in
-        error (r, msg ^ "\n" ^ F.makestring_fmt amb)
+        error (r, msg ^ F.makestring_fmt amb)
       end
 
   fun whnfApprox (V) =
@@ -487,17 +426,6 @@ struct
       (case whnfApprox (La)
 	 of (IntSyn.Uni (level)) => level
           | _ => (error (r, msg); IntSyn.Type))
-
-  (* If Ga |~ Ua : Va
-     then if Ga |~ Va : L for some L, returns L
-     otherwise Ua = type, Va = kind, and error is flagged *)
-  fun inferUni (Va, r, msg) =
-      (case whnfApprox (Va)
-         of (IntSyn.Uni (IntSyn.Kind)) => (error (r, msg); IntSyn.Kind)
-          | (IntSyn.Uni (IntSyn.Type)) => IntSyn.Kind
-          | (IntSyn.Pi (_, Va')) => inferUni (Va', r, msg)
-          | (IntSyn.Lam (_, Ua')) => inferUni (Ua', r, msg)
-          | _ => IntSyn.Type)
 
   fun decl (G, D) = IntSyn.Decl (G, Names.decLUName (G, D))
 
@@ -525,10 +453,6 @@ struct
         IntSyn.Dec (x, Va)
       end
 
-  and makeApproxCtx (IntSyn.Null) = IntSyn.Null
-    | makeApproxCtx (IntSyn.Decl (G, D)) =
-        IntSyn.Decl (makeApproxCtx G, makeApproxDec D)
-
   fun ensurePiApprox (Va) =
       (case whnfApprox (Va)
          of (IntSyn.Pi ((IntSyn.Dec (x, Va1), P), Va2)) =>
@@ -551,41 +475,35 @@ struct
 
   and approxRecon (Ga, TermSyn.Typ (r)) =
         (SOME (IntSyn.Uni IntSyn.Type), IntSyn.Uni IntSyn.Kind, r)
-    | approxRecon (Ga, TermSyn.Lam (d1 as TermSyn.Dec (x, _, Va1, r), t2)) =
+    | approxRecon (Ga, TermSyn.Lam (Da1 as TermSyn.Dec (x, _, Va1), t2, r)) =
       let
-        val Da1 = approxReconDec (Ga, d1)
-        val (Ua2Opt, Va2, r2) = approxReconShow (IntSyn.Decl (Ga, Da1), t2)
+        val r1Opt = approxReconDec (Ga, Da1)
+        val (Ua2, Va2, r2) = approxReconShow (IntSyn.Decl (Ga, Da1), t2)
+        val _ = case Ua2
+                  of NONE => ()
+                   | SOME _ => error (r2, "Body of abstraction is not at term level")
       in
-        (Ua2Opt, IntSyn.Pi ((IntSyn.Dec (x, Va1), IntSyn.Maybe), Va2),
+        (NONE, IntSyn.Pi ((IntSyn.Dec (x, Va1), IntSyn.Maybe), Va2),
          Paths.join (r, r2))
       end
     | approxRecon (Ga, TermSyn.Arrow (t1, t2)) =
       let
-        val (Va1Opt, La1, r1) = approxReconShow (Ga, t1)
+        val (Va1, La1, r1) = approxReconShow (Ga, t1)
         val _ = checkType (La1, r1, "Domain of function is not a type")
-        val (Va2Opt, La2, r2) = approxReconShow (Ga, t2)
+        val (Va2, La2, r2) = approxReconShow (Ga, t2)
         val _ = checkUni (La2, r2, "Range of function is not a type or kind")
-        val Va1 = (case Va1Opt
-                     of NONE => IntSyn.newTypeVar (IntSyn.Null)
-                      | SOME Va1 => Va1)
-        val Va2 = (case Va2Opt
-                     of NONE => IntSyn.newTypeVar (IntSyn.Null)
-                      | SOME Va2 => Va2)
       in
-        (SOME (IntSyn.Pi ((IntSyn.Dec (NONE, Va1), IntSyn.No), Va2)),
-         La2, Paths.join (r1, r2))
+        (SOME (IntSyn.Pi ((IntSyn.Dec (NONE, Option.valOf Va1), IntSyn.No),
+                          Option.valOf Va2)), La2, Paths.join (r1, r2))
       end
-    | approxRecon (Ga, TermSyn.Pi (d1 as TermSyn.Dec (x, _, Va1, r), t2)) =
+    | approxRecon (Ga, TermSyn.Pi (Da1 as TermSyn.Dec (x, _, Va1), t2, r)) =
       let
-        val Da1 = approxReconDec (Ga, d1)
-        val (Va2Opt, La2, r2) = approxReconShow (IntSyn.Decl (Ga, Da1), t2)
+        val _ = approxReconDec (Ga, Da1)
+        val (Va2, La2, r2) = approxReconShow (IntSyn.Decl (Ga, Da1), t2)
         val _ = checkUni (La2, r2, "Range of function is not a type or kind")
-        val Va2 = (case Va2Opt
-                     of NONE => IntSyn.newTypeVar (IntSyn.Null)
-                      | SOME Va2 => Va2)
       in
-        (SOME (IntSyn.Pi ((IntSyn.Dec (x, Va1), IntSyn.Maybe), Va2)),
-         La2, Paths.join (r, r2))
+        (SOME (IntSyn.Pi ((IntSyn.Dec (x, Va1), IntSyn.Maybe),
+                          Option.valOf Va2)), La2, Paths.join (r, r2))
       end
     | approxRecon (Ga, TermSyn.Omitobj (Va, r)) =
         (NONE, Va, r)
@@ -593,37 +511,36 @@ struct
         (NONE, Va, r)
     | approxRecon (Ga, TermSyn.Hastype (t1, t2)) =
       let
-        val (Va2Opt, La2, r2) = approxReconShow (Ga, t2)
-        val level2 = getUni (La2, r2, "Classifier in ascription is not a type or kind")
-        val (Ua1Opt, Va1, r1) = approxReconShow (Ga, t1)
-        val level1 = inferUni (Va1, r1, "Subject of ascription cannot be a kind")
-        val _ = checkHasTypeUnis ((level1, r1), (level2, r2),
-                                  "Level mismatch in ascription")
-        val Va2 = (case Va2Opt
-                     of NONE => IntSyn.newTypeVar (IntSyn.Null)
-                      | SOME Va2 => Va2)
+        val (Ua1, Va1, r1) = approxReconShow (Ga, t1)
+        val (Va2, La2, r2) = approxReconShow (Ga, t2)
+        val uni = getUni (La2, r2, "Classifier in ascription is not a type or kind")
+        val _ = case (Ua1, uni)
+                  of (NONE, IntSyn.Type) => ()
+                   | (SOME _, IntSyn.Kind) =>
+                       checkType (Va1, r1, "Ascription applied to object at invalid level")
+                   | _ => error (r1, "Ascription applied to object at invalid level")
       in
-        shape (Va1, Va2)
+        shape (Va1, Option.valOf Va2)
         handle Unify.Unify msg => ();
         (* use ascribed type if unification failed *)
-        (Ua1Opt, Va2, r1)
+        (Ua1, Option.valOf Va2, r1)
       end
     | approxRecon (Ga, TermSyn.Root (hd, sp)) =
       let
-        val (UaOpt, Va, r) = approxReconHead (Ga, hd)
+        val (Ua, Va, r) = approxReconHead (Ga, hd)
         val (Va', r') = approxReconSpine (Ga, Va, r, sp)
       in
-        (UaOpt, Va', r')
+        (Ua, Va', r')
       end
-    | approxRecon (Ga, TermSyn.Redex (t, sp)) =
+    | approxRecon (Ga, TermSyn.Redex (Ua, sp)) =
       let
-        val (UaOpt, Va, r) = approxReconShow (Ga, t)
+        val (Ua, Va, r) = approxReconShow (Ga, Ua)
         val (Va', r') = approxReconSpine (Ga, Va, r, sp)
       in
-        (UaOpt, Va', r')
+        (Ua, Va', r')
       end
 
-  and approxReconHead (Ga, TermSyn.EVar (name, depth, r)) =
+  and approxReconHead (Ga, TermSyn.EVar (name, r)) =
       let
         val (U, Va, set) = Names.getEVar (name)
       in
@@ -637,7 +554,7 @@ struct
       end
     | approxReconHead (Ga, TermSyn.BVar (n, r)) =
       let
-        val (IntSyn.Dec (_, Va)) = IntSyn.ctxLookup (Ga, n)
+        val (TermSyn.Dec (_, _, Va)) = IntSyn.ctxLookup (Ga, n)
       in
         (NONE, Va, r)
       end
@@ -652,10 +569,10 @@ struct
   and approxReconSpine (Ga, Va, r, TermSyn.Nil) = (Va, r)
     | approxReconSpine (Ga, Va, r, TermSyn.App (t, sp)) =
       let
-        val (Ua1Opt, Va1, r1) = approxReconShow (Ga, t)
-        val _ = case Ua1Opt
+        val (Ua1, Va1, r1) = approxReconShow (Ga, t)
+        val _ = case Ua1
                   of NONE => ()
-                   | _ => error (r1, "Argument to function cannot be a type family or kind")
+                   | _ => error (r1, "Argument to function is not at term level")
         val (Va1', Va2') = ensurePiApprox (Va)
       in
         shape (Va1, Va1')
@@ -663,22 +580,19 @@ struct
         approxReconSpine (Ga, Va2', Paths.join (r, r1), sp)
       end
 
-  and approxReconDec (Ga, TermSyn.Dec (name, tOpt, Va1, r)) =
+  and approxReconDec (Ga, TermSyn.Dec (name, tOpt, Va1)) =
       (case tOpt
          of SOME t =>
             let
-              val (VaOpt, La, r1) = approxReconShow (Ga, t)
-              val _ = checkType (La, r1, "Classifier in declaration is not a type")
-              val Va = (case VaOpt
-                          of NONE => IntSyn.newTypeVar (IntSyn.Null)
-                           | SOME Va => Va)
+              val (Va, La, r) = approxReconShow (Ga, t)
+              val _ = checkType (La, r, "Classifier in declaration is not a type")
             in
               (* should never fail *)
-              shape (Va, Va1)
+              shape (Option.valOf Va, Va1)
               handle Unify.Unify msg => ();
-              IntSyn.Dec (name, Va1)
+              SOME (r)
             end
-          | NONE => IntSyn.Dec (name, Va1))
+          | NONE => NONE)
 
   (* newLoweredEVar (G, (V, s)) = U
      Make a new lowered EVar.
@@ -778,9 +692,9 @@ struct
         (IntSyn.Uni (IntSyn.Type),
          IntSyn.Uni (IntSyn.Kind),
          Paths.leaf (r))
-    | recon (G, TermSyn.Lam (Da1 as TermSyn.Dec (x, _, Va, r), Ua2)) =
+    | recon (G, TermSyn.Lam (Da1 as TermSyn.Dec (x, _, Va), Ua2, r)) =
       let
-        val (D1, oc1Opt) = reconDec (G, Da1)
+        val (D1, oc1Opt) = reconDec (G, Da1, r)
         val (U2, V2, oc2) = reconShow (decl (G, D1), Ua2)
         val r' = Paths.join (r, Paths.toRegion oc2)
       in
@@ -798,9 +712,9 @@ struct
         (IntSyn.Pi ((D1, IntSyn.No), IntSyn.EClo (V2, IntSyn.shift)),
          L2, Paths.bind (r', SOME (oc1), oc2))
       end
-    | recon (G, TermSyn.Pi (Da1 as TermSyn.Dec (_, _, _, r), Ua2)) =
+    | recon (G, TermSyn.Pi (Da1, Ua2, r)) =
       let
-        val (D1, oc1Opt) = reconDec (G, Da1)
+        val (D1, oc1Opt) = reconDec (G, Da1, r)
         val (V2, L2, oc2) = reconShow (decl (G, D1), Ua2)
         val r' = Paths.join (r, Paths.toRegion oc2)
       in
@@ -808,26 +722,25 @@ struct
       end
     | recon (G, TermSyn.Omitobj (Va, r)) =
       let
-        val V = approxToTypeVar (G, Va, r, "Ambiguous type for omitted term")
+        val V = approxToTypeVar (G, Va, r, "Ambiguous type for omitted term\n")
         val X = newLoweredEVar (G, (V, IntSyn.id))
       in
         (X, V, Paths.leaf (r))
       end
     | recon (G, TermSyn.Implicit (Va, r)) =
       let
-        val V = approxToTypeVar (G, Va, r, "Ambiguous type for implicit argument")
+        val V = approxToTypeVar (G, Va, r, "Ambiguous type for implicit argument\n")
         val X = newLoweredEVar (G, (V, IntSyn.id))
       in
         (X, V, Paths.leaf (r))
       end
     | recon (G, TermSyn.Hastype (Ua1, Ua2)) =
       let
-        val (V2, L2, oc2) = reconShow (G, Ua2)
         val (U1, V1, oc1) = reconShow (G, Ua1)
+        val (V2, L2, oc2) = reconShow (G, Ua2)
       in
         unify (G, (V1, IntSyn.id), (V2, IntSyn.id))
-        handle Unify.Unify msg => hasTypeError (G, (V1, oc1), (V2, oc2),
-                                                "Type mismatch in ascription", msg);
+        handle Unify.Unify msg => hasTypeError (G, (V1, oc1), (V2, oc2), msg);
         (U1, V2, oc1)
       end
     | recon (G, TermSyn.Root (hd, sp)) =
@@ -859,18 +772,15 @@ struct
             | _ => fn S => IntSyn.Root (H, S),
          V, i, r)
       end
-    | reconHead (G, TermSyn.EVar (name, depth, r)) =
+    | reconHead (G, TermSyn.EVar (name, r)) =
       let
-        fun ctxDrop (G, 0) = G
-          | ctxDrop (IntSyn.Decl (G, _), i) = ctxDrop (G, i-1)
-        val G' = ctxDrop (G, depth)
-        val s = IntSyn.Shift depth
+        val s = IntSyn.Shift (IntSyn.ctxLength (G))
         val (U as IntSyn.EVar(_,_,V,_), Va, set) = Names.getEVar name 
-        val V' = approxToTypeVar (G', Va, r, "Ambiguous type for free variable")
+        val V' = approxToTypeVar (IntSyn.Null, Va, r, "Ambiguous type for free variable\n")
       in
         case set
           of ref false =>
-               (unify (G', (V, IntSyn.id), (V', IntSyn.id));
+               (unify (IntSyn.Null, (V, IntSyn.id), (V', IntSyn.id));
                 set := true)
            | _ => ();
         (fn S => IntSyn.Redex (IntSyn.EClo (U, s), S),
@@ -880,7 +790,7 @@ struct
       let
         val s = IntSyn.Shift (IntSyn.ctxLength (G))
         val (V, Va, set) = Names.getFVarType (name)
-        val V' = approxToTypeVar (IntSyn.Null, Va, r, "Ambiguous type for free variable")
+        val V' = approxToTypeVar (IntSyn.Null, Va, r, "Ambiguous type for free variable\n")
       in
         case set
           of ref false =>
@@ -904,13 +814,13 @@ struct
         val (U1, V1, oc1) = reconShow (G, Ua)
         val (V1', V2', s') = ensurePi (G, (V, s), (U1, oc1))
         val _ = unify (G, (V1, IntSyn.id), (V1', s'))
-            handle Unify.Unify msg => mismatchError (G, (V1', s'), ((U1, V1), Paths.toRegion oc1), msg)
+            handle Unify.Unify msg => mismatchError (G, (V1', s'), ((U1, V1), oc1), msg)
         val (S, V', os) = reconSpine (G, (V2', Whnf.dotEta (IntSyn.Exp (U1), s')), sp)
       in
         (IntSyn.App (U1, S), V', Paths.app (oc1, os))
       end
 
-  and reconDec (G, TermSyn.Dec (x, UaOpt, Va, r)) =
+  and reconDec (G, TermSyn.Dec (x, UaOpt, Va), r) =
       (case UaOpt
          of SOME (Ua) =>
             let
@@ -918,146 +828,112 @@ struct
             in
               (IntSyn.Dec (x, V), SOME(oc))
             end
-          | _ => (IntSyn.Dec (x, approxToTypeVar (G, Va, r, "Ambiguous omitted type in declaration")), NONE))
+          | _ => (IntSyn.Dec (x, approxToTypeVar (G, Va, r, "Ambiguous omitted type in declaration\n")), NONE))
 
   (* Constant declarations *)
   datatype condec =
       condec of name * term
     | condef of name option * term * term option
-    | blockdec of name * dec list * dec list
 
   (* Queries, with optional proof term variable *)
   datatype query =
       query of name option * term
 
-  type rdec = IntSyn.Dec * Paths.occExp option * Paths.region
-
-  fun approxReconCtx (Ga, IntSyn.Null, depth) = (Ga, IntSyn.Null)
-    | approxReconCtx (Ga, IntSyn.Decl (g, d), depth) =
+  (* Converting a term to an expression in a context *)
+  (* Check that the expression is a valid type *)
+  (* Throws away the associated occurrence tree *)
+  fun termToApproxExp (Ga, tm) =
       let
-        val (Ga', decs) = approxReconCtx (Ga, g, depth)
-        val dec = d (Ga', depth)
-        val Da = approxReconDec (Ga', dec)
+        val t = tm (Ga, false)
+        val (Ua, Va, r) = approxReconShow (Ga, t)
+        (* must check separately -kw *)
+        (* val _ = checkType (La, r, "Classifier in declaration is not a type") *)
       in
-        (IntSyn.Decl (Ga', Da), IntSyn.Decl (decs, dec))
+        t
       end
 
-  fun approxReconCtxs (Ga, nil, depth) = nil
-    | approxReconCtxs (Ga, g::gs, depth) =
+  fun approxExpToExp (G, t) =
       let
-        val (Ga', decs) = approxReconCtx (Ga, g, depth)
+        val (U, V, oc) = reconShow (G, t)
       in
-        decs::approxReconCtxs (Ga', gs, depth)
+        (U, V)
       end
 
-  fun reconCtx (G, IntSyn.Null) = (G, IntSyn.Null)
-    | reconCtx (G, IntSyn.Decl (Ga, dec as TermSyn.Dec (_, _, _, r))) =
+  (* we should get rid of these in favor of a separate check that the
+     resulting expression is at object level -kw *)
+  fun termToApproxExp' (Ga, tm) =
       let
-        val (G1, G2) = reconCtx (G, Ga)
-        val (D, ocOpt) = reconDec (G1, dec)
+	val t = tm (Ga, false)
+	val (Ua, Va, r) = approxReconShow (Ga, t)
+        val _ = case Ua
+                  of NONE => ()
+                   | _ => error (r, "Classifier in declaration is not an object")
       in
-        (IntSyn.Decl (G1, D), IntSyn.Decl (G2, (D, ocOpt, r)))
+	t
+      end
+ 
+  fun approxExpToExp' (G, t) =
+      let
+	val (U, V, oc) = reconShow (G, t)
+      in
+	(U, V)
       end
 
-  fun reconCtxs (G, nil) = nil
-    | reconCtxs (G, Ga::Gas) =
+  (* Converting a declaration to an expression in a context *)
+  (* Throws away the associated occurrence tree *)
+  fun decToApproxDec (Ga, dec) =
       let
-        val (G1, G2) = reconCtx (G, Ga)
+        val Da = dec (Ga, false)
+        val rOpt = approxReconDec (Ga, Da)
       in
-        G2::reconCtxs (G1, Gas)
+        Da
       end
 
-  fun ctxToCtx g =
+  fun approxDecToDec (G, Da, r) =
       let
-        val _ = Names.varReset IntSyn.Null
-        val (_, decs) = approxReconCtx (IntSyn.Null, g, NONE)
-        val (_, G) = reconCtx (IntSyn.Null, decs)
+        val (D, ocOpt) = reconDec (G, Da, r)
       in
-        G
-      end      
+        D
+      end
 
-  fun ctxsToCtxs gs =
+  (* termToExp0 (tm) = ((U,V), oc) 
+     where . |- U : V
+  *)
+  fun termToExp0 (tm, qf) =
       let
-        val _ = Names.varReset IntSyn.Null
-        val decsList = approxReconCtxs (IntSyn.Null, gs, NONE)
-        val Gs = reconCtxs (IntSyn.Null, decsList)
+        val t = tm (IntSyn.Null, qf)
+        val (Ua, Va, r) = approxReconShow (IntSyn.Null, t)
+        val (U, V, oc) = reconShow (IntSyn.Null, t)
       in
-        Gs
+	((U, V), oc)
       end
 
   fun termToExp (g, tm) =
       let
-        val _ = Names.varReset IntSyn.Null
-        val (Ga, decs) = approxReconCtx (IntSyn.Null, g, NONE)
-        val t = tm (Ga, NONE)
-        val (UaOpt, Va, r) = approxRecon (Ga, t)
-        val (G1, G2) = reconCtx (IntSyn.Null, decs)
-        val (U, V, oc) = recon (G1, t)
-      in
-        (G2, U, V, oc)
-      end
+        val _ = Names.varReset ()
 
-  (* termToQuery0 (tm) = (V, oc) 
-     where . |- V : type
-  *)
-  fun termToQuery0 (tm) =
-      let
-        val t = tm (IntSyn.Null, SOME 0)
-        val (VaOpt, La, r) = approxReconShow (IntSyn.Null, t)
-        val _ = checkType (La, r, "Query is not a type")
-        val (V, L, oc) = reconShow (IntSyn.Null, t)
-      in
-	(V, oc)
-      end
+        fun reconCtx1 (IntSyn.Null) = IntSyn.Null
+          | reconCtx1 (IntSyn.Decl (g, (d, r))) =
+            let
+              val Ga = reconCtx1 (g)
+            in
+              IntSyn.Decl (Ga, decToApproxDec (Ga, d))
+            end
 
-  (* termToDec0 (tm) = ((V, level), oc) 
-     where . |- V : Uni level
-  *)
-  fun termToDec0 (tm) =
-      let
-        val t = tm (IntSyn.Null, NONE)
-        val (VaOpt, La, r) = approxReconShow (IntSyn.Null, t)
-        val level = getUni (La, r, "Classifier in declaration is not a type or kind")
-        val (V, L, oc) = reconShow (IntSyn.Null, t)
-      in
-	((V, level), oc)
-      end
+        fun reconCtx2 (IntSyn.Null, IntSyn.Null) = IntSyn.Null
+          | reconCtx2 (IntSyn.Decl (g, (_, r)), IntSyn.Decl (Ga, Da)) =
+            let
+              val G = reconCtx2 (g, Ga)
+            in
+              IntSyn.Decl (G, approxDecToDec (G, Da, r))
+            end
 
-  (* termToDef0 (tm1, tm2Opt) = ((U, V, level), (oc1, oc2Opt))
-     where . |- U : V
-           . |- V : Uni level
-  *)
-  fun termToDef0 (tm1, SOME tm2) =
-      let
-        val t2 = tm2 (IntSyn.Null, NONE)
-        val t1 = tm1 (IntSyn.Null, NONE)
-        val (Va2Opt, La2, r2) = approxReconShow (IntSyn.Null, t2)
-        val level2 = getUni (La2, r2, "Classifier in definition is not a type or kind")
-        val (Ua1Opt, Va1, r1) = approxReconShow (IntSyn.Null, t1)
-        val level1 = inferUni (Va1, r1, "Kinds cannot be defined")
-        val _ = checkHasTypeUnis ((level1, r1), (level2, r2),
-                                  "Level mismatch in definition")
-        val Va2 = (case Va2Opt
-                     of NONE => IntSyn.newTypeVar (IntSyn.Null)
-                      | SOME Va2 => Va2)
-        val _ = shape (Va1, Va2)
-                handle Unify.Unify msg => ()
-        val (V2, L2, oc2) = reconShow (IntSyn.Null, t2)
-        val (U1, V1, oc1) = reconShow (IntSyn.Null, t1)
+        val Ga = reconCtx1 (g)
+        val t = termToApproxExp (Ga, tm)
+        val G = reconCtx2 (g, Ga)
+        val (U, V) = approxExpToExp (G, t)
       in
-        unify (IntSyn.Null, (V1, IntSyn.id), (V2, IntSyn.id))
-        handle Unify.Unify msg => hasTypeError (IntSyn.Null, (V1, oc1), (V2, oc2),
-                                                "Type mismatch in definition", msg);
-        ((U1, V2, level1), (oc1, SOME oc2))
-      end
-    | termToDef0 (tm1, NONE) =
-      let
-        val t1 = tm1 (IntSyn.Null, NONE)
-        val (Ua1Opt, Va1, r1) = approxReconShow (IntSyn.Null, t1)
-        val level1 = inferUni (Va1, r1, "Kinds cannot be defined")
-        val (U1, V1, oc1) = reconShow (IntSyn.Null, t1)
-      in
-        ((U1, V1, level1), (oc1, NONE))
+        (G, U, V)
       end
 
   (* freeVar (XOpt, [(X1,"X1"),...,(Xn,"Xn")]) = true
@@ -1067,10 +943,19 @@ struct
         List.exists (fn (_, name') => name = name') Xs
     | freeVar _ = false
 
+  (* inferLevel (V) = L
+     Invariant: . |- V : L, V nf
+     (V must be a valid classifier, that is, a type or kind)
+  *)
+  fun inferLevel (IntSyn.Pi (_, V')) = inferLevel V'
+    | inferLevel (IntSyn.Root _) = IntSyn.Type
+    | inferLevel (IntSyn.Uni _) = (* V = type *) IntSyn.Kind
+    (* no other cases by invariant *)
+
   (* queryToQuery (q) = (V, XOpt, [(X1,"X1"),...,(Xn,"Xn")])
      where XOpt is the optional proof term variable
            X1,...,Xn are the free EVars in the terms with their names
- 
+
      Free variables in q are interpreted existentially (as EVars).
 
      Only works properly when the Vars parameter structure
@@ -1080,16 +965,17 @@ struct
   (* Wed May 20 08:00:28 1998 -fp *)
   fun queryToQuery (query (optName, tm), Paths.Loc (fileName, r)) = 
       let
-	val _ = Names.varReset IntSyn.Null
-	val _ = resetErrors fileName
-	val (V, oc) = (Timers.time Timers.recon termToQuery0) (tm)
+	val _ = Names.varReset ()
+	val _ = resetErrors (fileName)
+	val ((V,L), oc) = (Timers.time Timers.recon termToExp0) (tm, true)
+	val _ = checkType (L, Paths.toRegion oc, "Query is not a type")
 	val Xs = Names.namedEVars ()
 	val _ = if freeVar (optName, Xs)
 		  then error (Paths.toRegion oc,
 			      "Proof term variable " ^ valOf optName
 			      ^ " occurs in type")
 		else ()
-	val _ = checkErrors ()
+	val _ = checkErrors (Paths.toRegion oc)
       in
 	(V, optName, Xs)
       end
@@ -1108,42 +994,46 @@ struct
   (* Wed May 20 08:08:50 1998 -fp *)
   fun condecToConDec (condec(name, tm), Paths.Loc (fileName, r), abbFlag) =
       let
-	val _ = Names.varReset IntSyn.Null
-	val _ = resetErrors fileName
-	val ((V, level), oc) = (Timers.time Timers.recon termToDec0) (tm)
+	val _ = Names.varReset ()
+	val _ = resetErrors (fileName)
+	val ((V, L), oc) = (Timers.time Timers.recon termToExp0) (tm, false)
+	val level = getUni (L, Paths.toRegion oc, "Classifier in declaration is not a type or kind")
         val (i, V') = (Timers.time Timers.abstract Abstract.abstractDecImp) V
 	                handle Abstract.Error (msg)
 			       => raise Abstract.Error (Paths.wrap (r, msg))
-	val cd = Names.nameConDec (IntSyn.ConDec (name, NONE, i, IntSyn.Normal, V', level))
-	val ocd = Paths.dec (i, oc)
+	val cd = Names.nameConDec (IntSyn.ConDec (name, i, IntSyn.Normal, V', level))
+	val ocd = Paths.dec (r, i, oc)
 	val _ = if !Global.chatter >= 3
 		  then print ((Timers.time Timers.printing Print.conDecToString) cd ^ "\n")
 		else ()
 	val _ = if !Global.doubleCheck
 		  then (Timers.time Timers.checking TypeCheck.check) (V', IntSyn.Uni (level)) 
 		else ()
-	val _ = checkErrors ()
+	val _ = checkErrors (r)
       in
 	(SOME(cd), SOME(ocd))
       end
     | condecToConDec (condef(optName, tm1, SOME(tm2)), Paths.Loc (fileName, r), abbFlag) =
       let
-	val _ = Names.varReset IntSyn.Null
-	val _ = resetErrors fileName
-        val ((U, V, level), (oc1, SOME oc2)) =
-              (Timers.time Timers.recon termToDef0) (tm1, SOME tm2)
+	val _ = Names.varReset ()
+	val _ = resetErrors (fileName)
+	val ((V, L), oc2) = (Timers.time Timers.recon termToExp0) (tm2, false)
+	val level = getUni (L, Paths.toRegion oc2, "Classifier in definition is not a type or kind")
+	val ((U, V'), oc1) = (Timers.time Timers.recon termToExp0) (tm1, false)
+	val _ = (Timers.time Timers.recon unify) (IntSyn.Null, (V', IntSyn.id), (V, IntSyn.id))
+	        handle Unify.Unify (msg) => hasTypeError (IntSyn.Null, (V', oc1), (V, oc2), msg)
 	val (i, (U'', V'')) =
 	        (Timers.time Timers.abstract Abstract.abstractDef) (U, V)
 		handle Abstract.Error (msg)
 		          => raise Abstract.Error (Paths.wrap (r, msg))
 	val name = case optName of NONE => "_" | SOME(name) => name
-	val ocd = Paths.def (i, oc1, SOME(oc2))
-        val cd = if abbFlag then Names.nameConDec (IntSyn.AbbrevDef (name, NONE, i, U'', V'', level))
+	val ocd = Paths.def (r, i, oc1, SOME(oc2))
+        val cd = if abbFlag then Names.nameConDec (IntSyn.AbbrevDef (name, i, U'', V'', level))
 		 else (case level
-			 of IntSyn.Kind => error (r, "Type definitions must use %abbrev")
+			 of IntSyn.Kind => error (r, "Type families cannot be defined, only objects")
 		          | _ => ();
 		       Strict.check ((U'', V''), SOME(ocd));
-		       Names.nameConDec (IntSyn.ConDef (name, NONE, i, U'', V'', level)))
+		       Names.nameConDec (IntSyn.ConDef (name, i, U'', V'', level)))
 		    
        val _ = if !Global.chatter >= 3
 		  then print ((Timers.time Timers.printing Print.conDecToString) cd ^ "\n")
@@ -1152,29 +1042,29 @@ struct
 		  then ((Timers.time Timers.checking TypeCheck.check) (V'', IntSyn.Uni (level));
 			(Timers.time Timers.checking TypeCheck.check) (U'', V''))
 		else ()
-	val _ = checkErrors ()
+	val _ = checkErrors (r)
 	val optConDec = case optName of NONE => NONE | SOME _ => SOME (cd)
       in
 	(optConDec, SOME(ocd))
       end
     | condecToConDec (condef(optName, tm1, NONE), Paths.Loc (fileName, r), abbFlag) =
       let
-	val _ = Names.varReset IntSyn.Null
-	val _ = resetErrors fileName
-        val ((U, V, level), (oc1, NONE)) =
-              (Timers.time Timers.recon termToDef0) (tm1, NONE)
+	val _ = Names.varReset ()
+	val _ = resetErrors (fileName)
+	val ((U, V), oc1) = (Timers.time Timers.recon termToExp0) (tm1, false)
 	val (i, (U'', V'')) =
 	        (Timers.time Timers.abstract Abstract.abstractDef) (U, V)
 		handle Abstract.Error (msg)
 		          => raise Abstract.Error (Paths.wrap (r, msg))
+	val level = inferLevel V''
 	val name = case optName of NONE => "_" | SOME(name) => name
-	val ocd = Paths.def (i, oc1, NONE)
-        val cd = if abbFlag then Names.nameConDec (IntSyn.AbbrevDef (name, NONE, i, U'', V'', level))
+	val ocd = Paths.def (r, i, oc1, NONE)
+        val cd = if abbFlag then Names.nameConDec (IntSyn.AbbrevDef (name, i, U'', V'', level))
 		 else (case level
-			 of IntSyn.Kind => error (r, "Type definitions must use %abbrev")
+			 of IntSyn.Kind => error (r, "Type families cannot be defined, only objects")
 		          | _ => ();
 		       Strict.check ((U'', V''), SOME(ocd));
-		       Names.nameConDec (IntSyn.ConDef (name, NONE, i, U'', V'', level)))
+		       Names.nameConDec (IntSyn.ConDef (name, i, U'', V'', level)))
 	           
         val _ = if !Global.chatter >= 3
 		  then print ((Timers.time Timers.printing Print.conDecToString) cd ^ "\n")
@@ -1183,218 +1073,10 @@ struct
 		  then ((Timers.time Timers.checking TypeCheck.check) (V'', IntSyn.Uni (level));
 			(Timers.time Timers.checking TypeCheck.check) (U'', V''))
 		else ()
-	val _ = checkErrors ()
+	val _ = checkErrors (r)
 	val optConDec = case optName of NONE => NONE | SOME _ => SOME (cd)
       in
 	(optConDec, SOME(ocd))
-      end
-    | condecToConDec (blockdec (name, Lsome, Lblock), Paths.Loc (fileName, r), abbFlag) =
-      let
-	fun makectx nil = IntSyn.Null
-	  | makectx (D :: L) = IntSyn.Decl (makectx L, D)
-	fun ctxToList (IntSyn.Null, acc) = acc
-	  | ctxToList (IntSyn.Decl (G, D), acc) = ctxToList (G, D :: acc)
-	fun join (NONE, r) = SOME(r)
-	  | join (SOME(r1), r2) = SOME (Paths.join (r1, r2))
-	fun ctxRegion (IntSyn.Null) = (IntSyn.Null, NONE)
-	  | ctxRegion (IntSyn.Decl (G, (D, ocOpt, r))) =
-  	    let
-	      val (G', rOpt) = ctxRegion G
-	    in
-	      (IntSyn.Decl (G', D), join (rOpt, r))
-	    end
-	fun ctxAppend (G, IntSyn.Null) = G
-	  | ctxAppend (G, IntSyn.Decl (G', D)) = IntSyn.Decl (ctxAppend (G, G'), D)
-	fun ctxBlockToString (G0, (G1, G2)) =
-  	    let
-	      val _ = Names.varReset IntSyn.Null
-	      val G0' = Names.ctxName G0
-	      val G1' = Names.ctxLUName G1
-	      val G2' = Names.ctxLUName G2
-	    in
-	      Print.ctxToString (IntSyn.Null, G0') ^ "\n"
-	      ^ (case G1' of IntSyn.Null => "" | _ => "some " ^ Print.ctxToString (G0', G1') ^ "\n")
-	      ^ "pi " ^ Print.ctxToString (ctxAppend (G0', G1'), G2')
-	    end
-	fun checkFreevars (IntSyn.Null, (G1, G2), r) = ()
-	  | checkFreevars (G0, (G1, G2), r) =
-  	    let
-	      val _ = Names.varReset IntSyn.Null
-	      val G0' = Names.ctxName G0
-	      val G1' = Names.ctxLUName G1
-	      val G2' = Names.ctxLUName G2
-	    in
-	      error (r, "Free variables in context block after term reconstruction:\n"
-		     ^ ctxBlockToString (G0', (G1', G2')))
-	    end
-
-	val [Gsome, Gblock] = (Timers.time Timers.recon ctxsToCtxs) [(makectx Lsome), (makectx Lblock)]
-	val (Gsome', r1Opt) = ctxRegion Gsome
-	val (Gblock', SOME(r2)) = ctxRegion Gblock	(* Gblock cannot be empty *)
-	val SOME(r) = join (r1Opt, r2)
-	val (G0, [Gsome'', Gblock'']) =	(* closed nf *)
-	  Abstract.abstractCtxs [Gsome', Gblock'] 
-	  handle Constraints.Error (C)
-	  => (raise Error (Paths.wrap (r, "Constraints remain in context block after term reconstruction:\n"
-		    ^ ctxBlockToString (IntSyn.Null, (Gsome', Gblock')) ^ "\n"
-		    ^ Print.cnstrsToString C)))
-	val _ = checkFreevars (G0, (Gsome'', Gblock''), r)
-	val bd = IntSyn.BlockDec (name, NONE, Gsome'', ctxToList (Gblock'', nil))
-        val _ = if !Global.chatter >= 3
-		  then print ((Timers.time Timers.printing Print.conDecToString) bd ^ "\n")
-		else ()
-
-      in
-	(SOME bd, NONE)
-      end
-
-  fun lowerRigid (0, G, V, sc) =
-        (G, sc IntSyn.Nil, V)
-    | lowerRigid (i, G, IntSyn.Pi ((D, _), V), sc) =
-        lowerRigid (i-1, IntSyn.Decl (G, D), V,
-                    fn S => sc (IntSyn.App (IntSyn.Root (IntSyn.BVar i, IntSyn.Nil), S)))
-
-  fun lowerFlex (0, G, (V, s), sc) =
-        (sc IntSyn.Nil, IntSyn.EClo (V, s))
-    | lowerFlex (i, G, (IntSyn.Pi ((D as IntSyn.Dec (_, V1), _), V2), s), sc) =
-      let
-        val X = IntSyn.newEVar (G, IntSyn.EClo (V1, s))
-      in
-        lowerFlex (i-1, G,
-                   (V2, IntSyn.Dot (IntSyn.Exp X, s)),
-                   fn S => sc (IntSyn.App (X, S)))
-      end
-
-  fun getDecInfo dec =
-      let
-        val (name, parent, i, UOpt, V, level) =
-            (case dec
-               of IntSyn.ConDec (name, parent, i, _, V, level) =>
-                    (name, parent, i, NONE, V, level)
-                | IntSyn.SkoDec (name, parent, i, V, level) =>
-                    (name, parent, i, NONE, V, level)
-                | IntSyn.ConDef (name, parent, i, U, V, level) =>
-                    (name, parent, i, SOME U, V, level)
-                | IntSyn.AbbrevDef (name, parent, i, U, V, level) => 
-                    (name, parent, i, SOME U, V, level))
-      in
-        (name, parent, i, UOpt, V, level)
-      end
-
-  fun internalInst (condec1, condec2, r) =
-      let
-        val (name, parent, i1, U1Opt, V1, level1) = getDecInfo condec1
-        val IntSyn.AbbrevDef (_, _, i2, U2, V2, level2) = condec2
-        val _ = checkInstUnis (level1, (level2, r),
-                               "Level mismatch in instantiation")
-
-        (* This may be rather useless since it doesn't even allow
-           permuting the implicit arguments.  Unification
-           with parameter variables would allow this while still
-           avoiding the generation of undesirable constraints. -kw *)
-        val simple = i1 = i2
-              andalso Conv.conv ((V1, IntSyn.id), (V2, IntSyn.id))
-              andalso (case U1Opt
-                         of NONE => true
-                          | SOME U1 => Conv.conv ((U1, IntSyn.id), (U2, IntSyn.id)))
-      in
-        if simple
-          then IntSyn.AbbrevDef (name, parent, i2, U2, V2, level2)
-        else let
-          val _ = Names.varReset IntSyn.Null
-
-          fun sc S = case U1Opt
-                       of NONE => NONE
-                        | SOME U1 => SOME (IntSyn.Redex (U1, S))
-          val (G, Ul1Opt, Vl1) = lowerRigid (i1, IntSyn.Null, V1, sc)
-
-          val s = IntSyn.Shift i1 (* |G| = i1 *)
-          val (Ul2, Vl2) = lowerFlex (i2, G, (V2, s),
-                                      fn S => IntSyn.Redex (U2, S))
-
-          val _ = unify (G, (Vl1, IntSyn.id), (Vl2, IntSyn.id))
-                  handle Unify.Unify msg =>
-                    mismatchError (G, (Vl1, IntSyn.id), ((Ul2, Vl2), r), msg);
-          val _ = (case Ul1Opt
-                     of NONE => ()
-                      | SOME Ul1 =>
-                          unify (G, (Ul1, IntSyn.id), (Ul2, IntSyn.id))
-                          handle Unify.Unify msg =>
-                            instError (G, Ul1, (Ul2, r), msg));
-
-          val _ = if Abstract.closedExp (G, (Ul2, IntSyn.id)) then ()
-                  else closedError (G, (Ul2, r))
-          val U2 = Whnf.normalize (Abstract.raiseTerm (G, Ul2), IntSyn.id)
-          val V2 = Whnf.normalize (Abstract.raiseType (G, Vl2), IntSyn.id)
-          val _ = if !Global.doubleCheck
-                    then ((Timers.time Timers.checking TypeCheck.check) (V2, IntSyn.Uni level2);
-                          (Timers.time Timers.checking TypeCheck.check) (U2, V2);
-                          (Timers.time Timers.checking TypeCheck.checkConv) (V1, V2);
-                          case U1Opt
-                            of NONE => ()
-                             | SOME U1 => 
-                          (Timers.time Timers.checking TypeCheck.checkConv) (U1, U2))
-                  else ()
-        in
-          IntSyn.AbbrevDef (name, parent, i1, U2, V2, level2)
-        end
-      end
-
-  fun externalInst (dec, tm, r) =
-      let
-        val (name, parent, i1, U1Opt, V1, level1) = getDecInfo dec
-
-        fun sc S = case U1Opt
-                     of NONE => NONE
-                      | SOME U1 => SOME (IntSyn.Redex (U1, S))
-        val (G, Ul1Opt, Vl1) = lowerRigid (i1, IntSyn.Null, V1, sc)
-
-        val Ga = makeApproxCtx G
-        val _ = Names.varReset G
-        val t2 = tm (Ga, SOME 0)
-        val (Ua2Opt, Va2, r2) = approxReconShow (Ga, t2)
-        val level2 = inferUni (Va2, r2, "Instantiating term cannot be a kind")
-        val _ = checkInstUnis (level1, (level2, r2),
-                               "Level mismatch in instantiation")
-        val (Va1, _) = makeApprox Vl1
-        val _ = shape (Va1, Va2)
-                handle Unify.Unify msg => ()
-        val _ = (case (Ul1Opt, Ua2Opt)
-                   of (SOME Ul1, SOME Ua2) =>
-                      let
-                        val (Ua1, _) = makeApprox Ul1
-                      in
-                        shape (Ua1, Ua2)
-                        handle Unify.Unify msg => ()
-                      end
-                    | _ => ())
-        val (Ul2, Vl2, oc2) = reconShow (G, t2)
-        val _ = unify (G, (Vl1, IntSyn.id), (Vl2, IntSyn.id))
-                handle Unify.Unify msg =>
-                  mismatchError (G, (Vl1, IntSyn.id), ((Ul2, Vl2), r2),
-                                 msg)
-        val _ = case Ul1Opt
-                  of NONE => ()
-                   | SOME Ul1 => unify (G, (Ul1, IntSyn.id), (Ul2, IntSyn.id))
-                handle Unify.Unify msg =>
-                  instError (G, Ul1, (Ul2, r2),
-                             msg)
-
-        val _ = if Abstract.closedExp (G, (Ul2, IntSyn.id)) then ()
-                else closedError (G, (Ul2, r))
-        val U2 = Whnf.normalize (Abstract.raiseTerm (G, Ul2), IntSyn.id)
-        val V2 = Whnf.normalize (Abstract.raiseType (G, Vl2), IntSyn.id)
-        val _ = if !Global.doubleCheck
-                  then ((Timers.time Timers.checking TypeCheck.check) (V2, IntSyn.Uni level2);
-                        (Timers.time Timers.checking TypeCheck.check) (U2, V2);
-                        (Timers.time Timers.checking TypeCheck.checkConv) (V1, V2);
-                        case U1Opt
-                          of NONE => ()
-                           | SOME U1 => 
-                        (Timers.time Timers.checking TypeCheck.checkConv) (U1, U2))
-                else ()
-      in
-        IntSyn.AbbrevDef (name, parent, i1, U2, V2, level2)
       end
 
 end; (* functor TpRecon *)

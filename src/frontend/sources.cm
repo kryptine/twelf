@@ -15,7 +15,6 @@ Group is
   ../m2/sources.cm
   ../opsem/sources.cm
   ../subordinate/sources.cm
-  ../modules/sources.cm
   ../meta/sources.cm
   ../solvers/sources.cm
   ../worldcheck/sources.cm
@@ -26,20 +25,14 @@ Group is
   parsing.fun
   tprecon.sig
   tprecon.fun
-  definerecon.sig
-  definerecon.fun
   moderecon.sig
   moderecon.fun
   thmrecon.sig
-  thmrecon.fun
-  modrecon.sig
-  modrecon.fun
+  thmrecon.fun 
   parse-term.sig
   parse-term.fun
   parse-condec.sig
   parse-condec.fun
-  parse-define.sig
-  parse-define.fun
   parse-query.sig
   parse-query.fun
   parse-fixity.sig
@@ -48,8 +41,6 @@ Group is
   parse-mode.fun 
   parse-thm.sig
   parse-thm.fun
-  parse-modules.sig
-  parse-modules.fun
   parser.sig
   parser.fun
   solve.sig
