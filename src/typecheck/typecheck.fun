@@ -161,8 +161,11 @@ struct
 	in
 	  checkSub (G', s', G)
 	end
-      | checkSub (G', I.Dot (I.Idx (w), t), I.Decl (G, (I.BDec (_, (l, s))))) =
+      | checkSub (G', I.Dot (B, t), I.Decl (G, (I.BDec (_, (l, s))))) =
 	let
+	  val w = (case B 
+		     of I.Idx w' => w'
+		     | I.Block (I.Bidx w') => w')
 	  val I.BDec (_, (l', s')) = I.ctxDec (G', w)
 	  (* G' |- s' : GSOME *)
 	  (* G  |- s  : GSOME *)
