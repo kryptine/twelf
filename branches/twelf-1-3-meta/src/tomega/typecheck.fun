@@ -71,12 +71,14 @@ struct
        and  Psi  |- F'[t1] == F[t2]
        then Psi  |- F''[t1] == F'[t']
     *)
-    and inferSpine (Psi, T.Nil, Ft) = inferSpineW (Psi, T.Nil, Normalize.whnfFor Ft)
+    and inferSpine (Psi, S, Ft) = inferSpineW (Psi, S, Normalize.whnfFor Ft)
     and inferSpineW (Psi, T.Nil, (F, t)) = (F, t)
-      | inferSpineW (Psi, T.AppExp (M, S), (T.All (T.UDec(I.Dec(_, A)), F), t)) =
+      | inferSpineW (Psi, T.AppExp (M, S), (T.All (T.UDec (I.Dec (_, A)), F), t)) =
 	let 
+	  val _ = chatter 4 (fn () => "[appExp")
 	  val G = T.coerceCtx (Psi)
-	  val _ = TypeCheck.typeCheck (G, (M, A))
+	  val _ = TypeCheck.typeCheck (G, (M, I.EClo (A, T.coerceSub t)))
+	  val _ = chatter 4 (fn () => "]")
 	in 
 	  inferSpine (Psi, S, (F, T.Dot(T.Exp(M), t)))
 	end
@@ -93,7 +95,7 @@ struct
 	end
       | inferSpineW (Psi, T.AppPrg (P, S), (T.All (T.PDec (_, F1), F2), t)) =
 	let 
-	    val _ = checkProg (Psi, (P, (F1, t)))
+	    val _ = checkPrg (Psi, (P, (F1, t)))
 	in 
 	    inferSpine (Psi, S, (F2, T.dot1 t))
 	end
@@ -127,23 +129,23 @@ struct
           I.Decl (inferSub (Psi, t), inferFront (Psi, Ft))
 
 *)
-    (* checkProg (Psi, P, F) = ()
+    (* checkPrg (Psi, P, F) = ()
      
        Invariant:
        If   Psi  |- t1 : Psi1 
        and  Psi1 |- P : F'
        and  Psi  |- F for     (F in normal form)
        and  P does not contain any P closures
-       then checkProg returns () iff F'[t1] == F[id]
+       then checkPrg returns () iff F'[t1] == F[id]
     *)
-    and checkProg (Psi, (P, Ft)) = checkProgW (Psi, (P, Normalize.whnfFor Ft))
-    and checkProgW (_, (T.Unit, (T.True, _))) =
+    and checkPrg (Psi, (P, Ft)) = checkPrgW (Psi, (P, Normalize.whnfFor Ft))
+    and checkPrgW (_, (T.Unit, (T.True, _))) =
         let 
 	  val _ = chatter 4 (fn () => "[true]")
 	in
           ()
 	end
-      | checkProgW (Psi, (T.Root (H, S), (F, t))) =
+      | checkPrgW (Psi, (T.Root (H, S), (F, t))) =
 	let
 	  val F' = inferCon (Psi, H)
 	  val Ft'' = inferSpine (Psi, S, (F', T.id))
@@ -152,66 +154,81 @@ struct
 	  ()
 	end
 
-      | checkProgW (Psi, (T.Lam (D as T.PDec (x, F1), P), (T.All (T.PDec (x', F1'), F2), t))) = 
+      | checkPrgW (Psi, (T.Lam (D as T.PDec (x, F1), P), (T.All (T.PDec (x', F1'), F2), t))) = 
 	let 
 	  val _ = chatter 4 (fn () => "[lam[p]")
 	    val _ = convFor (Psi, (F1, T.id), (F1', t))
 	  val _ = chatter 4 (fn () => "]")
 	in 
-	    checkProg (I.Decl (Psi, D), (P, (F2, T.dot1 t)))
+	    checkPrg (I.Decl (Psi, D), (P, (F2, T.dot1 t)))
 	end
-      | checkProgW (Psi, (T.Lam (T.UDec D, P), (T.All (T.UDec D', F), t2))) =
+      | checkPrgW (Psi, (T.Lam (T.UDec D, P), (T.All (T.UDec D', F), t2))) =
 	let 
 	  val _ = chatter 4 (fn () => "[lam[u]")
 	  val _ = Conv.convDec ((D, I.id), (D', T.coerceSub t2))
 	  val _ = chatter 4 (fn () => "]")
 	in  
-	    checkProg (I.Decl (Psi , T.UDec D), (P, (F, T.dot1 t2)))
+	    checkPrg (I.Decl (Psi , T.UDec D), (P, (F, T.dot1 t2)))
 	end
-      | checkProgW (Psi, (T.PairExp (M, P), (T.Ex(I.Dec(x, A), F2), t))) =
+      | checkPrgW (Psi, (T.PairExp (M, P), (T.Ex(I.Dec(x, A), F2), t))) =
 	let 
-	  val _ = chatter 4 (fn () => "[pair [e]]")
+	  val _ = chatter 4 (fn () => "[pair [e]")
 	  val G = T.coerceCtx Psi
+	  val _ = print (Print.expToString (G, M))
+	  val _ = print ":"
+	  val _ = print (Print.expToString (G, I.EClo (A, T.coerceSub(t))))
 	  val _ = TypeCheck.typeCheck(G, (M, I.EClo (A, T.coerceSub(t))))
 	  val _ = chatter 4 (fn () => "]")
 	in 
-	    checkProg(Psi, (P, (F2, T.Dot (T.Exp M, t))))
+	    checkPrg(Psi, (P, (F2, T.Dot (T.Exp M, t))))
 	end
-      | checkProgW (Psi, (T.PairBlock (I.Bidx k, P), (T.Ex (I.BDec (_, (cid, s)), F2), t))) =
+      | checkPrgW (Psi, (T.PairBlock (I.Bidx k, P), (T.Ex (I.BDec (_, (cid, s)), F2), t))) =
 	let
 	  val T.UDec (I.BDec(_, (cid', s'))) = T.ctxDec (Psi, k)
 	  val (G', _) = I.conDecBlock (I.sgnLookup cid)
 	  val _ = if (cid' <> cid) then raise Error ("Block label mismatch") else ()
 	  val _ = convSub (Psi, T.embedSub s', T.comp(T.embedSub(s), t), T.revCoerceCtx(G'))  
 	in 
-	  checkProg(Psi, (P, (F2, T.Dot(T.Block(I.Bidx k), t))))
+	  checkPrg(Psi, (P, (F2, T.Dot(T.Block(I.Bidx k), t))))
 	end
-      | checkProgW (Psi, (T.PairPrg (P1, P2), (T.And( F1, F2), t))) =
+      | checkPrgW (Psi, (T.PairPrg (P1, P2), (T.And( F1, F2), t))) =
 	let
-	  val _ = checkProg (Psi, (P1, (F1, t)))
-	  val _ = checkProg (Psi, (P2, (F2, t)))
+	  val _ = checkPrg (Psi, (P1, (F1, t)))
+	  val _ = checkPrg (Psi, (P2, (F2, t)))
 	in
 	  ()
 	end
-      | checkProgW (Psi, (T.Case Omega, Ft)) = 
+      | checkPrgW (Psi, (T.Case Omega, Ft)) = 
 	  checkCases (Psi, (Omega, Ft))
-      | checkProgW (Psi, (T.Rec (D as T.PDec (x, F), P), (F', t))) =
+      | checkPrgW (Psi, (T.Rec (D as T.PDec (x, F), P), (F', t))) =
 	let 
 	  val _ = chatter 4 (fn () => "[rec")
 	  val _ = convFor(Psi, (F, T.id), (F', t))
 	  val _ = chatter 4 (fn () => "]\n")
 	in 
-	    checkProg (I.Decl(Psi, D), (P, (F', t)))
+	    checkPrg (I.Decl(Psi, D), (P, (F', t)))
 	end
-      | checkProgW (Psi, (T.Let (D as T.PDec(_, F1), P1, P2), (F2, t))) = 
+      | checkPrgW (Psi, (T.Let (D as T.PDec(_, F1), P1, P2), (F2, t))) = 
 	let 
-	  val _ = checkProg (Psi, (P1, (F1, T.id)))
+	  val _ = chatter 4 (fn () => "[let")
+	  val _ = checkPrg (Psi, (P1, (F1, T.id)))
+	  val _ = chatter 4 (fn () => ".")
+	  val _ = checkPrg (I.Decl (Psi, D), (P2, (F2, t)))
+	  val _ = chatter 4 (fn () => "]\n")
 	in
-	  checkProg (I.Decl (Psi, D), (P2, (F2, t)))
+	  ()
 	end
-(*      | checkProg (G, ((T.Redex (P, T.Nil), s), Fs)) = checkProg (G, ((P, s), Fs)) *)
-(*      | checkProg (G, ((T.Redex (P, T.AppExp(M, S)), s), (F2, s2))) =  -- Yu Liao *)
-(*      | checkProg (G, ((T.PClo(P1,s1), s11), (F2, s2))) = checkProg (G, ((P1, T.comp(s1, s11)), (F2, s2))) *)
+(*      | checkPrgW (Psi, (T.New P, (T.All (T.UDec (T.Block (_, (cid, s))), F), t))) =
+	let 
+	  val (G', _) = I.conDecBlock (I.sgnLookup cid')
+	  val D' = IDecl
+	  val _ = checkPrgW (Psi, (P
+	in
+	end
+*)
+(*      | checkPrg (G, ((T.Redex (P, T.Nil), s), Fs)) = checkPrg (G, ((P, s), Fs)) *)
+(*      | checkPrg (G, ((T.Redex (P, T.AppExp(M, S)), s), (F2, s2))) =  -- Yu Liao *)
+(*      | checkPrg (G, ((T.PClo(P1,s1), s11), (F2, s2))) = checkPrg (G, ((P1, T.comp(s1, s11)), (F2, s2))) *)
 
 
 
@@ -225,12 +242,19 @@ struct
       | checkCases (Psi, (T.Cases ((Psi', t', P) :: Omega), (F2, t2))) =
 	let 
 					(* Psi' |- t' :: Psi *)
-	  val _ = chatter 4 (fn () => "[case")
-	  val _ = isSub(Psi', t', Psi)
-	  val _ = checkProg (Psi', (P, (F2, T.comp(t2, t'))))
+	  val _ = chatter 4 (fn () => "[case: ")
+	  val _ = chatter 4 (fn () => "sub ... ")
+	  val _ = checkSub(Psi', t', Psi)
+	  val _ = chatter 4 (fn () => "prg ... [")
+	  val t2' = T.comp(t2, t')
+	  val _ = TextIO.print (TomegaPrint.forToString (I.Null, Normalize.normalizeFor (F2, t2')) ^ "\n")
+	  val _ = chatter 4 (fn () => "]")
+	  val _ = checkPrg (Psi', (P, (F2, t2')))
 	  val _ = chatter 4 (fn () => "]\n")
+
+	  val _ = checkCases (Psi, ((T.Cases Omega), (F2, t2)))
 	in 
-	    checkCases (Psi, ((T.Cases Omega), (F2, t2)))
+	  ()
 	end 
 
 
@@ -408,33 +432,33 @@ struct
 	end
       
     and convValue (G, P1, P2, F) = ()
-    and isFor (G, F)= ()
+    and checkFor (G, F)= ()
 
 
-    (* isSub (Psi, t, Psi') = () 
+    (* checkSub (Psi, t, Psi') = () 
  
        Invariant
-       If Psi |- t: Psi' then isSub terminates with ()
+       If Psi |- t: Psi' then checkSub terminates with ()
        otherwise exception Error is raised 
     *)
 
-    and isSub (I.Null, T.Shift 0, I.Null) = ()
-      | isSub (I.Decl (G, D), T.Shift k, I.Null) = 
-	if k >0 
-	then isSub (G, T.Shift (k-1), I.Null)
+    and checkSub (I.Null, T.Shift 0, I.Null) = ()
+      | checkSub (I.Decl (G, D), T.Shift k, I.Null) = 
+	if k > 0 
+	then checkSub (G, T.Shift (k-1), I.Null)
 	else raise Error "Sub is not well typed!"
-      | isSub (G, T.Shift k, G') = isSub (G, T.Dot (T.Idx (k+1), T.Shift (k+1)), G')
-      | isSub (G, T.Dot (T.Idx k, s'), I.Decl (G', (T.UDec (I.Dec (_, A))))) =
+      | checkSub (G, T.Shift k, G') = checkSub (G, T.Dot (T.Idx (k+1), T.Shift (k+1)), G')
+      | checkSub (G, T.Dot (T.Idx k, s'), I.Decl (G', (T.UDec (I.Dec (_, A))))) =
 	let 
-	    val _ = isSub (G, s', G')
+	    val _ = checkSub (G, s', G')
 	    val T.UDec (I.Dec (_, A')) = T.ctxDec (G, k)
 	in
 	    if Conv.conv ((A', I.id), (A, T.coerceSub(s'))) then ()
 	    else raise Error "Sub isn't well typed!"
 	end
-      | isSub (G, T.Dot (T.Idx k, s'), I.Decl (G', T.UDec (I.BDec(l, (_, s))))) = 
+      | checkSub (G, T.Dot (T.Idx k, s'), I.Decl (G', T.UDec (I.BDec(l, (_, s))))) = 
 	let 
-	    val _ = isSub (G, s', G')
+	    val _ = checkSub (G, s', G')
 	    val T.UDec (I.BDec(l1, (_, s1))) = T.ctxDec (G, k)
 	in
 	    if (l<> l1) then raise Error "Sub isn't well typed!"
@@ -443,22 +467,22 @@ struct
 		then ()
 		else raise Error "Sub isn't well typed!"
 	end
-      | isSub (G, T.Dot (T.Idx k, s), I.Decl (G', T.PDec(_, F'))) = 
+      | checkSub (G, T.Dot (T.Idx k, s), I.Decl (G', T.PDec(_, F'))) = 
 	let 
-	    val _ = isSub (G, s, G')
+	    val _ = checkSub (G, s, G')
 	    val T.PDec(_, F1) = T.ctxDec (G, k)
 	in
 	    convFor (G, (F1, T.id), (F', s))
 	end
-      | isSub (G, T.Dot (T.Exp M, s), I.Decl(G', T.UDec (I.Dec (_, A)))) =
+      | checkSub (G, T.Dot (T.Exp M, s), I.Decl(G', T.UDec (I.Dec (_, A)))) =
 	let 
-	    val _ = isSub (G, s, G')
+	    val _ = checkSub (G, s, G')
 	in
 	    TypeCheck.typeCheck (T.coerceCtx G, (M, I.EClo(A, T.coerceSub(s))))
 	end
-      | isSub (G, T.Dot (T.Block (I.Bidx v), s), I.Decl(G', T.UDec (I.BDec(l2, (_, s2))))) = (* Unexpected in LF level? -- Yu Liao *) (* What does v in I.Bidx v mean??? *)
+      | checkSub (G, T.Dot (T.Block (I.Bidx v), s), I.Decl(G', T.UDec (I.BDec(l2, (_, s2))))) = (* Unexpected in LF level? -- Yu Liao *) (* What does v in I.Bidx v mean??? *)
 	let 
-	    val _ = isSub (G, s, G')
+ 	    val _ = checkSub (G, s, G')
 	    val T.UDec (I.BDec(l1, (_, s1))) = T.ctxDec (G, v)
 	in
 	    if (l1<> l2) then raise Error "Sub isn't well typed!"
@@ -467,13 +491,16 @@ struct
 		then ()
 		else raise Error "Sub isn't well typed!"
 	end
-      | isSub (Psi, T.Dot (T.Prg P, t), I.Decl(Psi', T.PDec(_, F'))) =
+      | checkSub (Psi, T.Dot (T.Prg P, t), I.Decl(Psi', T.PDec(_, F'))) =
 	let 
-	  val _ = isSub (Psi, t, Psi')
+	  val _ = chatter 4 (fn () => "$")
+	  val _ = checkSub (Psi, t, Psi')
 	  val _ = isValue P
 	in
-	    checkProg (Psi, (P, (F', t)))
+	    checkPrg (Psi, (P, (F', t)))
 	end
+      | checkSub (Psi, T.Dot _, I.Null) = raise Domain
+
     and isValue (T.Lam _) = ()
       | isValue (T.PairExp (M, P)) = isValue P
       | isValue (T.PairBlock _ ) = ()
@@ -488,10 +515,22 @@ struct
       | isValue _ = raise Error "P isn't Value!"
 
 
-    fun check (P, F) = checkProg (I.Null, (P, (F, T.id)))
+    fun check (Psi, (P, F)) = checkPrg (Psi, (P, (F, T.id)))
+    fun checkSub (Psi, t, Psi') = checkSub (Psi, t, Psi')
+
+    fun checkCtx (I.Null) = ()
+      | checkCtx (I.Decl (Psi, T.UDec D)) = 
+          (checkCtx (Psi); 
+	   TypeCheck.checkDec (T.coerceCtx Psi, (D, I.id)))
+      | checkCtx (I.Decl (Psi, T.PDec (_, F))) =
+	  (checkCtx (Psi);
+	   checkFor (Psi, (F, T.id)))
+
 
   in
-  val check = check
-  val isFor = isFor
+  val checkPrg = fn (Psi, (P, F)) => checkPrg (Psi, (P, (F, T.id)))
+  val checkSub = checkSub
+  val checkFor = fn (Psi, F) => checkFor (Psi, (F, T.id))
+  val checkCtx = checkCtx
   end
 end	      
