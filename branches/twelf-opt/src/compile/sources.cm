@@ -5,6 +5,7 @@ Group is
   ../index/sources.cm
   ../typecheck/sources.cm
   ../solvers/sources.cm
+  ../subordinate/sources.cm
 
   compsyn.sig
   compsyn.fun
@@ -20,4 +21,7 @@ Group is
 
   assign.sig
   assign.fun
+
+(*  abstract-tab.sig
+  abstract-tab2.fun*)
   compile.sml

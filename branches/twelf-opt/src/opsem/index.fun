@@ -22,14 +22,12 @@ functor TableIndex (structure Global : GLOBAL
                       sharing CPrint.IntSyn = IntSyn'
                       sharing CPrint.CompSyn = CompSyn'
 		    structure TypeCheck : TYPECHECK
-		      sharing TypeCheck.IntSyn = IntSyn'
-		 )
+		      sharing TypeCheck.IntSyn = IntSyn')
   : TABLEINDEX =
 struct
   structure IntSyn = IntSyn'
   structure CompSyn = CompSyn'
-  structure Conv = Conv
-
+  structure AbstractTabled = AbstractTabled
 
   (* TABLE 
 
@@ -48,12 +46,12 @@ struct
    * lookup  : pointer to the i-th element in solution list
    *)
 
-  type answer = {solutions : ((IntSyn.dctx * IntSyn.Sub) * CompSyn.pskeleton) list,
-		 lookup: int}
+  type answer = {solutions : ((IntSyn.dctx * IntSyn.Sub * AbstractTabled.ResEqn) * CompSyn.pskeleton) list,
+		 lookup: int} ref
 
   (* entry = (((i, G, D, U), A)) where i is the access counter     
    *)
-  type entry = (((int ref * IntSyn.dctx * IntSyn.dctx * IntSyn.Exp) * answer))
+  type entry = (((int ref * IntSyn.dctx * IntSyn.dctx * IntSyn.Exp * AbstractTabled.ResEqn) * answer))
 
   type entries = entry list 
 
@@ -61,7 +59,12 @@ struct
 
   datatype answState = new | repeated
 
+  datatype callCheckResult = NewEntry of answer | RepeatedEntry of answer
+
   datatype Strategy = Variant | Subsumption
+  (* took out all subsumption code *)
+
+  exception Error of string
 
   val added = ref false;
 
@@ -82,9 +85,9 @@ struct
   (* apply strengthening during abstraction *)
   val strengthen = AbstractTabled.strengthen ;
 
-  (* original query *)
-  val query : (IntSyn.dctx * IntSyn.dctx  * IntSyn.Exp * IntSyn.Sub * (CompSyn.pskeleton -> unit))
-                option ref = ref NONE
+  fun makeEmptyAnswer () = ref {solutions = [], lookup = 0} 
+
+  val answList : (answer list) ref = ref []
 
   (* ---------------------------------------------------------------------- *)
 
@@ -109,6 +112,8 @@ struct
     fun concat (I.Null, G') = G'
       | concat (I.Decl(G, D), G') = I.Decl(concat(G,G'), D)
 
+    fun shift (IntSyn.Null, s) = s
+      | shift (IntSyn.Decl(G, D), s) = I.dot1 (shift(G, s))
 
 
    fun reverse (I.Null, G') = G'
@@ -119,31 +124,53 @@ struct
 
     (* printTable () = () *)
 
+    fun printResEqn (G, D, A.Trivial) = print "Trivial\n"
+      | printResEqn (G, D, A.Unify(G', p1, N, eqn)) = 
+        (print (Print.expToString (I.Null, A.raiseType(D, A.raiseType(concat(G', G), p1))) ^ " = ");
+	 print (Print.expToString (I.Null, A.raiseType(D, A.raiseType(concat(G', G), N))) ^ "\n"); 
+	 printResEqn (G, D, eqn))
+
+    fun printResEqnSub (G, D', A.Trivial, s) = print "Trivial\n"
+      | printResEqnSub (G, D', A.Unify(G', p1, N, eqn), s) = 
+        (print (Print.expToString (I.Null, A.raiseType(D', I.EClo(A.raiseType(concat(G', G), p1), shift(G', s)))) ^ " = ");
+	 print (Print.expToString (I.Null, A.raiseType(D', I.EClo(A.raiseType(concat(G', G), N),shift(G', s)))) ^ "\n"); 
+	 printResEqnSub (G, D', eqn, s))
+
     fun printTable () = 
       let 
-        fun proofTerms (G, D, U, []) = print ""
-	  | proofTerms (G, D, U, (((D', s'), _)::S)) = 
-          ((print (Print.expToString (I.Null, A.raiseType(concat(G,D'), I.EClo(U, s'))))
+        fun proofTerms (G, U,  []) = print ""
+	  | proofTerms (G, U,  (((D', s', eqn'), _)::S)) = 
+          ((print (Print.expToString (I.Null, A.raiseType(D', I.EClo(A.raiseType(G, U), s'))))
 (*           (print (Print.expToString (I.Null, A.raiseType(D',
 			I.EClo(A.raiseType(G, U), s')))) *)
-	    handle _ => print "EXCEPTION" );	    
+	    handle _ => print "EXCEPTION\n" );	    
+	 print ("\t UnifyEq ");
+	   printResEqn (G, D', eqn'); 
 	   (* do not print pskeletons *)
 	   print ", \n\t";
-	   proofTerms (G, D, U, S))
+	   proofTerms (G, U, S))
 
 	fun printT [] = ()
-	  | printT (((k, G, D, U), {solutions =  S, lookup = i})::T) = 
+	  | printT (((k, G, D, U, eqn), answRef)::T) = 
+	  let 
+	    val {solutions =  S, lookup = i} = !answRef
+	  in 
 	    case S
 	      of [] => (printT T ; 
 			print (Print.expToString (I.Null, 
-						  A.raiseType(concat(G, D), U))
-			       ^ ", NONE\n"))
-	      | (a::answ) => (printT T; 
-			      print (Print.expToString (I.Null, 
-							A.raiseType(concat(G, D), U)) ^
-				     ", [\n\t");
-			      proofTerms (G, D, U, (rev S));
-			      print (" ] -- lookup : " ^ Int.toString i ^ "\n\n")) 
+						  A.raiseType(concat(G, D), U))); (* Pi D. Pi G. U *)
+			print ("\nUnifyEq ");
+			printResEqn (G, D, eqn);
+			print ", NONE\n")
+	    | (a::answ) => (printT T; 
+			    print (Print.expToString (I.Null, 
+							A.raiseType(concat(G, D), U)));
+			    print ("\nUnifyEq ");
+			    printResEqn (G, D, eqn);		    
+			    print (", [\n\t");
+			    proofTerms (G, U, (rev S));
+			    print (" ] -- lookup : " ^ Int.toString i ^ "\n\n")) 
+	  end 
       in
 	print ("Table: \n");
 	printT (!table);
@@ -157,10 +184,15 @@ struct
     fun printTableEntries () = 
       let 
 	fun printT [] = ()
-	  | printT (((k, G, D, U), {solutions =  S, lookup = i})::T) = 
-	  (printT T ; 
-	   print (Print.expToString (I.Null, 
-				     A.raiseType(concat(G, D), U)) ^ "\n Access Counter : " ^ (Int.toString (!k)) ^ " \n"))
+	  | printT (((k, G, D, U, eqn), answRef)::T) = 
+	  let
+	    val {solutions =  S, lookup = i} = !answRef
+	  in 
+	    (printT T ; 
+	     print (Print.expToString (I.Null, A.raiseType(concat(G, D), U)) ^ 
+		    "\n Access Counter : " ^ (Int.toString (!k)) ^ " \n");
+	     print ("UnifyEqn "); printResEqn (G, D, eqn))
+	  end
       in
 	print ("TableEntries: \n");
 	printT (!table);
@@ -319,6 +351,9 @@ struct
       
     fun variant (Us, Us') = Conv.conv (Us, Us') 
 
+    
+
+
     (* subsumes ((G, D, U), (G', D', U')) = bool
      * 
      * if
@@ -340,6 +375,18 @@ struct
 			 Unify.unifiable (D, (Upi', s'), (Upi, I.id)))
       end 
 
+    (* too restrictive if we require order of both eqn must be the same ? 
+     Sun Sep  8 20:37:48 2002 -bp *) 
+    (* s = s' = I.id *)
+    fun equalCtx (I.Null, s, I.Null, s') = true
+      | equalCtx (I.Decl(G, D), s, I.Decl(G', D'), s') = 
+        Conv.convDec((D, s), (D', s')) andalso (equalCtx (G, I.dot1 s, G', I.dot1 s'))
+
+    (* in general, we need to carry around and build up a substitution *)
+    fun equalEqn (A.Trivial, A.Trivial) = true
+      | equalEqn (A.Unify(G, X, N, eqn), A.Unify(G', X', N', eqn')) = 
+        equalCtx (G, I.id, G', I.id) andalso Conv.conv ((X, I.id), (X', I.id)) 
+	andalso Conv.conv ((N, I.id), (N', I.id)) andalso equalEqn(eqn, eqn')
 
     fun equalSub (I.Shift k, I.Shift k') = (k = k')
       | equalSub (I.Dot(F, S), I.Dot(F', S')) = 
@@ -382,92 +429,54 @@ struct
     any entry found later, will be an instance of this entry)
     *)
 
-    fun callCheckVariant (G, D, U) = 
+    fun callCheckVariant (G, D, U, eqn) = 
       let
 	val Upi = A.raiseType(concat(G, D), U)
-	fun lookup ((G, D, U), []) = 
-	  (table := ((ref 1, G, D, U), {solutions = [],lookup = 0})::(!table); 
-	   (if (!Global.chatter) >= 5 then 
-	      (print ("\n \n Added " );
-	       print (Print.expToString (I.Null, Upi) ^ "\n to Table \n"))
-	    else 
-	      ());
-	      added := true;
-	      (* if termdepth(U) > n then force the tabled engine to suspend
-	       * and treat it like it is already in the table, but no answ available *)
-	      if abstractionSet() then 
-		((* print ("\n term " ^ Print.expToString (I.Null, Upi) ^ 
-		  " exceeds depth or length ? \n"); *)
-		 
-		 if exceeds (A.raiseType(G, U)) then 
-		   ((if (!Global.chatter) >= 5 then 
-		       print ("\n term " ^ Print.expToString (I.Null, Upi) ^ 
-			      " exceeds depth or length \n")
-		     else 
-		       ());
-		       SOME([]))
-		 else 
-		   NONE)
+	fun lookup ((G, D, U, eqn), []) = 
+	  (let
+	     val answRef = ref ({solutions = [],lookup = 0})
+	   in 
+	     table := ((ref 1, G, D, U, eqn), answRef)::(!table); 
+	     answList := (answRef::(!answList)) ; 
+	     (if (!Global.chatter) >= 5 then 
+		(print ("\n \n Added " );
+		 print (Print.expToString (I.Null, Upi) ^ "\n to Table \n"))
 	      else 
-		NONE)
-	  | lookup ((G, D, U), ((H as ((k, G', D', U'), answ))::T)) =
-	    if variant ((Upi, I.id), (A.raiseType(concat(G',D'), U'), I.id)) then
+		());
+		added := true;
+		(* if termdepth(U) > n then force the tabled engine to suspend
+		 * and treat it like it is already in the table, but no answ available *)
+		if abstractionSet() then 
+		  ((* print ("\n term " ^ Print.expToString (I.Null, Upi) ^ 
+		    " exceeds depth or length ? \n"); *)
+		   
+		   if exceeds (A.raiseType(G, U)) then 
+		     ((if (!Global.chatter) >= 5 then 
+			 print ("\n term " ^ Print.expToString (I.Null, Upi) ^ 
+				" exceeds depth or length \n")
+		       else 
+			 ());
+			 RepeatedEntry (answRef)) (* ? Thu Sep 12 14:06:57 2002 -bp *)
+		   else 
+		     NewEntry (answRef))
+		else 
+		  NewEntry (answRef)
+	   end)
+	  | lookup ((G, D, U, eqn), ((H as ((k, G', D', U', eqn'), answRef))::T)) =
+	    if variant ((Upi, I.id), (A.raiseType(concat(G',D'), U'), I.id)) andalso equalEqn(eqn, eqn') then
 	      (k := !k+1;
 	       (if (!Global.chatter) >= 5 then
 		  print ("call " ^ Print.expToString (I.Null, Upi) ^ " found in table \n ")
 		else 
 		  ());
-		  SOME[((G', D', U'), answ)])
+		  RepeatedEntry (answRef))
 	    else  
-	      lookup ((G, D, U), T)
+	      lookup ((G, D, U, eqn), T)
       in 
-	lookup ((G, D, U), (!table))
+	lookup ((G, D, U, eqn), (!table))
       end
 
 
-    (* Subsumption:
-
-       Assumes: Table is in order [tn, ...., t1]
-       i.e. tn is added to the table later than t1
-            this implies that tn is more general than ti (i < n)
-         
-       if we find a tn s.t M is an instance of it, then return tn
-       and do not search further
-
-    *)
-
-
-    fun callCheckSubsumes (G, D, U) = 
-      let 		
-	fun lookup ((G, D, U), []) = 
-	    (table := ((ref 1, G, D, U), {solutions = [],lookup = 0})::(!table); 
-	     (if (!Global.chatter) >= 5 then
-		print ("Added " ^  Print.expToString (I.Null,A.raiseType(concat(G, D), U)) ^ " to Table \n")
-	      else 
-		());
-	     added := true;
-	     if exceeds (A.raiseType(G, U)) then 
-		((if (!Global.chatter) >= 4 then 
-		    print ("\n term " ^ Print.expToString (I.Null, A.raiseType(concat(G, D), U)) ^ 
-			   " exceeds depth or length \n")
-		  else 
-		    ());
-		SOME([]))
-	      else 
-		NONE)
-	  | lookup ((G, D, U), (((k, G', D', U'), answ)::T)) =
-	    if (subsumes ((G, D, U), (G', D', U'))) then	       
-	      ((if (!Global.chatter) >= 5 then
-		 print ("call " ^ Print.expToString (I.Null, A.raiseType(concat(G, D), U)) ^ "found in table \n ")
-	       else 
-		 ());
-		  k := !k+1;
-		 SOME([((G', D', U'), answ)]))
-	    else 
-	      lookup ((G, D, U), T) 
-      in 
-	lookup ((G, D, U), (!table))
-      end
 
     (* ---------------------------------------------------------------------- *)
     (* answer check and insert 
@@ -488,262 +497,128 @@ struct
         sk is the abstraction of s and Dk contains all "free" vars
       
      *) 
-    fun answCheckVariant (G, D, U, s, O) =  
+    fun answCheckVariant (G, D, U, eqn, s, answRef, O) =  
       let 
-	val Upi = A.raiseType(concat(G, D), U)
+	val {solutions = S, lookup = i} = !answRef
 
-	val _ = if (!Global.chatter) >= 5 then 
-	          (print "\n AnswCheckInsert: ";
-		   print (Print.expToString(I.Null, 
-					    I.EClo(A.raiseType(G, U),s)) ^ "\n");
-		   print "\n Table Index : " ;
-		   print (Print.expToString (I.Null,  Upi) ^ "\n"))
-		else 
-		  ()
-
-	fun member ((Dk, sk), []) = false
-	  | member ((Dk, sk), (((D1, s1),_)::S)) = 
-
-	  (* do we really need to compare Gus and Gs1 ?  *)
-	  if equalSub (sk,s1) andalso equalCtx (Dk, D1) then   
-	    true
-	  else 
-	    member ((Dk, sk), S)
+	fun member ((Dk, sk, eqnk), []) = false
+	  | member ((Dk, sk, eqnk), (((D1, s1, eqn1),_)::S)) = 
+	    if equalSub (sk,s1) andalso equalCtx (Dk, D1) andalso equalEqn (eqnk, eqn1) then   
+	      true
+	    else 
+	      member ((Dk, sk, eqnk), S)
 	
-	fun lookup  (G, D, U, s) [] T = 
-	  (* cannot happen ! *) 
-	  (print (Print.expToString(I.Null, I.EClo(A.raiseType(G,U),s))  
-		  ^ " call should always be already in the table !\n") ; 
-	   repeated)
-	  | lookup (G, D, U, s) ((H as ((k, G', D',U'), {solutions = S, lookup = i}))::T) T' = 
-	  if variant ((Upi, I.id),
-		      (A.raiseType(concat(G', D'), U'), I.id))
-	    then 
-	      let 
-		val (Dk, sk) = A.abstractAnswSub s
-	      in 	       	       
-		(* answer check *)
-		if member ((Dk, sk), S) then  
-		  repeated
-		else 
-		  (table := (rev T')@(((k, G', D', U'),
-				       {solutions = (((Dk, sk), O)::S), 
-					lookup = i})::T); 
-		   
-		   (if (!Global.chatter) >= 5 then 
-		      (print ("\n solution added  -- " ); 
-		       print (Print.expToString(I.Null, A.raiseType(Dk, I.EClo(A.raiseType(G', U'), sk)))))
-		    else 
-		      ());
-		   new)
-	      end
-	   else 
-	      lookup (G, D, U, s) T (H::T')
-      in 
-	lookup (G, D, U, s) (!table) []
+	val (Dk, sk, eqnk) = A.abstractAnswSub (G, s)
+(*	val _ = print ("Length of Dk = " ^ Int.toString (I.ctxLength(Dk)) ^ "\n")
+	val _ = print ("Length of G = " ^ Int.toString (I.ctxLength(G)) ^ "\n") *)
+      in 	
+	if member ((Dk, sk, eqnk), S) then  
+	  repeated
+	else 
+	  (answRef := {solutions = (((Dk, sk, eqnk), O)::S), 
+		       lookup = i}; 
+	   (if (!Global.chatter) >= 5 then 
+	      (print ("\n solution added for " ); 
+	       print (Print.expToString(I.Null, A.raiseType(D, A.raiseType(G, U))) ^ "\n");
+	       print ("solution is : " ^ Print.expToString (I.Null, I.EClo(A.raiseType(G, U), s)) ^ "\n");
+
+	       print ("closed sol.: " ^ Print.expToString(I.Null, A.raiseType(Dk, I.EClo(A.raiseType(G, U), sk))) ^ "\n");
+	       print ("             "); printResEqn(G, Dk, eqnk); print "\n")
+	    else 
+	      ());
+	      new)
       end 
 
-  (* memberSubsumes ((G, Dk, U, sk), (G', U', A)) = bool
- 
-   If Dk, G |- U[sk] 
-
-      A = ((Dn, sn), On), ....., ((D1, s1), O1)
-
-      for all i in [1, ..., n]
-          Di, G' |- U'[si]
-              G' |- si' : Di, G'         
-   then  
-     exists an i in [1,...,n]  s.t. 
-         Dk, G |- U[sk] is an instance of G' |- U'[si'] 
-   *)
-
-    fun memberSubsumes ((G, D, U, s), (G', U', [])) = false
-      | memberSubsumes ((G, D, U, s), (G', U', (((D1, s1), _)::A))) = 
-        let
-	  val Upi = A.raiseType(G, U)
-	  val Upi' = A.raiseType(G',U')
-	  val s1' = reinstSub (G', D1, I.id) 
-	  val Vpis = (I.EClo(Upi', s1), s1')
-
-	  (* assume G' and G are the same for now *)
-	  val b = CSManager.trail (fn () => 
-				   Unify.unifiable (D, (Upi, s), (Vpis)))
-	in 
-	  if b then
-	    ((if (!Global.chatter) >= 5 then 
-		print "\n answer in table subsumes answer \n "
-	      else 
-		());
-	     true)
-	  else 
-	    memberSubsumes ((G, D, U, s), (G', U', A)) 
-	end 
-
-  fun shift (0, s) = s
-    | shift (n, s) = shift(n-1, I.dot1 s)
-
-	
-   fun answCheckSubsumes (G, D, U, s, O) = 
-      let
-	val Upi = A.raiseType(G, U)
-	val _ = if (!Global.chatter) >= 4 then 
-	            (print ("\n AnswCheckInsert (subsumes): " );
-		     print(Print.expToString(I.Null, I.EClo(Upi, s))
-		       ^ "\n"))
-		else ()
-
-	fun lookup ((G, D, U , s), [], T) = 
-	  (* cannot happen ! *) 
-	  (print (Print.expToString(concat(G, D), I.EClo(U,s)) 
-		  ^ " call should always be already in the table !\n") ; 
-	   repeated)
-	  | lookup ((G, D, U, s), (((k, G', D', U'), {solutions = A, lookup = i})::T), T') = 
-	  if (subsumes ((G, D, U), (G', D', U'))) then
-	    let 
-	      val (Dk, sk) = A.abstractAnswSub s
-	     in 
-	       if memberSubsumes ((G, Dk, U, sk), (G', U', A)) then
-		 repeated
-	       else 
-		 let
-		   val s' = reinstSub (G', D', I.id)
-		   val _ = if (!Global.chatter) >= 4 then 
-		            (print "\n new answer to be added to Index \n";
-			     print (Print.expToString(I.Null, 
-						    A.raiseType(concat(G', D'), U')) ^"\n");
-			     print "\n answer added \n";
-			     print (Print.expToString(I.Null, A.raiseType(Dk, 
-			                I.EClo(A.raiseType(G, U), sk))) ^ "\n"))
-			   else 
-			     ()
-		   (*  higher-order matching *)
-		   val _ = if (Unify.unifiable (Dk, (A.raiseType(G, U), sk),  
-					       (A.raiseType(G', U'), s')))
-			     then (if (!Global.chatter) >= 4 then 
-				     (print "\n1 unification successful !\n";
-				      print (Print.expToString(I.Null, A.raiseType(Dk, 
-			                      I.EClo(A.raiseType(G', U'), s')))
-					     ^ "\n"))
-				   else 
-				     ())
-			   else print "\n1 unification failed! -- should never happen ?"
-		   val (Dk', sk') = A.abstractAnsw (Dk, s')
-		   val rs = reinstSub (G', Dk', I.id) (* reinstantiate us' *) 
-		in 			
-		  (case !query of
-		    NONE => () (* nothing to do *)
-		    | SOME(G1, D1, U1, s1, sc1) => 		      
-		      ((if (!Global.chatter) >= 4 then 
-		              (print ("Generate answers for: " );
-			       print (Print.expToString(I.Null, I.EClo(A.raiseType(G1, U1), s1)) ^ " \n");
-			       print ("Answer in table: " );
-			       print (Print.expToString(I.Null, A.raiseType(Dk, I.EClo(A.raiseType(G', U'), s')))
-				      ^ " : \n" );
-			       print (Print.expToString(I.Null, I.EClo(A.raiseType(Dk, I.EClo(A.raiseType(G', U'), sk')), rs)) ^ " : \n" ))
-			   else ());
-		       (if (subsumes ((G1, D1, U1), (G', D', U'))) then 
-			 (* original query is an instance of the entry we are adding answ to *)
-			 CSManager.trail (fn () =>  
-                             (if Unify.unifiable (D1, (A.raiseType(G1, U1), s1), 
-						  (I.EClo(A.raiseType(G', U'), sk'), rs))
-				then 	   
-				  let 
-				    val w = if (!strengthen) 
-					      then
-						Subordinate.weaken (I.Null, IntSyn.targetFam(I.EClo(U1, s1)))
-					    else 
-					      I.id
-				  in 
-						 (* (I.EClo(N1, I.comp(shift(I.ctxLength(Gdp1),s1), w))) *)
-						 sc1 O
-					       end
-					   else ()
-					     ))
-		       else 
-			 ())));
-
-		  table := ((rev T')@(((k, G', D', U'),
-				       {solutions = (((Dk', sk'), O)::A), 
-					lookup = i})::T));
-		  (if (!Global.chatter) >= 5 then 
-		     (print ("\n \n solution (original) was: \n");
-		      print(Print.expToString(I.Null, I.EClo(A.raiseType(G, U), s)) 
-			    ^ "\n");
-		      print ("\n \n solution (deref) was: \n");
-		      print(Print.expToString(I.Null, A.raiseType(Dk, I.EClo(A.raiseType(G, U), sk)))
-(*		      print(Print.expToString(I.Null, I.EClo(A.raiseType(concat(G, Dk), U), sk)) *)
-			    ^ "\n"); 		  
-		      print ("\n solution added  --- ");
-		      print (Print.expToString(I.Null, A.raiseType(Dk', I.EClo(A.raiseType(G', U'), s')))
-			     ^ "\n"); 		  
-		      print ("\n solution added (dereferenced) --- "); 		  
-		      print (Print.expToString(I.Null, A.raiseType(Dk',
-					       I.EClo(A.raiseType(G', U'), sk')))
-			     ^ "\n"))
-		  else 
-		    ());
-		  new 
-		end
-	     end 
-	  else 
-	    lookup ((G, D, U, s), T, (((k, G', D', U'), {solutions = A, lookup = i})::T'))
-      in 
-	lookup ((G, D, U, s), (!table), [])
-      end 
 
    (* ---------------------------------------------------------------------- *)
    (* TOP LEVEL *)
 
     fun reset () = (table := [])
-
+    fun tableSize () = (List.length(!table))
 
     fun solutions {solutions = S, lookup = i} = S
     fun lookup {solutions = S, lookup = i} = i
 
-
+(*
     fun noAnswers [] = true
-      | noAnswers ((H as ((G', D', U'), answ))::L') = 
-          case (List.take (solutions(answ), lookup(answ))) 
-	    of [] => noAnswers L'
-	  | L  => false
+      | noAnswers ((H as ((G', D', U', eqn'), answRef))::L') = 
+      let
+	val answ = !answRef
+      in 
+	case (List.take (solutions(answ), lookup(answ))) 
+	  of [] => noAnswers L'
+	| L  => false
+      end
+*)
+    fun noAnswers answ =     
+    (case solutions(answ) 
+       of [] => true
+     | L  => false)
 
 
-    fun callCheck (G, D, U) = 
+    fun callCheck (G, D, U, eqn) = 
           case (!strategy) of 
-	    Variant => callCheckVariant (G, D, U)
-	  | Subsumption => callCheckSubsumes (G, D, U)
+	    Variant => callCheckVariant (G, D, U, eqn)
+	  | Subsumption => raise Error "Subsumption is missing currently\n"
 
-    fun answCheck (G, D, U, s, O) = 
+    fun answCheck (G, D, U, eqn, s, answRef, O) = 
       case (!strategy) of
-	Variant => answCheckVariant (G, D, U, s, O)
-      | Subsumption => answCheckSubsumes (G, D, U, s, O)
+	Variant => answCheckVariant (G, D, U, eqn, s, answRef, O)
+      | Subsumption => raise Error "Subsumption is missing currently\n"
 	      
 
     (* needs to take into account previous size of table *)
     fun updateTable () = 
-          let 
-	    fun update [] T Flag = (Flag, T)
-	      | update (((k, G, D, U), {solutions = S, lookup = i})::T) T' Flag =
-	      let 
+      let
+	fun update [] Flag = Flag
+	  | update (answRef::AList) Flag = 
+	  let
+	    val {solutions = S, lookup = i} = !answRef
 		val l = length(S) 
 	      in 
 		if (l = i) then 
 		  (* no new solutions were added in the previous stage *) 	      
-		  update T (((k, G, D, U), {solutions = S, lookup = List.length(S)})::T') Flag
+		  (answRef := {solutions = S, lookup = l};
+		  update AList Flag)
 		else 
 		  (* new solutions were added *)
-		  update T (((k, G, D, U), {solutions = S, lookup = List.length(S)})::T') true
+		  (answRef := {solutions = S, lookup = l};
+		  update AList true)
 	      end 
-	    val (Flag, T) = update (!table) [] false
-	    val r = Flag orelse (!added)
+	    val Flag = update (!answList) false
+	    val r = Flag orelse (!added) 
 	  in  
-	    added := false;
-	    table := rev(T);
+	    added := false; 
+	    r
+	  end 
+(*
+    fun updateTable () = 
+          let 
+	    fun update [] Flag = Flag
+	      | update (((k, G, D, U, eqn), answRef )::T) Flag =
+	      let 
+		val {solutions = S, lookup = i} = !answRef
+		val l = length(S) 
+	      in 
+		if (l = i) then 
+		  (* no new solutions were added in the previous stage *) 	      
+		  (answRef := {solutions = S, lookup = List.length(S)};
+		  update T Flag)
+		else 
+		  (* new solutions were added *)
+		  (answRef := {solutions = S, lookup = List.length(S)};
+		  update T true)
+	      end 
+	    val Flag = update (!table) false
+	    val r = Flag (* orelse (!added) *)
+	  in  
+(*	    added := false; *)
+(*	    table := rev(T); *)
             (* in each stage incrementally increase termDepth *)
 (*	    termDepth := (!termDepth +1); *)
 	    r
 	  end 
-
+*)
   in
 
 (*  val termDepth = termDepth
@@ -751,9 +626,9 @@ struct
     val ctxLength = ctxLength
 *)
     val table = table
-    val solutions = solutions
-    val lookup = lookup
-    val noAnswers = noAnswers
+    val solutions = (fn answRef => solutions (!answRef))
+    val lookup = (fn answRef => lookup (!answRef))
+    val noAnswers = (fn answRef => noAnswers (!answRef))
 
     val reset = reset
 
@@ -765,7 +640,7 @@ struct
 
     val updateTable = updateTable
 
-
+    val tableSize = tableSize
   end (* local *)
 
 end;  (* functor TableIndex *)

@@ -10,7 +10,6 @@ sig
   structure CompSyn : COMPSYN
 
   val solve     : (CompSyn.Goal * IntSyn.Sub) * CompSyn.DProg
-                  * (CompSyn.Flatterm list -> unit) -> unit 
-
+                  * (CompSyn.Flatterm list -> unit) -> unit
 
 end;  (* signature ABSMACHINESBT *)

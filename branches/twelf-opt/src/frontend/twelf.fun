@@ -87,8 +87,8 @@ functor Twelf
    structure Tabled : TABLED
      sharing Tabled.IntSyn = IntSyn'
      sharing Tabled.CompSyn = CompSyn'
-   structure TableIndex : TABLEINDEX
-     sharing TableIndex.IntSyn = IntSyn'
+   structure MemoTable : MEMOTABLE
+     sharing MemoTable.IntSyn = IntSyn'
    structure Solve : SOLVE
      sharing Solve.IntSyn = IntSyn'
      sharing type Solve.ExtQuery.query = Parser.ExtQuery.query
@@ -1156,8 +1156,8 @@ struct
 
 (*      structure Table =
 	struct
-	  fun print () = TableIndex.printTable ()
-          fun printEntries () = TableIndex.printTableEntries()
+	  fun print () = MemoTable.printTable ()
+          fun printEntries () = MemoTable.printTableEntries()
 	end
 
 *)
@@ -1266,16 +1266,16 @@ struct
 
     structure Table : 
       sig 
-	datatype Strategy = datatype TableIndex.Strategy
+	datatype Strategy = datatype MemoTable.Strategy
 	val strategy : Strategy ref
 	val strengthen : bool ref
 	val top : unit -> unit
       end 
     = 
   struct
-    datatype Strategy = datatype TableIndex.Strategy
-    val strategy = TableIndex.strategy
-    val strengthen = TableIndex.strengthen
+    datatype Strategy = datatype MemoTable.Strategy
+    val strategy = MemoTable.strategy
+    val strengthen = MemoTable.strengthen
       	  
     (* top () = () starts interactive query loop *)
     fun top () = 

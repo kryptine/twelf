@@ -35,6 +35,8 @@ sig
   (* Applies f:'a entry -> unit to all entries in the set
      pre-order traversal *)
   val forall : 'a ordSet -> ('a entry -> unit) -> unit
+(*  val exists : 'a ordSet -> ('a entry -> 'b option) -> ('a entry (* key * 'a *) * 'b) option *)
+  val exists : 'a ordSet -> ('a entry -> bool) -> bool
 
   val size : 'a ordSet -> int
   val union: 'a ordSet -> 'a ordSet -> 'a ordSet

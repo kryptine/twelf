@@ -31,3 +31,12 @@ structure Abstract =
 structure Approx =
   Approx (structure IntSyn' = IntSyn
           structure Whnf = Whnf);
+(*
+structure AbstractTabled =
+  AbstractTabled (structure IntSyn' = IntSyn
+		  structure Whnf = Whnf
+(*		  structure Subordinate = Subordinate*)
+		  structure Conv = Conv
+		  structure Unify = UnifyNoTrail
+(*		  structure Print = Print*));
+*)

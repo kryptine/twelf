@@ -8,11 +8,6 @@ sig
   structure CompSyn : COMPSYN
   structure Unify : UNIFY 
 
-
-  val SuspGoals : ((((IntSyn.Exp * IntSyn.Sub) * CompSyn.DProg * 
-		     (CompSyn.pskeleton -> unit)) * 
-		    Unify.unifTrail * int ref) list) ref 
-
   val solve     : (CompSyn.Goal * IntSyn.Sub) * CompSyn.DProg
                   * (CompSyn.pskeleton -> unit) -> unit
 
@@ -20,8 +15,10 @@ sig
 
   val reset : unit -> unit
 
-  val solExists : (IntSyn.Exp * IntSyn.Sub) -> bool
+(*  val solExists : (IntSyn.Exp * IntSyn.Sub) -> bool *)
 
+  val tableSize : unit -> int
+  val suspGoalNo : unit -> int
 
 end;  (* signature TABLED *)
 

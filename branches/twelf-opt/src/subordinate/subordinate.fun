@@ -465,6 +465,10 @@ struct
     fun show () = Table.app showFam soTable;
 
     (* weaken (G, a) = (w')
+       invariant: 
+       G |- w' : G'
+       G' is a sub-context of G
+       every type in G' is a subordinate in a
     *)
     fun weaken (I.Null, a) = I.id
       | weaken (I.Decl (G', D as I.Dec (name, V)), a) = 
