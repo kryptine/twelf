@@ -140,79 +140,68 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
        and  Psi |- P[t] evalsto V
        and  Psi |- F[t] == F'
     *)
-    and evalPrg (Psi, (T.Unit, t)) = (print "\nevalPrg1" ; T.Unit)
+    and evalPrg (Psi, (T.Unit, t)) = T.Unit
 
-      | evalPrg (Psi, (T.PairExp (M, P), t))  = (print "\nevalPrg2" ;
-	  T.PairExp (I.EClo (M, T.coerceSub t), evalPrg (Psi, (P, t))))
+      | evalPrg (Psi, (T.PairExp (M, P), t))  = 
+	  T.PairExp (I.EClo (M, T.coerceSub t), evalPrg (Psi, (P, t)))
 
-      | evalPrg (Psi, (T.PairBlock (B, P), t)) = (print "\nevalPrg3" ;
-          T.PairBlock (I.blockSub (B, T.coerceSub t), evalPrg (Psi, (P, t))))
+      | evalPrg (Psi, (T.PairBlock (B, P), t)) = 
+          T.PairBlock (I.blockSub (B, T.coerceSub t), evalPrg (Psi, (P, t)))
 
-      | evalPrg (Psi, (T.PairPrg (P1, P2), t)) = (print "\nevalPrg4" ;
-	  T.PairPrg (evalPrg (Psi, (P1, t)), evalPrg (Psi, (P2, t))))
+      | evalPrg (Psi, (T.PairPrg (P1, P2), t)) = 
+	  T.PairPrg (evalPrg (Psi, (P1, t)), evalPrg (Psi, (P2, t)))
 
-      | evalPrg (Psi, (T.Redex (P, S), t)) = (print "\nevalPrg5" ;
-	  evalRedex (Psi, evalPrg (Psi, (P, t)), (S, t)))
+      | evalPrg (Psi, (T.Redex (P, S), t)) = 
+	  evalRedex (Psi, evalPrg (Psi, (P, t)), (S, t))
 
-      | evalPrg (Psi, (T.Root (T.Var k, S), t)) =(print "\nevalPrg6" ;
+      | evalPrg (Psi, (T.Root (T.Var k, S), t)) =
           (case T.varSub (k, t) 
 	    of T.Prg P =>  evalRedex (Psi, evalPrg (Psi, (P, T.id)), (S, t))
-	      ))
+	      )
 
-      | evalPrg (Psi, (T.Root (T.Const lemma, S), t)) = (print "\nevalPrg7" ;
-	    evalPrg (Psi, (T.Redex(T.lemmaDef lemma, S), t)))
+      | evalPrg (Psi, (T.Root (T.Const lemma, S), t)) = 
+	    evalPrg (Psi, (T.Redex(T.lemmaDef lemma, S), t))
 
-      | evalPrg (Psi, (T.Lam (D, P), t)) = (print "\nevalPrg8" ;
-	  T.Lam (T.decSub (D, t), T.PClo (P, T.dot1 t))) 
+      | evalPrg (Psi, (T.Lam (D, P), t)) = 
+	  T.Lam (T.decSub (D, t), T.PClo (P, T.dot1 t))
 
-      | evalPrg (Psi, (P' as T.Rec (D, P), t)) =  (print "\nevalPrg9" ;
-	 evalPrg (Psi, (P, T.Dot (T.Prg (T.PClo (P', t)), t))))
+      | evalPrg (Psi, (P' as T.Rec (D, P), t)) =  
+	 evalPrg (Psi, (P, T.Dot (T.Prg (T.PClo (P', t)), t)))
 
 
-      | evalPrg (Psi, (T.PClo (P, t'), t)) = (print "\nevalPrg10" ;
-	  evalPrg (Psi, (P, T.comp (t', t))))
+      | evalPrg (Psi, (T.PClo (P, t'), t)) = 
+	  evalPrg (Psi, (P, T.comp (t', t)))
 
-      | evalPrg (Psi, (T.Case (T.Cases O), t')) = (print "\nevalPrg11" ;
-						   (* this is ugly.
-						    * don't do reverse *)
+      | evalPrg (Psi, (T.Case (T.Cases O), t')) = 
+	  (* this is ugly.
+	   * don't do reverse *)
 	 (* reverse list O, so it looks at the
 	   cases in the same order it is printed 
 	   *)		  
-	  match (Psi, t', T.Cases (rev O)))
+	  match (Psi, t', T.Cases (rev O))
 
-      | evalPrg (Psi, (T.EVar ((D, r as ref (SOME P), F)), t)) =  (print "\nevalPrg12" ;
-	  evalPrg (Psi, (P, t)))
+      | evalPrg (Psi, (T.EVar ((D, r as ref (SOME P), F)), t)) =  
+	  evalPrg (Psi, (P, t))
 
-      | evalPrg (Psi, (T.Let (D, P1, P2), t)) = (print "\nevalPrg13" ;
+      | evalPrg (Psi, (T.Let (D, P1, P2), t)) = 
 	  let
 	    val V = evalPrg (Psi, (P1, t)) 
 	  in 
-	    evalPrg (Psi, (P2, T.Dot (T.Prg V, t)))
-						 
-	  end)
+	    evalPrg (Psi, (P2, T.Dot (T.Prg V, t)))						 
+	  end
 
-      | evalPrg (Psi, (T.New (T.Lam (D, P)), t)) = (print "\nevalPrg14" ;
+      | evalPrg (Psi, (T.New (T.Lam (D, P)), t)) = 
 	   let 
-	     val _ = print "["
 	     val D' = T.decSub (D, t)
 	     val T.UDec (D'') = D'
 	     val D''' = T.UDec (Names.decName (T.coerceCtx Psi, D''))  (* unnecessary naming, remove later --cs *)
 	     val V = evalPrg (I.Decl (Psi, D'''), (P, T.dot1 t))
-	     val _ = print "."
 	     val B = T.coerceCtx (I.Decl (I.Null, D'''))
-	     val _ = print "."
 	     val (G, t') = Converter.deblockify B
-	     val _ = print "."
-						    
-	     val _ = print (TomegaPrint.prgToString (I.Decl (Psi, D'''), V))
-	     val _ = print "."
-
 	     val newP = raisePrg (Psi, G, Normalize.normalizePrg (V, t'))
-	     val _ = print (TomegaPrint.prgToString (Psi, newP))
-	     val _ = print "]\n"
 	   in 
 	     newP
-	   end)
+	   end
 
 
    (* other cases should not occur -cs *)
@@ -229,21 +218,15 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
 	    otherwise exception NoMatch is raised.
     *)
 
-(*
     and match (Psi, t1, T.Cases ((Psi', t2, P) :: C)) =
         let 
 	  (* val I.Null = Psi *)
 	  val t = createVarSub (Psi, Psi') (* Psi |- t : Psi' *)
-		  			  (* Psi' |- t2 : Psi'' *)
+		  			  (* Psi' |- t2 o shift(k) : Psi'' *)
 
 	  val t' = T.comp (t2, t)
-
-	  val _ = print ("t1 = " ^ printSub(t))
-	  val _ = print ("t2 = " ^ printSub(t2))
-	  val _ = print ("t = " ^ printSub(t))
-	  val _ = print ("t' = " ^ printSub(t'))
 	in
-	  ( matchSub (Psi, t1, t'); print "\nFOUND CASE\n" ;
+	  ( matchSub (Psi, t1, t'); 
 	   evalPrg (Psi, (P, Normalize.normalizeSub t)))
 	  handle NoMatch => match (Psi, t1, T.Cases C)	  
 	end
@@ -251,27 +234,6 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
       (* What do you want to do if it doesn't match anything *)
       (* can't happen when total function - ABP *)
       (* | match (Psi, t1, T.Cases Nil) = raise Domain  *)
-*)
-
-    and match (Psi, t1, T.Cases ((Psi', t2, P) :: C)) =
-        let 
-	  (* val I.Null = Psi *)
-	  val t = createVarSub (Psi, Psi') (* Psi |- t : Psi' *)
-		  			  (* Psi' |- t2 : Psi'' *)
-
-	  val t' = T.comp (t2, t)
-
-	  val _ = if (Psi = I.Null) then print "IT IS NULL\n" else ()
-	  val _ = print ("t1 = " ^ printSub(t))
-	  val _ = print ("t2 = " ^ printSub(t2))
-	  val _ = print ("t = " ^ printSub(t))
-	  val _ = print ("t' = " ^ printSub(t'))
-	in
-	  ( matchSub (Psi, t1, t'); print "\nFOUND CASE\n" ;
-	   evalPrg (Psi, (P, Normalize.normalizeSub t)))
-	  handle NoMatch => match (Psi, t1, T.Cases C)	  
-	end
-
 
 
     (* createVarSub (Psi, Psi') = t
@@ -301,7 +263,6 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
 
       | createVarSub (Psi, I.Decl (Psi', T.UDec (I.BDec (name, (cid, s))))) =	
 	let
-	  val _  = print "\nHELLO 3"
 	  val t = createVarSub (Psi, Psi')
 	in
           T.Dot (T.Block (I.LVar (ref NONE, I.id, (cid, I.comp (s,  T.coerceSub t)))), t)
@@ -319,18 +280,8 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
 	    otherwise exception NoMatch is raised
     *)
 
-    and printSub (T.Dot (_, s)) = ("(DOT) " ^ printSub(s))
-      | printSub (T.Shift n) = ("Shift ^" ^ Int.toString(n) ^ "\n")
-
-    and matchSub (Psi, T.Shift a, T.Shift b) =  if (a=b) then () else raise NoMatch
-                                           (* previously just () -- ABP *)
-      | matchSub (Psi, T.Shift n, t as T.Dot _) =  
-          matchSub (Psi, T.Dot (T.Idx (n+1), T.Shift (n+1)), t)
-(*
-      | matchSub (Psi, t as T.Dot _, T.Shift 0) =  (print "\nBecause of what" ; ()) (* Just because ABP 2/5/03 *)
-*)
-      | matchSub (Psi, t as T.Dot _, T.Shift n) =   (print ("\nBecause of who? -- n = " ^ Int.toString(n) ^ ", |t| = " ^ printSub(t)) ; ()) (* Just because #2 *)
-(*          matchSub (Psi, t, T.Dot (T.Idx (n+1), T.Shift (n+1)))) *)
+    and matchSub (Psi, _, T.Shift _) = () (* By Invariant *)
+      | matchSub (Psi, T.Shift n, t as T.Dot _) =  matchSub (Psi, T.Dot (T.Idx (n+1), T.Shift (n+1)), t)
 
       | matchSub (Psi, T.Dot (T.Exp U1, t1), T.Dot (T.Exp U2, t2)) = 
 	  (matchSub (Psi, t1, t2);
@@ -338,14 +289,14 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
 
       | matchSub (Psi, T.Dot (T.Exp U1, t1), T.Dot (T.Idx k, t2)) =  
 	  ( matchSub (Psi, t1, t2);
-	   Unify.unify (T.coerceCtx Psi, (U1, I.id), (I.Root (I.BVar k, I.Nil), I.id)) handle Unify.Unify _ => raise NoMatch) 
+	   Unify.unify (T.coerceCtx Psi, (U1, I.id), (I.Root (I.BVar k, I.Nil), I.id)) handle Unify.Unify _ => raise NoMatch)
 
       | matchSub (Psi, T.Dot (T.Idx k, t1), T.Dot (T.Exp U2, t2)) =  
 	  ( matchSub (Psi, t1, t2); 
 	   Unify.unify (T.coerceCtx Psi, (I.Root (I.BVar k, I.Nil), I.id), (U2, I.id)) handle Unify.Unify _ => raise NoMatch )
 
 
-      | matchSub (Psi, T.Dot (T.Prg P1, t1), T.Dot (T.Prg P2, t2)) = 
+      | matchSub (Psi, T.Dot (T.Prg P1, t1), T.Dot (T.Prg P2, t2)) =
 	  ( matchSub (Psi, t1, t2); 
 	   matchPrg (Psi, P1, P2))
       | matchSub (Psi, T.Dot (T.Prg P1, t1), T.Dot (T.Idx k, t2)) = 
@@ -370,22 +321,24 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
        then Psi |- V' == V'' : F3[t]
     *)
 
-  and evalRedex (Psi, V, (T.Nil, _)) = (print "\nevalRedex1" ; V)
-    | evalRedex (Psi, V, (T.SClo (S, t1), t2)) =(print "\nevalRedex2" ; 
-          evalRedex (Psi, V, (S, T.comp (t1, t2))))
-    | evalRedex (Psi, T.Lam (T.UDec (I.Dec (_, A)), P'), (T.AppExp (U, S), t)) =  (print "\nevalRedex3" ;     
-	  evalRedex (Psi, evalPrg (Psi, (P', T.Dot (T.Exp (I.EClo (U, T.coerceSub t)), T.id))), (S, t))) 
+  and evalRedex (Psi, V, (T.Nil, _)) = V
+    | evalRedex (Psi, V, (T.SClo (S, t1), t2)) =
+          evalRedex (Psi, V, (S, T.comp (t1, t2)))
+    | evalRedex (Psi, T.Lam (T.UDec (I.Dec (_, A)), P'), (T.AppExp (U, S), t)) =  
+	  evalRedex (Psi, evalPrg (Psi, (P', T.Dot (T.Exp (I.EClo (U, T.coerceSub t)), T.id))), (S, t))
 
-    | evalRedex (Psi, T.Lam (T.UDec _, P'), (T.AppBlock (B, S), t)) = (print "\nevalRedex4" ; 
-          evalRedex (Psi, evalPrg (Psi, (P', T.Dot (T.Block (I.blockSub (B, T.coerceSub t)), T.id))), (S, t)))
+    | evalRedex (Psi, T.Lam (T.UDec _, P'), (T.AppBlock (B, S), t)) = 
+          evalRedex (Psi, evalPrg (Psi, (P', T.Dot (T.Block (I.blockSub (B, T.coerceSub t)), T.id))), (S, t))
 
-    | evalRedex (Psi, T.Lam (T.PDec _, P'), (T.AppPrg (P, S), t)) = (print "\nevalRedex5" ; 
+    | evalRedex (Psi, T.Lam (T.PDec _, P'), (T.AppPrg (P, S), t)) = 
 	  let
 	    val V = evalPrg (Psi, (P, t))
 	    val V' = evalPrg (Psi, (P', T.Dot (T.Prg V, T.id)))
 	  in
 	    evalRedex (Psi, V', (S, t))
-	  end)
+	  end
+
+
 
   (* in -- removed local *)
     val evalPrg = fn P => evalPrg (I.Null, (P, T.id))  
