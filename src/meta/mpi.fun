@@ -352,17 +352,6 @@ struct
 	    (menu (); printMenu ())
 	  end
 
-
-    fun check () = 
-      	if empty () then raise Error "Nothing to check"
-	else 	  
-	  let 
-	    val S = current ()
-	  in 
-	    FunTypeCheck.isState S
-	  end
-
-
     fun auto () =
 	let 
 	  val (Open', Solved') = MTPStrategy.run (collectOpen ())
@@ -392,7 +381,8 @@ struct
     val reset = reset
     val solve = solve 
     val auto = auto
-    val check = check 
+(*    val extract = extract *)
+(*    val show = show *)
     val undo = undo
  end (* local *)
 end; (* functor MPI *)

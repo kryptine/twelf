@@ -10,11 +10,9 @@ sig
   structure IntSyn: INTSYN
   structure CompSyn: COMPSYN
 
-  exception Error of string
-
   val optimize : bool ref
 
-  val install : bool -> IntSyn.cid -> unit
+  val install : IntSyn.cid -> unit
 
   val compileClause: bool -> (IntSyn.Dec IntSyn.Ctx * IntSyn.Exp)
                           -> CompSyn.ResGoal

@@ -25,8 +25,7 @@ struct
       | headToString (G, I.BVar(k)) = N.bvarName (G, k)
     fun expToString (GU) = P.expToString (GU) ^ ". "
     fun decToString (GD) = P.decToString (GD) ^ ". "
-    fun eqnToString (G, U1, U2) = 
-          P.expToString (G, U1) ^ " = " ^ P.expToString (G, U2) ^ ". "
+    fun eqnToString (E) = P.eqnToString (E) ^ ". "
 
     fun newline () = print "\n"
 
@@ -41,7 +40,7 @@ struct
     fun evarsToString (Xnames) =
         let
 	  val inst = P.evarInstToString (Xnames)
-	  val constrOpt = P.evarCnstrsToStringOpt (Xnames)
+	  val constrOpt = P.evarConstrToStringOpt (Xnames)
 	in
 	  case constrOpt
 	    of NONE => inst
@@ -231,7 +230,7 @@ struct
 
       | eventToString (G, Unify ((Hc, Ha), Q, P)) =
 	"% Trying clause " ^ headToString (G, Hc) ^ "\n"
-	^ eqnToString (G, Q, P)
+	^ eqnToString (I.Eqn (G, Q, P))
       | eventToString (G, FailUnify ((Hc, Ha), msg)) =
 	"% Unification failed with clause " ^ headToString (G, Hc) ^ ":\n"
 	^ msg

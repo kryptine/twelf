@@ -1,6 +1,8 @@
 (* Abstract Machine *)
 (* Author: Iliano Cervesato *)
-(* Modified: Jeff Polakow, Frank Pfenning, Larry Greenfield, Roberto Virga *)
+(* Modified: Jeff Polakow *)
+(* Modified: Frank Pfenning *)
+(* Modified: Larry Greenfield *)
 
 functor AbsMachine (structure IntSyn' : INTSYN
 		    structure CompSyn' : COMPSYN
@@ -14,14 +16,14 @@ functor AbsMachine (structure IntSyn' : INTSYN
 
 		    structure Index : INDEX
 		      sharing Index.IntSyn = IntSyn'
+		    structure Trail : TRAIL
+		      sharing Trail.IntSyn = IntSyn'
 		    (* CPrint currently unused *)
 		    structure CPrint : CPRINT 
                       sharing CPrint.IntSyn = IntSyn'
                       sharing CPrint.CompSyn = CompSyn'
 		    structure Names : NAMES 
-                      sharing Names.IntSyn = IntSyn'
-		    structure CSManager : CS_MANAGER
-		      sharing CSManager.IntSyn = IntSyn')
+                      sharing Names.IntSyn = IntSyn')
   : ABSMACHINE =
 struct
 
@@ -151,7 +153,7 @@ struct
      This first tries the local assumptions in dp then
      the static signature.
   *)
-  and matchAtom (ps' as (I.Root(I.Const(a),S),s), dp as C.DProg (G,dPool), sc) =
+  and matchAtom (ps' as (I.Root(I.Const(a),_),_), dp as C.DProg (G,dPool), sc) =
       let
         (* matchSig [c1,...,cn] = ()
 	   try each constant ci in turn for solving atomic goal ps', starting
@@ -163,9 +165,9 @@ struct
 	      val C.SClause(r) = C.sProgLookup c
 	    in
 	      (* trail to undo EVar instantiations *)
-	      CSManager.trail (fn () =>
-			       rSolve (ps', (r, I.id), dp,
-				       (fn S => sc (I.Root(H, S))))) ;
+	      Trail.trail (fn () =>
+			   rSolve (ps', (r, I.id), dp,
+				   (fn S => sc (I.Root(H, S))))) ;
 	      matchSig sgn'
 	    end
 
@@ -180,30 +182,15 @@ struct
 	  | matchDProg (I.Decl (dPool', SOME(r, s, a')), k) =
 	    if a = a'
 	      then (* trail to undo EVar instantiations *)
-		    (CSManager.trail (fn () =>
-		                      rSolve (ps', (r, I.comp(s, I.Shift(k))), dp,
-				              (fn S => sc (I.Root(I.BVar(k), S))))) ;
+		    (Trail.trail (fn () =>
+		                rSolve (ps', (r, I.comp(s, I.Shift(k))), dp,
+				  (fn S => sc (I.Root(I.BVar(k), S))))) ;
 		     matchDProg (dPool', k+1))
 	    else matchDProg (dPool', k+1)
 	  | matchDProg (I.Decl (dPool', NONE), k) =
 	      matchDProg (dPool', k+1)
-        fun matchConstraint (solve, try) =
-              let
-                val succeeded =
-                  CSManager.trail
-                    (fn () =>
-                       case (solve (G, I.SClo (S, s), try))
-                         of SOME(U) => (sc (U) ; true)
-                          | NONE => false)
-              in
-                if succeeded
-                then matchConstraint (solve, try+1)
-                else ()
-              end      
       in
-        case I.constStatus(a)
-          of (I.Constraint (cs, solve)) => matchConstraint (solve, 0)
-           | _ => matchDProg (dPool, 1)
+	matchDProg (dPool, 1)
       end
   end (* local ... *)
 

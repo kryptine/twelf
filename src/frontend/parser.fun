@@ -53,8 +53,6 @@ struct
     | AssertDec of ThmExtSyn.assert
     | Query of int option * int option * ExtSynQ.query * ExtSyn.Paths.region (* expected, try, A *)
     | Solve of (string * ExtSynQ.term) * ExtSyn.Paths.region
-    | AbbrevDec of ExtSyn.condec * ExtSyn.Paths.region
-    | Use of string
     (* Further pragmas to be added later here *)
 
   local
@@ -104,7 +102,6 @@ struct
     (* parseStream' : lexResult front -> fileParseResult front *)
     (* parseStream' switches between various specialized parsers *)
     and parseStream' (f as LS.Cons ((L.ID (idCase,name), r0), s')) = parseConDec' (f)
-      | parseStream' (f as LS.Cons ((L.ABBREV, r), s')) = parseAbbrev' (f)
       | parseStream' (f as LS.Cons ((L.UNDERSCORE, r), s')) = parseConDec' (f)
       | parseStream' (f as LS.Cons ((L.INFIX, r), s')) = parseFixity' f
       | parseStream' (f as LS.Cons ((L.PREFIX, r), s')) = parseFixity' f
@@ -139,7 +136,6 @@ struct
       | parseStream' (f as LS.Cons ((L.PROVE, r), s')) = parseProve' f
       | parseStream' (f as LS.Cons ((L.ESTABLISH, r), s')) = parseEstablish' f
       | parseStream' (f as LS.Cons ((L.ASSERT, r), s')) = parseAssert' f
-      | parseStream' (f as LS.Cons ((L.USE, r), s')) = parseUse' (LS.expose s')
       | parseStream' (LS.Cons ((L.EOF, r), s')) = Stream.Empty
       | parseStream' (LS.Cons ((t,r), s')) =
 	  Parsing.error (r, "Expected constant name or pragma keyword, found "
@@ -151,13 +147,6 @@ struct
 	  val r = ExtSyn.Paths.join (r0, r')
 	in
 	  Stream.Cons (ConDec (conDec, r), parseStream (stripDot f'))
-	end
-
-    and parseAbbrev' (f as LS.Cons ((_, r0), _)) =
-        let
-	  val (conDec, f') = ParseConDec.parseAbbrev' (f)
-	in
-	  Stream.Cons (AbbrevDec (conDec, r0), parseStream (stripDot f'))
 	end
 
     and parseFixity' (f) =
@@ -208,11 +197,6 @@ struct
 	in
 	  Stream.Cons (AssertDec ldec, parseStream (stripDot f'))
 	end
-
-    and parseUse' (LS.Cons ((L.ID (_,name), r), s)) =
-        Stream.Cons (Use (name), parseStream (stripDot (LS.expose s)))
-      | parseUse' (LS.Cons ((_, r), _)) =
-        Parsing.error (r, "Constraint solver name expected")
 
     fun parseQ (s) = Stream.delay (fn () => parseQ' (LS.expose s))
     and parseQ' (f) =
