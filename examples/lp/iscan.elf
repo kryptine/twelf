@@ -38,6 +38,7 @@ isa_ander : isatm (ta_ander TA1) (atm_ander AT1)
 isa_foralle : isatm (ta_foralle TA1) (atm_foralle AT1)
 	       <- isatm TA1 AT1.
 
+%{
 %block l1 : some  {A:o} block {u: pf A}{ta:toatm u u}
 	     {at:atm u}{is:isatm ta at}.
 %block l2 : block {a:i}.
@@ -51,3 +52,4 @@ isa_foralle : isatm (ta_foralle TA1) (atm_foralle AT1)
 %covers (isatm +T -C)
         (iscan +T -A).
 
+}%

@@ -69,5 +69,5 @@ ta_foralle : toatm (foralle D T) (foralle D' T)
 	      <- toatm D D'.
 
 
-%covers (tocan +A +D -E).
+% %covers (tocan +A +D -E).
 % %covers (toatm +D -E).    --cs no coverage in the atomic case.

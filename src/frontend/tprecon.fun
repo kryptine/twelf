@@ -512,6 +512,9 @@ struct
       in
         (IntSyn.Pi ((Da1, P), Va2), isType)
       end
+    | makeApproxW (IntSyn.Lam (_, V1)) = makeApprox V1
+    | makeApproxW (IntSyn.Root (IntSyn.Def d, S)) =
+        makeApprox (IntSyn.constDef d)
     | makeApproxW (IntSyn.Root (H, S)) =
         (IntSyn.Root (H, IntSyn.Nil), false)
 
@@ -644,9 +647,12 @@ struct
     | approxReconHead (Ga, TermSyn.Const (H, condec, r)) =
       let
         val (Va, isType) = makeApprox (IntSyn.conDecType (condec))
+        val Va1 = if isType then
+                   let val (Va1, _ (* false *)) = makeApprox (IntSyn.Root (H, IntSyn.Nil))
+                   in SOME Va1 end
+                  else NONE
       in
-        (if isType then SOME (IntSyn.Root (H, IntSyn.Nil))
-         else NONE, Va, r)
+        (Va1, Va, r)
       end
 
   and approxReconSpine (Ga, Va, r, TermSyn.Nil) = (Va, r)

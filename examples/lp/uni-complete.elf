@@ -40,9 +40,11 @@ cmpai_foralle : cmpai (foralle D1 T) (atm_foralle AT1)
 		([P:p] [i] I1 P (i_forall T i))
 		<- cmpai D1 AT1 I1.
  
+%{
 %block l4 : some {A:o} block {u:pf A} {a:atm u} {d:assume A}
                              {h:cmpai u a ([P:p] [i:A >> P] s_atom i d)}.
 %worlds (l2 | l4) (cmpcs _ _) 
                   (cmpai _ _ _).
 %covers (cmpcs +CN -S) 
         (cmpai +D +AT -S).
+}%
