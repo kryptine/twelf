@@ -13,6 +13,8 @@ functor Logosphere
   :> LOGOSPHERE =
 struct
 
+  val version = "Logosphere 0.1\nLogical Framework: " ^ Twelf.version
+
   val globalConfig : Twelf.Config.config option ref = ref NONE
 
   (* readLine () = (command, args)
@@ -364,7 +366,7 @@ struct
        serve (Twelf.OK))
 
     | serve' ("version", args) =
-      (print (Twelf.version ^ "\n");
+      (print (version ^ "\n");
        serve (Twelf.OK))
 
     | serve' ("help", args) =
@@ -388,7 +390,7 @@ struct
 
   fun server (name, _) =
       (* ignore server name and arguments *)
-      (print ("Logosphere" ^ Twelf.version ^ "\n");
+      (print (version ^ "\n");
        Timing.init ();			(* initialize timers *)
        SigINT.interruptLoop (fn () => serveTop (Twelf.OK));
        OS.Process.success)
