@@ -18,16 +18,16 @@ struct
     structure LS = Parsing.Lexer.Stream  
 
     (* parseConDec3  "U" *)
-    fun parseConDec3 (optName, optTm, s) =
+    fun parseConDec3 (optName, tm, s) =
         let
 	  val (tm', f') = ParseTerm.parseTerm' (LS.expose s)
 	in
-	  (ExtSyn.condef (optName, tm', optTm), f')
+	  (ExtSyn.condef (optName, tm', tm), f')
 	end
 
     (* parseConDec2  "= U" | "" *)
     fun parseConDec2 (optName, (tm, LS.Cons((L.EQUAL, r), s'))) =
-          parseConDec3 (optName, SOME(tm), s')
+          parseConDec3 (optName, tm, s')
       | parseConDec2 (SOME(name), (tm, f)) =
 	  (ExtSyn.condec (name, tm), f)
       | parseConDec2 (NONE, (tm, LS.Cons((t,r),s'))) =
@@ -37,7 +37,7 @@ struct
     fun parseConDec1 (optName, LS.Cons ((L.COLON, r), s')) =
           parseConDec2 (optName, ParseTerm.parseTerm' (LS.expose s'))
       | parseConDec1 (optName, LS.Cons ((L.EQUAL, r), s')) =
-	  parseConDec3 (optName, NONE, s')
+	  parseConDec3 (optName, ExtSyn.omittyp r, s')
       | parseConDec1 (optName, LS.Cons ((t,r), s')) =
 	  Parsing.error (r, "Expected `:' or `=', found " ^ L.toString t)
 
