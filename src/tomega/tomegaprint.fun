@@ -124,8 +124,6 @@ struct
        and  names is a list of n names, 
        then fmt' is the pretty printed format of P
     *)    
-    fun formatPrg Args = 
-      let
 (*	fun nameLookup index = List.nth (names, index) *)
 
 	(* decName (G, LD) = LD'
@@ -406,6 +404,39 @@ struct
 
 *)	
 
+	(* frontToExp (Ft) = U'
+	 
+	   Invariant: 
+	   G |- Ft = U' : V   for a G, V
+        *)
+	fun frontToExp (T.Idx k) = I.Root (I.BVar k, I.Nil)
+	  | frontToExp (T.Exp (U)) = U
+	  | frontToExp (T.Prg (T.PairExp (U, _))) = U    (* this is a patch -cs
+							    works only with one exists quantifier
+							    we cannot use LF spines, we need to 
+							    use tomega spines.  
+
+							    Next step program printer for tomega spines
+							    Then change this code. *)
+	  
+ 
+	(* argsToSpine (Psi1, s, S) = S'
+
+	   Invariant:
+           If   Psi1 |- s = M1 . M2 .. Mn. ^|Psi1|: Psi2 
+	   and  Psi1 |- S : V1 > {Psi2} V2
+	   then Psi1 |- S' : V1 > V2
+	   and S' = S, M1 .. Mn 
+	   where 
+           then Fmts is a list of arguments
+        *)
+	fun argsToSpine (s, 0, S) = S
+	  | argsToSpine (T.Shift (n), k, S) = 
+              argsToSpine (T.Dot (T.Idx (n+1), T.Shift (n+1)), k, S) 
+	  | argsToSpine (T.Dot (Ft, s), k, S) =
+	      argsToSpine (s, k-1, I.App (frontToExp Ft, S))
+
+
 	(* formatTuple (Psi, P) = fmt'
 	   
 	   Invariant:
@@ -430,47 +461,23 @@ struct
 
 
 
-(*
-	(* formatDecs0 (Psi, Ds) = (Ds', S')
-	   
-	   Invariant:
-	   If   |- Psi ctx
-	   and  Psi ; Delta |- Ds : Psi', Delta'
-	   and  Ds = App M1 ... App Mn Ds'   (where Ds' starts with Split)
-	   then S' = (M1, M2 .. Mn)
-	   and  Psi1, Delta1 |- Ds' : Psi1', Delta1'    
-	        (for some Psi1, Delta1, Psi1', Delta1')
-        *)
-	fun formatDecs0 (Psi, T.App ((xx, M), Ds)) = 
-	    let 
-	      val (Ds', S) =
-		formatDecs0 (Psi, Ds)
-	    in
-	      (Ds', I.App (M, S))
-	    end
-	  | formatDecs0 (Psi, Ds) = (Ds, I.Nil)
 
-	    
-	(* formatDecs (index, Psi, Ds, (Psi1, s1)) = fmt'
-	   
-	   Invariant:
-	   If   |- Psi ctx
-	   and  Psi; Delta |- Ds : Psi'; Delta'
-	   and  Psi1 |- s1 : Psi, Psi'
-	   then fmt' is a pretty print format of Ds
-        *)
-	fun formatDecs (index, Psi, Ds as T.App ((xx, _), P), (Psi1, s1)) =
+
+	fun spineToSpine (T.Nil) = I.Nil
+	  | spineToSpine (T.AppExp (U, S)) =
+	      I.App (U, spineToSpine S)
+
+	fun formatRoot (Psi, T.Var (k), S) = 
 	    let 
-	      val (Ds', S) = formatDecs0 (Psi, Ds)
-	      val L' = formatDecs1 (Psi, Ds', s1, nil) 
-	      val name = nameLookup index
+	      val T.PDec (SOME name, _) = I.ctxLookup (Psi, k)
+	      val S' = spineToSpine S
+	      val Fspine =   Print.formatSpine (T.coerceCtx Psi, S')
 	    in
-	      Fmt.Hbox [formatSplitArgs (Psi1, L'), Fmt.Space, 
-			Fmt.String "=", Fmt.Break, 
-			Fmt.HVbox (Fmt.String name :: Fmt.Break :: 
-				   Print.formatSpine (T.makectx Psi, S))]
+              Fmt.Hbox [Fmt.Space, 
+			Fmt.HVbox (Fmt.String name :: Fmt.Break  :: Fspine)]
 	    end
-*)
+
+
 
 	(* formatPrg3 (Psi, P) = fmt
 	 
@@ -480,15 +487,15 @@ struct
 	   and  P = let .. in .. end | <..,..> | <>
 	   then fmt is a pretty print of P
 	*)
-	and formatPrg3 (max, Psi, P as T.Unit) = formatTuple (Psi, P)
-	  | formatPrg3 (max, Psi, P as T.PairExp _) = formatTuple (Psi, P)
-	  | formatPrg3 (max, Psi, P as T.Let _) = formatLet (max, Psi, P, nil) 
-(*	  | formatPrg3 (max, Psi, P as T.Redex (H, S)) =  ???? *)
+	and formatPrg3 (Psi, P as T.Unit) = formatTuple (Psi, P)
+	  | formatPrg3 (Psi, P as T.PairExp _) = formatTuple (Psi, P)
+	  | formatPrg3 (Psi, P as T.Let _) = formatLet (Psi, P, nil) 
+	  | formatPrg3 (Psi, P as T.Root (H, S)) =  formatRoot (Psi, H, S)
 	  | formatPrg3 _ = Fmt.String "missing case"
 
 
 
-	(* formatLet (max, Psi, P, fmts) = fmts'
+	(* formatLet (Psi, P, fmts) = fmts'
 
 	   Invariant:
 	   If   |- Psi ctx
@@ -497,54 +504,45 @@ struct
 	   then fmts' extends fmts
 	   and  fmts also includes a pretty print format for P'
 	*)
-	and formatLet (max, Psi, T.Let (D, P1, T.Case (T.Cases 
+	and formatLet (Psi, T.Let (D, P1, T.Case (T.Cases 
 				((Psi1, s1, P2 as T.Let _) ::  nil))), fmts) = 
 	    let 
 	      val Psi1' = psiName (Psi1, s1, Psi, 1)
-	      val F1 = formatPrg3 (max, Psi, P1)
-	      val fmt = (* formatDecs (0, Psi, Ds, (Psi1', s1)) *) Fmt.String " ..."
+	      val F1 = formatPrg3 (Psi, P1)
+
+	      val S = argsToSpine (s1, 1, I.Nil)   (* was I.ctxLength Psi - max  --cs *)
+	      val Fspine =   Print.formatSpine (T.coerceCtx Psi1, S)
+	      val Fpattern =  Fmt.Hbox [Fmt.Hbox (Fspine), Fmt.Space, Fmt.String "=" ]
+	      val Fbody = Fmt.Hbox [F1]
+	      val fmt = Fmt.HVbox  [Fmt.String "val", Fmt.Space, Fpattern, Fbody]
 	    in
-	      formatLet (max, Psi1', P2, fmts @ [fmt, Fmt.String "=", F1, Fmt.Break])
+	      formatLet (Psi1', P2, fmts @ [Fmt.Break, fmt])
 	    end
-	  | formatLet (max, Psi, T.Let (D, P1, T.Case (T.Cases 
+	  | formatLet (Psi, T.Let (D, P1, T.Case (T.Cases 
 				((Psi1, s1, P2) ::  nil))), fmts) = 
 	    let 
 	      val Psi1' = psiName (Psi1, s1, Psi, 1)
-	      val fmt = (* formatDecs (0, Psi, Ds, (Psi1', s1)) *) Fmt.String " ..."
+	      val F1 = formatPrg3 (Psi, P1)
+
+	      val S = argsToSpine (s1, 1, I.Nil)   (* was I.ctxLength Psi - max  --cs *)
+	      val Fspine =   Print.formatSpine (T.coerceCtx Psi1, S)
+	      val Fpattern =  Fmt.Hbox [Fmt.Hbox (Fspine), Fmt.Space, Fmt.String "=" ]
+	      val Fbody = Fmt.Hbox [F1]
+	      val fmt = Fmt.HVbox  [Fmt.String "val", Fmt.Space, Fpattern, Fbody]
+
+(*	      val fmt = (* formatDecs (0, Psi, Ds, (Psi1', s1)) *)
+		Fmt.Hbox [Fmt.String " ..." , Fmt.Space, Fmt.String "=",  Fmt.Break, F1] *)
 	    in
 	      Fmt.Vbox0 0 1 ([Fmt.String "let", Fmt.Break,
-			      Fmt.Spaces 2, Fmt.Vbox0 0 1 (fmts @ [fmt]),
+			      Fmt.Spaces 2, Fmt.Vbox0 0 1 (fmts @ [Fmt.Break, fmt]),
 			      Fmt.Break,
 			      Fmt.String "in", Fmt.Break,
-			      Fmt.Spaces 2, formatPrg3 (max, Psi1', P2),
+			      Fmt.Spaces 2, formatPrg3 (Psi1', P2),
 			      Fmt.Break,
 			      Fmt.String "end"])
 	    end
 
-	(* frontToExp (Ft) = U'
-	 
-	   Invariant: 
-	   G |- Ft = U' : V   for a G, V
-        *)
-	fun frontToExp (T.Idx k) = I.Root (I.BVar k, I.Nil)
-	  | frontToExp (T.Exp (U)) = U
 
- 
-	(* argsToSpine (Psi1, s, S) = S'
-
-	   Invariant:
-           If   Psi1 |- s = M1 . M2 .. Mn. ^|Psi1|: Psi2 
-	   and  Psi1 |- S : V1 > {Psi2} V2
-	   then Psi1 |- S' : V1 > V2
-	   and S' = S, M1 .. Mn 
-	   where 
-           then Fmts is a list of arguments
-        *)
-	fun argsToSpine (s, 0, S) = S
-	  | argsToSpine (T.Shift (n), k, S) = 
-              argsToSpine (T.Dot (T.Idx (n+1), T.Shift (n+1)), k, S) 
-	  | argsToSpine (T.Dot (Ft, s), k, S) =
-	      argsToSpine (s, k-1, I.App (frontToExp Ft, S))
 	  
 
         (* formatHead (index, Psi1, s, Psi2) = fmt'
@@ -582,7 +580,7 @@ struct
 	      [Fmt.HVbox0 1 5 1
 	       [Fmt.String fhead, formatHead ((max, index), Psi'', s, Psi),
 		Fmt.Space, Fmt.String "=", Fmt.Break,
-		formatPrg3 (max, Psi'', P)], Fmt.Break] 
+		formatPrg3 (Psi'', P)], Fmt.Break] 
 	    end
 	  | formatPrg2 ((max, index), Psi, (Psi', s, P) :: O) =
 	    let 
@@ -593,7 +591,7 @@ struct
 	      [Fmt.HVbox0 1 5 1
 	       [Fmt.String "  |", formatHead ((max, index), Psi'', s, Psi), 
 		Fmt.Space, Fmt.String "=", Fmt.Break,
-		formatPrg3 (max, Psi'', P)], Fmt.Break]
+		formatPrg3 (Psi'', P)], Fmt.Break]
 	    end
 	  
 	fun formatPrg11 ((max, index), Psi, T.Lam (D, P)) =
@@ -627,25 +625,28 @@ struct
 	  in
 	    Fmt.Vbox0 0 1 (formatPrg1 ((max, 1), Psi, P))
 	  end
-      in
+
+    fun formatFun Args = 
 	(Names.varReset I.Null; formatPrg0 Args)
-      end
     
 (*    fun formatLemmaDec (T.LemmaDec (names, P, F)) =
       Fmt.Vbox0 0 1 [formatFor (I.Null, F) names, Fmt.Break,
 		     formatPrg (I.Null, P) names]
 *)
-    fun prgToString Args = Fmt.makestring_fmt (formatPrg Args)
+    fun funToString Args = Fmt.makestring_fmt (formatFun Args)
+    fun prgToString Args = Fmt.makestring_fmt (formatPrg3 Args)
 (*   fun lemmaDecToString Args = Fmt.makestring_fmt (formatLemmaDec Args) *)
 
 (*    fun prgToString Args names = "not yet implemented " *)
   in
     val formatFor = formatFor
     val forToString = forToString
-    val formatFun = formatPrg
+    val formatFun = formatFun
+    val formatPrg = formatPrg3
 (*    val formatLemmaDec = formatLemmaDec *)
      
     val prgToString = prgToString 
+    val funToString = funToString 
 (*    val lemmaDecToString = lemmaDecToString *)
   end
 end;  (* signature FUNPRINT *)
