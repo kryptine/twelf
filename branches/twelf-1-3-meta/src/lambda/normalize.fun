@@ -58,31 +58,30 @@ struct
        and  Psi |- P' [t'] :nf: F [t]
     *)
 
-    fun normalizePrg (P as (T.Root (T.Const _,_)), t) = P
-(*      | normalizePrg ((P as (T.Root (T.Var n, S))), t) = 
-           T.Root (T.varSub (n, t), normalizeSpine (S, t)) *)
-      | normalizePrg (T.Lam (D, P'), t) = T.Lam (D, normalizePrg (P', T.dot1 t))
-      | normalizePrg (T.PairExp (U, P'), t) = 
-	  T.PairExp (I.EClo (Whnf.whnf ((U, T.coerceSub t) : I.eclo)), normalizePrg (P', t))
-(*      | normalizePrg (T.PairBlock (B, P'), t) = 
-	  T.PairBlock (B, normalizePrg P') *)
+    fun normalizePrg (P as (T.Root (T.Const _, _)), t) = P
+      | normalizePrg ((P as (T.Root (T.Var n, T.Nil))), t) = 
+        (case T.varSub (n, t) 
+	   of (T.Prg P) => P)
+      |  normalizePrg (T.PairExp (U, P'), t) = 
+	  T.PairExp (Whnf.normalize (U, T.coerceSub t), normalizePrg (P', t))
+      | normalizePrg (T.PairBlock (B, P'), t) = 
+	  T.PairBlock (I.blockSub (B, T.coerceSub t), normalizePrg (P', t))
       | normalizePrg (T.PairPrg (P1, P2), t) =
           T.PairPrg (normalizePrg (P1, t), normalizePrg (P2, t))
       | normalizePrg (T.Unit, _) = T.Unit
-      | normalizePrg (T.Redex (P, S), t) = 
-	  T.Redex (normalizePrg (P, t), normalizeSpine S)  
-	  (* Clearly, the redex should be removed here *)
-      | normalizePrg (T.Rec (D, P), t) = T.Rec (D, normalizePrg (P, t))
-(*      | normalizePrg (P as T.Case _, t) = P *)
-      | normalizePrg (P as T.EVar (Psi, ref (SOME P'), _), t) = normalizePrg (P', t)
-	 
-    and normalizeSpine T.Nil = T.Nil
-      | normalizeSpine (T.AppExp (U, S)) =
-          T.AppExp (U, normalizeSpine S) 
-     | normalizeSpine (T.AppPrg (P, S)) =
-          T.AppPrg (normalizePrg (P, T.id), normalizeSpine S)
-      | normalizeSpine (T.AppBlock (B, S)) =
-          T.AppBlock (B, normalizeSpine S)
+      | normalizePrg (T.EVar (_, ref (SOME P), _), _ (* must be id by invariant *)) = P
+      | normalizePrg (P as T.EVar _, _ (* must be id by invariant *)) = P
+      | normalizePrg (T.PClo (P, t), t') = normalizePrg (P, T.comp (t, t'))
+
+    and normalizeSpine (T.Nil, t) = T.Nil
+      | normalizeSpine (T.AppExp (U, S), t) =
+         T.AppExp (Whnf.normalize (U, T.coerceSub t), normalizeSpine (S, t)) 
+      | normalizeSpine (T.AppPrg (P, S), t) =
+          T.AppPrg (normalizePrg (P, t), normalizeSpine (S, t))
+      | normalizeSpine (T.AppBlock (B, S), t) =
+          T.AppBlock (I.blockSub (B, T.coerceSub t), normalizeSpine (S, t))
+      | normalizeSpine (T.SClo (S, t1), t2) =
+	  normalizeSpine (S, T.comp (t1, t2))
 
 (*
     and normalizeDec (T.UDec D, t) = T.UDec (I.decSub (D, T.coerceSub t)) 
@@ -93,8 +92,8 @@ struct
     fun normalizeSub (s as T.Shift n) = s
       | normalizeSub (T.Dot (T.Prg P, s)) =
           T.Dot (T.Prg (normalizePrg (P, normalizeSub s)), T.id)
-      | normalizeSub (T.Dot (F, s)) =
-	  T.Dot (F, normalizeSub s)
+      | normalizeSub (T.Dot (T.Exp E, s)) =
+	  T.Dot (T.Exp (Whnf.normalize (E, I.id)), normalizeSub s)
   in
     val normalizeFor = normalizeFor
     val normalizePrg = normalizePrg 
