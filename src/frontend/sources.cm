@@ -22,6 +22,8 @@ Library
   structure Converter
   signature INTSYN
   structure IntSyn
+  signature GLOBAL 
+  structure Global
 is
 #if defined(NEW_CM)
   $/basis.cm

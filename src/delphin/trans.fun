@@ -17,6 +17,23 @@ struct
 
   exception Error of string
   local 
+    
+    datatype Internal = 
+      Empty
+    | Const of int * int 
+    | Type of int
+
+    val maxCid = Global.maxCid
+    val internal = Array.array (maxCid+1, Empty)
+        : Internal Array.array
+    (* Invariant   for each cid which has been internalize out of a block, 
+       internal(cid) = Const(n, i), where n is the number of some variables and
+       i is the projection index 
+       for each type family
+       internal(cid) = Type (cid'), where cid' is the orginial type family.
+    *)
+      
+
 
    (* checkEOF f = r 
        
@@ -82,6 +99,111 @@ struct
 	  t
         end
 
+
+
+    (* closure (G, V) = V' 
+
+       Invariant:
+       {G}V = V'
+    *)
+    fun closure (I.Null, V) = V
+      | closure (I.Decl (G, D), V) =
+          closure (G, I.Pi ((D, I.Maybe), V))
+
+    (* internalizeBlock  (n, G, Vb, S) (L2, s) = ()
+       
+       Invariant:
+       If   |- G ctx                the context of some variables 
+       and  G |- Vb :  type         the type of the block
+       and  G |- L1, L2 decs
+       and  G1, L1 |- L2 decs       block declarations still to be traversed    
+       and  G, b:Vb |- s : G1, L1
+       and  n is the current projection
+       then internalizeBlock adds new declarations into the signature that
+	      correspond to the block declarations.
+    *)
+    fun internalizeBlock _ (nil, _) = ()
+      | internalizeBlock (n, G, Vb, S) (I.Dec (SOME name, V) :: L2, s) = 
+        let 
+	  val name' = "o_" ^ name    
+	  val V1 = I.EClo (V, s)	(* G, B |- V' : type *)
+	  val V2 = I.Pi ((I.Dec (NONE, Vb), I.Maybe), V1)
+					(* G |- {B} V' : type *)
+	  val V3 = closure (G, V2)
+	  val m = I.ctxLength G
+	  val condec = I.ConDec (name', NONE, m, I.Normal, V3, I.Type)
+	  val _ = TypeCheck.check (V3, I.Uni I.Type)
+	  val _ = if !Global.chatter >= 4 
+		    then print (Print.conDecToString condec ^ "\n") else () 
+	  val cid = I.sgnAdd condec
+	  val _ = Names.installConstName cid
+	  val _ = Array.update (internal, cid, Const (m, n))
+	in
+	  internalizeBlock (n+1, G, Vb, S) (L2, I.Dot (I.Exp (I.Root (I.Const cid, S)), s))
+	end
+
+    (* makeSpine (n, G, S) = S'
+       
+       Invariant:
+       If  G0 = G, G'
+       and |G'| = n
+       and G0 |- S : V >> V'   for some V, V'
+       then S' extends S
+       and G0 |- S' : V >> type.
+    *)
+    fun makeSpine (_, I.Null, S) = S
+      | makeSpine (n, I.Decl (G, D), S) = 
+          makeSpine (n+1, G, I.App (I.Root (I.BVar (n+1), I.Nil), S))
+      
+
+   (* interalizeCondec condec = ()
+
+       Invariant:
+       If   condec is a condec,
+       then all pi declarations are internalized if condec was a blockdec
+    *)
+    fun internalizeCondec (cid, I.ConDec _) = ()
+      | internalizeCondec (cid, I.ConDef _) = ()
+      | internalizeCondec (cid, I.AbbrevDef _) = ()
+      | internalizeCondec (cid, I.BlockDec (name, _, Gsome, Lpi)) = 
+        let
+	  val V' = closure (Gsome, I.Uni I.Type)
+	  val C = I.ConDec (name ^ "'", NONE, 0, I.Normal, V', I.Kind)
+	  val a = I.sgnAdd C
+	  val _ = Array.update (internal, a, Type cid)
+	  val _ = Names.installConstName a
+	  val S = makeSpine (0, Gsome, I.Nil)
+	  val Vb = I.Root (I.Const a, S)
+	  val S' = makeSpine (0, I.Decl (Gsome, I.Dec (NONE, Vb)), I.Nil)
+	in
+	  internalizeBlock (1, Gsome, Vb, S') (Lpi, I.shift) 
+	end
+      | internalizeCondec (cid, I.SkoDec _) = ()
+
+
+    (* sigToCtx () = ()
+     
+       Invariant:
+       G is the internal representation of the global signature
+       It converts every block declaration to a type family (stored in the global
+       signature) and a list of declarations.
+    *)
+    fun internalizeSig () = 
+        let
+	  val _ = print "Internalizing signature" 
+	  val (max, _) = I.sgnSize  ()
+	    (* we might want to save max, here to restore the original 
+ 	         signature after parsing is over  --cs Thu Apr 17 09:46:29 2003 *)
+	  fun internalizeSig' n = 
+	      if n>=max then ()
+	      else 
+		(print ("Currently converting " ^ Int.toString n ^ "\n");
+		 internalizeCondec (n, I.sgnLookup n); internalizeSig' (n+1))
+	in
+	  internalizeSig' 0
+	end
+
+
     fun transTerm (D.Rtarrow (t1, t2)) = 
         let 
 	  val (s1, c1) = transTerm t1
@@ -133,6 +255,13 @@ struct
 	in
 	  (s1 ^ ":" ^ s2, c1 @ c2)
 	end
+      | transTerm (D.Dot (t, s2)) = 
+	let 
+	  val (s1, c1) = transTerm t
+	in
+	  ("o_" ^ s2 ^ " " ^ s1, c1)
+	end
+
 (*      | transTerm (D.Dot (D.Id s1, s2)) = 
 	("PROJ#" ^ s1 ^ "#" ^ s2, nil)
       | transTerm (D.Dot (D.Paren (D.Of (D.Id s1, t)), s2)) = 
@@ -286,13 +415,12 @@ struct
        then |- Psi3 = Psi1, Psi2 ctx
     *)
     fun append (Psi, I.Null) = Psi
-      | append (Psi, I.Decl (Psi', T.UDec (I.Dec (_, V)))) =
-          I.Decl (append (Psi, Psi'), T.UDec (I.Dec (NONE, V)))
+      | append (Psi, I.Decl (Psi', D)) =
+          I.Decl (append (Psi, Psi'), D)
       
 
-
     fun parseTerm ((Psi, env), (s, V)) =
-        let 
+        let
 	  val (term', c) = transTerm s
 	  val term = stringToterm (term')
 	  val ReconTerm.JOf ((U, occ), (_, _), L) =
@@ -307,6 +435,8 @@ struct
 	  val dec = stringTodec (dec')
 	  val ReconTerm.JWithCtx (I.Decl(I.Null, D), ReconTerm.JNothing) =
 	    ReconTerm.reconWithCtx (T.coerceCtx Psi, ReconTerm.jwithctx (I.Decl(I.Null, dec), ReconTerm.jnothing))
+	  val I.Dec (SOME n, _) = D
+	  val _ = print n 
 	in
 	  D
 	end
@@ -457,14 +587,14 @@ struct
 		  else ()
           val _ = Names.varReset (I.Null)
 	  val (F, t) = transHead (eH, nil)
-	  val _ = print "+"
 (*      	  val F' = Normalize.normalizeFor (F, t) *)
 	  val (Psi', t') = Abstract.abstractTomegaSub t
+
 	  val m = I.ctxLength Psi'
-	  val _ = print (Int.toString m)
 	  val env''  =  map (fn (U, V, name) => (I.EClo (U, I.Shift m), I.EClo (V, I.Shift m), name)) env
 	  val Psi'' = append (Psi, Psi')
 (*	  val _ = print (TomegaPrint.forToString (Names.ctxName (T.coerceCtx Psi''), myF) ^ "\n") *)
+
 	  val P = transProgI ((Psi'', env''), eP, (F, t'), W)
 	  val _ = print "]"
 	in
@@ -543,7 +673,7 @@ struct
 	  val Psi'' = append (Psi, Psi')
           val P'' = transDecs ((Psi'', env''), NONE, Ds, sc, W)
 	in
-	  T.Let (D, P, T.Case (T.Cases [ (* (Psi'', t', P'') *)])) 
+	  T.Let (D, P, T.Case (T.Cases [ (Psi'', t', P'') ])) 
 	end
 
 
@@ -706,25 +836,21 @@ struct
 	 in
 	   (T.Root (T.Const lemma, S), Fs')
 	 end
+     | transProgS ((Psi, env), D.Choose  (eD, eP), W, args) =
+	 let
+	   val D' = parseDec ((Psi, env), eD)
+	   val (P, (F, t)) = transProgS ((I.Decl (Psi, T.UDec D'), env), eP, W, args)
+	 in
+	   (T.Choose (T.Lam (T.UDec D', P)), (F, t))
+	 end
+     | transProgS ((Psi, env), D.New (eD, eP), W, args) =
+	 let
+	   val D' = parseDec ((Psi, env), eD)
+	   val (P, (F, t)) = transProgS ((I.Decl (Psi, T.UDec D'), env), eP, W, args)
+	 in
+	   (T.New (T.Lam (T.UDec D', P)), (F, t))
+	 end
 	    
-(*      | transProgS ((Psi, env), D.AppTerm (EP, s), W) =
-        let
-          val (P', (T.All ((T.UDec (I.Dec (_, V)), _), F'), t)) = transProgS ((Psi, env), EP, W)
-	  val U = parseTerm ((Psi, env), (s, V))
-	  val (F'', t'', _) = checkForWorld (F', T.Dot (T.Exp U, t), W)
-        in
-          (T.Redex (P', T.AppExp (U, T.Nil)),  (F'', t''))
-        end
-      | transProgS ((Psi, env), D.Const name, W) =
-	let
-	  val lemma = T.lemmaName name
-	  val (F, t, _) = checkForWorld (T.lemmaFor lemma, T.id, W)
-	in
-	  (T.Root (T.Const lemma, T.Nil), (F, t))
-	end
-
-*)
-
     and transProgS' ((Psi, env), (T.World (_, F), s), W, args) = transProgS' ((Psi, env), (F, s), W, args) 
       | transProgS' ((Psi, env), (T.All ((T.UDec (I.Dec (_, V)), T.Implicit), F'), s), W, args) =
         let
@@ -830,13 +956,119 @@ struct
           (P'', (F'', T.id))
         end
 *)
+
+
+    fun transProgram Ds =
+        let
+	  val _ = print "Translating program"
+	in
+	  transDecs ((I.Null, []), NONE, Ds, fn (Psi, env, W) => T.Unit, T.Worlds [])
+	end
+	
+    fun dropSpine (0, S) = S
+      | dropSpine (n, I.App (_, S)) = dropSpine (n-1, S)
+
+    fun makeSub (I.Nil, s) = s
+      | makeSub (I.App (U, S), s) = makeSub (S, I.Dot (I.Exp U, s))  
+
+    fun externalizeExp' (U as I.Uni _)  = U
+      | externalizeExp' (I.Pi ((D, DP), U)) = I.Pi ((externalizeDec D, DP), externalizeExp U)
+      | externalizeExp' (I.Root (H as I.BVar _, S)) = I.Root (H, externalizeSpine S)
+      | externalizeExp' (I.Root (H as I.Const c, S)) =
+        (case I.constUni c 
+	   of I.Kind => I.Root (H, externalizeSpine S)
+            | I.Type => let
+			  val _ = print "[Externalizing constant]\n"
+			  val Const (n, i) = Array.sub (internal, c)
+			  val (I.App (I.Root (I.BVar b, I.Nil), S')) = dropSpine (n, S)
+			in
+			  I.Root (I.Proj (I.Bidx b, i), S')
+			end)
+      | externalizeExp' (I.Root (I.Proj _, _)) = raise Domain
+      | externalizeExp' (I.Root (I.Skonst _, _)) = raise Domain
+      | externalizeExp' (I.Root (I.Def _, _)) = raise Domain
+      | externalizeExp' (I.Root (I.NSDef _, _)) = raise Domain
+      | externalizeExp' (I.Root (I.FVar _, _)) = raise Domain
+      | externalizeExp' (I.Root (I.FgnConst _, _)) = raise Domain
+      | externalizeExp' (I.Redex (U, S)) = I.Redex (externalizeExp U, externalizeSpine S)
+      | externalizeExp' (I.Lam (D, U)) = I.Lam (externalizeDec D, externalizeExp U)
+    and externalizeExp (U) = externalizeExp' (Whnf.normalize (U, I.id))
+    (* Check : the translators hould only generate normal forms. Fix during the next pass --cs Thu Apr 17 17:06:24 2003 *)
+  
+    and externalizeBlock (B as I.Bidx _) = B
+    and externalizeDec (I.Dec (name, V)) = I.Dec (name, externalizeExp V)
+    and externalizeSpine I.Nil = I.Nil
+      | externalizeSpine (I.App (U, S)) = I.App (externalizeExp U, externalizeSpine S)
+    and externalizeSub (s as I.Shift n) = s
+      | externalizeSub (I.Dot (F, s)) = I.Dot (externalizeFront F, externalizeSub s)
+    and externalizeFront (F as I.Idx _) = F
+      | externalizeFront (I.Exp U) = I.Exp (externalizeExp U)
+      | externalizeFront (I.Block B) = I.Block (externalizeBlock B)
+      | externalizeFront (F as I.Undef) = F
+
+    fun externalizePrg (T.Lam (D, P)) = T.Lam (externalizeMDec D, externalizePrg P)
+      | externalizePrg (T.New P) = T.New (externalizePrg P)
+      | externalizePrg (T.Choose P) = T.Choose (externalizePrg P)
+      | externalizePrg (T.PairExp (U, P)) = T.PairExp (externalizeExp U, externalizePrg P)
+      | externalizePrg (T.PairPrg (P1, P2)) = T.PairPrg (externalizePrg P1, externalizePrg P2)
+      | externalizePrg (T.PairBlock (B, P)) = T.PairBlock (externalizeBlock B, externalizePrg P)
+      | externalizePrg (T.Unit) =  T.Unit
+      | externalizePrg (T.Root (H, S)) = T.Root (H, externalizeMSpine S)
+      | externalizePrg (T.Redex (P, S)) = T.Redex  (externalizePrg P, externalizeMSpine S)
+      | externalizePrg (T.Rec (D, P)) = T. Rec (externalizeMDec D, externalizePrg P)
+      | externalizePrg (T.Case (T.Cases O)) = T.Case (T.Cases (externalizeCases O))
+      | externalizePrg (T.Let (D, P1, P2)) = T.Let (externalizeMDec D, externalizePrg P1, externalizePrg P2)
+      (* PClo should not be possible, since by invariant, parser
+         always generates a program in normal form  --cs Thu Apr 17 16:56:07 2003
+      *)
+    and externalizeMDec (T.UDec D) = T.UDec (externalizeDec D)
+      | externalizeMDec (T.PDec (s, F)) = T.PDec (s, externalizeFor F)
+
+    and externalizeFor (T.World (W, F)) = T.World (W, externalizeFor F)
+      | externalizeFor (T.All ((D, Q), F)) = T.All ((externalizeMDec D, Q), externalizeFor F)
+      | externalizeFor (T.Ex ((D, Q), F)) = T.Ex ((externalizeDec D, Q), externalizeFor F)
+      | externalizeFor (T.True) = T.True
+      | externalizeFor (T.And (F1, F2)) = T.And (externalizeFor F1, externalizeFor F2)
+
+    and externalizeMSpine T.Nil = T.Nil
+      | externalizeMSpine (T.AppExp (U, S)) = T.AppExp (externalizeExp U, externalizeMSpine S)
+      | externalizeMSpine (T.AppBlock (B, S)) = T.AppBlock (externalizeBlock B, externalizeMSpine S)
+      | externalizeMSpine (T.AppPrg (P, S)) = T.AppPrg (externalizePrg P, externalizeMSpine S)
+
+    and externalizeCases nil = nil
+      | externalizeCases ((Psi, t, P) :: O) = 
+          (externalizeMCtx Psi, externalizeMSub t, externalizePrg P) :: externalizeCases O
+
+    and externalizeMSub (t as (T.Shift n)) = t
+      | externalizeMSub (T.Dot (F, t)) = T.Dot (externalizeMFront F, externalizeMSub t)
+      
+    and externalizeMFront (F as (T.Idx _)) = F
+      | externalizeMFront (T.Prg P) = T.Prg (externalizePrg P)
+      | externalizeMFront (T.Exp U) = T.Exp (externalizeExp U)
+      | externalizeMFront (T.Block B) = T.Block (externalizeBlock B)
+      | externalizeMFront (F as T.Undef) =  F
+
+    and externalizeMCtx I.Null = I.Null
+      | externalizeMCtx (I.Decl (Psi, D as T.UDec (I.Dec (name, I.Root (I.Const a, S))))) =
+        (case Array.sub (internal, a)
+           of Type (a') => I.Decl (externalizeMCtx Psi, T.UDec (I.BDec(name, (a', makeSub (externalizeSpine S, I.Shift (I.ctxLength Psi))))))
+	    | _ =>  I.Decl (externalizeMCtx Psi, externalizeMDec D))
+      | externalizeMCtx (I.Decl (Psi, D)) =          
+         I.Decl (externalizeMCtx Psi, externalizeMDec D)
+
   in 
     val transFor = fn F => let val  F' = transFor (I.Null, F) in F' end
+
 
 (*    val makePattern = makePattern *)
 (*    val transPro = fn P => let val (P', _) = transProgS ((I.Null, []), P, T.Worlds []) in P' end *)
 
-    val transDecs = fn Ds => transDecs ((I.Null, []), NONE, Ds, fn (Psi, env, W) => T.Unit, T.Worlds []) 
 
+      val transDecs = transProgram
+      val internalizeSig = internalizeSig
+      val externalizePrg = externalizePrg
+
+(*    val transDecs = fn Ds => transDecs ((I.Null, []), NONE, Ds, fn (Psi, env, W) => T.Unit, T.Worlds []) 
+*)
   end 
 end (* functor Trans *)

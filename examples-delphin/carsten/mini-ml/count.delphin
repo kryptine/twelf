@@ -1,67 +1,55 @@
+(* Delphin test file.  Functions related to Mini-ML
+   Author: Carsten Schuermann
+*)
+
+
+id :: world (base)
+	all {N:exp} exists {M:exp} true
+
+fun id X = <X, <>>
+
+
+(*
 add :: world (base) 
 	all {N:exp} all {M:exp} exists {K:exp} true
 
-fun add (o_z A) M = <M, <>>
-  | add ((o_s A) N) M = 
+fun add (A.z) M = <M, <>>
+  | add ((A.s) N) M = 
     let 
 	val <K, <>> = add N M
     in	
-	<(o_s A) K, <>>
+	<(A.s) K, <>>
     end
+
+
+id :: world (base)
+	all {N:exp} exists {M:exp} true
+
+fun id X = <X, <>>
+
 
 count :: world (param base)
 	  all^ {e:exp} all^ {t:tp} all {P : of e t} 
 	  exists {N : exp} true
 
-fun count (o_u (A:param' T)) = 
-    choose (b:base')
+fun count ((A:param' T).u) = 
+    choose (B:base')
     in 
-      <(o_s b) (o_z b), <>>
-    end
-  | count (o_of_z B) = <o_z B, <>>
-  | count ((o_of_fn B) P) = 
-    new (a: param' T1)
-    in
-      count (P (o_x a) (o_u a))
-    end
-  | count ((o_of_fix B) D) = 
-    new (a: param' T)
-    in
-      count (D (o_x a) (o_u a))
-    end
-  | count ((o_of_s B) P) = count P 
-  | count ((o_of_app B) D1 D2) = 
-    let 
-      val <N1, <>> = count D1 
-      val <N2, <>> = count D2
-    in
-      add N1 N2
-    end
-
-(*
-
-count :: world (base param* )
-	  all^ {e:exp} all^ {t:tp} all {P : of e t} 
-	  exists {N : exp} true
-
-fun count ((A:param T) u) = 
-    choose (b:base)
-    in 
-      <(b.s) (b.z), <>>
+      <(B.s) (B.z), <>>
     end
   | count (B.of_z) = <B.z, <>>
-  | count ((B.of_fn) P) = 
+  | count ((B.of_fn) T1 T2 E P) =
     new (a: param' T1)
     in
       count (P (a.x) (a.u))
     end
-  | count ((B.of_fix) D) = 
+  | count ((B.of_fix) T E D) = 
     new (a: param' T)
     in
-      count (D a.x a.u)
+      count (D (a.x) (a.u))
     end
-  | count ((B.of_s B) P) = count P 
-  | count ((B.of_app B) D1 D2) = 
+  | count ((B.of_s) E P) = count P 
+  | count ((B.of_app) E1 E2 T1 T2 D1 D2) = 
     let 
       val <N1, <>> = count D1 
       val <N2, <>> = count D2
@@ -69,5 +57,6 @@ fun count ((A:param T) u) =
       add N1 N2
     end
 
+val <X, <>> = new (b:base') in add (b.z) (b.z) end
+val <Y, <>> = new (b:base') in id (b.z) end
 *)
-
