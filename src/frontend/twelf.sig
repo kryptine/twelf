@@ -26,11 +26,6 @@ sig
     val exit : unit -> unit	      (* exit Twelf and ML *)
   end
 
-  structure Compile :
-  sig
-    val optimize : bool ref
-  end
-
   structure Prover :
   sig
     datatype Strategy = RFS | FRS     (* F=Filling, R=Recursion, S=Splitting *)
