@@ -14,6 +14,8 @@ struct
     val version = "Delphin, Version 0.1, January 2003"
 
     val prompt = "> "
+
+    exception What of Tomega.Prg
     
     fun loadFile (s1, s2) =
       let 
@@ -25,15 +27,17 @@ struct
 	val P = Trans.transDecs EDs
 	val _ = print "* Type reconstruction done\n"
 	val P' = Trans.externalizePrg P 
+	val _ = raise What P'
 	val _ = print "* Externalization done\n"
-	val _  = TomegaTypeCheck.checkPrg (IntSyn.Null, (P', Tomega.True))
+(*	val _  = TomegaTypeCheck.checkPrg (IntSyn.Null, (P', Tomega.True))
 	val _ = print "* Typechecking done\n"
-	val V  = Opsem.evalPrg P'
+*)	val V  = Opsem.evalPrg P'
 	val _ = print "* Operational semantics done\n"
       in 
 	V
       end
 
+    fun test (s1, s2) = (loadFile (s1, s2); Tomega.Unit) handle What P => P
     fun top () = loop ()
 
     and loop () = 
@@ -149,6 +153,7 @@ Nil))) else (T.Redex(P, T.AppExp (I.Root (I.Const x, I.Nil), T.Nil)))
   in
     val version = version
     val loadFile = loadFile
+    val test = test
     val top = top
 
     val runSimpleTest = runSimpleTest
