@@ -633,6 +633,9 @@ struct
 	  I.Dot (I.Exp X, s)
 	end
 
+    (* hack *)
+    fun blockName (cid) = I.conDecName (I.sgnLookup (cid))
+
     (* blockCases (G, Vs, B, (Gsome, piDecs), sc) = 
        
     *)
@@ -645,8 +648,13 @@ struct
 	end
     and blockCases' (G, Vs, (lvar, i), (s, nil), sc) = ()
       | blockCases' (G, Vs, (lvar, i), (s, I.Dec (_, V')::piDecs), sc) =
-        let 
+        let
 	  val (U, Vs') = createAtomProj (G, I.Proj (lvar, i), (V', s))
+	  (*
+	  val _ = print ("U  = " ^ Print.expToString (G, U) ^ ";\n"
+			 ^ "V'= " ^ Print.expToString (G, I.EClo Vs') ^ ";;\n"
+			 ^ "V = " ^ Print.expToString (G, I.EClo Vs) ^ ".\n")
+	  *)
 	  val _ = CSManager.trail (fn () => if Unify.unifiable (G, Vs, Vs')
 					      then sc U
 					    else ())
@@ -686,10 +694,6 @@ struct
 		      fn U => if Unify.unifiable (I.Null, (X, I.id), (U, I.id)) (* always succeeds? *)
 				then sc ()
 			      else ())
-      (* | splitEVar (I.Uni I.Type, _, _) = () *)
-      (* forgotton case added.  Please verify  -- cs *)
-      (* should no longer be possible -fp *)
-
 
     (* abstract (a @ S, s) = V'
        where V' = {{G}} a @ S' and G abstracts over all EVars in a @ S[s]
@@ -737,7 +741,7 @@ struct
         (* Constraints.Error could be raise by abstract *)
         handle Constraints.Error (constrs) =>
 	  (if !Global.chatter >= 6	
-     then print ("Inactive split:\n" ^ Print.cnstrsToString (constrs))
+     then print ("Inactive split:\n" ^ Print.cnstrsToString (constrs) ^ "\n")
 	   else ();
 	     NONE)
 
@@ -754,7 +758,10 @@ struct
         (* raised exception bypasses trail manager *)
         (* trail here explicitly because of dependencies *)
         CSManager.trail
-	(fn () => (splitEVar (X, W, fn () => raise Possible);
+	(fn () => (if !Global.chatter >= 6
+		     then print ("Testing: " ^ Print.expToString (I.Null, X) ^ "\n")
+		   else ();
+		   splitEVar (X, W, fn () => raise Possible);
 		   if !Global.chatter >= 6
 		     then print ("Impossible: " ^ Print.expToString (I.Null, X) ^ "\n")
 		   else ();

@@ -803,7 +803,7 @@ struct
     fun bvarName (G, k) =
         (case IntSyn.ctxLookup (G, k)
 	   of IntSyn.Dec(SOME(name), _) => name
-            | _ => raise Unprintable)
+	    | _ => raise Unprintable)
               (* NONE should not happen *)
 
     (* decName' role (G, D) = G,D'
