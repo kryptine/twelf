@@ -1,60 +1,21 @@
-(* 
 (* Translator from Delphin external syntax to Delphin internal syntax *)
 (* Author:  Carsten Schuermann, Richard Fontana *)
 
 
-functor Trans (structure Tomega' : TOMEGA
-	       structure Normalize : NORMALIZE
-		 sharing Normalize.Tomega = Tomega'
-	       structure Abstract : ABSTRACT
-		 sharing Abstract.IntSyn = Tomega'.IntSyn
-	       structure Print : PRINT
-		 sharing Print.IntSyn = Tomega'.IntSyn
-               structure Parsing'  : PARSING
-               structure ParseTerm' : PARSE_TERM
-	         sharing ParseTerm'.Parsing = Parsing' 
-               structure DextSyn' : DEXTSYN
-	       structure TpRecon' : TP_RECON 
-	       structure Names : NAMES
-		 sharing Names.IntSyn = Tomega'.IntSyn
-	       structure Whnf : WHNF
-		 sharing Whnf.IntSyn = Tomega'.IntSyn
-	       structure TypeCheck : TYPECHECK
-		 sharing TypeCheck.IntSyn = Tomega'.IntSyn
-	       structure ExtSyn' : EXTSYN
-	         sharing ExtSyn' = ParseTerm'.ExtSyn 
-		 sharing ExtSyn'.Paths = Parsing'.Lexer.Paths  
-		 sharing type ExtSyn'.term = TpRecon'.term
-	         sharing type ExtSyn'.dec = TpRecon'.dec 
-               structure DelphinPrint : DELPHINPRINT
-		 sharing DelphinPrint.Tomega = Tomega'
-	       structure IntSyn' : INTSYN
-	         sharing IntSyn' = Tomega'.IntSyn
-		 sharing IntSyn' = TpRecon'.IntSyn
-		 sharing IntSyn' = Tomega'.WorldSyn.IntSyn
-	       structure Unify : UNIFY
-		 sharing Unify.IntSyn = IntSyn'
-) (* : TRANS *) =
+functor Trans (structure DextSyn' : DEXTSYN) (* : TRANS *) =
 
 struct
 
-  structure Tomega = Tomega'
   structure DextSyn = DextSyn'
-  structure IntSyn = IntSyn'
-  structure ExtSyn = ExtSyn'
-  structure TpRecon = TpRecon'
-  structure Parsing = Parsing'
-  structure ParseTerm = ParseTerm'
-  structure L = Parsing.Lexer
+  structure D = DextSyn'
+  
+  structure L = Lexer
   structure I = IntSyn 
-  structure LS = Parsing.Lexer.Stream  
+  structure LS = Stream  
   structure T = Tomega
-  structure D = DextSyn
-  structure Paths = TpRecon'.Paths
-  structure W = Tomega'.WorldSyn
+  
 
   exception Error of string
-
 (*  local *)
 
    (* checkEOF f = r 
@@ -72,6 +33,9 @@ struct
           Parsing.error (r, "Expected `}', found " ^ L.toString t)  
          (* Note that this message is inapplicable when we use  
             checkEOF in stringToterm --rf *)
+
+
+
                                                             
     (* stringToDec s = dec
 
@@ -86,8 +50,8 @@ struct
 	val ((x, yOpt), f') = ParseTerm.parseDec' f
 	val r2 = checkEOF f'
 	val dec = (case yOpt		(* below use region arithmetic --cs !!!  *)
-		     of NONE => ExtSyn.dec0 (x, r2)
-	              | SOME y => ExtSyn.dec (x, y, r2))
+		     of NONE => ReconTerm.dec0 (x, r2)
+	              | SOME y => ReconTerm.dec (x, y, r2))
       in
 	dec
       end
@@ -131,7 +95,12 @@ struct
        and  Psi |- F <= ExtF
     *)  
 
-    fun transFor (ExtDPsi, D.True) = (TpRecon.ctxToCtx ExtDPsi, Tomega.True)
+    fun transFor (ExtDPsi, D.True) = 
+        let
+	  val ReconTerm.JWithCtx (G, ReconTerm.JNothing) = 
+	    ReconTerm.recon (ReconTerm.jwithctx(ExtDPsi, ReconTerm.jnothing))
+	in (G, Tomega.True)
+	end
       | transFor (ExtDPsi, D.And (EF1, EF2)) = 
         let
 	  val (Psi1, F1) = transFor (ExtDPsi, EF1)
@@ -144,21 +113,21 @@ struct
       | transFor (ExtDPsi, D.Forall (lfstring, EF)) =
         let 
 	  val dec = stringTodec lfstring
-          val (I.Decl (Psi, (D, _, _)), F) = transFor (I.Decl (ExtDPsi, dec), EF)
+          val (I.Decl (Psi, D), F) = transFor (I.Decl (ExtDPsi, dec), EF)
         in 
 	  (Psi, Tomega.All (T.UDec D, F))
         end
       | transFor (ExtDPsi, D.Exists (lfstring, EF)) =  
         let 
 	  val dec = stringTodec lfstring
-          val (I.Decl (Psi, (D, _, _)), F) = transFor (I.Decl (ExtDPsi, dec), EF)
+          val (I.Decl (Psi, D), F) = transFor (I.Decl (ExtDPsi, dec), EF)
         in 
 	  (Psi, Tomega.Ex (D, F))
         end
       | transFor (ExtDPsi, D.World (lfstring, EF)) =  
         let 
           val qids = List.map Names.Qid (stringToWorlds lfstring)
-	  val W = W.Worlds
+	  val W = T.Worlds
 	          (List.map (fn qid => case Names.constLookup qid
 			            of NONE => raise Names.Error ("Undeclared label "
                                          ^ Names.qidToString (valOf (Names.constUndef qid))
@@ -170,6 +139,7 @@ struct
 	  (Psi, T.World (W, F))
         end
 
+(*
 
     (* stringToTerm s = U
 
@@ -527,7 +497,7 @@ val _ = print "!";
       | subsumed (c :: cids, cids') = (exists (c, cids'); subsumed (cids, cids'))
 
 
-    fun checkForWorld (T.World (W as W.Worlds cids, F), t', W.Worlds cids') = 
+    fun checkForWorld (T.World (W as T.Worlds cids, F), t', T.Worlds cids') = 
         let 
   	  val _ =  subsumed (cids', cids)
 	(* check that W is at least as large as W' *)
@@ -666,7 +636,7 @@ val _ = print "!";
       | Proj of string * string
 
 
-
+*)
     (* transDecs ((Psi, env), dDs, sc, W) = x
        
        Invariant:
@@ -682,10 +652,11 @@ val _ = print "!";
        then eventually x = ().     --cs
     *)
     fun transDecs ((Psi, env), D.Empty, sc, W) = (sc (Psi, env, W))
-      | transDecs ((Psi, env), D as D.FunDecl (FunD, Ds), sc, W) =  (transFun1 ((Psi, env), D, sc, W))
+  (*    | transDecs ((Psi, env), D as D.FunDecl (FunD, Ds), sc, W) =  (transFun1 ((Psi, env), D, sc, W)) *)
       | transDecs ((Psi, env), D.FormDecl (FormD, Ds), sc, W) = (transForDec ((Psi, env), FormD, Ds, sc, W))
-      | transDecs ((Psi, env), D.ValDecl (ValD, Ds), sc, W) = (transValDec ((Psi, env), ValD, Ds, sc, W))
+(*     | transDecs ((Psi, env), D.ValDecl (ValD, Ds), sc, W) = (transValDec ((Psi, env), ValD, Ds, sc, W)) *)
 
+(*
     (* transFun1 ((Psi, env), dDs, sc, W) = x
        
        Invariant:
@@ -832,14 +803,14 @@ val _ = print "!";
 (* Operation add parameter variables end *)
 
 	  val myF = Normalize.normalizeFor (F, t')
-	  val _ = print (DelphinPrint.forToString (Names.ctxName (T.coerceCtx Psi''), myF) ^ "\n") 
+	  val _ = print (TomegaPrint.forToString (Names.ctxName (T.coerceCtx Psi''), myF) ^ "\n") 
 	  val P = transProgI ((Psi'', env''), eP, (F, t'), W')
 
 	  val _ = print "]"
 	in
 	  transFun2 ((Psi, env), s, Ds, sc, fn Cs => k ((Psi'', t', P) :: Cs), W)
 	end
-
+*)
     (* transForDec ((Psi, env), eDf, dDs, sc, W) = x
        
        Invariant:
@@ -863,14 +834,16 @@ val _ = print "!";
                                            external to internal form--cs *)
 	  val G = Names.ctxName (T.coerceCtx Psi)
 	  val _ = Normalize.normalizeFor (F, T.id)
+	  val _ = print s
 	  val _ = print " :: "
-	  val _ = print (DelphinPrint.forToString (G, F) ^ "\n") 
+	  val _ = print (TomegaPrint.forToString (T.embedCtx G, F) ^ "\n") 
 	in
 	  (T.lemmaAdd (T.ForDec (s, F));
            T.lemmaFor (T.lemmaName s); 
 	   transDecs ((Psi, env), Ds, sc, W))
  	end
 
+(*
     (* transValDec ((Psi, env), dDv, dDs, sc, W) = x
        
        Invariant:
@@ -911,7 +884,7 @@ val _ = print "!";
 	  val G = Names.ctxName (T.coerceCtx Psi)
 	  val _ = printCtx (G, env) 
 	  val F'' = Normalize.normalizeFor (F', t')
-	  val _ = print (DelphinPrint.forToString (G, F'') ^ "\n") 
+	  val _ = print (TomegaPrint.forToString (G, F'') ^ "\n") 
 	  val _ = Names.varReset I.Null
 	  val t0 = createEVarSub (I.Null, Psi)
 	  val Pat = makePattern (EPat, (F'', t0))
@@ -1025,7 +998,7 @@ val _ = print "!";
             | extractW (G, _) = G
 
           val G' = extract (I.Null, (U, I.id))
-          val Dlist = W.ctxToBDecs (T.coerceCtx Psi, G', W)
+          val Dlist = T.ctxToBDecs (T.coerceCtx Psi, G', W)
 
           fun project ((G, env), []) = (env, 1)   (* is this the right starting point --cs *)
             | project ((G, env), x :: N) =
@@ -1125,7 +1098,7 @@ val _ = print "!";
             | extractW (G, _) = G
 
           val G' = extract (I.Null, (U, I.id))
-          val Dlist = W.ctxToBDecs (T.coerceCtx Psi, G', W)
+          val Dlist = T.ctxToBDecs (T.coerceCtx Psi, G', W)
 
           fun project ((G, env), []) = (env, 1)   (* is this the right starting point --cs *)
             | project ((G, env), x :: N) =
@@ -1165,13 +1138,12 @@ val _ = print "!";
           (P'', (F'', T.id))
         end
 
-
 (*  in *)
     val makePattern = makePattern
     val transFor = fn F => let val (_, F') = transFor (I.Null, F) in F' end
-    val transPro = fn P => let val (P', _) = transProgS ((I.Null, []), P, W.Worlds []) in P' end
-    val transDecs = fn Ds => transDecs ((I.Null, []), Ds, fn (Psi, env, W) => T.Unit, W.Worlds [])
-
+    val transPro = fn P => let val (P', _) = transProgS ((I.Null, []), P, T.Worlds []) in P' end
+*)
+    val transDecs = fn Ds => transDecs ((I.Null, []), Ds, fn (Psi, env, W) => T.Unit, T.Worlds [])
 
 (*  end *)
 end (* functor Trans *)
@@ -1183,11 +1155,3 @@ end (* functor Trans *)
 
 
 
-*)
-
-structure Trans =
-  struct
-    structure T = Tomega 
-
-    fun transDecs _ = T.True
-  end

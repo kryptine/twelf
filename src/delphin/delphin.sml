@@ -32,27 +32,9 @@ structure Parse : PARSE =
           structure Interface = Interface
           structure Parserr = DelphinParser
           structure Tokens = DelphinLrVals.Tokens);
-(*
-structure Trans (*: TRANS *) =
-   Trans (structure DextSyn' = DextSyn
-	  structure ParseTerm' = ParseTerm
-	  structure Print = Print
-          structure Tomega' = Tomega
-          structure ExtSyn' =  TpRecon
-          structure IntSyn' = Tomega.IntSyn
-	  structure Unify = UnifyTrail
-	  structure Abstract = Abstract
-          structure TpRecon' = TpRecon
-	  structure TypeCheck = TypeCheck
-	  structure Names = Names
-	  structure Whnf = Whnf
-          structure Stream' = Stream
-	  structure Normalize = Normalize
-          structure DelphinPrint = DelphinPrint
-          structure Parsing' = Parsing
-	  structure Paths = Paths)
 
-*)
+structure Trans : TRANS =
+   Trans (structure DextSyn' = DextSyn)
 
 
 
@@ -61,6 +43,7 @@ structure Delphin =
 	   structure Twelf = Twelf
 	   structure Parse = Parse
 	   structure DextSyn = DextSyn
+	   structure Trans = Trans
 	   structure Parser = Parser);
 
 (*

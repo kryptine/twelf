@@ -7,10 +7,14 @@ functor Delphin (structure Tomega : TOMEGA
 		 structure DextSyn : DEXTSYN
 		 structure Parse : PARSE
 		   sharing Parse.DextSyn = DextSyn
-		 structure Twelf : TWELF) : DELPHIN =
+		 structure Twelf : TWELF
+		 structure Trans : TRANS
+		   sharing Trans.DextSyn = DextSyn) : DELPHIN =
 struct
   local
-    val prompt = "- "
+    val version = "Delphin, Version 0.1, January 2003"
+
+    val prompt = "Delphin> "
     
     fun loadFile (s1, s2) =
       let 
@@ -21,12 +25,7 @@ struct
 	()
       end
 
-    fun top () = 
-      let 
-        val _ = print "Delphin, Version 1.0, March 2002\n"
-      in
-        loop ()
-      end     
+    fun top () = loop ()
 
     and loop () = 
       let 
@@ -38,6 +37,7 @@ struct
       end
 
   in
+    val version = version
     val loadFile = loadFile
     val top = top
   end
