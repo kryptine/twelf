@@ -484,23 +484,33 @@ struct
         let
 	  val (n, F) = lookup (Psi, 1, s)
 	in 
-	  transHead' ((F, T.id), args)
+	  transHead' ((F, T.id), I.Nil, args)
 	end
       | transHead (Psi, D.AppLF (h, t), args) = transHead (Psi, h, t::args)
 
-    and transHead' ((T.World (_, F), s), args) = transHead' ((F, s), args) 
-      | transHead' ((T.All ((T.UDec (I.Dec (_, V)), T.Implicit), F'), s), args) =
-	  transHead' ((F', T.Dot (T.Exp (I.EVar (ref NONE, I.Null, I.EClo (V, T.coerceSub s), ref nil)), s)), args)
-      | transHead' ((T.All ((T.UDec (I.Dec (_, V)), T.Explicit), F'), s), t :: args) =
+    and transHead' ((T.World (_, F), s), S, args) = transHead' ((F, s), S, args) 
+      | transHead' ((T.All ((T.UDec (I.Dec (_, V)), T.Implicit), F'), s), S, args) =
+        let 
+	  val X = I.newEVar (I.Decl(I.Null, I.NDec), I.EClo (V, T.coerceSub s))
+	in
+	  transHead' ((F', T.Dot (T.Exp X, s)), I.App (X, S), args)
+	end
+      | transHead' ((T.All ((T.UDec (I.Dec (_, V)), T.Explicit), F'), s), S, t :: args) =
 	let
 	  val (term', c) = transTerm t
 	  val term = stringToterm (term')
 	  val ReconTerm.JOf ((U, occ), (_, _), L) =
 	    ReconTerm.reconWithCtx (I.Null, ReconTerm.jof' (term, I.EClo (V, T.coerceSub s)))
 	in
-	  transHead' ((F', T.Dot (T.Exp U, s)), args)
+	  transHead' ((F', T.Dot (T.Exp U, s)), I.App(U, S), args)
 	end
-      | transHead' ((F, s), nil) = (F, s)
+      | transHead' ((F, s), S, nil) = ((F, s), S)
+
+
+    and spineToSub (n, I.Nil) = 
+	  T.Dot (T.Prg (T.Root (T.Var (n + 1), T.Nil)), T.Shift (n+1))
+      | spineToSub (n, I.App (U, S)) = 
+	  T.Dot (T.Exp U, spineToSub (n, S))
 
     and transPattern (p, (T.Ex ((I.Dec (_, V), T.Implicit), F'), s)) =
 	  transPattern (p, (F', T.Dot (T.Exp (I.EVar (ref NONE, I.Null, I.EClo (V, T.coerceSub s), ref nil)), s)))
@@ -605,17 +615,18 @@ struct
 		  else ()
           val _ = Names.varReset (I.Null)
 	  val Psi0 = I.Decl (Psi, T.PDec (SOME s, F))
-	  val (F', t) = transHead (Psi0, eH, nil)
+	  val ((F', t'), S) = transHead (Psi0, eH, nil)
 (*      	  val F' = Normalize.normalizeFor (F, t) *)
-	  val (Psi', t') = Abstract.abstractTomegaSub t
+	  val (Psi', S') = Abstract.abstractSpine (S, I.id)
+	  val t'' = spineToSub (I.ctxLength Psi', S')
 	  val m = I.ctxLength Psi'
-	  val Psi'' = append (Psi0, Psi')
+	  val Psi'' = append (Psi0, T.embedCtx Psi')
 (*	  val _ = print (TomegaPrint.forToString (Names.ctxName (T.coerceCtx Psi''), myF) ^ "\n") *)
 
 	  val P = transProgI (Psi'', eP, (F', t'), W)
 	  val _ = print "]"
 	in
-	  transFun2 (Psi, (s, F), Ds, sc, fn Cs => k ((Psi'', t', P) :: Cs), W)
+	  transFun2 (Psi, (s, F), Ds, sc, fn Cs => k ((Psi'', t'', P) :: Cs), W)
 	end
 
     (* transForDec ((Psi, env), eDf, dDs, sc, W) = x

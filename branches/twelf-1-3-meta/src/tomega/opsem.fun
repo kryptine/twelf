@@ -203,6 +203,8 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
 	     newP
 	   end
 
+      | evalPrg (Psi, (T.Box (W, P), t)) = 
+	   evalPrg (Psi, (P, t))
       | evalPrg (Psi, (T.Choose P, t)) = 
 	   let
 
