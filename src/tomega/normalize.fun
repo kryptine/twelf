@@ -90,6 +90,7 @@ struct
   in
     val normalizeFor = normalizeFor
     val normalizePrg = normalizePrg 
+    val normalizeSpine = normalizeSpine
     val normalizeSub = normalizeSub 
   end
 end

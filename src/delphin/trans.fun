@@ -407,6 +407,15 @@ struct
       | checkForWorld FtW = FtW
 
 
+    (* dotn (t, n) = t'
+
+       Invariant:
+       If   Psi0 |- t : Psi
+       and  |G| = n   for any G
+       then Psi0, G[t] |- t : Psi, G
+    *)
+    fun dotn (t, 0) = t
+      | dotn (t, n) = I.dot1 (dotn (t, n-1))
 
     (* append (Psi1, Psi2) = Psi3
      
@@ -462,6 +471,13 @@ struct
     fun transDecs (Psi, D.Empty, sc, W) = sc (Psi, W)
       | transDecs (Psi, D.FormDecl (FormD, Ds), sc, W) = (transForDec (Psi, FormD, Ds, sc, W))
       | transDecs (Psi, D.ValDecl (ValD, Ds), sc, W) = (transValDec (Psi, ValD, Ds, sc, W))
+      | transDecs (Psi, D.NewDecl (D, Ds), sc, W) = 
+          let 
+	    val D' = T.UDec (parseDec (Psi, D))
+          in 
+	    T.Let (T.PDec (NONE, T.True), T.Lam (D', transDecs (I.Decl (Psi, D'), Ds, sc, W)), T.Unit)
+	  end
+
       | transDecs _ = raise Error "Constant declaration must be followed by a constant definition"
 
 
@@ -507,10 +523,18 @@ struct
       | transHead' ((F, s), S, nil) = ((F, s), S)
 
 
-    and spineToSub (n, I.Nil) = 
-	  T.Dot (T.Prg (T.Root (T.Var (n + 1), T.Nil)), T.Shift (n+1))
-      | spineToSub (n, I.App (U, S)) = 
-	  T.Dot (T.Exp U, spineToSub (n, S))
+    (* spineToSub ((S, t), s) = s'
+
+       Invariant:
+       If  Psi' |- S spine
+       and Psi'' |- t: Psi'
+       and Psi'' |- s : Psi'''
+       then  Psi'' |- s' : Psi''', Psi''''
+    *)
+
+    and spineToSub ((I.Nil, _), s') = s'
+      | spineToSub ((I.App (U, S), t), s') = 
+	  T.Dot (T.Exp (I.EClo (U, t)), spineToSub((S, t), s'))
 
     and transPattern (p, (T.Ex ((I.Dec (_, V), T.Implicit), F'), s)) =
 	  transPattern (p, (F', T.Dot (T.Exp (I.EVar (ref NONE, I.Null, I.EClo (V, T.coerceSub s), ref nil)), s)))
@@ -618,9 +642,19 @@ struct
 	  val ((F', t'), S) = transHead (Psi0, eH, nil)
 (*      	  val F' = Normalize.normalizeFor (F, t) *)
 	  val (Psi', S') = Abstract.abstractSpine (S, I.id)
-	  val t'' = spineToSub (I.ctxLength Psi', S')
-	  val m = I.ctxLength Psi'
 	  val Psi'' = append (Psi0, T.embedCtx Psi')
+	  val m0 = I.ctxLength Psi0
+	  val m' = I.ctxLength Psi' 
+					(* |Psi''| = m0 + m' *)
+	  val t0 = dotn (I.Shift m0, m')
+	  val _ = print "****"
+	  val _ = print (Int.toString m0)
+	  val _ = print (Int.toString m')
+					(* Psi0, Psi'[^m0] |- t0 : Psi' *)
+(*	  val t1 = T.Dot (T.Prg (T.Root (T.Var (m'+1), T.Nil)), T.Shift (m'))   (* BUG !!!! Wed Jun 25 11:23:13 2003 *)
+					(* Psi0, Psi'[^m0] |- t1 : F[^m0]  *)
+*)	  val t'' = spineToSub ((S', t0),  T.Shift m')
+
 (*	  val _ = print (TomegaPrint.forToString (Names.ctxName (T.coerceCtx Psi''), myF) ^ "\n") *)
 
 	  val P = transProgI (Psi'', eP, (F', t'), W)
@@ -658,7 +692,7 @@ struct
 	  val (P, Ds') = transFun1 (Psi, (s, F'), Ds, sc, W)
 	  val D = T.PDec (SOME s, F'')
 	in
-	  transDecs (I.Decl (Psi, D), Ds', fn P' => T.Let (D, T.Box (W, P), sc P'), W)
+	  T.Let (D, T.Box (W, P), transDecs (I.Decl (Psi, D), Ds', (fn P' => sc P'), W))
  	end
 
 
@@ -696,11 +730,12 @@ struct
       	  val D = T.PDec (NONE, F'')
 	  val (Psi', Pat') = Abstract.abstractTomegaPrg (Pat)
 	  val m = I.ctxLength Psi'
-	  val t = T.Dot (T.Prg Pat', T.id)
+(*	  val t = T.Dot (T.Prg Pat', T.id)  was --cs Tue Jun 24 13:04:55 2003 *)
+	  val t = T.Dot (T.Prg Pat', T.Shift m) 
 	  val Psi'' = append (Psi, Psi')
           val P'' = transDecs (Psi'', Ds, sc, W)
 	in
-	  T.Let (D, P, T.Case (T.Cases [ (Psi'', t', P'') ])) 
+	  T.Let (D, P, T.Case (T.Cases [ (Psi'', t, P'') ])) 
 	end
 
 
@@ -1032,7 +1067,8 @@ struct
     (* Check : the translators hould only generate normal forms. Fix during the next pass --cs Thu Apr 17 17:06:24 2003 *)
   
     and externalizeBlock (B as I.Bidx _) = B
-    and externalizeDec (I.Dec (name, V)) = I.Dec (name, externalizeExp V)
+    and externalizeDec (I.Dec (name, V)) = I.Dec (name, externalizeExp V) 
+
     and externalizeSpine I.Nil = I.Nil
       | externalizeSpine (I.App (U, S)) = I.App (externalizeExp U, externalizeSpine S)
     and externalizeSub (s as I.Shift n) = s
@@ -1042,56 +1078,62 @@ struct
       | externalizeFront (I.Block B) = I.Block (externalizeBlock B)
       | externalizeFront (F as I.Undef) = F
 
-    fun externalizePrg (T.Lam (D, P)) = T.Lam (externalizeMDec D, externalizePrg P)
-      | externalizePrg (T.New P) = T.New (externalizePrg P)
-      | externalizePrg (T.Box (W, P)) = T.Box (W, externalizePrg P)
-      | externalizePrg (T.Choose P) = T.Choose (externalizePrg P)
-      | externalizePrg (T.PairExp (U, P)) = T.PairExp (externalizeExp U, externalizePrg P)
-      | externalizePrg (T.PairPrg (P1, P2)) = T.PairPrg (externalizePrg P1, externalizePrg P2)
-      | externalizePrg (T.PairBlock (B, P)) = T.PairBlock (externalizeBlock B, externalizePrg P)
-      | externalizePrg (T.Unit) =  T.Unit
-      | externalizePrg (T.Root (H, S)) = T.Root (H, externalizeMSpine S)
-      | externalizePrg (T.Redex (P, S)) = T.Redex  (externalizePrg P, externalizeMSpine S)
-      | externalizePrg (T.Rec (D, P)) = T.Rec (externalizeMDec D, externalizePrg P)
-      | externalizePrg (T.Case (T.Cases O)) = T.Case (T.Cases (externalizeCases O))
-      | externalizePrg (T.Let (D, P1, P2)) = T.Let (externalizeMDec D, externalizePrg P1, externalizePrg P2)
+    fun externalizePrg (n, T.Lam (D, P)) = T.Lam (externalizeMDec (n, D), externalizePrg (n+1, P))
+      | externalizePrg (n, T.New P) = T.New (externalizePrg (n, P))
+      | externalizePrg (n, T.Box (W, P)) = T.Box (W, externalizePrg (n, P))
+      | externalizePrg (n, T.Choose P) = T.Choose (externalizePrg (n, P))
+      | externalizePrg (n, T.PairExp (U, P)) = T.PairExp (externalizeExp U, externalizePrg (n, P))
+      | externalizePrg (n, T.PairPrg (P1, P2)) = T.PairPrg (externalizePrg (n, P1), externalizePrg (n, P2))
+      | externalizePrg (n, T.PairBlock (B, P)) = T.PairBlock (externalizeBlock B, externalizePrg (n, P))
+      | externalizePrg (n, T.Unit) =  T.Unit
+      | externalizePrg (n, T.Root (H, S)) = T.Root (H, externalizeMSpine (n, S))
+      | externalizePrg (n, T.Redex (P, S)) = T.Redex  (externalizePrg (n, P), externalizeMSpine (n, S))
+      | externalizePrg (n, T.Rec (D, P)) = T.Rec (externalizeMDec (n, D), externalizePrg (n+1, P))
+      | externalizePrg (n, T.Case (T.Cases O)) = T.Case (T.Cases (externalizeCases O))
+      | externalizePrg (n, T.Let (D, P1, P2)) = T.Let (externalizeMDec (n, D), externalizePrg (n, P1), externalizePrg (n+1, P2))
       (* PClo should not be possible, since by invariant, parser
          always generates a program in normal form  --cs Thu Apr 17 16:56:07 2003
       *)
-    and externalizeMDec (T.UDec D) = T.UDec (externalizeDec D)
-      | externalizeMDec (T.PDec (s, F)) = T.PDec (s, externalizeFor F)
+    and externalizeMDec (n, T.UDec (D as I.Dec (name, V as I.Root (I.Const a, S)))) =
+        (case Array.sub (internal, a)
+           of Type (a') => T.UDec (I.BDec(name, (a', makeSub (externalizeSpine S, I.Shift n))))
+	    | _ =>  T.UDec (externalizeDec D)) 
+      | externalizeMDec (n, T.UDec D) = T.UDec (externalizeDec D)
+      | externalizeMDec (n, T.PDec (s, F)) = T.PDec (s, externalizeFor (n, F))
 
-    and externalizeFor (T.World (W, F)) = T.World (W, externalizeFor F)
-      | externalizeFor (T.All ((D, Q), F)) = T.All ((externalizeMDec D, Q), externalizeFor F)
-      | externalizeFor (T.Ex ((D, Q), F)) = T.Ex ((externalizeDec D, Q), externalizeFor F)
-      | externalizeFor (T.True) = T.True
-      | externalizeFor (T.And (F1, F2)) = T.And (externalizeFor F1, externalizeFor F2)
+    and externalizeFor (n, T.World (W, F)) = T.World (W, externalizeFor (n, F))
+      | externalizeFor (n, T.All ((D, Q), F)) = T.All ((externalizeMDec (n, D), Q), externalizeFor (n+1, F))
+      | externalizeFor (n, T.Ex ((D, Q), F)) = T.Ex ((externalizeDec D, Q), externalizeFor (n+1, F))
+      | externalizeFor (n, T.True) = T.True
+      | externalizeFor (n, T.And (F1, F2)) = T.And (externalizeFor (n, F1), externalizeFor (n, F2))
 
-    and externalizeMSpine T.Nil = T.Nil
-      | externalizeMSpine (T.AppExp (U, S)) = T.AppExp (externalizeExp U, externalizeMSpine S)
-      | externalizeMSpine (T.AppBlock (B, S)) = T.AppBlock (externalizeBlock B, externalizeMSpine S)
-      | externalizeMSpine (T.AppPrg (P, S)) = T.AppPrg (externalizePrg P, externalizeMSpine S)
+    and externalizeMSpine (n, T.Nil) = T.Nil
+      | externalizeMSpine (n, T.AppExp (U, S)) = T.AppExp (externalizeExp U, externalizeMSpine (n, S))
+      | externalizeMSpine (n, T.AppBlock (B, S)) = T.AppBlock (externalizeBlock B, externalizeMSpine (n, S))
+      | externalizeMSpine (n, T.AppPrg (P, S)) = T.AppPrg (externalizePrg (n, P), externalizeMSpine (n, S))
 
     and externalizeCases nil = nil
       | externalizeCases ((Psi, t, P) :: O) = 
-          (externalizeMCtx Psi, externalizeMSub t, externalizePrg P) :: externalizeCases O
+        let
+	  val n = I.ctxLength Psi
+	in
+          (externalizeMCtx Psi, externalizeMSub (n, t), externalizePrg (n, P)) :: externalizeCases O
+	end
 
-    and externalizeMSub (t as (T.Shift n)) = t
-      | externalizeMSub (T.Dot (F, t)) = T.Dot (externalizeMFront F, externalizeMSub t)
+    and externalizeMSub (n, t as (T.Shift _)) = t
+      | externalizeMSub (n, T.Dot (F, t)) = T.Dot (externalizeMFront (n, F), externalizeMSub (n, t))
       
-    and externalizeMFront (F as (T.Idx _)) = F
-      | externalizeMFront (T.Prg P) = T.Prg (externalizePrg P)
-      | externalizeMFront (T.Exp U) = T.Exp (externalizeExp U)
-      | externalizeMFront (T.Block B) = T.Block (externalizeBlock B)
-      | externalizeMFront (F as T.Undef) =  F
+    and externalizeMFront (n, F as (T.Idx _)) = F
+      | externalizeMFront (n, T.Prg P) = T.Prg (externalizePrg (n, P))
+      | externalizeMFront (n, T.Exp U) = T.Exp (externalizeExp U)
+      | externalizeMFront (n, T.Block B) = T.Block (externalizeBlock B)
+      | externalizeMFront (n, F as T.Undef) =  F
 
     and externalizeMCtx I.Null = I.Null
-      | externalizeMCtx (I.Decl (Psi, D as T.UDec (I.Dec (name, I.Root (I.Const a, S))))) =
-        (case Array.sub (internal, a)
-           of Type (a') => I.Decl (externalizeMCtx Psi, T.UDec (I.BDec(name, (a', makeSub (externalizeSpine S, I.Shift (I.ctxLength Psi))))))
-	    | _ =>  I.Decl (externalizeMCtx Psi, externalizeMDec D))
       | externalizeMCtx (I.Decl (Psi, D)) =          
-         I.Decl (externalizeMCtx Psi, externalizeMDec D)
+         I.Decl (externalizeMCtx Psi, externalizeMDec (I.ctxLength Psi, D))
+
+
 
   in 
     val transFor = fn F => let val  F' = transFor (I.Null, F) in F' end
@@ -1103,7 +1145,7 @@ struct
 
       val transDecs = transProgram
       val internalizeSig = internalizeSig
-      val externalizePrg = externalizePrg
+      val externalizePrg = fn P => externalizePrg  (0, P) 
 
 (*    val transDecs = fn Ds => transDecs ((I.Null, []), NONE, Ds, fn (Psi,  W) => T.Unit, T.Worlds []) 
 *)

@@ -2,12 +2,25 @@
    Author: Carsten Schuermann
 *)
 
-(* 
+
 id :: world (base)
 	all {N:exp} exists {M:exp} true
 
 fun id X = <X, <>>
-*)
+  | id X = <X, <>>
+  | id X = <X, <>>
+  | id X = <X, <>>
+  | id X = <X, <>>
+  | id X = 
+    let val <X, <>> = id X
+    in 	<X, <>>
+    end
+
+id2 :: world (base)
+	all {N:exp} all {M:exp} exists {Y:exp} true
+
+fun id2 X Y = <X, <>>
+
 
 
 add :: world (base) 
@@ -20,24 +33,31 @@ fun add (A.z) M = <M, <>>
     in	
 	<(A.s) K, <>>
     end
-(*
 
 
 id :: world (base)
 	all {N:exp} exists {M:exp} true
 fun id X = <X, <>>
 
+new (b:base')
+
+val <X, <>> = add (b.z) (b.z) 
+val <Y, <>> = id (b.z) 
+
 
 count :: world (param base)
 	  all^ {e:exp} all^ {t:tp} all {P : of e t} 
 	  exists {N : exp} true
 
-fun count ((A:param' T).u) = 
+fun count (B.of_z) = <B.z, <>>
+
+
+  | count ((A:param' T).u) = 
     choose (B:base')
     in 
       <(B.s) (B.z), <>>
     end
-  | count (B.of_z) = <B.z, <>>
+
   | count ((B.of_fn) T1 T2 E P) =
     new (a: param' T1)
     in
@@ -56,8 +76,3 @@ fun count ((A:param' T).u) =
     in
       add N1 N2
     end
-
-val <X, <>> = new (b:base') in add (b.z) (b.z) end
-val <Y, <>> = new (b:base') in id (b.z) end
-
-*)

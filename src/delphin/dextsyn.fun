@@ -28,6 +28,7 @@ and Decs
   | FunDecl of FunDecl * Decs
   | FormDecl of FormDecl * Decs
   | ValDecl of ValDecl * Decs
+  | NewDecl of Dec * Decs
 
 and FormDecl 
   = Form of string * Form

@@ -38,8 +38,6 @@ struct
     structure T = Tomega
     structure S = Subordinate    
 
-
-
     fun chatter chlev f =
         if !Global.chatter >= chlev
 	  then print (f ())
@@ -316,11 +314,15 @@ struct
 	end
       | checkPrgW (Psi, (T.New (T.Lam (D as T.UDec (I.BDec (_, (cid, s))), P)), (F, t))) =
 	  (print "* Temporary incompleteness;  code is written but not yet clean\n") 
+      | checkPrgW (Psi, (T.Lam (D as T.UDec (I.BDec (_, _)), P), (F, t))) =
+	  (print "* Temporary incompleteness;  fix") 
       | checkPrgW (Psi, (T.Redex (P1, P2), (F, t))) =
 	  (print "* Temporary incompleteness; redex not checkable")
       | checkPrgW (Psi, (T.Box (W, P), (T.World (W', F), t))) =
 	  checkPrgW (Psi, (P, (F, t)))
 	  (* don't forget to check if the worlds match up --cs Mon Apr 21 01:51:58 2003 *)
+      | checkPrgW (Psi, (T.New _, (F, t))) =
+	  (print "* Temporary incompleteness;  new not expected alone \n")
 
 
 (*	let 
