@@ -228,8 +228,7 @@ struct
 	  ()
 	end
       | checkPrgW (Psi, (T.New (T.Lam (D as T.UDec (I.BDec (_, (cid, s))), P)), (F, t))) =
-	  (print "* Temporary incompleteness;  code is written but not yet clean\n")
-(*
+(*	  (print "* Temporary incompleteness;  code is written but not yet clean\n") *)
 	let 
 	  val (Gsome, Lpi) = I.conDecBlock (I.sgnLookup cid)
 	                        (* Psi |- s : Gsome*)
@@ -289,7 +288,7 @@ struct
 	  checkPrgW (I.Decl (Psi, D), (P, (F', t')))
 	end
 
-*)
+
 
 (* raise Domain *)
 (*      | checkPrg (G, ((T.Redex (P, T.Nil), s), Fs)) = checkPrg (G, ((P, s), Fs)) *)
