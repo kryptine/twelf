@@ -36,8 +36,9 @@ subst_lm  : subst ([x:term] [idx: x => x] lm (R1 x idx))
 	     {hs: {N:term} {N':term} {S':N => N'}
 		   subst ([y:term][idy:y => y] idx) S' idx}.
 %worlds (l1) (subst R S R').
-%covers subst +R +S *R'.
+%covers subst +R +S -R'.
 %terminates R (subst R S _).
+%total R (subst R S _).
 
 % Diamond property for parallel reduction
 
@@ -97,6 +98,7 @@ dia_ll  : dia (lm R1') (lm R1'') (lm S1') (lm S1'')
 %worlds (l2) (dia _ _ _ _).
 %covers dia +R' +R'' -S' -S''.
 %terminates [R' R''] (dia R' R'' _ _).
+%total [R' R''] (dia R' R'' _ _).
 
 % The strip lemma for parallel reduction.
 
@@ -113,6 +115,7 @@ strip_step : strip R' (R1'' ; R2*'') (S1' ; S2*') S''
 %worlds () (strip R' R'' S*' S'').
 %covers strip +R' +R'' -S*' -S''.
 %terminates R'' (strip R' R'' _ _).
+%total R'' (strip R' R'' _ _).
 
 % Confluence for parallel multi-step reduction.
 
@@ -129,6 +132,7 @@ conf_step : conf (R1' ; R2*') R*'' S*' (S1'' ; S2*'')
 %worlds () (conf R*' R*'' S*' S*'').
 %covers conf +R*' +R*'' -S*' -S*''.
 %terminates R*' (conf R*' R*'' _ _).
+%total R*' (conf R*' R*'' _ _).
 
 % Church-Rosser Theorem for parallel reduction
 
@@ -149,3 +153,4 @@ cr_compose : cr (C1 ;; C2) S* S*'
 %worlds () (cr C S* S*').
 %covers cr +C -S* -S*'.
 %terminates C (cr C _ _).
+%total C (cr C _ _).

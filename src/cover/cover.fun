@@ -75,9 +75,11 @@ struct
        If G |- V : L
        then G |- X[w] : V
     *)
+
     (* individual createEVar function currently not used *)
     (* Sun Dec 16 11:57:49 2001 -fp !!! *)
-    (*
+    (* seems to be needed for output coverage to create cover spine *)
+    (* Tue Dec 18 20:38:56 2001 -fp !!! *)
     fun createEVar (G, V) =
         let (* G |- V : L *)
 	  val w = weaken (G, I.targetFam V) (* G |- w : G' *)
@@ -88,7 +90,6 @@ struct
 	in
 	  X
 	end
-    *)
 
     (*
        Coverage goals have the form {{G}} a @ S
@@ -321,8 +322,18 @@ struct
 		     cands)
       | matchExpW (G, d, Us1, Us2 as (I.EVar _, s2), cands) =
 	   addEqn (Eqn (G, Us1, Us2), cands)
+      (* next 3 cases are new for output coverage *)
+      (* Tue Dec 18 20:54:58 2001 -fp *)
+      | matchExpW (G, d, (I.Pi ((D1, _), V1), s1), (I.Pi ((D2, _), V2), s2), cands) =
+	let 
+	  val cands' = matchDec (G, d, (D1, s1), (D2, s2), cands)
+	in
+	  matchExp (I.Decl (G, D1), d+1, (V1, I.dot1 s1), (V2, I.dot1 s2), cands')
+	end 
+      | matchExpW (G, d, (I.Pi _, _), _, cands) = fail ()
+      | matchExpW (G, d, _, (I.Pi _, _), cands) = fail ()
       (* nothing else should be possible, by invariants *)
-      (* No I.Uni, I.Pi, I.FgnExp, and no I.Redex by whnf *)
+      (* No I.Uni, I.FgnExp, and no I.Redex by whnf *)
 
     and matchSpine (G, d, (I.Nil, _), (I.Nil, _), cands) = cands
       | matchSpine (G, d, (I.SClo (S1, s1'), s1), Ss2, cands) =
@@ -336,6 +347,10 @@ struct
 	  matchSpine (G, d, (S1, s1), (S2, s2), cands')
 	end
 
+    and matchDec (G, d, (I.Dec (_, V1), s1), (I.Dec (_, V2), s2), cands) =
+          matchExp (G, d, (V1, s1), (V2, s2), cands)
+        (* BDec should be impossible here *)
+
     (* matchTop (G, (a @ S1, s1), (a @ S2, s2), ms) = cands
        matches S1[s1] (spine of coverage goal)
        against S2[s2] (spine of clause head)
@@ -348,46 +363,54 @@ struct
        S1[s1] contains no EVars
        mode spine ms matches S1 and S2
     *)
-    fun matchTop (G, Us1, Us2, ms) =
-          matchTopW (G, Whnf.whnf Us1, Whnf.whnf Us2, ms)
-    and matchTopW (G, (I.Root (I.Const (c1), S1), s1),
-                      (I.Root (I.Const (c2), S2), s2), ms) =
+    fun matchTop (G, d, Us1, Us2, ms, cands) =
+          matchTopW (G, d, Whnf.whnf Us1, Whnf.whnf Us2, ms, cands)
+    and matchTopW (G, d, (I.Root (I.Const (c1), S1), s1),
+                         (I.Root (I.Const (c2), S2), s2), ms, cands) =
         (* heads must be equal by invariant *)
         (* no longer true, because of blocks and local assumptions *)
         (* Wed Nov 21 16:45:46 2001 *)
         if (c1 = c2)
 	  then
 	    (* unify spines, skipping output and ignore arguments in modeSpine *)
-	    matchTopSpine (G, (S1, s1), (S2, s2), ms, Eqns (nil))
+	    matchTopSpine (G, d, (S1, s1), (S2, s2), ms, cands)
 	else fail () (* fails, with no candidates since type families don't match *)
-      | matchTopW (G, (I.Pi ((D1,_), V1), s1),
-		      (I.Pi ((D2,_), V2), s2), ms) = 
+      | matchTopW (G, d, (I.Pi ((D1,_), V1), s1),
+		         (I.Pi ((D2,_), V2), s2), ms, cands) = 
 	(* this case arises in output coverage *)
-	(* fill in !!! *)
-	  raise Match
-    and matchTopSpine (G, (I.Nil, _), (I.Nil, _), M.Mnil, cands) = cands
-      | matchTopSpine (G, (I.SClo (S1, s1'), s1), Ss2, ms, cands) =
-          matchTopSpine (G, (S1, I.comp (s1', s1)), Ss2, ms, cands)
-      | matchTopSpine (G, Ss1, (I.SClo (S2, s2'), s2), ms, cands) =
-          matchTopSpine (G, Ss1, (S2, I.comp (s2', s2)), ms, cands)
-      | matchTopSpine (G, (I.App (U1, S1), s1), (I.App (U2, S2), s2),
+	(* the parameters should not suggest any splittable variables,
+	   perhaps but they should probably be unified *)
+	(* Tue Dec 18 19:49:47 2001 -fp ??? *)
+	let
+	  val cands' = matchDec (G, d, (D1, s1), (D2, s2), cands)
+	in
+	  matchTopW (I.Decl (G, D1), d+1, (V1, I.dot1 s1), (V2, I.dot1 s2), ms, cands')
+	end
+    and matchTopSpine (G, d, (I.Nil, _), (I.Nil, _), M.Mnil, cands) = cands
+      | matchTopSpine (G, d, (I.SClo (S1, s1'), s1), Ss2, ms, cands) =
+          matchTopSpine (G, d, (S1, I.comp (s1', s1)), Ss2, ms, cands)
+      | matchTopSpine (G, d, Ss1, (I.SClo (S2, s2'), s2), ms, cands) =
+          matchTopSpine (G, d, Ss1, (S2, I.comp (s2', s2)), ms, cands)
+      | matchTopSpine (G, d, (I.App (U1, S1), s1), (I.App (U2, S2), s2),
 		       M.Mapp (M.Marg (M.Plus, _), ms'), cands) =
         let
-	  val cands' = matchExp (G, 0, (U1, s1), (U2, s2), cands)
+	  val cands' = matchExp (G, d, (U1, s1), (U2, s2), cands)
 	in
-	   matchTopSpine (G, (S1, s1), (S2, s2), ms', cands')
+	   matchTopSpine (G, d, (S1, s1), (S2, s2), ms', cands')
 	end
-      | matchTopSpine (G, (I.App (U1, S1), s1), (I.App (U2, S2), s2),
+      | matchTopSpine (G, d, (I.App (U1, S1), s1), (I.App (U2, S2), s2),
 		       M.Mapp (_, ms'), cands) =
 	(* skip "ignore" and "output" arguments *)
-	   matchTopSpine (G, (S1, s1), (S2, s2), ms', cands)
+	(* this seems questionable during output coverage *)
+	(* Tue Dec 18 19:20:47 2001 -fp *)
+	   matchTopSpine (G, d, (S1, s1), (S2, s2), ms', cands)
 
     (* matchClause (G, (a @ S1, s1), V, ms) = cands
        as in matchTop, but r is compiled clause
        NOTE: Simply use constant type for more robustness (see below)
     *)
     fun matchClause (G, ps', qs as (I.Root (_, _), s), ms) =
-          checkConstraints (G, qs, resolveCands (matchTop (G, ps', qs, ms)))
+          checkConstraints (G, qs, resolveCands (matchTop (G, 0, ps', qs, ms, Eqns (nil))))
       | matchClause (G, ps', (I.Pi ((I.Dec(_, V1), _), V2), s), ms) =
         let
 	  (* changed to use subordination and strengthening here *)
@@ -490,19 +513,19 @@ struct
           matchCtx (G, s', G', V, k, ms, CandList (klist))
 
     (* as matchClause *)
-    fun matchOut (G, V, k, ms, (V', s'), 0) =
+    fun matchOut (G, V, ms, (V', s'), 0) =
         let
-	  val cands = matchTop (G, (V, I.id), (V', s'), ms)
+	  val cands = matchTop (G, 0, (V, I.id), (V', s'), ms, Eqns(nil))
 	  val cands' = resolveCands (cands)
 	  val cands'' = checkConstraints (G, (V', s'), cands')
 	in
-	  addKs (cands, CandList (nil))
+	  addKs (cands'', CandList (nil))
 	end
-      | matchOut (G, V, k, ms, (I.Pi ((I.Dec(_, V1'), _), V2'), s'), p) = (* p > 0 *)
+      | matchOut (G, V, ms, (I.Pi ((I.Dec(_, V1'), _), V2'), s'), p) = (* p > 0 *)
 	let
 	  val X1 = I.newEVar (G, I.EClo (V1', s'))
 	in
-	  matchOut (G, V, k, ms, (V2', I.Dot (I.Exp (X1), s')), p-1)
+	  matchOut (G, V, ms, (V2', I.Dot (I.Exp (X1), s')), p-1)
 	end
 
     (* match (G, V, ms, ccs) = klist
@@ -519,7 +542,7 @@ struct
           matchCtx' (G, I.id, G, V, 1, ms,
 		     matchSig (G, (V, I.id), ccs, ms, CandList (nil)))
       | match (G, V, 0, ms, Output (V', q)) =
-	  matchOut (G, V, 0, ms, (V', I.id), q)
+	  matchOut (G, V, ms, (V', I.id), q)
       | match (G, I.Pi ((D, _), V'), p, ms, ccs) =
 	  match (I.Decl (G, D), V', p-1, ms, ccs)
 
@@ -1193,30 +1216,30 @@ struct
 	  I.Pi ((D1',P1), V2')
 	end
       | createCoverGoalW (G, (I.Pi ((D as I.Dec (_, V1), _), V2), s), p, ms) =
-        let (* p > 0 *)
-	  val X = I.newEVar (I.Null, I.EClo (V1, s))
+        let (* p > 0, G = I.Null *)
+	  val X = I.newEVar (G, I.EClo (V1, s))
 	in
 	  createCoverGoal (G, (V2, I.Dot (I.Exp (X), s)), p-1, ms)
 	end
       | createCoverGoalW (G, (I.Root (a as I.Const(cid), S), s), p, ms) = (* s = id, p >= 0 *)
-	I.Root (a, createCoverSpine ((S, s), (I.constType (cid), I.id), ms))
+	I.Root (a, createCoverSpine (G, (S, s), (I.constType (cid), I.id), ms))
 
-    and createCoverSpine ((I.Nil, s), _, M.Mnil) = I.Nil
-      | createCoverSpine ((I.App (U1, S2), s), (I.Pi ((I.Dec (_, V1), _), V2), s'),
+    and createCoverSpine (G, (I.Nil, s), _, M.Mnil) = I.Nil
+      | createCoverSpine (G, (I.App (U1, S2), s), (I.Pi ((I.Dec (_, V1), _), V2), s'),
 			  M.Mapp (M.Marg (M.Minus, x), ms')) =
           (* replace output argument by new variable *)
         let
-	  val X = I.newEVar (I.Null, I.EClo (V1, s'))
-	  val S2' = createCoverSpine ((S2, s), (V2, I.Dot (I.Exp (X), s')), ms')
+	  val X = createEVar (G, I.EClo (V1, s')) (* strengthing G based on subordination *)
+	  val S2' = createCoverSpine (G, (S2, s), (V2, I.Dot (I.Exp (X), s')), ms')
 	in
           I.App (X, S2')
 	end
-      | createCoverSpine ((I.App (U1, S2), s), (I.Pi (_, V2), s'), M.Mapp (_, ms')) =
+      | createCoverSpine (G, (I.App (U1, S2), s), (I.Pi (_, V2), s'), M.Mapp (_, ms')) =
 	(* leave input or ignore arguments as they are *)
 	  I.App (I.EClo (U1, s),
-		 createCoverSpine ((S2, s), Whnf.whnf (V2, I.Dot (I.Exp (I.EClo (U1, s)), s')), ms'))
-      | createCoverSpine ((I.SClo (S, s'), s), Vs, ms) =
-	  createCoverSpine ((S, I.comp (s', s)), Vs, ms)
+		 createCoverSpine (G, (S2, s), Whnf.whnf (V2, I.Dot (I.Exp (I.EClo (U1, s)), s')), ms'))
+      | createCoverSpine (G, (I.SClo (S, s'), s), Vs, ms) =
+	  createCoverSpine (G, (S, I.comp (s', s)), Vs, ms)
 
   in
     (* checkOut (G, (V, s)) = ()
@@ -1248,6 +1271,9 @@ struct
 	  val SOME(ms) = ModeSyn.modeLookup a (* must be defined and well-moded *)
 	  val negMs = negateMode ms	(* swap input/output modes *)
 	  val (V', q) = createCoverClause (G, I.EClo(V, s), 0) (* abstract all variables in G *)
+	  val _ = if !Global.doubleCheck
+		    then TypeCheck.typeCheck (I.Null, (V', I.Uni (I.Type)))
+		  else ()
 	  val V0 = createCoverGoal (I.Null, (V', I.id), q, ms) (* replace output by new EVars *)
 	  val (V0', p) = abstract (V0, I.id)	(* abstract will double-check *)
 	  val W = W.lookup a

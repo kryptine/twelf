@@ -15,3 +15,4 @@ cr_all : cr_ord C S* S*'
 %worlds () (cr_ord C S* S*').
 %covers cr_ord +C -S* -S*'.
 %terminates C (cr_ord C _ _).
+%total C (cr_ord C _ _).

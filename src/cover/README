@@ -214,7 +214,7 @@ obtain, for example (among others):
 
 {A*:tp} {B1*:tp} {B2*:tp}
 {G1*:exp A* -> exp A* -> exp (arrow B1* B2*)}
-{G1*:exp A* -> exp A* -> exp B1*}
+{G2*:exp A* -> exp A* -> exp B1*}
 ?- {x:exp A*} {y:exp A*} {u:cp x y} cp _ (app (G1* x y) (G2* x y))
 
 Then we proceed as before, this time without candidates.
