@@ -34,6 +34,36 @@ Syntax:
 
 where tdecl is a termination declaration.
 
+Mon Dec 17 17:37:23 2001
+Version 4 --- worlds, subordination, and finitary splitting
+Tagged as input-cover on branch coverage
+
+- added worlds and variables blocks to coverage checking
+- added subordination when generating EVar's in order
+  to prevent spurious dependencies
+- generalized checking for impossible cases
+  by checking for variables with finitely many
+  instances without creating recursion
+- uses subordination in order to eliminate some
+  apparent recusion fo finitary splitting.
+
+Instruction for branch on coverage:
+
+     % tag currently checked out version
+
+     cvs tag -b coverage     % tag current working version
+     cvs update -r coverage  % switch current working version to branch
+
+     % checking out a branch (alternative to cvs update -r coverage)
+     cvs checkout -r coverage twelf
+
+     % merging changes from a branch back into the main development
+     cvs checkout twelf      % get fresh copy of main branch
+     cd twelf                
+     cvs update -j coverage  % join branch coverage
+     cvs commit -m "included branch 'coverage'"
+			     % commit changes to main branch
+
 ----------------------------------------------------------------------
 From: "Carsten Schuermann" <carsten@cs.yale.edu>
 To: "Frank Pfenning" <fp@cs.cmu.edu>
