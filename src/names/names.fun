@@ -790,7 +790,10 @@ struct
         (case IntSyn.ctxLookup (G, k)
 	   of IntSyn.Dec(SOME(name), _) => name
 	    | IntSyn.ADec(SOME(name), _) =>  name
-	    | _ => raise Unprintable)
+	    | IntSyn.NDec => "<_>" (* should be impossible *)
+	    | _ => "?" (* should be impossible *)
+	    (* | _ => raise Unprintable *)
+	     )
               (* NONE should not happen *)
 
     (* decName' role (G, D) = G,D'

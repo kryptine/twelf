@@ -676,6 +676,17 @@ struct
 			   abstractKPi  (K, abstractExp (K, 0, (V, I.id)))))
 	end 
 
+
+    fun abstractSpineExt (S, s) =
+        let
+	  val K = collectSpine (I.Null, (S, s), I.Null)
+	  val _ = checkConstraints (K)
+	  val G = abstractKCtx (K)
+	  val S = abstractSpine (K, 0, (S, s))
+	in
+	  (G, S)
+	end
+	      
     (* abstractCtxs [G1,...,Gn] = G0, [G1',...,Gn']
        Invariants:
        If . |- G1,...,Gn ctx
@@ -728,6 +739,9 @@ struct
     *)
     fun collectEVars (G, Us, Xs) =
           KToEVars (collectExp (G, Us, evarsToK (Xs)))
+
+    fun collectEVarsSpine (G, (S, s), Xs) =
+          KToEVars (collectSpine (G, (S, s), evarsToK (Xs)))
 
 
     (* for the theorem prover: 
@@ -850,8 +864,10 @@ struct
     val abstractDef = abstractDef
     val abstractCtxs = abstractCtxs
     val abstractTomegaSub = abstractTomegaSub
+    val abstractSpine = abstractSpineExt
 
     val collectEVars = collectEVars
+    val collectEVarsSpine = collectEVarsSpine
 
     val closedCtx = closedCtx
   end
