@@ -21,6 +21,4 @@ Externally visible changes:
  - Constraint solving modules for:
      rationals
      integers
-     strings
-     booleans
- - Hierarchical configuration files
+

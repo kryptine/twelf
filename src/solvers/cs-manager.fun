@@ -162,6 +162,7 @@ struct
   (* ask each active solver to try and parse the given string *)
   fun parse string =
         let
+          val _ = print ("Searching " ^ string ^ "\n")
           exception Parsed of IntSyn.csid * IntSyn.ConDec
           fun parse' (cs, solver : solver) =
                 (case #fgnConst(solver)

@@ -44,7 +44,7 @@ struct
 	     else ()
 
     fun printSplitting splitOp = 
-        (* if !Global.chatter > 5 then print ("[" ^ MTPSplitting.menu splitOp) *)
+        (*if !Global.chatter > 5 then print ("[" ^ MTPSplitting.menu splitOp) *)
         if !Global.chatter > 5 then print ("[Splitting ...")
 	else if !Global.chatter> 4 then print ("S")
 	     else ()
@@ -138,14 +138,12 @@ struct
     fun run givenStates = 
         let
 	  val _ = printInit ()
-	  val (openStates, solvedStates) = fill (givenStates, (nil, nil))
-          val openStates' = map MTPrint.nameState openStates
-          val solvedStates' = map MTPrint.nameState solvedStates
-	  val _ = case openStates
-	            of nil => printQed ()
+	  val os = fill (givenStates, (nil, nil))
+	  val _ = case os
+	            of (nil, _) => printQed ()
 		     | _ => ()
 	in
-	  (openStates', solvedStates')
+	  os
 	end
 
   in

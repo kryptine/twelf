@@ -1,7 +1,6 @@
 (* Front End Interface *)
 (* Author: Frank Pfenning *)
 (* Modified: Carsten Schuermann, Jeff Polakow *)
-(* Modified: Brigitte Pientka *)
 
 functor Twelf
   (structure Global : GLOBAL
@@ -57,14 +56,12 @@ functor Twelf
      sharing type ModeRecon.modedec = Parser.ExtModes.modedec
    structure ModePrint : MODEPRINT
      sharing ModePrint.ModeSyn = ModeSyn
-    structure ModeDec : MODEDEC
+   structure ModeDec : MODEDEC
      sharing ModeDec.ModeSyn = ModeSyn
      sharing ModeDec.Paths = Paths
 
    structure Terminate : TERMINATE
      sharing Terminate.IntSyn = IntSyn'
-   structure Reduces : REDUCES
-     sharing Reduces.IntSyn = IntSyn'
 
    structure Index : INDEX
      sharing Index.IntSyn = IntSyn'
@@ -95,7 +92,6 @@ functor Twelf
      sharing ThmRecon.Paths = Paths
      sharing ThmRecon.ThmSyn.ModeSyn = ModeSyn
      sharing type ThmRecon.tdecl = Parser.ThmExtSyn.tdecl
-     sharing type ThmRecon.rdecl = Parser.ThmExtSyn.rdecl (* -bp *)
      sharing type ThmRecon.theorem = Parser.ThmExtSyn.theorem
      sharing type ThmRecon.theoremdec = Parser.ThmExtSyn.theoremdec 
      sharing type ThmRecon.prove = Parser.ThmExtSyn.prove
@@ -234,7 +230,6 @@ struct
 	      | Abstract.Error (msg) => abortFileMsg (fileName, msg)
 	      (* | Constraints.Error (cnstrL) => abortFileMsg (fileName, constraintsMsg cnstrL) *)
 	      | Terminate.Error (msg) => abort (msg ^ "\n") (* Terminate includes filename *)
-	      | Reduces.Error (msg) => abort (msg ^ "\n")   (* Reduces includes filename *)
               | Compile.Error (msg) => abortFileMsg (fileName, msg)
 	      | Thm.Error (msg) => abortFileMsg (fileName, msg)
 	      | ModeSyn.Error (msg) => abortFileMsg (fileName, msg)
@@ -376,24 +371,9 @@ struct
 	let
 	  val (T, rrs) = ThmRecon.tdeclTotDecl lterm 
 	  val La = Thm.install (T, rrs)
-  	  val _ = map (Timers.time Timers.terminate Reduces.checkFam) La  
+	  val _ = map (Timers.time Timers.terminate Terminate.checkFam) La
 	  val _ = if !Global.chatter >= 3 
 		    then print ("%terminates " ^ ThmPrint.tDeclToString T ^ ".\n")
-		  else ()
-	in
-	  ()
-	end
-
-        (* -bp *)
-	(* Reduces declaration *)
-      | install1 (fileName, Parser.ReducesDec lterm) =
-	let
-	  val (R, rrs) = ThmRecon.rdeclTorDecl lterm 
-	  val La = Thm.installReduces (R, rrs)
-	  (*  -bp6/12/99.   *)
-	  val _ = map (Timers.time Timers.terminate Reduces.checkFamReduction) La
-	  val _ = if !Global.chatter >= 3 
-		    then print ("%reduces " ^ ThmPrint.rDeclToString R ^ ".\n")
 		  else ()
 	in
 	  ()
@@ -541,7 +521,6 @@ struct
     fun reset () = (IntSyn.sgnReset (); Names.reset (); ModeSyn.reset ();
 		    Index.reset (); 
 		    IndexSkolem.reset (); Subordinate.reset (); Terminate.reset ();
-		    Reduces.reset (); (* -bp *)
 		    FunSyn.labelReset ();
 		    CompSyn.sProgReset (); (* necessary? -fp *)
                     CSManager.resetSolvers ()
@@ -588,61 +567,33 @@ struct
       *)
       type config = string * string list
 
-      (* suffix of configuration files: "cfg" by default *)
-      val suffix = ref "cfg"
-
-      (* new recursive version  Sat 09/25/1999 -rv *)
       fun read (configFile) =
-          withOpenIn (configFile)
-          (fn instream =>
-           let
-	     val {dir=configDir, file=_} = OS.Path.splitDirFile configFile
-             (* append_uniq (list1, list2) appends list2 to list1, removing
-                all elements of list2 which are already in list1
-             *)
-             fun append_uniq (l1, l2) =
-                   let
-                     fun append_uniq' (x :: l2) =
-                           if List.exists (fn y => x = y) l1
-                           then append_uniq' (l2)
-                           else x :: append_uniq' (l2)
-                       | append_uniq' (nil) = List.rev l1
-                   in
-                     List.rev (append_uniq' (List.rev l2))
-                   end
-	     (* mkRel interpretes a path p in the config file relative to
-	        configDir, the directory of the config file.
-             *)
-	     fun mkRel (p) =
-                  OS.Path.mkCanonical
-                    (if OS.Path.isAbsolute p
-                     then p
-                     else OS.Path.concat (configDir, p))
-             fun parseItem (item, sources) =
-                   let
-                     val suffix_size = (String.size (!suffix)) + 1
-                     val suffix_start = (String.size item) - suffix_size
-                   in
-                     if (suffix_start < 0)
-                       orelse (String.substring (item, suffix_start, suffix_size) <> ("." ^ !suffix))
-                     then append_uniq (sources, [mkRel(item)])
-                     else append_uniq (sources, (#2(read (mkRel(item)))))
-                   end
+	  withOpenIn (configFile)
+	  (fn instream =>
+	   let
 	     fun parseLine (sources, line) =
 		 if Substring.isEmpty line
-		   then sources (* end of file *)
+		   then List.rev (sources) (* end of file *)
 		 else parseLine' (sources, Substring.dropl Char.isSpace line)
 	     and parseLine' (sources, line') =
 		 if Substring.isEmpty line' orelse Substring.sub (line', 0) = #"%"
 		   then parseStream sources	(* ignore empty or comment line *)
-		 else parseStream (parseItem (Substring.string (Substring.takel (not o Char.isSpace) line'),
-				              sources))
+		 else parseStream (Substring.string (Substring.takel (not o Char.isSpace) line')
+				:: sources)
 	     and parseStream (sources) =
 	           parseLine (sources, Substring.all (TextIO.inputLine instream))
 
+	     val {dir=configDir, file=_} = OS.Path.splitDirFile configFile
+	     (* mkRel interpretes a path p in the config file relative to
+	        configDir, the directory of the config file.
+             *)
+	     fun mkRel (p) = if OS.Path.isAbsolute p
+			       then p
+			     else OS.Path.concat (configDir, p)
+	     fun relSources (sources) = List.map mkRel sources
 	     val pwdir = OS.FileSys.getDir ()
 	   in
-	     (pwdir, parseStream nil)
+	     (pwdir, relSources (parseStream nil))
 	   end)
 	  (*
 	  handle IO.Io (ioError) => (abortIO (configFile, ioError); raise IO.io (ioError))
@@ -660,8 +611,7 @@ struct
 	   if pwdir = OS.FileSys.getDir () (* allow shorter messages if safe *)
 	     then List.foldl loadAbort OK sources
 	   else List.foldl loadAbort OK
-	        (List.map (fn p => OS.Path.mkAbsolute (p, pwdir)) sources)) 
-(*	   (List.map (fn p => OS.Path.mkAbsolute {path = p, relativeTo = pwdir}) sources)) -bp sml110.9*)
+	        (List.map (fn p => OS.Path.mkAbsolute (p, pwdir)) sources))
 
       fun define (sources) = (OS.FileSys.getDir (), sources)
 
@@ -781,7 +731,6 @@ struct
     structure Config :
       sig
 	type config			(* configuration *)
-        val suffix : string ref         (* suffix of configuration files *)
 	val read : string -> config	(* read configuration from config file *)
 	val load : config -> Status	(* reset and load configuration *)
 	val define : string list -> config  (* explicitly define configuration *)
@@ -789,6 +738,6 @@ struct
     = Config
     val make = make
 
-    val version = "Twelf 1.2 R9pl3 (with tracing, arithmetic)"
+    val version = "Twelf 1.2 R7 (with tracing, arithmetic)"
   end  (* local *)
 end; (* functor Twelf *)

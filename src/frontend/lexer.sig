@@ -31,14 +31,12 @@ sig
     | QUERY				(* `%query' *)
     | MODE				(* `%mode' *)
     | TERMINATES       			(* `%terminates' *)
-    | REDUCES       			(* `%reduces' *) (*  -bp6/5/99. *)
     | THEOREM                           (* `%theorem' *)
     | PROVE                             (* `%prove' *)
     | ESTABLISH				(* `%establish' *)
     | ASSERT				(* `%assert' *)
     | ABBREV				(* `%abbrev' *)
     | USE                               (* `%use'    *)
-    | STRING of string                  (* string constants *)
 
   exception Error of string
 
