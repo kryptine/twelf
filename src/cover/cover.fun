@@ -667,11 +667,12 @@ struct
       | blockCases' (G, Vs, (lvar, i), (t, I.Dec (_, V')::piDecs), sc) =
         let
 	  val (U, Vs') = createAtomProj (G, I.Proj (lvar, i), (V', t))
-	  (*
-	  val _ = print ("U  = " ^ Print.expToString (G, U) ^ ";\n"
-			 ^ "V'= " ^ Print.expToString (G, I.EClo Vs') ^ ";;\n"
-			 ^ "V = " ^ Print.expToString (G, I.EClo Vs) ^ ".\n")
-	  *)
+	  (* debugging Fri Dec  7 20:36:12 2001 -fp !!!??? *)
+	  val G' = Names.ctxName G
+	  val _ = print ("G' = " ^ Print.ctxToString (I.Null, G') ^ " |-\n"
+			 ^ "U = " ^ Print.expToString (G', U) ^ ";\n"
+			 ^ "V'= " ^ Print.expToString (G', I.EClo Vs') ^ ";;\n"
+			 ^ "V = " ^ Print.expToString (G', I.EClo Vs) ^ ".\n")
 	  val _ = CSManager.trail (fn () => if Unify.unifiable (G, Vs, Vs')
 					      then sc U
 					    else ())

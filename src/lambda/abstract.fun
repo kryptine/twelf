@@ -470,7 +470,10 @@ struct
         (* fixed this case Sun Dec  2 12:53:48 2001 -fp !!! *)
         (* was I.Shift (n) *)
         (* by invariant, n = 0? *)
-          I.Shift (n+I.ctxLength(K))
+        if n = 0 
+	  then I.Shift (n+I.ctxLength(K))
+        (* debugging fix Fri Dec  7 20:28:19 2001 -fp !!! *)
+	else (print "SOME block violated" ; raise Error ("SOME block violated"))
       | abstractSOME (K, I.Dot (I.Idx k, s)) = 
           I.Dot (I.Idx k, abstractSOME (K, s))
       | abstractSOME (K, I.Dot (I.Exp U, s)) =
