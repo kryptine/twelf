@@ -1,0 +1,73 @@
+add :: world (base) 
+	all {N:exp} all {M:exp} exists {K:exp} true
+
+fun add (o_z A) M = <M, <>>
+  | add ((o_s A) N) M = 
+    let 
+	val <K, <>> = add N M
+    in	
+	<(o_s A) K, <>>
+    end
+
+count :: world (param base)
+	  all^ {e:exp} all^ {t:tp} all {P : of e t} 
+	  exists {N : exp} true
+
+fun count (o_u (A:param' T)) = 
+    choose (b:base')
+    in 
+      <(o_s b) (o_z b), <>>
+    end
+  | count (o_of_z B) = <o_z B, <>>
+  | count ((o_of_fn B) P) = 
+    new (a: param' T1)
+    in
+      count (P (o_x a) (o_u a))
+    end
+  | count ((o_of_fix B) D) = 
+    new (a: param' T)
+    in
+      count (D (o_x a) (o_u a))
+    end
+  | count ((o_of_s B) P) = count P 
+  | count ((o_of_app B) D1 D2) = 
+    let 
+      val <N1, <>> = count D1 
+      val <N2, <>> = count D2
+    in
+      add N1 N2
+    end
+
+(*
+
+count :: world (base param* )
+	  all^ {e:exp} all^ {t:tp} all {P : of e t} 
+	  exists {N : exp} true
+
+fun count ((A:param T) u) = 
+    choose (b:base)
+    in 
+      <(b.s) (b.z), <>>
+    end
+  | count (B.of_z) = <B.z, <>>
+  | count ((B.of_fn) P) = 
+    new (a: param' T1)
+    in
+      count (P (a.x) (a.u))
+    end
+  | count ((B.of_fix) D) = 
+    new (a: param' T)
+    in
+      count (D a.x a.u)
+    end
+  | count ((B.of_s B) P) = count P 
+  | count ((B.of_app B) D1 D2) = 
+    let 
+      val <N1, <>> = count D1 
+      val <N2, <>> = count D2
+    in
+      add N1 N2
+    end
+
+*)
+
