@@ -826,9 +826,9 @@ struct
 	  then IntSyn.Dec (SOME (tryNextName (G, baseOf name)), V)
 	else D
       | decName' role (G, D as IntSyn.BDec (NONE, b as (cid, t))) =
-        (* use [l] as base name preference for label l *)
+        (* use #l as base name preference for label l *)
 	let
-	  val name = findName (G, "[" ^ IntSyn.conDecName (IntSyn.sgnLookup cid) ^ "]", Local)
+	  val name = findName (G, "#" ^ IntSyn.conDecName (IntSyn.sgnLookup cid), Local)
 	in
 	  IntSyn.BDec (SOME(name), b)
 	end
