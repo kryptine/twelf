@@ -228,7 +228,6 @@ local
         Str0 (Symbol.const (projName (G, H)))
     | fmtCon (G, H as I.Proj (I.LVar(_, (cid, t)), i)) =
       (* identity of LVars is obscured! *)
-      (* fix !!! Thu Nov 29 22:37:01 2001 -fp *)
       fmtConstPath (fn l0 => Symbol.const ("#[" ^ l0 ^ "]" ^ projName (G, H)), (* fix !!! *)
 		    Names.constQid (cid))
     | fmtCon (G, I.FgnConst (cs, conDec)) =

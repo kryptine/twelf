@@ -374,13 +374,10 @@ struct
           | Block B => B)
     | blockSub (LVar (ref (SOME B), _), s) =
         blockSub (B, s)
-    (* next case is questionable, since always . |- t : Gsome *)
+    (* Since always . |- t : Gsome, discard s *)
+    (* where is this needed? *)
     (* Thu Dec  6 20:30:26 2001 -fp !!! *)
-    | blockSub (L as LVar (ref NONE, (l, t)), s) = 
-       L
-    (* was
-       LVar (r, (l, comp (t, s))) 
-    *)
+    | blockSub (L as LVar (ref NONE, (l, t)), s) = L
 
   (* frontSub (Ft, s) = Ft'
 
@@ -397,7 +394,6 @@ struct
     | frontSub (Exp (U), s) = Exp (EClo (U, s))
     | frontSub (Undef, s) = Undef
     | frontSub (Block (B), s) = Block (blockSub (B, s))
-  (* inserted case?  -cs !!! *)
 
   (* decSub (x:V, s) = D'
 
@@ -416,8 +412,7 @@ struct
     | decSub (Dec (x, V), s) = Dec (x, EClo (V, s))
   *)
   fun decSub (Dec (x, V), s) = Dec (x, EClo (V, s))
-    | decSub (BDec (n, (l, t)), s) = BDec (n, (l, comp (t, s)))   (* Nov 26 11:36:38 EST 2001 -cs !!! *)
-      
+    | decSub (BDec (n, (l, t)), s) = BDec (n, (l, comp (t, s)))
 
   (* dot1 (s) = s'
 

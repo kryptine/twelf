@@ -203,11 +203,6 @@ struct
       | collectExpW (G, (I.Root (I.Proj (L as I.LVar (r, (l, t)), i), S), s), K) =
 	if exists (eqLVar L) K
 	  then collectSpine (G, (S, s), collectSub (I.Null, t, K))
-	    (* why not: collectSpine (G, (S, s), collectSub (I.Null, t, K)) *)
-	    (* Fri Nov 23 11:40:11 2001 -fp !!! *)
-	    (* is the I.Null really ok?  I think it must be G! *)
-            (* replaced the old version collectSpine (G, (S, s), K) -cs *)
-	    (* I think must be I.NULL Wed Dec  5 16:16:56 2001 -fp !!! *)
 	else 
 	  collectSpine (G, (S, s), I.Decl (collectSub (I.Null, t, K), LV L))
       | collectExpW (G, (I.Root (_ , S), s), K) =
@@ -256,9 +251,9 @@ struct
     and collectDec (G, (I.Dec (_, V), s), K) =
           collectExp (G, (V, s), K)
       | collectDec (G, (I.BDec (_, (_, t)), s), K) =
+	  (* . |- t : Gsome, so do not compose with s *)
+	  (* Sat Dec  8 13:28:15 2001 -fp *)
 	  collectSub (I.Null, t, K)
-    (* note: . |- t : Gsome, so do not compose with s !!! *)
-    (* was : collectSub (G, I.comp (t, s), K) *)  (* Nov 26 11:28:36 EST 2001 -cs *)
 
     (* collectSub (G, s, K) = K' 
 
@@ -272,24 +267,18 @@ struct
       | collectSub (G, I.Dot (I.Exp (U), s), K) =
 	  collectSub (G, s, collectExp (G, (U, I.id), K))
       | collectSub (G, I.Dot (I.Block B, s), K) =
-	  collectSub (G, s, collectBlock (G, B, K))
-      (* missing case Fri Nov 23 11:39:07 2001 -fp
-         added -cs *)
+	  collectSub (G, s, collectBlock (B, K))
 
-    (* G is redundant in collectBlock -fp *)
-    and collectBlock (G, I.LVar (ref (SOME B), _), K) =
-          collectBlock (G, B, K)
-      | collectBlock (G, L as I.LVar (_, (l, t)), K) = 
-        (* was: collectSub (G, t, K) *)
-	(* bug: did not collect LVar itself *)
-	(* Sun Dec  2 12:20:31 2001 !!! -fp *)
-	(* note : . |- t : Gsome for l : SOME Gsome. BLOCK piDecs *)
-	(* Thu Dec  6 20:26:04 2001 !!! -fp *)
+    (* collectBlock (B, K) where . |- B block *)
+    and collectBlock (I.LVar (ref (SOME B), _), K) =
+          collectBlock (B, K)
+      | collectBlock (L as I.LVar (_, (l, t)), K) = 
         if exists (eqLVar L) K
-	  then collectSub (I.Null, t, K)	(* was collectSub (G, t, K) *)
+	  then collectSub (I.Null, t, K)
 	else I.Decl (collectSub (I.Null, t, K), LV L)
-    (* collectBlock (G, I.Bidx _, K) = K *)
+    (* | collectBlock (G, I.Bidx _, K) = K *)
     (* should be impossible: Fronts of substitutions are never Bidx *)
+    (* Sat Dec  8 13:30:43 2001 -fp *)
 
     (* collectCtx (G0, G, K) = (G0', K')
        Invariant:
@@ -465,29 +454,19 @@ struct
        and   K is internal context in dependency order
        and   K ||- s
        then  {{K}} |- s' : Gsome  --- not changing domain of s'
+
+       Update: modified for globality invariant of . |- t : Gsome
+       Sat Dec  8 13:35:55 2001 -fp
     *)
-    fun abstractSOME (K, I.Shift n) =
-        (* fixed this case Sun Dec  2 12:53:48 2001 -fp !!! *)
-        (* was I.Shift (n) *)
-        (* by invariant, n = 0? *)
-        if n = 0 
-	  then I.Shift (n+I.ctxLength(K))
-        (* debugging fix Fri Dec  7 20:28:19 2001 -fp !!! *)
-	else (print "SOME block violated" ; raise Error ("SOME block violated"))
+    fun abstractSOME (K, I.Shift 0) = (* n = 0 by invariant, check for now *)
+          I.Shift (I.ctxLength(K))
       | abstractSOME (K, I.Dot (I.Idx k, s)) = 
           I.Dot (I.Idx k, abstractSOME (K, s))
       | abstractSOME (K, I.Dot (I.Exp U, s)) =
 	  I.Dot (I.Exp (abstractExp (K, 0, (U, I.id))), abstractSOME (K, s))
       | abstractSOME (K, I.Dot (I.Block (L as I.LVar _), s)) =
 	  I.Dot (I.Block (abstractLVar (K, 0, L)), abstractSOME (K, s))
-                (* Added Nov 27 13:56:56 EST 2001 -cs *)
-		(* by invariant the second argument should be 0 to abstractLVar 
-		   true? -cs !!!  Introduces a loop? *)
       (* I.Block (I.Bidx _) should be impossible as head of substitutions *)
-      (* Sun Dec  2 11:53:42 2001 -fp *)
-      (* | abstractSOME (K, I.Dot (I.Block (I.Bidx k), s)) =
-           I.Dot (I.Block (I.Bidx k), abstractSOME (K, s)) *)
-           (* Added Nov 27 13:56:56 EST 2001 -cs *)
 
     (* abstractCtx (K, depth, G) = (G', depth')
        where G' = {{G}}_K

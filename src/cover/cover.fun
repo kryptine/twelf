@@ -391,7 +391,7 @@ struct
        klist <> Covered accumulates mode spines
     *)
 
-    (* why do we we need to carray around s' at all? -cs !!! *)
+    (* why do we we need to carry around s' at all? -cs !!! *)
     fun matchCtx (G, s', I.Null, V, k, ms, klist) = klist
       | matchCtx (G, s', I.Decl(G'', I.Dec(_, V')), V, k, ms, klist) =
         (* will always fail for input coverage *)
@@ -399,7 +399,7 @@ struct
 	  (*  G'', V' |- ^ : G''
 	      G |- s' : G'', V'  
           *)    
-	  val s'' = I.comp (I.shift, s')   (* was the other way around -cs !!! *)
+	  val s'' = I.comp (I.shift, s')
 	  (*  G |- ^ o s' : G'' *)
 	  val cands = CSManager.trail
 	              (fn () => matchClause (G, (V, I.id), (V', s''), ms))
@@ -619,30 +619,19 @@ struct
 	  paramCases (G, Vs, k-1, sc)
 	end
 
-    (* createEVarSub G G' = s
+    (* createEVarSub G' = s
      
        Invariant:
-       If   G is a context
-       and  G' is a context
-       then G |- s : G'
+       If   . |- G' ctx
+       then . |- s : G' and s instantiates each x:A with an EVar . |- X : A
+
+       Update: Always use empty context. Sat Dec  8 13:19:58 2001 -fp
     *)
-    (* copied from worldsyn.fun *)
-    (* I think EVarSubs for Gsome variables need to be created
-       in the empty context!
-	Wed Dec  5 15:58:23 2001 -fp !!!
-    *)
-    fun createEVarSub (G, I.Null) =
-        (* change here Wed Dec  5 16:01:35 2001 -fp !!! *)
-        (* I.Shift (I.ctxLength G) *)
-        I.id
-      | createEVarSub (G, I.Decl(G', D as I.Dec (_, V))) =
+    fun createEVarSub (I.Null) = I.id
+      | createEVarSub (I.Decl(G', D as I.Dec (_, V))) =
         let
-	  val s = createEVarSub (G, G')
+	  val s = createEVarSub G'
 	  val V' = I.EClo (V, s)
-	  (* 
-	  val X = I.newEVar (G, V')
-	  *)
-	  (* change here Wed Dec  5 15:58:45 2001 -fp !!! *)
 	  val X = I.newEVar (I.Null, V')
 	in
 	  I.Dot (I.Exp X, s)
@@ -652,13 +641,17 @@ struct
     fun blockName (cid) = I.conDecName (I.sgnLookup (cid))
 
     (* blockCases (G, Vs, B, (Gsome, piDecs), sc) = 
-       
+
+       If G |- V[s] : type
+          . |- Gsome ctx and Gsome |- piDecs decList
+       then sc is called for any x:A in piDecs such thtat
+            G |- V[s] = A[t] : type
+            where t instantiates variable in Gsome with new EVars
     *)
     fun blockCases (G, Vs, cid, (Gsome, piDecs), sc) =
         let
-	  val t = createEVarSub (G, Gsome) (* G is unnecessary here *)
+	  val t = createEVarSub Gsome
 	  (* . |- t : Gsome *)
-	  (* Thu Dec  6 20:20:13 2001 -fp *)
 	  val lvar = I.newLVar (cid, t)
 	  val t' = I.comp (t, I.Shift (I.ctxLength (G)))
 	  (* G |- t' : Gsome *)
@@ -668,24 +661,9 @@ struct
     and blockCases' (G, Vs, (lvar, i), (t, nil), sc) = ()
       | blockCases' (G, Vs, (lvar, i), (t, I.Dec (_, V')::piDecs), sc) =
         let
-	  (* . |- t : G' and G' |- V' : type *)
-          (* so  . |- V'[t] : type *)
-          (* and G |- V[s] : type *)
-	  (* Precompute and pass t' instead of t?? *)
-	  (* Sat Dec  8 11:24:58 2001 -fp !!!??? *)
-	  (* val t' = I.comp (t, I.Shift (I.ctxLength (G))) *)
-	  (* now done in blockCases *)
-          (* G |- t' : G' and G |- ^|G| : . *)
+          (* G |- t : G' and G' |- ({_:V'},piDecs) decList *)
           (* so G |- V'[t'] : type *)
 	  val (U, Vs') = createAtomProj (G, I.Proj (lvar, i), (V', t))
-	  (* debugging Fri Dec  7 20:36:12 2001 -fp !!!??? *)
-	  (*
-	  val G' = Names.ctxName G
-	  val _ = print ("G' = " ^ Print.ctxToString (I.Null, G') ^ " |-\n"
-			 ^ "U = " ^ Print.expToString (G', U) ^ ";\n"
-			 ^ "V'= " ^ Print.expToString (G', I.EClo Vs') ^ ";;\n"
-			 ^ "V = " ^ Print.expToString (G', I.EClo Vs) ^ ".\n")
-          *)
 	  val _ = CSManager.trail (fn () => if Unify.unifiable (G, Vs, Vs')
 					      then sc U
 					    else ())

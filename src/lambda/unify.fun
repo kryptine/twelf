@@ -77,7 +77,6 @@ struct
           (refU := NONE)
       | undo (InstantiateBlock refB) =
 	  (refB := NONE)
-	(* added missing Wed Nov 28 10:14:48 2001 -fp !!! *)
       | undo (Add (cnstrs as ref(cnstr :: cnstrL))) =
           (cnstrs := cnstrL)
       | undo (Solve (cnstr, Cnstr)) =
@@ -309,21 +308,12 @@ struct
 	    | Idx k' => BVar k')
       | pruneHead (G, H as Const _, ss, rOccur, prunable) = H
       | pruneHead (G, H as Proj (Bidx k, i), ss, rOccur, pruneable) = H 
-         (* added this case Nov 26 11:28:36 EST 2001 -cs !!! *)
-         (* I dont' think the above case should ever happen *)
       | pruneHead (G, H as Proj (LVar (r, (l, t)), i), ss, rOccur, prunable) = 
-        (* correct??? Thu Dec  6 20:31:31 2001 -fp !!!??? *)
-        (* to me, this make no sense: then the same reference could
-           occur with different substitutions in different places
-           Thu Dec  6 21:04:33 2001 -fp 
-        *)
         (* claim: LVar does not need to be pruned since . |- t : Gsome *)
-	(* was:  Proj (LVar (r, (l, pruneSub (G, t, ss, rOccur, prunable))), i) *)
-        (* is it comp (ss, Shift (ctxLength G)) or vice versa? -fp *)
-	(* pruneSub (Null, t, comp (Shift (ctxLength G), ss), rOccur, prunable) *)
+	(* so we perform only the occurs-check here as for FVars *)
+	(* Sat Dec  8 13:39:41 2001 -fp !!! *)
 	   ( pruneSub (Null, t, id, rOccur, prunable) ;
-	   (* pruning here is an effect?  Sat Dec  8 11:06:50 2001 -fp !!! *)
-	   H )
+	     H )
       | pruneHead (G, H as Skonst _, ss, rOccur, prunable) = H
       | pruneHead (G, H as Def _, ss, rOccur, prunable) = H
       | pruneHead (G, FVar (x, V, s'), ss, rOccur, prunable) =
@@ -489,7 +479,7 @@ struct
 	       if (c1 = c2) then unifySpine (G, (S1, s1), (S2, s2))
 	       else raise Unify "Constant clash"
 	   | (Proj (b1, i1), Proj (b2, i2)) =>
-	       if (i1 = i2) then unifyBlock (G, (b1, s1), (b2, s2))
+	       if (i1 = i2) then unifyBlock (b1, b2)
 	       else raise Unify "Global parameter clash"
 	   | (Skonst(c1), Skonst(c2)) => 	  
 	       if (c1 = c2) then unifySpine (G, (S1, s1), (S2, s2))
@@ -680,37 +670,25 @@ struct
 	  unifySub (G, s1, s2))
 
     (* substitutions s1 and s2 are redundant here *)
-    (* Sat Dec  8 11:47:12 2001 -fp !!!??? *)
-    and unifyBlock (G, (LVar (r1, (l1, t1)), s1), (L as LVar (r2, (l2, t2)), s2)) = 
+    (* Sat Dec  8 11:47:12 2001 -fp !!! *)
+    and unifyBlock (LVar (r1, (l1, t1)), L as LVar (r2, (l2, t2))) = 
         if l1 <> l2 then
   	  raise Unify "Label clash"
         else
 	  if r1 = r2
-	    (* added this case to avoid circularity !!!
-	       Wed Nov 28 10:08:43 2001 -fp 
-	     *)
 	    then ()
 	  else
-	    (* don't understand the two unifications below
-	       when called internally, s1 = s2 = id
-	       otherwise redundant?  -fp !!!
-	       Wed Nov 28 10:08:00 2001
-	       *)
-	    ((* unifySub (G, comp (t1, s1), comp (t2, s2)); *)
-	     (* above is wrong: . |- ti : Gsome *)
-	     (* below replaces G by I.Null *)
-	     (* Thu Dec  6 20:33:24 2001 -fp !!! *)
-	     unifySub (Null, t1, t2);
-	     instantiateLVar (r1, L))
-      (* how can the next case arise?? *)
-      (* Sat Dec  8 11:49:16 2001 -fp !!!??? *)
-      | unifyBlock (G, (Bidx (n1), _), (Bidx (n2), _)) =
+	    ( unifySub (Null, t1, t2) ;
+	      instantiateLVar (r1, L) )
+      (* How can the next case arise? *)
+      (* Sat Dec  8 11:49:16 2001 -fp !!! *)
+      | unifyBlock (Bidx (n1), (Bidx (n2))) =
 	 if n1 <> n2
 	   then raise Unify "Block index clash"
 	 else ()
       (* next two should be impossible *)
-      (* | unifyBlock (G, (LVar _, _), (Bidx _, _)) = (print "LB"; raise Match) *)
-      (* | unifyBlock (G, (Bidx _, _), (LVar _, _)) = (print "BL"; raise Match) *)
+      (* | unifyBlock (LVar _, Bidx _) *)
+      (* | unifyBlock (Bidx _, LVar _) *)
 
     fun unify1W (G, Us1, Us2) =
           (unifyExpW (G, Us1, Us2); awakeCnstr (nextCnstr ()))
