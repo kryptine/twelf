@@ -5,6 +5,14 @@ Library
   structure Lexer
   signature TWELF
   structure Twelf
+  signature PARSING
+  structure Parsing
+  signature PARSER
+  structure Parser
+  signature EXTSYN
+  signature TOMEGA
+  structure Tomega
+  structure ParseTerm
 is
 #if defined(NEW_CM)
   $/basis.cm
