@@ -1,4 +1,5 @@
 \documentclass{acmconf}
+
 \usepackage{amssymb}
 \usepackage{amsmath}
 \usepackage{amstext}
@@ -8,10 +9,11 @@
 \usepackage{pstricks,pst-node,pst-tree}
 \usepackage{graphics}
 \usepackage{psfrag}
-\usepackage{color}
+% \usepackage{color}
 
-\newcommand{\mygray}{\color{green}}
-\newcommand{\mygreen}{\color{green}}
+% \newcommand{\mygray}{\color{green}}
+%\newcommand{\mygreen}{\color{green}}
+\newcommand{\mygray}[1]{\em #1}
 
 \newcommand{\bangforbindingcolon}{\mathcode`!="003A}
 \bangforbindingcolon
@@ -115,8 +117,7 @@
 \newcommand{\bnfalt}{\mathrel{|}}
 
 \begin{document}
-\title{Small proof witness for the logical framework LF
-\ednote{Removed ``Generating and checking''}}
+\title{Small proof witness for the logical framework LF}
 \author{
 \begin{tabular}{ccc}
 Susmit Sarkar \thanks{This work was supported by ITR Grant ???}& 
@@ -128,15 +129,6 @@ McGill University&
 Carnegie Mellon University\\
 Pittsburgh, PA, USA & Montreal, CA & Pittsburgh, PA, USA\\
 \end{tabular}}
-% \hspace{1cm}Susmit Sarkar
-% \hspace{2.5cm}
-% Brigitte Pientka
-% \hspace{2.5cm}
-% Karl Crary\hspace{1cm}
-% \\\hspace{0.5cm} Carnegie Mellon University \hspace{1.5cm} McGill University
-% \hspace{1.5cm} Carnegie Mellon University
-% \\Pittsburgh, PA, USA \hspace{2cm}Montreal, CA\hspace{2cm}Pittsburgh, PA, USA
-
 
 \affiliation{}
 \maketitle 
@@ -195,13 +187,17 @@ as big as the program they are certifying. To obtain even smaller
 proofs (1/8th the size of the machine code), Necula proposed in
 \cite{Necula+01:oracle} to only record the non-deterministic choices
 which were made when constructing the proof, and then use a guided
-\ednote{is it fair to call it a first-order LP engine?}logic
-programming engine to reconstruct the proof on the consumer side. This
-simple idea leads to small proof witnesses, which they call oracles.
-This idea has proven to be effective in many practical examples, and
-most recently has been proposed within the Open Verifier Framework
-\cite{Necula?}. Wu {\em{et. al}} \cite{Appel:PPDP03} use a similar
-idea for creating a foundational proof checker with small witnesses.
+\ednote{is it fair to call it a first-order LP engine? -- bp :I don't
+  think so, because their ``theoretical description'' discusses
+  higher-order issues such as higher-order unification, although they
+  didn't evaluate it in practice. If you think it is first-order you
+  must justify why.}logic programming engine to reconstruct the proof
+on the consumer side. This simple idea leads to small proof witnesses,
+which they call oracles. This idea has proven to be effective in many
+practical examples, and most recently has been proposed within the
+Open Verifier Framework \cite{Necula?}. Wu {\em{et. al}}
+\cite{Appel:PPDP03} use a similar idea for creating a foundational
+proof checker with small witnesses. 
 
 All these previous approaches restrict themselves to a fragment of LF.
 This approach trades the power of the resulting framework against
@@ -209,25 +205,27 @@ simplicity of implementation. Necula's work cited above restricts
 itself to the so-called 2-level fragment of LF, while Wu {\em et. al}
 restrict themselves to a simply typed Prolog-like engine. Higher order
 logic programming extends conventional first order logic programming
-along two distinct dimensions, first, by allowing dynamic assumptions
-to be manipulated, and second, by allowing the term language to become
-higher order by adding $\lambda$-abstraction. The approaches outlined
-above allow the first dimension, but do not treat a higher order term
-language.\ednote{Necula describes some higher-order extensions. We
+along two distinct\ednote{I would say orthogonal - bp} dimensions,
+first, by allowing dynamic assumptions to be manipulated, and second,
+by allowing the term language to become higher order by adding
+$\lambda$-abstraction. The approaches outlined above allow the first
+dimension, but do not treat a higher order term
+language.\ednote{Necula describes some higher-order extensions. We 
 should discuss exactly what he does, maybe in the related work
 section}.
 
 This is unfortunate, since higher-order abstract syntax is often used
-in LF for compact representations for logics. Each particular system
-now has to use encoding tricks to encode their variable binding
-constructs in the essentially first order language supported by their
-engine. For example, Wu {\em et al}\cite{Appel:PPDP03} encode the
-explicit substitution calculus \cite{Abadi:POPL90} together with the
-necessary proofs about substitutions for their foundational
-implementation of LTAL. As the technology of certified code evolves,
-we will move to more powerful and expressive safety policies and type
-systems. The use of higher-order abstract syntax will be crucial for
-such systems.
+in LF for compact representations for logics\ednote{Higher-order
+  abstract syntax is not only used in LF -bp. I would suggest to
+  remove ``in LF"}. Each particular system now has to use encoding
+tricks to encode their variable binding constructs in the essentially
+first order language supported by their engine. For example, Wu {\em
+  et al}\cite{Appel:PPDP03} encode the explicit substitution calculus
+\cite{Abadi:POPL90} together with the necessary proofs about
+substitutions for their foundational implementation of LTAL. As the
+technology of certified code evolves, we will move to more powerful
+and expressive safety policies and type systems. The use of
+higher-order abstract syntax will be crucial for such systems.
 
 The restrictions of previous work are due to two major concerns with
 higher order terms. First, use of a higher-order term language
@@ -248,15 +246,15 @@ setting. Furthermore, we improve on the size of oracle-proofs by
 factoring out common sub-proofs\footnote{Eliminating common sub-proofs
 is an orthogonal problem to eliminating redundant implicit type
 information, as is proposed in \cite{Necula98lics}.} by incorporating
-memorization techniques. Identifying and factoring out common
-sub-proofs leads to more compact oracles and can decrease
-proof-checking time by a factor of ?? since common sub-proofs are only
-checked once.  We hope this will provide a comprehensive guide for
-future implementations of proof checkers which need not be restricted
-to first-order Prolog-like systems. In particular, various certified
-code systems can exploit this idea. We have implemented a oracle-based
-proof generator and checker as part of the logical framework {\em
-Twelf}.
+memoization\ednote{this is memoization -- not memorization -bp}
+techniques. Identifying and factoring out common sub-proofs leads to
+more compact oracles and can decrease proof-checking time by a factor
+of ?? since common sub-proofs are only checked once.  We hope this
+will provide a comprehensive guide for future implementations of proof
+checkers which need not be restricted to first-order Prolog-like
+systems. In particular, various certified code systems can exploit
+this idea. We have implemented a oracle-based proof generator and
+checker as part of the logical framework {\em Twelf}.
 
 
 %   However, all these approaches are
@@ -341,7 +339,7 @@ Programs  $\Gamma$ & ::= & $\cdot \mid \Gamma, x:A$
 \end{tabular}
 \end{center}
 
-$P$ ranges over atomic formulas and we interpreter the function arrow
+$P$ ranges over atomic formulas and we interpret the function arrow
 $A_1 \rightarrow A_2$ as implication. The $\Pi$-quantifier, denoting
 dependent function type, corresponds to the universal
 $\forall$-quantifier. Types, which are goals and clauses, are
@@ -371,7 +369,8 @@ explain oracle-based proof generation and proof-checking.
 As a running example, we will consider intuitionistic logic formulated
 in the natural deduction style. We will only concentrate on the fragment
 consisting of implications and universal quantifiers. Propositions can
-be then described as follows
+be then described as follows:
+
 \[
 \begin{array}{llll}
 \mbox{Propositions} & A,B, C & := & \top \mid A \impl B \mid \forall x.A \\
@@ -410,7 +409,7 @@ To represent this system in LF, we first need formation rules to
 construct terms for the objects we are talking about, in this case,
 propositions. We declare a new type {\tt prop} for propositions and a
 type {\tt i} for individuals. We intend that terms belonging to {\tt
-  prop} represent well-formed propositions. The rules are given below,
+  prop} represent well-formed propositions. The rules are given below
 in concrete Twelf syntax. Throughout the example we reverse the arrow {\tt{A -> B}} writing instead {\tt{B <- A}}. From a logic programming view, it might be more intuitive to think of the clause {\tt{H <- A$_1$ <- A$_2$ <- $\ldots$ <- A$_n$}} as {\tt{H <- A$_1$, A$_2$, $\ldots$, A$_n$}}.
 
 %prop : type.
@@ -424,7 +423,7 @@ imp    : prop -> prop -> prop.
 forall : (i -> prop) -> prop.
 \end{code}
 
-The connectives for implication takes in two propositions and returns a
+The connective for implication takes in two propositions and returns a
 proposition. To represent the forall-quantifier, we will use
 higher-order abstract syntax. The crucial idea is to represent bound
 variables in the object language (logic) with bound variables in the
@@ -500,7 +499,7 @@ the higher-order logic programming interpreter. Computation in logic
 programming is achieved through proof search. Given a goal (or query)
 $G$ and a program $\Gamma$, we derive $G$ by successive application of
 clauses of the program $\Gamma$. Following Miller {\em{et al}}
-\cite{Miller91apal}, we interpreter the connectives in a goal $G$ as
+\cite{Miller91apal}, we interpret the connectives in a goal $G$ as
 {\em{search instructions}} and the clauses in $\Gamma$ as
 specifications of how to continue search when the goal is atomic. A
 proof is {\em{goal-oriented}} if every compound goal is immediately
@@ -548,7 +547,7 @@ Given a universally quantified goal $\Pi x. G$, we generate a new parameter $a$,
 
 Once the goal is atomic, we need to select a clause from the
 program context $\Gamma$ to establish a proof for $G$. In a logic
-program interpreter, we consider all the clauses in $\Gamma$ in order. 
+programming interpreter, we consider all the clauses in $\Gamma$ in order. 
 First, we will consider the dynamic assumptions, and then we will try
 the static program clauses one after the other. 
 Let us assume, we picked a clause $A$ from the program context
@@ -671,7 +670,7 @@ will generate the following proof term in explicit form:
 The final proof term not only tracks the rules which have been used in
 every step of the proof, but also tracks the instantiations for the logic
 variables in each steps. In the proof term above we show the
-instantiations in gray, to denote that they are implicit arguments,
+instantiations in italics, to denote that they are implicit arguments,
 which will be generate during proof search.
 
 
@@ -763,11 +762,11 @@ checking. To generate oracles we can follow two ways. One way is to
 modify the logic-programming proof search procedure to generate a
 bit-string during proof search directly. As logic programming's
 depth-first search is incomplete in general, this may not work in all
-cases.  This may be viable with more sophisticated theorem proving
+cases, however this may be viable with more sophisticated theorem proving
 technology. In certifying code systems in particular, the safety proof
 ({\em ie} proof term) can be generated by a certifying compiler, and
 we merely aim at compressing the safety proof into a bit-string. This
-enables us to use a second strategy, pass into the search procedure
+enables us to use a second strategy, where we pass into the search procedure
 described above a proof term to guide the proof search. This way, we
 can eliminate all non-determinism from the previous search procedure.
 
@@ -778,7 +777,7 @@ a compact proof witness in form of a bit-string using the verifier's
 proof search procedure from the previous section. We assume that we
 already have the full proof term and we are merely interested in
 compressing the proof term to a small witness in form of a bit-string.
-The bit-string encodes the non-deterministic choice within the proof, namely picking
+The bit-string encodes the non-deterministic choices within the proof, namely picking
 the right clause $c:A$ from the program context $\Gamma$ to establish a
 proof $S$ for $P$, once the goal $P$ is atomic, by unifying the head
 of $A$ with the atomic goal $P$. Potentially, there is more than one
@@ -811,15 +810,18 @@ witness\footnote{Susmit: please check this with Frank}.
 %% choices in the previous example is: {\tt 100010101000}.
 %%
 %% It turns out we usually count in unary! -- Susmit
+%% I don't understand your comment. In any case you must talk about
+%% the proof witness and how it will look like in binary form - bp.
 
 For the idea to work, proof compression and witness checking have to
 perform essentially the same overall proof search. Moreover, the order
 in which different choices are considered must be the same.  The only
 difference from proof search is that during witness generation we
 would explore possible multiple fruitless paths until settling on the
-right one, while in proof compression or witness checking, we will
-consult the proof term or witness respectively to know which choice to
-consider.
+right one\ednote{I think this is confusing -- I suggest we call it just proof
+  search and leave out the ``during witness generation'' -bp}, while
+in proof compression or witness checking, we will consult the proof
+term or witness respectively to know which choice to consider.
 
 We modify the proof search steps presented earlier such that we pass
 in the proof term together with the goal and output a proof witness in
@@ -921,7 +923,7 @@ W : G $ \\
 In {\sf{Select}} step, we first generate the $k$ possible candidates
 whose head will unify with the current goal $G$. If $k$ is greater
 than 1, we will examine upto $k$ bits from the witness to see which
-choice to take. If a bit $1$ occurs at position $ip$ of these $k$
+choice to take. If a bit $1$ occurs at position $i$ of these $k$
 bits, we will pick the $i$-th candidate.
 
 To check that proof witnesses in fact constitute a valid proof for a
@@ -944,7 +946,8 @@ witness.
 
 One further point is that choices as described above are encoded in
 unary. Other, more complex, encodings can be imagined. We have found
-the unary encoding to perform well in practice. 
+the unary encoding to perform well in practice\ednote{-bp: I don't
+  quite understand what you mean with unary encoding. Can you give an example?}. 
 
 \section{Optimizations: Higher-order Term Indexing}
 
@@ -987,8 +990,8 @@ description for computing the most specific generalization of two
 linear higher-order patterns, for inserting terms in the index and for
 retrieving a set of terms from the index s.t. the query is an instance
 of the term in the index, and show correctness. This can be extended
-to unifiability. The construction of a substitution tree in the higher-order setting
-follows the overall algorithm described in
+to unifiability. The construction of a substitution tree in the
+higher-order setting follows the overall algorithm described in
 \cite{Ramakrishnan01:indexing}. The crucial part to adapt substitution
 trees to the higher-order setting is the notion of linear higher-order
 patterns.
@@ -1346,7 +1349,18 @@ other choices.
 
   Susmit: Are we caching everything or are we caching selectively?
 
--- Could be done either way. Experimental results are with everything cached. - Susmit
+-- Could be done either way. Experimental results are with everything
+cached. - Susmit
+
+-- bp: I am not sure if we should just concentrate on describing
+caching of subproofs independently of tabled logic programming. That
+we re-use and modify the tabled logic programming interpreter just
+comes from the fact that how you started going about it. I think it
+would be cleaner and clearer if we think about a description of how
+caching works (or should work ) for proof compression independently of
+tabled proof search. We can add a paragraph in the related work
+section discussing differences between tabled search and tabled proof
+compression. 
 \end{note}
 
 The following important invariants hold about the table
@@ -1402,7 +1416,19 @@ a high-level ML-style language. This is an illustration of the use of
 advanced type systems. Our third test suite is a set of example programs
 used in the Foundational Proof Carrying Code project at Princeton.
 \begin{note}
-  Brigitte: Can we get references/say where the others are from?
+  Brigitte: Can we get references/say where the others are from? --
+
+  - bp:  What do you mean ``references''. 
+  I implemented the sequent calculus in Twelf partially based on
+  Frank's ATP notes. The refinement type checking example is an
+  implementation by Frank. He did this implementation when he was
+  writing the paper on Rowan Davies and Frank Pfenning", "Intersection
+  Types and Computational Effects", ICFP'00  with Rowan.  
+
+  -bp: The experimental section should highlight some examples where
+  caching leads to savings in proof term size, and it is perfectly
+  fine if there are some examples where the saving is minimal. It is
+  an optional feature, so it may be turned on, but doesn't have to.
 \end{note}
 
 We notice that proof compression and verification is about a factor of 2
@@ -1431,7 +1457,8 @@ refine-48 & 5.247 & 2.143 & 2.033 & 24478 & 237\\
 \end{tabular}
 \end{small}
 \end{center}
-\caption{\label{tab:proofsize} Size of Oracles and proof compression times}
+\caption{\label{tab:proofsize} Size of Oracles and proof compression
+  times(without caching? - bp)}
 \end{table*}
 
 We also perform experiments to see whether tabling is beneficial.
@@ -1448,7 +1475,8 @@ And (some) additional space overhead.
 \hline
 Example & Tabled Compression 
 & Untabled Compression & Oracle & Oracle & Table size\\
-& Time (s) & Time (s) & Size (Bytes) & Size (Bytes) &\\
+& Time (s) & Time (s) & Size\ednote{Please clarify in the table what Oracle Size using
+  caching} (Bytes) & Size (Bytes) &\\
 \hline
 refine-41 & 1.182 & 0.080 & 169 & 171 & 579\\
 refine-42 & 1.993 & 0.270 & 211 & 216 & 691\\
@@ -1462,7 +1490,8 @@ refine-48 & 2.143 & 0.090 & 237 & 243 & 775\\
 \end{tabular}
 \end{small}
 \end{center}
-\caption{\label{tab:prooftable} Tabling during proof compression}
+\caption{\label{tab:prooftable} Tabling during proof
+  compression}
 \end{table*}
 
 \begin{note}
@@ -1500,8 +1529,9 @@ a logic programming interpreter was first proposed by
 called LF$_i$. Their main goal was to design a practical method for
 the current proof-carrying code applications which would reduce the
 size of proofs. To achieve this goal, the compromised at different
-ends to suit their needs. First, they concentrate on the 
-fragment $LF_i$, which concentrates on 2-level fragment of
+ends to suit their needs\ednote{-bp: I would say they have been
+  pragmatic. Otherwise this sounds a bit harsh and arrogant. }. First,
+they concentrate on the fragment $LF_i$, which concentrates on 2-level fragment of
 LF. To index program clauses, they propose the use of automata-driven
 indexing, where any higher-order features are ignored. Their
 indexing algorithm will generate a set of potential candidates, which
@@ -1514,7 +1544,8 @@ proposal includes encoding the choices made within higher-order
 unification. To avoid these higher-order problems in practice, their
 realization and their experimental evaluation does not consider 
 terms defined via $\lambda$-abstraction. To handle some simple cases
-like the {\tt alli} rule in our example, they introduce a hack to deal
+like the {\tt alli} rule in our example, they introduce a
+hack\ednote{-bp: do you know what hack they use?} to deal
 with this special case. 
 
 In fact, one can say that  our work continues where Necula and Rahul
@@ -1523,21 +1554,34 @@ the higher-order setting''. Our work extends this approach to full LF
 by removing any of these restriction, and incorporating higher-order
 term indexing as well as caching intermediate results.
 
-There is also
-an important difference in how we generate bit-strings:
+There is also an important difference in how we generate bit-strings:
 
 \begin{note}
   Susmit: say more about the difference and why ours is better.
 
 -- Not sure what you want me to say. Is it not using oracles during
    higher-order unification? - Susmit
+
+-- bp: I thought you are also generating the bits in a different
+fashion. I thought Necula encoded each choice differently. For
+example, one can encode pick the 3rd clause out of 4 as 0010
+or as just 3=11. I remember some discussion with Karl, where you
+suggested that a scheme which encodes 4 as 0010 is better although it
+may produce larger bit-strings sometimes? -- Sofar I think it is still
+a bit unclear *how* we actually encode the choices -- in other words
+how is 3/4 encoded.
+
 \end{note}
 
 The idea of using oracles was also explored in
 \cite{Appel:PPDP03}. Their primary concern was to 
 achieve a minimal proof checker, in terms of number of lines of
-code. Their checker follows the path explored by Necula and Rahul and
-ignores higher-order terms. The main difference between the two
+code\ednote{bp: is this true? -- my impression from reading their
+  paper was that they just argued that they use their proven typing
+  rules as a basis for proof search and proof compression and in this
+  sense it is minimal. Was their intention to really create a minimal
+  proof compression system?}. Their checker follows the path explored
+by Necula and Rahul and ignores higher-order terms. The main difference between the two
 approaches is that the proof rules are proven correct
 independently thereby minimizing the trusted computing base.
 As Necula and Rahul's work, their system is not able to support
@@ -1555,7 +1599,10 @@ framework LF. We demonstrate that the restrictions to first-order terms
 are unnecessary. 
 
 \begin{note}
- 1. Should we talk about justifiers? - Susmit \\
+ 1. Should we talk about justifiers? - Susmit Yes. Especially if we
+ want to send it to ICLP. -bp see Abhik Roychoudhury and C. R. Ramakrishnan and I. V. Ramakrishnan,
+    "Justifying proofs using memo tables", there is a more recent
+    journal version.\\
  2. Do we need to describe LF$_i$? The references to a 2-level framework 
     may be incomprehensible to most people. On the other hand, it is not
     directly relevant - Susmit
