@@ -1163,7 +1163,7 @@ val _ = print ".\n"
 val _ = print (TomegaPrint.forToString (Psi2, F4) ^ "\n")
 	      val _ = TomegaTypeCheck.checkFor (Psi2, F4)
 		handle _ => raise Error' F4
-val  _ = print "]"
+val  _ = print "]here"
 	      val B3 = deblockify  B3'
 
 
