@@ -150,7 +150,7 @@ struct
           T.Dot (T.Prg (T.EVar (Psi, ref NONE, F)), 
 		 createVarSub (Psi, Psi')) 
       | createVarSub (Psi, I.Decl (Psi', T.UDec (I.BDec (name, (cid, s))))) =	
-          T.Dot (T.Block (I.LVar (ref NONE, (cid, s), I.id)),
+          T.Dot (T.Block (I.LVar (ref NONE, I.Shift(0), (cid, s))),
 		 createVarSub (Psi, Psi'))
 					(* I.id inserted Sun Dec  1 11:37:48 2002 -cs *)
       | createVarSub (Psi, I.Decl (Psi', T.UDec (I.Dec (name, V)))) =

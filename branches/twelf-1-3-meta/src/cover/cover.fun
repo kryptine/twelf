@@ -508,21 +508,23 @@ struct
     and matchBlock (G, d, I.Bidx(k), I.Bidx(k'), cands) =
         if (k = k') then cands
 	  else fail ()
-      | matchBlock (G, d, B1 as I.Bidx(k), I.LVar (r2, (l2, t2), t3), cands) =
-					(* Updated LVar --cs
-					   Sun Dec  1 06:24:41 2002 *)
+      | matchBlock (G, d, B1 as I.Bidx(k), I.LVar (r2, I.Shift(k'), (l2, t2)), cands) =
+	(* Updated LVar --cs Sun Dec  1 06:24:41 2002 *)
 	let
 	  val I.BDec (bOpt, (l1, t1)) = I.ctxDec (G, k)
 	  (* val _ = print (candsToString (cands) ^ "\n")*)
 	in
 	  if l1 <> l2 then fail ()
+	    else if k < k' then raise Bind
+	  (* k >= k' by invariant? *)
 	  else let 
-		 val cands2 = matchSub (G, d, t1, I.comp (t2, t3), cands)
+		 val cands2 = matchSub (G, d, t1, t2, cands)
 		 (* instantiate if matching is successful *)
 		 (* val _ = print (candsToString (cands2) ^ "\n") *)
 		 (* instantiate, instead of postponing because *)
 		 (* LVars are only instantiated to Bidx's which are rigid *)
-		 val _ = Unify.instantiateLVar (r2, B1)
+                 (* !!!BUG!!! r2 and B1 make sense in different contexts *)
+		 val _ = Unify.instantiateLVar (r2, I.Bidx (k-k'))
 	       in
 		 cands2
 	       end
@@ -797,7 +799,9 @@ struct
         (* G0 |- t : Gsome *)
 	(* . |- s : G0 *)
 	let (* p > 0 *)
-	  val L1 = I.newLVar ((l, t), s) (* new -cs  Sun Dec  1 06:27:57 2002 *)
+	  val L1 = I.newLVar (I.Shift(0), (l, I.comp(t, s)))
+	  (* new -fp Sun Dec  1 20:58:06 2002 *)
+	  (* new -cs  Sun Dec  1 06:27:57 2002 *)
 	in
 	  instEVars ((V2, I.Dot (I.Block (L1), s)), p-1, NONE::XsRev)
 	end
@@ -942,8 +946,9 @@ struct
         let
 	  val t = createEVarSub Gsome
 	  (* . |- t : Gsome *)
-	  val lvar = I.newLVar ((cid, t), I.id) (* --cs Sun Dec  1 06:30:06 2002 *)
-	  val t' = I.comp (t, I.Shift (I.ctxLength (G)))
+	  val sk = I.Shift (I.ctxLength(G))
+	  val t' = I.comp (t, sk)
+	  val lvar = I.newLVar (sk, (cid, t)) (* --cs Sun Dec  1 06:30:06 2002 *)
 	  (* G |- t' : Gsome *)
 	in
 	  blockCases' (G, Vs, (lvar, 1), (t', piDecs), sc)
@@ -1113,7 +1118,9 @@ struct
         (* G0 |- t : Gsome *)
 	(* . |- s : G0 *)
 	let (* p > 0 *)
-	  val L1 = I.newLVar ((l, t), s) (* -cs Sun Dec  1 06:30:59 2002 *)
+	  val L1 = I.newLVar (I.Shift(0), (l, I.comp(t, s)))
+	  (* -fp Sun Dec  1 21:09:38 2002 *)
+	  (* -cs Sun Dec  1 06:30:59 2002 *)
 	in
 	  instEVarsSkip ((V2, I.Dot (I.Block (L1), s)), p-1, NONE::XsRev, ci)
 	end
@@ -1460,7 +1467,9 @@ struct
       | newEVarSubst (G, I.Decl(G', D as I.BDec (_, (b, t)))) =
 	let
 	  val s' = newEVarSubst (G, G')
-	  val L1 = I.newLVar ((b, t), s') (* --cs Sun Dec  1 06:31:23 2002 *)
+	  val L1 = I.newLVar (I.Shift(0), (b, I.comp(t, s')))
+	  (* -fp Sun Dec  1 21:10:45 2002 *)
+	  (* --cs Sun Dec  1 06:31:23 2002 *)
 	in
 	  I.Dot (I.Block (L1), s')
 	end

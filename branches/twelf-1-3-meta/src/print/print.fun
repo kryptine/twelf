@@ -212,7 +212,7 @@ local
        in
 	 bname ^ "_" ^ parmName (cid, i)
        end
-    | projName (G, I.Proj (I.LVar(_, (cid, t), _), i)) =
+    | projName (G, I.Proj (I.LVar(_, _, (cid, t)), i)) =
       (* note: this obscures LVar identity! *)
        "_" ^ parmName (cid, i)
     | projName (G, I.Proj (I.Inst iota, i)) =
@@ -231,7 +231,7 @@ local
     | fmtCon (G, I.FVar (name, _, _)) = Str0 (Symbol.fvar (name))
     | fmtCon (G, H as I.Proj (I.Bidx(k), i)) =
         Str0 (Symbol.const (projName (G, H)))
-    | fmtCon (G, H as I.Proj (I.LVar(_, (cid, t), t'), i)) =
+    | fmtCon (G, H as I.Proj (I.LVar(_, sk, (cid, t)), i)) =
       (* identity of LVars is obscured! *)
 					(* LVar fixed Sun Dec  1 11:36:55 2002 -cs *)
       fmtConstPath (fn l0 => Symbol.const ("#[" ^ l0 ^ "]" ^ projName (G, H)), (* fix !!! *)
