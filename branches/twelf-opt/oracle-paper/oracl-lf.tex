@@ -9,11 +9,11 @@
 \usepackage{pstricks,pst-node,pst-tree}
 \usepackage{graphics}
 \usepackage{psfrag}
-% \usepackage{color}
+\usepackage{color}
 
-% \newcommand{\mygray}{\color{green}}
-%\newcommand{\mygreen}{\color{green}}
-\newcommand{\mygray}[1]{\em #1}
+\newcommand{\mygray}{\color{green}}
+\newcommand{\mygreen}{\color{green}}
+%\newcommand{\mygray}[1]{\em #1}
 
 \newcommand{\bangforbindingcolon}{\mathcode`!="003A}
 \bangforbindingcolon
@@ -1232,17 +1232,13 @@ degrade, since it spends its time uselessly proving the same fact over
 and over again. 
 
 Ideally we would like to cache intermediate results and re-use them
-later. Up to now, this has been difficult since we need to efficiently
-store and retrieve intermediate goals. We adapt and build upon recent
-work \cite{Pientka03phd} on memoizing intermediate goals during
-execution as part of the tabled higher-order logic programming and
-adapt it for witness generation and witness checking. 
-
-When we generate compressed witnesses for a goal $G$ from explicit
-proof terms, we store intermediate goals together with their
-compressed witness in a table, and re-use the result later on. 
-We will modify the {\sf{Select}} step in our previous search procedure
-to allow for tabling as follows.
+later. We now describe changes to the algorithm given above to
+accomodate caching. When we generate compressed witnesses for a goal
+$G$ from explicit proof terms, we store intermediate goals together
+with their compressed witness in a table, and re-use the result later
+on.  We will modify the {\sf{Select}} step in our previous search
+procedure to allow for cacheing by defining an auxiliary procedure
+{\sf CheckGoal} as follows.
 
 \begin{table}[h]
 \fighead
@@ -1250,9 +1246,17 @@ to allow for tabling as follows.
 \begin{small}
 % \noindent \mbox{{\bf{Solve Goal $\Gamma \vd M: G$:}}\hfill}% \\[-2.5em]
 \begin{description}
+\item[CheckGoal]
+   \mbox{Given an atomic goal $G$ and clauses $\Gamma$:}\hfill\\
+    Check if this goal $\Gamma \vd G$ is already in the global cache\\
+    \hspace{0.5cm}If Yes, return the list of answers present\\
+    \hspace{0.5cm}If No, add goal to the cache with \\
+    \hspace{0.7cm} initially null answer list,
+return a pointer to this list\\
 \item[Select-Cache] $\Gamma \vd c_i \cdot S: G \Rightarrow
-  \underset{1 \ldots (i-1)}{\underbrace{0\ldots 0}}1\underset{(i+1) \ldots k}{\underbrace{0\ldots 0}}W $ \\
+  \underset{1 \ldots (i-1)}{\underbrace{0\ldots 0}}1\underset{(i+1) \ldots k}W $ \\
     \mbox{Given an atomic goal $G$ and clauses $\Gamma$:}\hfill\\
+    call CheckGoal($\Gamma \vd G$)
     Let $k$ be the number of clauses whose head unifies with the
     current goal $G$ and $c_i : A_i$ be the clause which leads to a
     proof $c_i\cdot S$ of $G$ from $\Gamma$.\\
@@ -1273,6 +1277,12 @@ to allow for tabling as follows.
 \figfoot
 \caption{\label{fig:pwcache} Proof Compression with Caching}
 \end{table}
+
+Up to now, this has been difficult since we need to efficiently
+store and retrieve intermediate goals. We adapt and build upon recent
+work \cite{Pientka03phd} on memoizing intermediate goals during
+execution as part of the tabled higher-order logic programming and
+adapt it for witness generation and witness checking. 
 
 {\em{CallCheck($\Gamma \vd G, \cal{T}$)}} checks whether a variant of
 the current subgoal exists or if the current subgoal is an instance of
