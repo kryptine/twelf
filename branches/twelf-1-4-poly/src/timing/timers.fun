@@ -13,6 +13,7 @@ struct
   val checking    = Timing.newCenter ("Checking      ")
   val modes       = Timing.newCenter ("Modes         ")
   val subordinate = Timing.newCenter ("Subordination ")
+  val poly        = Timing.newCenter ("Poly          ")
   val terminate   = Timing.newCenter ("Termination   ")
   val printing    = Timing.newCenter ("Printing      ")
   val compiling   = Timing.newCenter ("Compiling     ")

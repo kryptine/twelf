@@ -209,6 +209,7 @@ structure Twelf =
 	 structure Index = Index
 	 structure IndexSkolem = IndexSkolem
 	 structure Subordinate = Subordinate
+	 structure Poly  = Poly
 	 (*! structure CompSyn' = CompSyn !*)
 	 structure Compile = Compile
 	 structure CPrint = CPrint

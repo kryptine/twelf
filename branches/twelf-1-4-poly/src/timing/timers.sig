@@ -13,6 +13,7 @@ sig
   val checking    : Timing.center		(* redundant type-checking *)
   val modes       : Timing.center		(* mode checking *)
   val subordinate : Timing.center	        (* construction subordination relation *)
+  val poly        : Timing.center	        (* poly time/space checking *)
   val printing    : Timing.center		(* printing *)
   val compiling   : Timing.center		(* compilation *)
   val solving     : Timing.center		(* solving queries *)
