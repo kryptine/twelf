@@ -1,10 +1,4 @@
-Library
-  signature FORMATTER
-  structure Formatter
-is
-#if defined(NEW_CM)
-  $/basis.cm
-#endif
+Group is
   formatter.sig
   formatter.fun
   formatter.sml

@@ -325,10 +325,12 @@ struct
 	(* Fri Dec 28 10:03:12 2001 -fp !!! *)
 	(case blockSub (B, ss)
 	   of Bidx(k') => Proj (Bidx (k'), i))
-      | pruneHead (G, H as Proj (LVar (r, (l, t)), i), ss, rOccur, prunable) = 
+      | pruneHead (G, H as Proj (LVar (r, sk, (l, t)), i), ss, rOccur, prunable) = 
         (* claim: LVar does not need to be pruned since . |- t : Gsome *)
 	(* so we perform only the occurs-check here as for FVars *)
 	(* Sat Dec  8 13:39:41 2001 -fp !!! *)
+	(* this is not true any more, Sun Dec  1 11:28:47 2002 -cs  *)
+	(* Hmmm... Sun Dec  1 21:33:17 2002 -fp !!! *)
 	   ( pruneSub (Null, t, id, rOccur, prunable) ;
 	     H )
       | pruneHead (G, H as Skonst _, ss, rOccur, prunable) = H
@@ -437,7 +439,7 @@ struct
 	       if (c1 = c2) then unifySpine (G, (S1, s1), (S2, s2))
 	       else raise Unify "Constant clash"
 	   | (Proj (b1, i1), Proj (b2, i2)) =>
-	       if (i1 = i2) then unifyBlock (b1, b2)
+	       if (i1 = i2) then (unifyBlock (b1, b2); unifySpine (G, (S1, s1), (S2, s2)))
 	       else raise Unify "Global parameter clash"
 	   | (Skonst(c1), Skonst(c2)) => 	  
 	       if (c1 = c2) then unifySpine (G, (S1, s1), (S2, s2))
@@ -628,25 +630,32 @@ struct
 
     (* substitutions s1 and s2 were redundant here --- removed *)
     (* Sat Dec  8 11:47:12 2001 -fp !!! *)
-    and unifyBlock (LVar (r1, (l1, t1)), L as LVar (r2, (l2, t2))) = 
+    and unifyBlock (LVar (r1, Shift(k1), (l1, t1)), L as LVar (r2, Shift(k2), (l2, t2))) = 
         if l1 <> l2 then
   	  raise Unify "Label clash"
         else
 	  if r1 = r2
 	    then ()
 	  else
-	    ( unifySub (Null, t1, t2) ;
-	      instantiateLVar (r1, L) )
+	    ( unifySub (Null, t1, t2) ; (* Null? Sun Dec  1 21:51:18 2002??? *)
+	      if k1 < k2 then instantiateLVar (r1, LVar(r2, Shift(k2-k1), (l2, t2)))
+		else instantiateLVar (r2, LVar(r1, Shift (k1-k2), (l1, t1))) )
       (* How can the next case arise? *)
       (* Sat Dec  8 11:49:16 2001 -fp !!! *)
       | unifyBlock (Bidx (n1), (Bidx (n2))) =
 	 if n1 <> n2
 	   then raise Unify "Block index clash"
 	 else ()
-      (* next two should be impossible *)
-      (* | unifyBlock (LVar _, Bidx _) *)
-      (* | unifyBlock (Bidx _, LVar _) *)
+(*
+      | unifyBlock (LVar (r1, _, _), B as Bidx _) = instantiate (r1, B) 
+      | unifyBlock (B as Bidx _, LVar (r2, _, _)) = 
 
+      This is still difficult --- B must make sense in the context of the LVar
+      Shall we use the inverse of a pattern substitution? Or postpone as 
+      a constraint if pattern substitution does not exist?
+      Sun Dec  1 11:33:13 2002 -cs 
+      
+*)
     fun unify1W (G, Us1, Us2) =
           (unifyExpW (G, Us1, Us2); awakeCnstr (nextCnstr ()))
 
@@ -681,6 +690,7 @@ struct
     val delay = delayExp
 
     val instantiateEVar = instantiateEVar
+    val instantiateLVar = instantiateLVar
     val addConstraint = addConstraint
     val solveConstraint = solveConstraint
 

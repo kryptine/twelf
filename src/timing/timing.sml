@@ -13,7 +13,7 @@
 signature TIMING =
 sig
 
-  val init : unit -> unit
+  val init : unit -> unit		(* start new timers *)
 
   type center
   val newCenter : string -> center
@@ -36,7 +36,12 @@ struct
   type cpuTime = {usr:Time.time, sys:Time.time, gc:Time.time}
   type realTime = Time.time
 
-  fun init () = ()
+  val CPUTimer = ref (Timer.startCPUTimer ())
+  val realTimer = ref (Timer.startRealTimer ())
+
+  fun init () =
+      (CPUTimer := Timer.startCPUTimer ();
+       realTimer := Timer.startRealTimer ())
 
   datatype 'a result = Value of 'a | Exception of exn
   type center = string * (cpuTime * realTime) ref
@@ -74,14 +79,14 @@ struct
     *)
     fun time (_, counters) (f:'a -> 'b) (x:'a) =
         let
-	    val realTimer = Timer.startRealTimer ()
-	    val CPUTimer = Timer.startCPUTimer ()
+	    val beginningRealTime = Timer.checkRealTimer (!realTimer)
+	    val beginningCPUTime = Timer.checkCPUTimer (!CPUTimer)
 	    val result = Value (f x) handle exn => Exception (exn)
-	    val evalCPUTime = Timer.checkCPUTimer (CPUTimer)
-	    val evalRealTime = Timer.checkRealTimer (realTimer)
+	    val endCPUTime = Timer.checkCPUTimer (!CPUTimer)
+	    val endRealTime = Timer.checkRealTimer (!realTimer)
 	    val (CPUTime, realTime) = !counters
-	    val _ = counters := (plus (CPUTime, evalCPUTime),
-				 Time.+ (realTime, evalRealTime))
+	    val _ = counters := (plus (CPUTime, (minus (endCPUTime, beginningCPUTime))),
+				 Time.+ (realTime, (Time.- (endRealTime, beginningRealTime))))
 	in
 	  case result
 	    of Value (v) => v

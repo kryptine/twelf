@@ -1,14 +1,4 @@
-Library
-  signature PRINT
-  structure Print
-  structure PrintTeX
-  signature CLAUSEPRINT
-  structure ClausePrint
-  structure ClausePrintTeX
-is
-#if defined(NEW_CM)
-  $/basis.cm
-#endif
+Group is
   ../lambda/sources.cm
   ../names/sources.cm
   ../formatter/sources.cm

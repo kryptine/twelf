@@ -43,10 +43,9 @@ struct
        installs c into the correct index queue
        presently ignores definitions
     *)
-    fun install fromCS (H as I.Const c) =
-        (case (fromCS, I.sgnLookup (c))
-           of (_, I.ConDec (_, _, _, _, A, I.Type)) => update (cidFromHead (I.targetHead A), H)
-	    | (I.Clause, I.ConDef (_, _, _, _, A, I.Type)) => (update (cidFromHead (I.targetHead A), I.Def(c)))
+    fun install (H as I.Const c) =
+        (case I.sgnLookup (c)
+           of I.ConDec (_, _, _, _, A, I.Type) => update (cidFromHead (I.targetHead A), H)
             | _ => ())
 
     fun remove (a, cid) =
@@ -59,7 +58,6 @@ struct
     fun uninstall cid =
         (case I.sgnLookup cid
            of I.ConDec (_, _, _, _, A, I.Type) => remove (cidFromHead (I.targetHead A), cid)
-	    | I.ConDef (_, _, _, _, A, I.Type) => remove (cidFromHead (I.targetHead A), cid)
             | _ => ())
 
     fun resetFrom mark =

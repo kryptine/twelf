@@ -1,8 +1,4 @@
-Library
-  signature TRAIL
-  structure Trail
-  structure NoTrail
-is
+Group is
   trail.sig
   trail.sml
   notrail.sml

@@ -1,11 +1,4 @@
-Library
-  signature FIXITY
-  signature NAMES
-  structure Names
-is
-#if defined(NEW_CM)
-  $/basis.cm
-#endif
+Group is
   ../table/sources.cm
   ../global/sources.cm
   ../lambda/sources.cm

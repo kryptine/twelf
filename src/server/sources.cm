@@ -1,10 +1,4 @@
-Library
-  structure Server
-is
-#if defined(NEW_CM)
-  $/basis.cm
-#endif
-  ../timing/sources.cm
+Group is
   ../frontend/sources.cm
   sigint.sig
   sigint-smlnj.sml

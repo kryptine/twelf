@@ -156,6 +156,7 @@ structure Twelf =
   Twelf (structure Global = Global
 	 structure Timers = Timers
 	 structure IntSyn' = IntSyn
+	 structure Tomega = Tomega
 	 structure Whnf = Whnf
 	 structure Print = Print
 
@@ -180,6 +181,10 @@ structure Twelf =
 	 structure ModePrint = ModePrint
 
          structure Cover = Cover
+	 structure Converter = Converter
+	 structure TomegaPrint = TomegaPrint
+	 structure TomegaCoverage = TomegaCoverage
+	 structure TomegaTypeCheck = TomegaTypeCheck
          structure Total = Total
 
 	 structure Reduces = Reduces

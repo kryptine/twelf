@@ -19,6 +19,8 @@ sig
   val unwind : unit -> unit
 
   val instantiateEVar : IntSyn.Exp option ref * IntSyn.Exp * IntSyn.cnstr list -> unit
+  val instantiateLVar : IntSyn.Block option ref * IntSyn.Block -> unit
+
   val addConstraint : IntSyn.cnstr list ref * IntSyn.cnstr -> unit
   val solveConstraint : IntSyn.cnstr -> unit
 

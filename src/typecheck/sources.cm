@@ -1,16 +1,7 @@
-Library
-  signature TYPECHECK
-  structure TypeCheck
-  signature STRICT
-  structure Strict
-is
-#if defined(NEW_CM)
-  $/basis.cm
-#endif
+Group is
   ../lambda/sources.cm
   ../print/sources.cm
   ../paths/sources.cm
-  ../names/sources.cm
   typecheck.sig
   typecheck.fun 
   typecheck.sml

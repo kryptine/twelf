@@ -72,6 +72,7 @@ struct
     
   and Head =				(* Heads:                     *)
     BVar  of int			(* H ::= k                    *)
+  | NVar  of int			(*     | n                -bp *)
   | Const of cid			(*     | c                    *)
   | Proj  of Block * int		(*     | #k(b)                *)
   | Skonst of cid			(*     | c#                   *)
@@ -92,6 +93,7 @@ struct
   and Front =				(* Fronts:                    *)
     Idx of int				(* Ft ::= k                   *)
   | Exp of Exp				(*     | U                    *)
+  | Axp of Exp				(*     | U (assignable)       *)
   | Block of Block			(*     | _x                   *)
   | Undef				(*     | _                    *)
 
@@ -99,11 +101,14 @@ struct
     Dec of name option * Exp		(* D ::= x:V                  *)
   | BDec of name option * (cid * Sub)	(*     | v:l[s]               *)
   | ADec of name option * int   	(*     | v[^-d]               *)
+  | NDec
 
   and Block =				(* Blocks:                    *)
     Bidx of int 			(* b ::= v                    *)
-  | LVar of Block option ref * (cid * Sub) 
-                                        (*     | L(l,s)               *)
+  | LVar of Block option ref * Sub * (cid * Sub)
+                                        (*     | L(l[^k],t)           *)
+  | Inst of Exp list			(*     | u1, ..., Un          *)
+
 
   (* Constraints *)
 
@@ -154,12 +159,6 @@ struct
   datatype StrDec =                     (* Structure declaration      *)
       StrDec of string * mid option
 
-  (* Form of constant declaration *)
-  datatype ConDecForm =
-    FromCS				(* from constraint domain *)
-  | Ordinary				(* ordinary declaration *)
-  | Clause				(* %clause declaration *)
-
   (* Type abbreviations *)
   type dctx = Dec Ctx			(* G = . | G,D                *)
   type eclo = Exp * Sub   		(* Us = U[s]                  *)
@@ -191,6 +190,7 @@ struct
     | conDecImp (ConDef (_, _, i, _, _, _)) = i
     | conDecImp (AbbrevDef (_, _, i, _, _, _)) = i
     | conDecImp (SkoDec (_, _, i, _, _)) = i
+    | conDecImp (BlockDec (_, _,  _, _)) = 0   (* watch out -- carsten *)
 
   fun conDecStatus (ConDec (_, _, _, status, _, _)) = status
     | conDecStatus _ = Normal
@@ -354,6 +354,29 @@ struct
     | comp (Shift (n), Shift (m)) = Shift (n+m)
     | comp (Dot (Ft, s), s') = Dot (frontSub (Ft, s'), comp (s, s'))
 
+
+  (* Fri Apr  5 15:35:09 2002 -bp  *)
+  and axpSub (Root(H as Const k, S), s) = 
+        Root(H, axpSubS(S, s))
+    | axpSub (Root(H as BVar k, S), s) = 
+	Root(H, axpSubS(S, s))
+    | axpSub (Root(H as NVar n, Nil), s) = 
+	(case bvarSub(n, s) 
+	   of Axp(U) => U)
+    (* Root(NVar, S) and S =/= nil should not happen *)
+    (* to be added FgnConst, Skonst *)
+    (* Def cannot happen, Def are in expanded form *)
+    | axpSub(Lam(D, U), s) = 
+	Lam(D, axpSub(U, s))
+    (* FgnExp to be added *)
+    (* EVar cannot happen, U always closed when used *)
+    (* EClo cannot happen *)
+
+  and axpSubS (Nil, s) = Nil
+    | axpSubS (App(U, S), s) = App(axpSub(U, s), axpSubS(S, s))
+    (* SClo cannot happen *)
+
+
   (* bvarSub (n, s) = Ft'
    
       Invariant: 
@@ -380,12 +403,18 @@ struct
       (case bvarSub (k, s)
 	 of Idx k' => Bidx k'
           | Block B => B)
-    | blockSub (LVar (ref (SOME B), _), s) =
-        blockSub (B, s)
+    | blockSub (LVar (ref (SOME B), sk, _), s) =
+        blockSub (B, comp (sk, s))
+    (* -fp Sun Dec  1 21:18:30 2002 *)
+    (* --cs Sun Dec  1 11:25:41 2002 *)
     (* Since always . |- t : Gsome, discard s *)
     (* where is this needed? *)
     (* Thu Dec  6 20:30:26 2001 -fp !!! *)
-    | blockSub (L as LVar (ref NONE, (l, t)), s) = L
+    | blockSub (LVar (r as ref NONE, sk, (l, t)), s) = 
+	LVar (r, comp(sk, s), (l, comp (t, s)))
+	(* comp(^k, s) = ^k' for some k' by invariant *)
+    | blockSub (L as Inst ULs, s') = Inst (map (fn U => EClo (U, s')) ULs)
+    (* this should be right but somebody should verify *) 
 
   (* frontSub (Ft, s) = Ft'
 
@@ -402,6 +431,7 @@ struct
     | frontSub (Exp (U), s) = Exp (EClo (U, s))
     | frontSub (Undef, s) = Undef
     | frontSub (Block (B), s) = Block (blockSub (B, s))
+    | frontSub (Axp (U), s) = Axp (axpSub (U, s))
 
   (* decSub (x:V, s) = D'
 
@@ -479,7 +509,7 @@ struct
 
   fun blockDec (G, v as (Bidx k), i) =
     let 
-      val BDec (_, (l, s)) = ctxDec (G, k)   
+      val BDec (_, (l, s)) = ctxDec (G, k)  
       (* G |- s : Gsome *)
       val (Gsome, Lblock) = conDecBlock (sgnLookup l)
       fun blockDec' (t, D :: L, 1, j) = decSub (D, t)
@@ -506,7 +536,7 @@ struct
   fun newTypeVar (G) = EVar(ref NONE, G, Uni(Type), ref nil)
 
   (* newLVar (l, s) = (l[s]) *)
-  fun newLVar (cid, s) = LVar (ref NONE, (cid, s))
+  fun newLVar (sk, (cid, t)) = LVar (ref NONE, sk, (cid, t))
 
   (* Type related functions *)
 

@@ -14,9 +14,6 @@ functor Total
 
    structure ModeSyn : MODESYN
      sharing ModeSyn.IntSyn = IntSyn'
-   structure ModeCheck : MODECHECK
-     sharing ModeCheck.ModeSyn = ModeSyn
-     sharing ModeCheck.IntSyn = IntSyn'
 
    structure Index : INDEX
      sharing Index.IntSyn = IntSyn'
@@ -33,9 +30,7 @@ functor Total
    structure Paths : PATHS
    structure Origins : ORIGINS
      sharing Origins.Paths = Paths
-     sharing Origins.IntSyn = IntSyn'
-
-   structure Timers : TIMERS)
+     sharing Origins.IntSyn = IntSyn')
    : TOTAL =
 struct
   structure IntSyn = IntSyn'
@@ -172,7 +167,7 @@ struct
     fun checkFam (a) =
         let
           (* Checking termination *)
-	  val _ = ((Timers.time Timers.terminate Reduces.checkFam) a;
+	  val _ = (Reduces.checkFam a;
 		   if !Global.chatter >= 4
 		     then print ("Terminates: " ^ N.qidToString (N.constQid a) ^ "\n")
 		   else ())
@@ -182,7 +177,7 @@ struct
 	  (* by termination invariant, there must be consistent mode for a *)
 	  val SOME(ms) = M.modeLookup a	(* must be defined and well-moded *)
 	  val _ = checkDefinite (a, ms) (* all arguments must be either input or output *)
-	  val _ = ((Timers.time Timers.coverage Cover.checkCovers) (a, ms) ;
+	  val _ = (Cover.checkCovers (a, ms) ;
 		   if !Global.chatter >= 4
 		     then print ("Covers (input): " ^ N.qidToString (N.constQid a) ^ "\n")
 		   else ())
@@ -193,9 +188,8 @@ struct
 		    then print ("Output coverage checking family " ^ N.qidToString (N.constQid a)
 				^ "\n")
 		  else ()
-          val _ = ModeCheck.checkFreeOut (a, ms) (* all variables in output args must be free *)
           val cs = Index.lookup a
-	  val _ = ((Timers.time Timers.coverage checkOutCover) (cs);
+	  val _ = (checkOutCover (cs);
 		   if !Global.chatter = 4
 		     then print ("\n")
 		   else ();

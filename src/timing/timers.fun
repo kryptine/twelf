@@ -17,8 +17,6 @@ struct
   val printing    = Timing.newCenter ("Printing      ")
   val compiling   = Timing.newCenter ("Compiling     ")
   val solving     = Timing.newCenter ("Solving       ")
-  val coverage    = Timing.newCenter ("Coverage      ")
-  val worlds      = Timing.newCenter ("Worlds        ")
   val ptrecon     = Timing.newCenter ("ProofRecon    ")
   val filling     = Timing.newCenter ("Filling       ")
   val filltabled  = Timing.newCenter ("Filling Tabled")
@@ -27,9 +25,8 @@ struct
   val inference   = Timing.newCenter ("Inference     ")
 
   val centers = [parsing, recon, abstract, checking, modes, subordinate,
-		 terminate, printing, compiling, solving, coverage, worlds,
-                 ptrecon, filling, filltabled,
-                 splitting, recursion, inference]
+		 terminate, printing, compiling, solving, ptrecon,
+		 filling, filltabled, splitting, recursion, inference]
 
   val total    = Timing.sumCenter ("Total         ", centers)
 

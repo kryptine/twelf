@@ -4,6 +4,7 @@
 signature ABSTRACT =
 sig
   structure IntSyn : INTSYN
+  structure Tomega : TOMEGA
 
   exception Error of string
 
@@ -18,7 +19,14 @@ sig
                      -> (int * (IntSyn.Exp * IntSyn.Exp))
   val abstractCtxs : (IntSyn.Dec IntSyn.Ctx) list
                      -> (IntSyn.Dec IntSyn.Ctx) * (IntSyn.Dec IntSyn.Ctx) list
+  val abstractTomegaSub : Tomega.Sub -> (Tomega.Dec IntSyn.Ctx * Tomega.Sub)
+  val abstractSpine : IntSyn.Spine * IntSyn.Sub -> (IntSyn.dctx * IntSyn.Spine)
 
   val collectEVars : IntSyn.dctx * IntSyn.eclo * IntSyn.Exp list -> IntSyn.Exp list
+  val collectEVarsSpine : IntSyn.dctx * (IntSyn.Spine * IntSyn.Sub) * IntSyn.Exp list -> IntSyn.Exp list
+                         
+
+  val raiseTerm    : IntSyn.dctx * IntSyn.Exp -> IntSyn.Exp
+  val raiseType    : IntSyn.dctx * IntSyn.Exp -> IntSyn.Exp
 
 end;  (* signature ABSTRACT *)

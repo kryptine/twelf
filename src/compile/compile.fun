@@ -4,6 +4,8 @@
              Roberto Virga, Brigitte Pientka *)
 
 functor Compile (structure IntSyn' : INTSYN
+		 structure Tomega' : TOMEGA
+		   sharing Tomega'.IntSyn = IntSyn'
 		 structure CompSyn' : COMPSYN
 		   sharing CompSyn'.IntSyn = IntSyn'
 		 structure Whnf : WHNF
@@ -27,19 +29,19 @@ struct
 
   structure IntSyn = IntSyn'
   structure CompSyn = CompSyn'
+  structure Tomega = Tomega'
 
   (* FIX: need to associate errors with occurrences -kw *)
   exception Error of string
 
   local
     structure I = IntSyn
+    structure T = Tomega
     structure C = CompSyn
   in
 
-    fun notCS (I.FromCS) = false
-      | notCS _ = true
 
-    datatype Duplicates = BVAR of int | FGN | DEF of int
+    datatype Duplicates = BVAR of int | FGN
 
     val optimize = ref true  
 
@@ -123,8 +125,7 @@ struct
 	 else 
 	   collectSpine (S, K', Vars', depth)
        end
-     | collectExp (U as I.Root(I.Def k, S), K, Vars, depth) = 
-       ((depth, DEF k)::K, Vars)
+
      (* h is either const, skonst or def *)
      | collectExp (I.Root(h, S), K, Vars, depth) =   
          collectSpine (S, K, Vars, depth)
@@ -203,6 +204,8 @@ struct
 	 (left, Vars, h, false)
      | linearHead(G, (h as I.Const k), S, left, Vars, depth, total) = 
 	 (left, Vars, h, false)
+     | linearHead(G, (h as I.Def k), S, left, Vars, depth, total) = 
+	 (left, Vars, h, false)
      (*
      | linearHead(G, (h as I.NSDef k), s, S, left, Vars, depth, total) = 
 	 (left, Vars, h, false)
@@ -212,7 +215,6 @@ struct
 
      | linearHead(G, (h as I.Skonst k) , S, left, Vars, depth, total) = 
 	 (left, Vars, h, false)
-     (* Def cannot occur *)
 
   (* linearExp (Gl, U, left, Vars, depth, total, eqns) = (left', Vars', N, Eqn)
 
@@ -225,14 +227,7 @@ struct
 
      "For any U', U = U' iff (N = U' and Eqn)"
   *)
-   fun linearExp (Gl, U as I.Root(h as I.Def k, S), left, Vars, depth, total, eqns) = 
-       let
-	 val N = I.Root(I.BVar(left + depth), I.Nil)
-	 val U' = shiftExp(U, depth, total)  
-       in
-	 (left-1, Vars, N, C.UnifyEq(Gl, U', N, eqns))
-       end 
-     | linearExp (Gl, U as I.Root(h, S), left, Vars, depth, total, eqns) = 
+   fun linearExp (Gl, U as I.Root(h, S), left, Vars, depth, total, eqns) = 
        let
 	 val (left', Vars', h', replaced) =  linearHead (Gl, h, S, left, Vars, depth, total)
        in 
@@ -266,7 +261,7 @@ struct
 	 (left', Vars', I.Lam(D', U'), eqns')
        end
    | linearExp (Gl, U as I.FgnExp (cs, ops), left, Vars, depth, total, eqns) = 
-       let 
+       let
 	 val N = I.Root(I.BVar(left + depth), I.Nil)
 	 val U' = shiftExp(U, depth, total)  
        in
@@ -307,6 +302,20 @@ struct
 
 	  val r = convertKRes(C.Assign(R', Eqs), List.rev K, left)
 	in 
+	  (* 
+	     this sometimes fails because G does not assign names
+	     to all declaratons.
+	     Fri May  3 19:49:45 2002 -fp
+	  *)
+	  (*
+	  (if (!Global.chatter) >= 6 then
+	     (print ("\nClause Eqn" );
+	      print (CPrint.clauseToString "\t" (G, r));	 
+	      print "\n";
+	      print ("Clause orig \t" ^ Print.expToString(G, R) ^ "\n"))
+	   else 
+	     ());
+	  *)
 	     r
 	end
 
@@ -339,7 +348,7 @@ struct
       end
     | compileGoalN fromCS (G, I.Pi((D as I.Dec (_, A1), I.Maybe), A2)) =
       (* A = {x:A1} A2 *)
-       if notCS fromCS andalso isConstraint (head (A1))
+       if not fromCS andalso isConstraint (head (A1))
        then raise Error "Constraint appears in dynamic clause position"
        else C.All (D, compileGoalN fromCS (I.Decl(G, D), A2))
   (*  compileGoalN _ should not arise by invariants *)
@@ -361,7 +370,7 @@ struct
       if opt andalso !optimize then
 	compileHead(G, R) (* C.Eq(R) *)
       else    
-        if notCS fromCS andalso isConstraint (h)
+        if not fromCS andalso isConstraint (h)
         then raise Error "Constraint appears in dynamic clause position"
         else C.Eq(R)
     | compileClauseN fromCS opt (G, I.Pi((D as (I.Dec(_,A1)),I.No), A2)) =
@@ -378,8 +387,8 @@ struct
     (*  compileClauseN _ should not arise by invariants *)
 
   fun compileClause opt (G, A) = 
-        compileClauseN I.Ordinary opt (G, Whnf.normalize (A, I.id))
-  fun compileGoal (G, A) = compileGoalN I.Ordinary (G, Whnf.normalize (A, I.id))
+        compileClauseN false opt (G, Whnf.normalize (A, I.id))
+  fun compileGoal (G, A) = compileGoalN false (G, Whnf.normalize (A, I.id))
 
   (* compileCtx G = (G, dPool)
 
@@ -388,19 +397,97 @@ struct
      then |- G ~> dPool  (context G compile to clause pool dPool)
      and  |- dPool  dpool
   *)
-  fun compileCtx opt (G) =
-      let 
+  fun compileCtx opt G =
+      let
+        fun compileBlock (nil, s, (n, i)) = nil
+	  | compileBlock (I.Dec (_, V) :: Vs, t, (n, i)) =  
+	    let 
+	      val Vt = I.EClo (V, t)
+	    in
+	      (compileClause opt (G, Vt), I.id, I.targetHead Vt)
+	      :: compileBlock (Vs, I.Dot (I.Exp (I.Root (I.Proj (I.Bidx n, i), I.Nil)), t), (n, i+1))
+	    end
 	fun compileCtx' (I.Null) = I.Null
-	  | compileCtx' (I.Decl (G, D as I.Dec (_, A))) =
+	  | compileCtx' (I.Decl (G, I.Dec (_, A))) =
 	    let 
 	      val Ha = I.targetHead A
 	    in
-	      I.Decl (compileCtx' (G), SOME (compileClause opt (G, A), I.id, Ha))
+	      I.Decl (compileCtx' G, CompSyn.Dec (compileClause opt (G, A), I.id, Ha))
 	    end
+	  | compileCtx' (I.Decl (G, I.BDec (_, (c, s)))) =
+	    let
+	      val (G, L)= I.constBlock c
+	      val dpool = compileCtx' G
+	      val n = I.ctxLength dpool   (* this is inefficient! -cs *)
+	    in
+	      I.Decl (dpool, CompSyn.BDec (compileBlock (L, s, (n, 1))))
+	    end
+    
+	    
       in
-	C.DProg (G, compileCtx' (G))
+	C.DProg (G, compileCtx' G)
       end
 
+  (* compile G = (G, dPool)
+
+     Invariants:
+     If |- G ctx,
+     then |- G ~> dPool  (context G compile to clause pool dPool)
+     and  |- dPool  dpool
+  *)
+  fun compilePsi opt Psi =
+      let
+        fun compileBlock (nil, s, (n, i)) = nil
+	  | compileBlock (I.Dec (_, V) :: Vs, t, (n, i)) =  
+	    let 
+	      val Vt = I.EClo (V, t)
+	    in
+	      (compileClause opt (T.coerceCtx Psi, Vt), I.id, I.targetHead Vt)
+	      :: compileBlock (Vs, I.Dot (I.Exp (I.Root (I.Proj (I.Bidx n, i), I.Nil)), t), (n, i+1))
+	    end
+	fun compileCtx' (I.Null) = I.Null
+	  | compileCtx' (I.Decl (G, I.Dec (_, A))) =
+	    let 
+	      val Ha = I.targetHead A
+	    in
+	      I.Decl (compileCtx' G, CompSyn.Dec (compileClause opt (G, A), I.id, Ha))
+	    end
+	  | compileCtx' (I.Decl (G, I.BDec (_, (c, s)))) =
+	    let
+	      val (G, L)= I.constBlock c
+	      val dpool = compileCtx' G
+	      val n = I.ctxLength dpool   (* this is inefficient! -cs *)
+	    in
+	      I.Decl (dpool, CompSyn.BDec (compileBlock (L, s, (n, 1))))
+	    end
+    	fun compilePsi' (I.Null) = I.Null
+	  | compilePsi' (I.Decl (Psi, T.UDec (I.Dec (_, A)))) =
+	    let 
+	      val Ha = I.targetHead A
+	    in
+	      I.Decl (compilePsi' Psi, CompSyn.Dec (compileClause opt (T.coerceCtx Psi, A), I.id, Ha))
+	    end
+	  | compilePsi' (I.Decl (Psi, T.UDec (I.BDec (_, (c, s))))) =
+	    let
+	      val (G, L)= I.constBlock c
+	      val dpool = compileCtx' G
+	      val n = I.ctxLength dpool   (* this is inefficient! -cs *)
+	    in
+	      I.Decl (dpool, CompSyn.BDec (compileBlock (L, s, (n, 1))))
+	    end
+	  | compilePsi' (I.Decl (Psi, T.PDec _)) =
+	    I.Decl (compilePsi' Psi, CompSyn.PDec)
+	      
+    
+	    
+      in
+	C.DProg (T.coerceCtx Psi, compilePsi' Psi)
+      end
+
+
+
+
+(* dead code? -- cs 
   (* compileCtx' G = (G, dPool)
 
      Invariants:
@@ -416,12 +503,13 @@ struct
 	    let 
 	      val Ha = I.targetHead A
 	    in
-	      I.Decl (compileCtx'' (G, B), SOME (compileClause opt (G, A), I.id, Ha))
+	      I.Decl (compileCtx'' (G, B), C.Dec (compileClause opt (G, A), I.id, Ha))
 	    end
       in
 	C.DProg (G, compileCtx'' (G, B))
       end
 
+*)
   (* compileConDec (a, condec) = ()
      Effect: install compiled form of condec in program table.
              No effect if condec has no operational meaning
@@ -431,8 +519,6 @@ struct
         C.sProgInstall (a, C.SClause (compileClauseN fromCS true (I.Null, A)))
     | compileConDec fromCS (a, I.SkoDec(_, _, _, A, I.Type)) =
         C.sProgInstall (a, C.SClause (compileClauseN fromCS true (I.Null, A)))
-    | compileConDec I.Clause (a, I.ConDef(_, _, _, _, A, I.Type)) =
-	C.sProgInstall (a, C.SClause (compileClauseN I.Clause true (I.Null, A)))
     | compileConDec _ _ = ()
 
   fun install fromCS (cid) = compileConDec fromCS (cid, I.sgnLookup cid)

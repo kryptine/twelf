@@ -514,29 +514,28 @@ struct
               installF (ConDec ("bool", NONE, 0,
                                 Constraint (!myID, solveBool),
                                 Uni (Type), Kind),
-                        NONE, [MS.Mnil]);
+                        NONE, SOME(MS.Mnil));
 
             trueID :=
               installF (ConDec ("true", NONE, 0,
                                 Foreign (!myID, (fn _ => toFgn (Sum(true, nil)))),
                                 bool (),
                                 Type),
-                        NONE, nil);
+                        NONE, NONE);
 
             falseID :=
               installF (ConDec ("false", NONE, 0,
                                 Foreign (!myID, (fn _ => toFgn (Sum(false, nil)))),
                                 bool (),
                                 Type),
-                        NONE, nil);
+                        NONE, NONE);
 
             notID :=
               installF (ConDec ("!", NONE, 0,
                                 Foreign (!myID, makeFgnUnary notSum),
                                 arrow (bool (), bool ()),
                                 Type),
-                        SOME(FX.Prefix (FX.maxPrec)),
-                        nil);
+                        SOME(FX.Prefix (FX.maxPrec)), NONE);
 
             xorID :=
               installF (ConDec ("||", NONE, 0,
@@ -544,7 +543,7 @@ struct
                                 arrow (bool (), arrow (bool (), bool ())),
                                 Type),
                         SOME(FX.Infix (FX.dec FX.maxPrec, FX.Left)),
-                        nil);
+                        NONE);
 
             andID :=
               installF (ConDec ("&", NONE, 0,
@@ -552,7 +551,7 @@ struct
                                   arrow (bool (), arrow (bool (), bool ())),
                                   Type),
                         SOME(FX.Infix (FX.dec FX.maxPrec, FX.Left)),
-                        nil);
+                        NONE);
 
            orID :=
               installF (ConDec ("|", NONE, 0,
@@ -560,7 +559,7 @@ struct
                                 arrow (bool (), arrow (bool (), bool ())),
                                 Type),
                         SOME(FX.Infix (FX.dec FX.maxPrec, FX.Left)),
-                        nil);
+                        NONE);
 
             impliesID :=
               installF (ConDec ("=>", NONE, 0,
@@ -568,7 +567,7 @@ struct
                                   arrow (bool (), arrow (bool (), bool ())),
                                   Type),
                         SOME(FX.Infix (FX.dec (FX.dec FX.maxPrec), FX.Left)),
-                        nil);
+                        NONE);
 
             iffID :=
               installF (ConDec ("<=>", NONE, 0,
@@ -576,7 +575,7 @@ struct
                                   arrow (bool (), arrow (bool (), bool ())),
                                   Type),
                         SOME(FX.Infix (FX.dec (FX.dec FX.maxPrec), FX.Left)),
-                        nil);
+                        NONE);
 
             ()
           )

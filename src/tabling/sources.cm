@@ -1,8 +1,4 @@
-Library
-  signature TABLEDSYN
-  structure TabledSyn
-is
-  ../table/sources.cm
+Group is
   ../lambda/sources.cm
   ../print/sources.cm
   ../names/sources.cm	

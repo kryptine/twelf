@@ -9,6 +9,4 @@ sig
   val maxCSid : int
   val doubleCheck : bool ref
   val unsafe : bool ref
-
-  val chPrint : int -> (unit -> string) -> unit
 end;  (* signature GLOBAL *)

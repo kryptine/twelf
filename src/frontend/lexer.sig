@@ -47,7 +47,6 @@ sig
     | ABBREV				(* `%abbrev' *)
     | FREEZE                            (* `%freeze' *)
     | DETERMINISTIC                     (* `%deterministic' *) (* -rv 11/27/01 *)
-    | CLAUSE				(* `%clause' *) (* -fp 8/9/02 *)
     | SIG                               (* `%sig' *)
     | STRUCT                            (* `%struct' *)
     | WHERE                             (* `%where' *)

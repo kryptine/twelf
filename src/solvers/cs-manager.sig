@@ -9,7 +9,7 @@ sig
 
   type sigEntry = (* global signature entry *)
     (* constant declaration plus optional precedence and mode information *)
-    IntSyn.ConDec * Fixity.fixity option * ModeSyn.ModeSpine list
+    IntSyn.ConDec * Fixity.fixity option * ModeSyn.ModeSpine option
 
   type fgnConDec = (* foreign constant declaration *)
     {
@@ -35,7 +35,7 @@ sig
       mark : unit -> unit,
       unwind : unit -> unit
     }
-  
+
   exception Error of string
 
   (* solver handling functions *)

@@ -790,7 +790,10 @@ struct
         (case IntSyn.ctxLookup (G, k)
 	   of IntSyn.Dec(SOME(name), _) => name
 	    | IntSyn.ADec(SOME(name), _) =>  name
-	    | _ => raise Unprintable)
+	    | IntSyn.NDec => "<_>" (* should be impossible *)
+	    | _ => "?" (* should be impossible *)
+	    (* | _ => raise Unprintable *)
+	     )
               (* NONE should not happen *)
 
     (* decName' role (G, D) = G,D'
@@ -834,6 +837,7 @@ struct
 	  orelse ctxDefined (G, name)
 	  then IntSyn.ADec (SOME (tryNextName (G, baseOf name)), d)
 	else D
+      | decName' role (G, D as IntSyn.NDec) = D
 
     val decName = decName' Exist
     val decEName = decName' Exist
@@ -865,53 +869,48 @@ struct
 	  IntSyn.Decl (G', decLUName (G', D))
 	end
 
-    (* pisEName' (G, i, V) = V'
-       Assigns names to dependent Pi prefix of V with i implicit abstractions
+    (* pisEName' (G, V) = V'
+       Assigns names to dependent Pi prefix of V.
        Used for implicit EVar in constant declarations after abstraction.
     *)
-    fun pisEName' (G, 0, V) = V
-      | pisEName' (G, i, IntSyn.Pi ((D, IntSyn.Maybe), V)) =
-        (* i > 0 *)
+    fun pisEName' (G, IntSyn.Pi ((D, IntSyn.Maybe), V)) =
         let
 	  val D' = decEName (G, D)
 	in
 	  IntSyn.Pi ((D', IntSyn.Maybe),
-		     pisEName' (IntSyn.Decl (G, D'), i-1, V))
+		     pisEName' (IntSyn.Decl (G, D'), V))
 	end
-      (* | pisEName' (G, i, V) = V *)
+      | pisEName' (G, V) = V
 
-    fun pisEName (i, V) = pisEName' (IntSyn.Null, i, V)
+    fun pisEName (V) = pisEName' (IntSyn.Null, V)
 
-    (* defEName' (G, i, (U,V)) = (U',V')
+    (* defEName' (G, (U,V)) = (U',V')
        Invariant: G |- U : V  and G |- U' : V' since U == U' and V == V'.
-       Assigns name to dependent Pi prefix of V and corresponding lam prefix of U
-       with i implicit abstractions
+       Assigns name to dependent Pi prefix of V and corresponding lam prefix of U.
        Used for implicit EVar in constant definitions after abstraction.
     *)
-    fun defEName' (G, 0, UV) = UV
-      | defEName' (G, i, (IntSyn.Lam (D, U), IntSyn.Pi ((_ (* = D *), P), V))) =
-        (* i > 0 *)
+    fun defEName' (G, (IntSyn.Lam (D, U), IntSyn.Pi ((_, P), V))) =
         let
 	  val D' = decEName (G, D)
-	  val (U', V') = defEName' (IntSyn.Decl (G, D'), i-1, (U, V))
+	  val (U', V') = defEName' (IntSyn.Decl (G, D'), (U, V))
 	in
 	  (IntSyn.Lam (D', U'), IntSyn.Pi ((D', P), V'))
 	end
-      (* | defEName' (G, i, (U, V)) = (U, V) *)
+      | defEName' (G, (U, V)) = (U, V)
 
-    fun defEName (imp, UV) = defEName' (IntSyn.Null, imp, UV)
+    fun defEName UV = defEName' (IntSyn.Null, UV)
 
     fun nameConDec' (IntSyn.ConDec (name, parent, imp, status, V, L)) =
-          IntSyn.ConDec (name, parent, imp, status, pisEName (imp, V), L)
+          IntSyn.ConDec (name, parent, imp, status, pisEName V, L)
       | nameConDec' (IntSyn.ConDef (name, parent, imp, U, V, L)) =
 	let 
-	  val (U', V') = defEName (imp, (U, V))
+	  val (U', V') = defEName (U, V)
 	in
 	  IntSyn.ConDef (name, parent, imp, U', V', L)
 	end
       | nameConDec' (IntSyn.AbbrevDef (name, parent, imp, U, V, L)) =
 	let 
-	  val (U', V') = defEName (imp, (U, V))
+	  val (U', V') = defEName (U, V)
 	in
 	  IntSyn.AbbrevDef (name, parent, imp, U', V', L)
 	end

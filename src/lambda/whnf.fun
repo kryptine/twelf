@@ -187,7 +187,7 @@ struct
     and lowerEVar' (G, (Pi ((D',_), V'), s')) =
         let
 	  val D'' = decSub (D', s')
-	  val (X', U) = lowerEVar' (Decl (G, D''), whnfExpandDef (V', dot1 s'))
+	  val (X', U) = lowerEVar' (Decl (G, D''), whnf (V', dot1 s'))
 	in
 	  (X', Lam (D'', U))
 	end
@@ -217,7 +217,7 @@ struct
        Effect: X is instantiated to [[G']] X' if G' is empty
                otherwise X = X' and no effect occurs.
     *)
-    and lowerEVar (X as EVar (r, G, V, ref nil)) = lowerEVar1 (X, whnfExpandDef (V, id))
+    and lowerEVar (X as EVar (r, G, V, ref nil)) = lowerEVar1 (X, whnf (V, id))
       | lowerEVar (EVar _) =
         (* It is not clear if this case can happen *)
         (* pre-Twelf 1.2 code walk, Fri May  8 11:05:08 1998 *)
@@ -246,14 +246,17 @@ struct
 	 (* was: (Root (Proj (blockSub (B, s), i), SClo (S, s)), id) *)
 	(case blockSub (B, s)
 	   of B' as Bidx (k) => (Root (Proj (B', i), SClo (S, s)), id)
-            | B' as LVar _ => whnfRoot ((Proj (B', i), SClo (S, s)), id))
-      | whnfRoot ((Proj (LVar (ref (SOME L), (l, t)), i), S), s) =
-	 whnfRoot ((Proj (L, i), S), s) 
-      | whnfRoot ((Proj (L as LVar (r, (l, t)), i), S), s) = (* r = ref NONE *)
-	 (* was: (Root (Proj (LVar (r, (l, comp (t, s))), i), SClo (S, s)), id) *)
+            | B' as LVar _ => whnfRoot ((Proj (B', i), SClo (S, s)), id)
+	    | Inst L => whnfRedex (whnf (List.nth (L, i-1), id), (S, s)))
+      | whnfRoot ((Proj (LVar (ref (SOME L), sk, (l, t)), i), S), s) =
+	 whnfRoot ((Proj (blockSub (L, comp (sk, s)), i), SClo (S, s)), id)
+      | whnfRoot ((Proj (L as LVar (r, sk, (l, t)), i), S), s) = (* r = ref NONE *)
+	 (Root (Proj (LVar (r, comp (sk, s), (l, comp(t, s))), i), SClo (S, s)), id)
          (* do not compose with t due to globality invariant *)
 	 (* Thu Dec  6 20:34:30 2001 -fp !!! *)
-	 (Root (Proj (L, i), SClo (S, s)), id)
+	 (* was: (Root (Proj (L, i), SClo (S, s)), id) *)
+	 (* going back to first version, because globality invariant *)
+	 (* no longer satisfied Wed Nov 27 09:49:58 2002 -fp *)
       (* Undef and Exp should be impossible by definition of substitution -cs *)
       | whnfRoot ((FVar (name, V, s'), S), s) =
 	 (Root (FVar (name, V, comp (s', s)), SClo (S, s)), id)
@@ -316,11 +319,11 @@ struct
        and   G |- (U @ S) [s] == U' [s'] : W'
        and   (U', s') in whnf
     *)
-    and expandDef (Root (Def (d), S), s) =
+    fun expandDef (Root (Def (d), S), s) =
           (* why the call to whnf?  isn't constDef (d) in nf? -kw *)
 	  whnfRedex (whnf (constDef (d), id), (S, s))
 
-    and whnfExpandDefW (Us as (Root (Def _, _), _)) = whnfExpandDefW (expandDef Us)
+    fun whnfExpandDefW (Us as (Root (Def _, _), _)) = whnfExpandDefW (expandDef Us)
       | whnfExpandDefW Us = Us
     and whnfExpandDef Us = whnfExpandDefW (whnf Us)
 
@@ -453,18 +456,18 @@ struct
 	  normalizeSpine (S, comp (s', s))
 
     and normalizeDec (Dec (xOpt, V), s) = Dec (xOpt, normalizeExp (V, s))
+      | normalizeDec (BDec (xOpt, (c, t)), s) = 
+         BDec (xOpt, (c, normalizeSub (comp (t, s))))
     and normalizeDecP ((D, P), s) = (normalizeDec (D, s), P)
 
     (* dead code -fp *)
     (* pre-Twelf 1.2 code walk Fri May  8 11:37:18 1998 *)
-    (*
+    (* not any more --cs Wed Jun 19 13:59:56 EDT 2002 *)
     and normalizeSub (s as Shift _) = s
       | normalizeSub (Dot (Ft as Idx _, s)) =
 	  Dot (Ft, normalizeSub (s))
-      | normalizeSub (Dot (Exp (U, V), s)) =
-	  Dot (Exp (normalizeExp (U, id), normalizeExp (V, id)),
-		 normalizeSub s)
-	  *)
+      | normalizeSub (Dot (Exp U, s)) =
+	  Dot (Exp (normalizeExp (U, id)), normalizeSub s)
 
 
     fun normalizeCtx Null = Null

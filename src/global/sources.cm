@@ -1,6 +1,3 @@
-Library
-  signature GLOBAL
-  structure Global
-is
+Group is
   global.sig
   global.sml

@@ -157,6 +157,8 @@ struct
        Effects: EVars may be lowered
     *)
     and convDec ((Dec (_, V1), s1), (Dec (_, V2), s2)) =  convExp ((V1, s1), (V2, s2))
+      | convDec ((BDec(_, (c1, s1)), t1), (BDec (_, (c2, s2)), t2)) =
+          c1 = c2 andalso convSub (comp (s1, t1), comp (s2, t2))
 
     (* convDecP see convDec *)
     and convDecP (((D1, P1), s1), ((D2, P2), s2)) =  convDec ((D1, s1), (D2, s2))

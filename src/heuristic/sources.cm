@@ -1,9 +1,3 @@
-Library
-  signature HEURISTIC
-  structure Heuristic
-is 
-#if defined(NEW_CM)
-  $/basis.cm
-#endif
+Group is 
   heuristic.sig
   heuristic.sum.fun

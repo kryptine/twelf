@@ -1311,9 +1311,8 @@ struct
               installF (ConDec (">=", NONE, 0,
                                 Constraint (!myID, solveGeq),
                                 arrow (number (), arrow (number (), Uni (Type))), Kind),
-                        SOME(FX.Infix(FX.minPrec, FX.None)),
-                        [MS.Mapp(MS.Marg(MS.Star, NONE),
-                                MS.Mapp(MS.Marg(MS.Star, NONE), MS.Mnil))]);
+                        SOME(FX.Infix(FX.minPrec, FX.None)), NONE);
+
 
             geqAddID :=
               installF (ConDec ("+>=", NONE, 2, Normal,
@@ -1327,7 +1326,7 @@ struct
                                                         plus (Root (BVar 3, Nil),
                                                               Root (BVar 2, Nil))))))),
                                 Type),
-                        NONE, nil);
+                        NONE, NONE);
 
             ()
           )

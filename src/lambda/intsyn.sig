@@ -53,6 +53,7 @@ sig
 
   and Head =				(* Head:                      *)
     BVar  of int			(* H ::= k                    *)
+  | NVar  of int			(*     | n                -bp *)
   | Const of cid			(*     | c                    *)
   | Proj  of Block * int		(*     | #k(b)                *)
   | Skonst of cid			(*     | c#                   *)
@@ -73,6 +74,7 @@ sig
   and Front =				(* Fronts:                    *)
     Idx of int				(* Ft ::= k                   *)
   | Exp of Exp				(*     | U                    *)
+  | Axp of Exp				(*     | U                    *)
   | Block of Block			(*     | _x                   *)
   | Undef				(*     | _                    *)
 
@@ -80,11 +82,21 @@ sig
     Dec of string option * Exp		(* D ::= x:V                  *)
   | BDec of string option * (cid * Sub)	(*     | v:l[s]               *)
   | ADec of string option * int	        (*     | v[^-d]               *)
+  | NDec 
 
   and Block =				(* Blocks:                    *)
     Bidx of int				(* b ::= v                    *)
-  | LVar of Block option ref * (cid * Sub) 
-                                        (*     | L(l,s)               *)
+  | LVar of Block option ref * Sub * (cid * Sub)
+                                        (*     | L(l[^k],t)           *)
+  | Inst of Exp list                    (*     | U1, ..., Un          *)
+  (* It would be better to consider having projections count
+     like substitutions, then we could have Inst of Sub here, 
+     which would simplify a lot of things.  
+
+     I suggest however to wait until the next big overhaul 
+     of the system -- cs *)
+
+
 (*  | BClo of Block * Sub                 (*     | b[s]                 *) *)
 
   (* constraints *)
@@ -135,12 +147,6 @@ sig
 
   datatype StrDec =                     (* Structure declaration      *)
       StrDec of string * mid option
-
-  (* Form of constant declaration *)
-  datatype ConDecForm =
-    FromCS				(* from constraint domain *)
-  | Ordinary				(* ordinary declaration *)
-  | Clause				(* %clause declaration *)
 
   (* Type abbreviations *)
   type dctx = Dec Ctx			(* G = . | G,D                *)
@@ -203,7 +209,8 @@ sig
   val newEVar    : dctx * Exp -> Exp	(* creates X:G|-V, []         *) 
   val newAVar    : unit ->  Exp	        (* creates A (bare)           *) 
   val newTypeVar : dctx -> Exp		(* creates X:G|-type, []      *)
-  val newLVar    : cid * Sub -> Block	(* creates B:(l,s)            *) 
+  val newLVar    : Sub * (cid * Sub) -> Block	
+					(* creates B:(l[^k],t)        *) 
 
   (* Type related functions *)
 

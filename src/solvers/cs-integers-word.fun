@@ -216,8 +216,6 @@ struct
                   | NONE => Expr Us))))
             end
           else Expr Us
-      | fromExpW (Us as (Root (Def(d), _), _)) =
-          fromExpW (Whnf.expandDef (Us))
       | fromExpW Us = Expr Us
 
     (* fromExp (U, s) = t
@@ -521,7 +519,7 @@ struct
               installF (ConDec ("word" ^ Int.toString(W.wordSize), NONE, 0,
                                 Constraint (!myID, solveNumber),
                                 Uni (Type), Kind),
-                        NONE : FX.fixity option, [MS.Mnil]);
+                        NONE : FX.fixity option, SOME(MS.Mnil));
 
             plusID :=
               installF (ConDec ("+", NONE, 0,
@@ -529,16 +527,7 @@ struct
                                 arrow (word (),
                                   arrow (word (),
                                     arrow (word (), Uni (Type)))), Kind),
-                        NONE,
-                        [MS.Mapp(MS.Marg(MS.Plus, SOME "X"),
-                                 MS.Mapp(MS.Marg(MS.Plus, SOME "Y"),
-                                         MS.Mapp(MS.Marg(MS.Minus, SOME "Z"), MS.Mnil))),
-                         MS.Mapp(MS.Marg(MS.Plus, SOME "X"),
-                                 MS.Mapp(MS.Marg(MS.Minus, SOME "Y"),
-                                         MS.Mapp(MS.Marg(MS.Plus, SOME "Z"), MS.Mnil))),
-                         MS.Mapp(MS.Marg(MS.Minus, SOME "X"),
-                                 MS.Mapp(MS.Marg(MS.Plus, SOME "Y"),
-                                         MS.Mapp(MS.Marg(MS.Plus, SOME "Z"), MS.Mnil)))]);
+                        NONE, NONE);
 
             timesID :=
               installF (ConDec ("*", NONE, 0,
@@ -546,16 +535,7 @@ struct
                                 arrow (word (),
                                   arrow (word (),
                                     arrow (word (), Uni (Type)))), Kind),
-                        NONE,
-                        [MS.Mapp(MS.Marg(MS.Plus, SOME "X"),
-                                 MS.Mapp(MS.Marg(MS.Plus, SOME "Y"),
-                                         MS.Mapp(MS.Marg(MS.Minus, SOME "Z"), MS.Mnil))),
-                         MS.Mapp(MS.Marg(MS.Plus, SOME "X"),
-                                 MS.Mapp(MS.Marg(MS.Minus, SOME "Y"),
-                                         MS.Mapp(MS.Marg(MS.Plus, SOME "Z"), MS.Mnil))),
-                         MS.Mapp(MS.Marg(MS.Minus, SOME "X"),
-                                 MS.Mapp(MS.Marg(MS.Plus, SOME "Y"),
-                                         MS.Mapp(MS.Marg(MS.Plus, SOME "Z"), MS.Mnil)))]);
+                        NONE, NONE);
 
             quotID :=
               installF (ConDec ("/", NONE, 0,
@@ -563,13 +543,7 @@ struct
                                 arrow (word (),
                                   arrow (word (),
                                     arrow (word (), Uni (Type)))), Kind),
-                        NONE,
-                        [MS.Mapp(MS.Marg(MS.Plus, SOME "X"),
-                                 MS.Mapp(MS.Marg(MS.Plus, SOME "Y"),
-                                         MS.Mapp(MS.Marg(MS.Minus, SOME "Z"), MS.Mnil))),
-                         MS.Mapp(MS.Marg(MS.Plus, SOME "X"),
-                                 MS.Mapp(MS.Marg(MS.Minus, SOME "Y"),
-                                         MS.Mapp(MS.Marg(MS.Plus, SOME "Z"), MS.Mnil)))]);
+                        NONE, NONE);
 
             provePlusID :=
               installF (ConDec ("prove+", NONE, 0,
@@ -580,7 +554,7 @@ struct
                                       pi ("P", plusExp (bvar 3, bvar 2, bvar 1),
                                           Uni (Type))))),
                                 Kind),
-                        NONE, nil);
+                        NONE, NONE);
 
             proofPlusID := 
               installF (ConDec ("proof+", NONE, 0, Normal,
@@ -590,7 +564,7 @@ struct
                                       pi ("P", plusExp (bvar 3, bvar 2, bvar 1),
                                           provePlusExp (bvar 4, bvar 3, bvar 2, bvar 1))))),
                                 Type),
-                        NONE, nil);
+                        NONE, NONE);
             
             proveTimesID :=
               installF (ConDec ("prove*", NONE, 0,
@@ -601,8 +575,8 @@ struct
                                       pi ("P", timesExp (bvar 3, bvar 2, bvar 1),
                                           Uni (Type))))),
                                 Kind),
-                        NONE, nil);
- 
+                        NONE, NONE);
+
             proofTimesID := 
               installF (ConDec ("proof*", NONE, 0, Normal,
                                 pi ("X", word (),
@@ -611,7 +585,7 @@ struct
                                       pi ("P", timesExp (bvar 3, bvar 2, bvar 1),
                                           proveTimesExp (bvar 4, bvar 3, bvar 2, bvar 1))))),
                                 Type),
-                        NONE, nil);
+                        NONE, NONE);
             
             proveQuotID :=
               installF (ConDec ("prove/", NONE, 0,
@@ -622,7 +596,7 @@ struct
                                       pi ("P", quotExp (bvar 3, bvar 2, bvar 1),
                                           Uni (Type))))),
                                 Kind),
-                        NONE, nil);
+                        NONE, NONE);
 
             proofQuotID := 
               installF (ConDec ("proof/", NONE, 0, Normal,
@@ -632,7 +606,7 @@ struct
                                       pi ("P", quotExp (bvar 3, bvar 2, bvar 1),
                                           proveQuotExp (bvar 4, bvar 3, bvar 2, bvar 1))))),
                                 Type),
-                        NONE, nil);
+                        NONE, NONE);
             
             ()
           )

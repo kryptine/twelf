@@ -1,27 +1,11 @@
-Library
-  signature INTSYN
-  structure IntSyn
-  signature WHNF
-  structure Whnf
-  signature CONV
-  structure Conv
-  signature CONSTRAINTS
-  structure Constraints
-  signature UNIFY
-  structure UnifyTrail
-  structure UnifyNoTrail
-  signature ABSTRACT
-  structure Abstract
-  signature APPROX
-  structure Approx
-is
-#if defined(NEW_CM)
-  $/basis.cm
-#endif
+Group is
   ../global/sources.cm
   ../trail/sources.cm
+  ../table/sources.cm
   intsyn.sig
   intsyn.fun
+  tomega.sig
+  tomega.fun
   whnf.sig
   whnf.fun
   conv.sig
@@ -34,4 +18,6 @@ is
   abstract.fun
   approx.sig
   approx.fun
+  normalize.sig
+  normalize.fun
   lambda.sml

@@ -1,5 +1,2 @@
-Library
-  signature STREAM
-  structure Stream
-is
+Group is
   stream.sml
