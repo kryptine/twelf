@@ -84,14 +84,15 @@ in
   (* Regression print for copy *)
   val _ = Twelf.loadFile "TEST/cp.elf"
   val _ = print ["cpt"] 
-
-
+  val _ = print ["new"]
 
   (* Regression test for Church-Rosser *)
   val _ = load "examples/church-rosser/sources.cfg"
   val _ = print ["identity"]
   val _ = print ["append"]
   val _ = print ["subst"] 
+
+
 (*  val _ = print ["dia"]             -- problem here:  we need to support lemmas 
   val _ = print ["strip"] 
   val _ = print ["conf"]

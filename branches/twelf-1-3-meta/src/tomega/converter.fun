@@ -1210,8 +1210,8 @@ val  _ = print "]"
 	    end
 
 	fun traverseSig' nil = nil
-          | traverseSig' (I.ConDec (name, _, _, _, V, I.Type) :: Sig) =
-  	    (case traverseNeg ((Psi0, I.Null), V, I.id)
+          | traverseSig' ((G, V) :: Sig) =
+  	    (case traverseNeg ((Psi0, T.embedCtx G), V, I.id)
 	       of (SOME (wf, (P', Q'))) =>  (P' Q') :: traverseSig' Sig)
       in
 	traverseSig' Sig
@@ -1236,8 +1236,8 @@ val  _ = print "]"
 	  *)
 	  fun transformList (nil, w) = nil
 	    | transformList ((D as I.Dec (x, V)) :: L, w) = 
-	      if List.exists (fn a => I.targetFam V = a) fams 
-		then transformList (L,  I.comp (w, I.shift))
+	      if List.exists (fn a => I.targetFam V = a) fams then 
+		transformList (L,  I.comp (w, I.shift))
 	      else
 		let 
 		  val  L' = transformList (L, I.dot1 w)
@@ -1260,6 +1260,45 @@ val  _ = print "]"
 	in
           (T.Worlds cids', wmap)
 	end
+
+    fun dynamicSig (Psi0, fams, T.Worlds cids) = 
+        let
+
+          (* findDec (G, n, L, s, S) = S'
+        
+	     Invariant:
+	     If   G |-  L : ctx
+	     and  G |- w: G'
+	     then |- G', L' ctx
+	  *)
+	  fun findDec (G, _, nil, w, Sig) = Sig
+	    | findDec (G, n, D :: L, w, Sig) = 
+	      let 
+		val (D' as I.Dec (x, V')) = I.decSub (D, w)
+		val b = I.targetFam V'
+		val Sig' = if List.exists (fn a => b = a) fams 
+			     then  (G, Whnf.normalize (V',I.id)) :: Sig
+			   else Sig
+	      in
+		findDec (G, n+1, L, I.Dot (I.Exp (I.Root (I.Proj (I.Bidx 1, n), I.Nil)), w), Sig')
+	      end		  
+	      
+	  fun findDecs' (nil, Sig) = Sig
+	    | findDecs' (cid :: cids', Sig) = 
+	      let 
+		val I.BlockDec (s, m, G, L) = I.sgnLookup cid
+		val D = Names.decName (G, I.BDec (NONE, (cid, I.Shift (I.ctxLength Psi0))))
+		val Sig' = findDec (I.Decl (G, D), 1, L, I.shift, Sig)
+	      in
+		findDecs' (cids', Sig')	
+	      end
+	in
+	  findDecs' (cids, nil)
+	end
+
+    fun staticSig nil = nil
+      | staticSig (I.ConDec (name, _, _, _, V, I.Type) :: Sig) =
+          (I.Null, V) :: staticSig Sig
 
         
     (* convertPrg L = P'
@@ -1312,12 +1351,19 @@ val  _ = print "]"
 	    val mS = modeSpine a	(* |- mS : {x1:V1} ... {xn:Vn} > type  *)
 	    val Sig = Worldify.worldify a
 					(* Sig in LF(reg)   *)
+	    val dynSig = dynamicSig (Psi0, L, W)
+	    val _ = print "\nSummary of collecting dynamic cases\n"
+	    val _ = map (fn GV => print (Print.expToString GV ^ "\n")) dynSig
+	    val statSig = staticSig Sig
+	    val _ = print "\nSummary of collecting static cases\n"
+	    val _ = map (fn GV => print (Print.expToString GV ^ "\n")) statSig
 
 	    val _ = print "[Type checking the result of worldify ..."
 	    val _ = map (fn (I.ConDec (_, _,_,_,U,V)) => TypeCheck.check (U, I.Uni  V)) Sig
 	    val _ = print "]"
 
-	    val C0 = blockCases (Psi0, a, L, Sig, wmap)
+(*	    val C0 = blockCases (Psi0, a, L, Sig, wmap) *)
+	    val C0 = traverse (Psi0, L, dynSig, wmap) 
   	    (* init' F = P'
 
 	       Invariant:
@@ -1335,7 +1381,7 @@ val  _ = print "]"
 	      | init _ = (fn p => p)
 
 	    val Pinit = init F
-	    val C = traverse (Psi0, L, Sig, wmap)
+	    val C = traverse (Psi0, L, statSig, wmap)
 					(* Psi0, x1:V1, ..., xn:Vn |- C :: F *)
 	  in
 	    Pinit (T.Case (T.Cases (C0 @ C)))
@@ -1347,7 +1393,7 @@ val  _ = print "]"
 
 	val P = Prec (convertPrg' (L, F0))
 (*	val _ = TomegaTypeCheck.check (P, F) *)
-b
+
       in
 	P
       end
