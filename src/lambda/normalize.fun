@@ -34,6 +34,14 @@ struct
 (*      | normalizeFor (T.FVar (G, r))   think about it *)
       | normalizeFor (T.True, _) = T.True
 
+    fun whnfFor (Ft as (T.All (D, _), t)) = Ft
+      | whnfFor (Ft as (T.Ex (D, F), t)) = Ft 
+      | whnfFor (Ft as (T.And (F1, F2), t)) = Ft
+      | whnfFor (T.FClo (F, t1), t2) = 
+	  whnfFor (F, T.comp (t1, t2))
+      | whnfFor (Ft as (T.World (W, F), t)) = Ft
+      | whnfFor (Ft as (T.True, _)) = Ft
+
 
     (* normalizePrg (P, t) = (P', t')
      
@@ -91,5 +99,6 @@ struct
     val normalizeFor = normalizeFor
     val normalizePrg = normalizePrg 
     val normalizeSub = normalizeSub 
+    val whnfFor = whnfFor
   end
 end

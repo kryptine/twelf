@@ -1,3 +1,5 @@
+
+
 local
   structure I = IntSyn
   structure T = Tomega
@@ -13,6 +15,7 @@ local
         (TextIO.print ((Print.conDecToString condec) ^ "\n"); printS S)
 in
 
+  val _ = Compiler.Control.Print.printDepth := 100;
 
   fun test names =
     (let 
@@ -27,7 +30,7 @@ in
       val _ = print "*"
       val F = Converter.convertFor a
       val _ = print "*"
-      val _ = TomegaTypeCheck.check (P, F)  
+(*      val _ = TomegaTypeCheck.check (P, F)  *)
        val _ = print "]"
 (*      val _ = TextIO.print (TomegaPrint.forToString (I.Null, F) ^ "\n") *)
 (*      val _ = (FunTypeCheck.check (P, F); Twelf.OK)   *)
