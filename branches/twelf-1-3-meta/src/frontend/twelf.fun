@@ -601,7 +601,17 @@ struct
 	  val (T, rrs as (r,rs)) = ReconThm.tdeclTotDecl lterm
 	  val La = Thm.installTotal (T, rrs)
 (* ******************************************* *)
-      val _ = TextIO.print "[Tomega: Conversion ..."
+	  fun checkFreeOut nil = ()
+	    | checkFreeOut (a :: La) =
+	      let 
+		val SOME ms = ModeSyn.modeLookup a
+	        val _ = ModeCheck.checkFreeOut (a, ms)
+	      in
+		checkFreeOut La 
+	      end
+
+	  val _ = checkFreeOut La
+          val _ = TextIO.print "[Tomega: Conversion ..."
 	  val lemma = Converter.installPrg La
 	  val P = Tomega.lemmaDef lemma
 	  val _ = TextIO.print " Formula ..."

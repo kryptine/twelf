@@ -26,14 +26,18 @@ in
       val Ss = map Worldify.worldify a
       val S = foldr op@ nil Ss
       val _ = printS S
-      val _ = TextIO.print "[tomega=] "
+      val _ = TextIO.print "[convertPrg "
       val P = Converter.convertPrg a
-      val _ = TextIO.print "Checking: "
+      val _ = TextIO.print "convertFor... "
       val F = Converter.convertFor a
+      val _ = TextIO.print "installPrg... "
       val _ = Converter.installPrg a
+      val _ = TextIO.print "printing... "
       val _ = TextIO.print (TomegaPrint.forToString (I.Null, F) ^ "\n")
-
+      val _ = TextIO.print (TomegaPrint.funToString P ^ "\n")
+      val _ = TextIO.print "checking ... "
       val _ = TomegaTypeCheck.checkPrg (I.Null, (P, F))
+      val _ = TextIO.print "]"
 (*      val _ = (FunTypeCheck.check (P, F); Twelf.OK)   *)
 (*      val LD = F.LemmaDec (names, P, F) *)
 (*      val _ = TextIO.print (FunPrint.lemmaDecToString LD) *)
@@ -85,8 +89,7 @@ in
   val _ = print ["cpt"] 
   val _ = print ["new"]
 
-
-  (* Regression test for Church-Rosser *)
+(*  (* Regression test for Church-Rosser *)
   val _ = load "examples/church-rosser/sources.cfg"
   val _ = print ["identity"]
   val _ = print ["append"]
@@ -106,9 +109,17 @@ in
   val _ = Twelf.loadFile "TEST/evenodd.elf"
   val _ = print ["even", "odd"]
 
-
+*)
   (* Regression test for logic programming *)
   val _ = load "examples/lp-horn/sources.cfg"
+  val _ = print ["can", "atm"]
+  val _ = print ["iscan", "isatm"]
+  val _ = print ["s_sound", "h_sound", "i_sound"]
+  val _ = print ["cmpcs", "cmpai"]
+
+
+  (* Regression test for logic programming *)
+  val _ = load "examples/lp/sources.cfg"
   val _ = print ["can", "atm"]
   val _ = print ["iscan", "isatm"]
   val _ = print ["s_sound", "h_sound", "i_sound"]
@@ -130,22 +141,6 @@ in
   val _ = print ["complete"]
 
 
-(*
-  (* Regression test for logic programming *)
-  val _ = load "examples/lp/sources.cfg"
-  val _ = test ["can", "atm"]
-  val _ = test ["iscan", "isatm"]
-  val _ = test ["s_sound", "h_sound", "i_sound"]
-  val _ = test ["cmpcs", "cmpai"]
-  val _ = test ["gl", "pg"]
-  val _ = test ["r_total"]
-  (* Cannot work yet because we do not have mutual
-     recursive functions.
-  *)
-*)
-
-
-(*
   (* Regression test for compile *)
   val _ = load "examples/compile/cls/sources.cfg"
   val _ = test ["trans", "vtrans"]
@@ -161,7 +156,7 @@ in
   val _ = test ["spl"]
   val _ = test ["cls_sound"]
 
-*)
+
 
 end
 

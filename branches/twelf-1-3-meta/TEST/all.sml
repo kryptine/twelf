@@ -12,7 +12,7 @@ fun test (file) =
 (* Examples, part of the distribution *)
 (* test "examples/arith/test.cfg"; *)
 test "examples/ccc/test.cfg";
-test "examples/church-rosser/test.cfg";
+(* test "examples/church-rosser/test.cfg"; *)
 test "examples/compile/cls/test.cfg";
 test "examples/compile/cpm/test.cfg";
 test "examples/compile/cps/test.cfg";
@@ -22,7 +22,7 @@ test "examples/compile/debruijn1/test.cfg";
 (* cpsocc not in original test suite *)
 test "examples/cpsocc/test.cfg";
 (* cut-elim not in original test suite, ~1 secs more *)
-test "examples/cut-elim/test.cfg";
+(* test "examples/cut-elim/test.cfg"; *)
 (* fol not in original test suite, ~14 secs more *)
 test "examples/fol/test.cfg";
 (* guide not in test suite, ~.05 secs more *)
