@@ -540,15 +540,14 @@ struct
 
     fun namePrefOf' (Exist, NONE) = "X"
       | namePrefOf' (Univ _, NONE) = "x"
-      | namePrefOf' (role, SOME(IntSyn.Const cid)) = namePrefOf'' (role, Array.sub (namePrefArray, cid))
-      | namePrefOf' (role, SOME(IntSyn.Def cid)) = namePrefOf'' (role, Array.sub (namePrefArray, cid))
+      | namePrefOf' (role, SOME(cid)) = namePrefOf'' (role, Array.sub (namePrefArray, cid))
 
     (* namePrefOf (role, V) = name
        where name is the preferred base name for a variable with type V
 
        V should be a type, but the code is robust, returning the default "X" or "x"
     *)
-    fun namePrefOf (role, V) = namePrefOf' (role, IntSyn.targetHeadOpt V)
+    fun namePrefOf (role, V) = namePrefOf' (role, IntSyn.targetFamOpt V)
 
   end  (* local ... *)
 
@@ -724,6 +723,8 @@ struct
         let fun cdfd (IntSyn.Null) = false
 	      | cdfd (IntSyn.Decl(G', IntSyn.Dec(SOME(name'),_))) =
                   name = name' orelse cdfd G'
+              | cdfd (IntSyn.Decl(G', IntSyn.BDec(SOME(name'),_))) =
+		  name = name' orelse cdfd G'
 	      | cdfd (IntSyn.Decl(G', _)) = cdfd G'
 	in
 	  cdfd G
@@ -804,7 +805,7 @@ struct
     fun bvarName (G, k) =
         (case IntSyn.ctxLookup (G, k)
 	   of IntSyn.Dec(SOME(name), _) => name
-            | _ => raise Unprintable)
+	    | _ => raise Unprintable)
               (* NONE should not happen *)
 
     (* decName' role (G, D) = G,D'
@@ -823,6 +824,18 @@ struct
 	if varDefined name orelse conDefined name
 	  orelse ctxDefined (G, name)
 	  then IntSyn.Dec (SOME (tryNextName (G, baseOf name)), V)
+	else D
+      | decName' role (G, D as IntSyn.BDec (NONE, b as (cid, t))) =
+        (* use #l as base name preference for label l *)
+	let
+	  val name = findName (G, "#" ^ IntSyn.conDecName (IntSyn.sgnLookup cid), Local)
+	in
+	  IntSyn.BDec (SOME(name), b)
+	end
+      | decName' role (G, D as IntSyn.BDec (SOME(name), b as (cid, t))) =
+	if varDefined name orelse conDefined name
+	  orelse ctxDefined (G, name)
+	  then IntSyn.BDec (SOME (tryNextName (G, baseOf name)), b)
 	else D
 
     val decName = decName' Exist
