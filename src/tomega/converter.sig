@@ -8,7 +8,7 @@ sig
   structure Tomega : TOMEGA
 
   exception Error of string
-  exception Error' of Tomega.For
+  exception Error' of Tomega.Sub
 
   val convertFor : IntSyn.cid list -> Tomega.For
   val installFor : IntSyn.cid list -> unit

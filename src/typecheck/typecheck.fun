@@ -200,6 +200,14 @@ struct
 	      then ()
 	    else raise Error "Substitution in block declaration not well-typed"
 	end
+      | checkSub (G', I.Dot (I.Block (I.Inst I), t), I.Decl (G, (I.BDec (_, (l, s))))) =
+	let
+	  val _ = checkSub (G', t, G)
+	  val (G, L) = I.constBlock l
+	  val _ = checkBlock (G', I, (I.comp (s, t), L))
+	in
+	  ()
+	end
       | checkSub (G', s as I.Dot (_, _), I.Null) =
 	raise Error ("Long substitution" ^ "\n" ^ subToString (G', s)) 
       (*
@@ -208,6 +216,10 @@ struct
       | checkSub (G', I.Dot (I.Block (I.LVar _), t), G) =
 	raise Error "Unexpected LVar in substitution after abstraction"
       *)
+
+    and checkBlock (G, nil, (_, nil)) = ()
+      | checkBlock (G, U :: I, (t, I.Dec (_, V) :: L)) =
+        (checkExp (G, (U, I.id), (V, t)); checkBlock (G, I, (I.Dot (I.Exp U, t), L)))
 
     (* checkDec (G, (x:V, s)) = B
 

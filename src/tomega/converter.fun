@@ -45,7 +45,7 @@ struct
 
   exception Error of string 
 
-exception Error' of Tomega'.For
+exception Error' of Tomega.Sub
 
   local
     structure T = Tomega
@@ -862,40 +862,53 @@ exception Error' of Tomega'.For
         Invariant:
         iota = n.n-1....1
      *)
-    fun mk_iota (0) = nil
-      | mk_iota (n) = I.Root (I.BVar n, I.Nil) :: mk_iota (n-1)
+    fun mkInst (0) = nil
+      | mkInst (n) = I.Root (I.BVar (n), I.Nil) :: mkInst (n-1)
 
-    (* blockToIota (t, G) = t'
+(*    (* blockToIota (t, G, mt) = t'
      
        Invariant:
-       If   |- G is a block ctx
-       then G' |- t : .
-       and  G' |- t' : G
+       If   |- G0, G is a block ctx
+       and  G1 = deblockify G
+       and  G0, G' |- mt : G0, G1
+       and  G0, G' |- t : G0
+       then G0, G' |- t' : G0, G
     *)
-    fun blockToIota (t, I.Null) = t 
-      | blockToIota (t, I.Decl (G, I.BDec (x, (c, s)))) = 
+    fun blockToIota (t, I.Null, m) = t 
+      | blockToIota (t, I.Decl (G, I.BDec (x, (c, s))), m) = 
         let
-	  val t' = blockToIota (t, G)
 	  val (_, L) = I.constBlock c
+	  val n = List.length L
+	  val t' = blockToIota (t, G, m+n)
+	  val B = I.Inst (mk_iota n m)
 	in
-	  T.Dot (T.Block (I.Inst (mk_iota (List.length L))), t')
+	  T.Dot (T.Block B, t')
 	end
-
+*)
     
-    (* deblockify L = G'
+    (* deblockify G = (G', t')
      
        Invariant:
-       If   |- G is a block ctx
-       then |- G == G' 
-       and  |- G' is an LF context
+       If   |- G ctx
+       then G' |- t' : G 
     *)
-    fun deblockify  (I.Null) = I.Null
+    fun deblockify  (I.Null) = (I.Null, T.id)
       | deblockify  (I.Decl (G, I.BDec (x, (c, s)))) = 
         let
-	  val G' = deblockify  G
+	  val (G', t') = deblockify  G
+					(* G' |- t' : G *)
           val (_, L) = I.constBlock c
+	  val n = List.length L
+	  val G'' = append (G', (L, I.comp (s, T.coerceSub t')))
+					(* G'' = G', V1 ... Vn *)
+	  val t'' = T.comp (t', T.Shift n)
+					(* G'' |- t'' : G *)
+	  val I = I.Inst (mkInst n)
+					(* I = (n, n-1 ... 1)  *)
+	  val t''' = T.Dot (T.Block I, t'')
+					(* G'' |- t''' : G, x:(c,s) *)
 	in 
-	  append (G', (L, s))
+          (G'', t''')
 	end
     and append (G', (nil, s)) = G'
       | append (G', (D :: L, s)) = 
@@ -1109,12 +1122,16 @@ val _ = print "[3"
 
               val P''' = lift (B', P'') (* Psi0, G' |- P''' :: F''' *)
   
-              val GB' = deblockify  B'    (* Psi0, G' |- GB' ctx *)
+              val (GB', iota) = deblockify  B'    (* Psi0, G' |- GB' ctx *)
 
-	      val b4 = I.ctxLength GB'
-	      val iota = blockToIota (T.Shift b4, B')
+(*	      val b4 = I.ctxLength GB'
+	      val iota = blockToIota (T.Shift b4, B', 0)
 					(* Psi0, G', GB'  |- s' : Psi0, G', B' *)
-
+*)
+val _ = print "+"
+	      val _ = TypeCheck.typeCheckSub (GB', T.coerceSub iota, B') 
+		         handle TypeCheck.Error _ => raise Error' iota
+		
 	      val RR = Normalize.normalizeFor (F'', iota) 
  					(* Psi0, G, B |- w1 : Psi0, G', B' *)	
 					(* Psi0, G', GB'  |- s' : Psi0, G', B' *)
@@ -1154,12 +1171,13 @@ val _ = print "]"
 	      val _ = TomegaTypeCheck.checkCtx (append (Psi2, T.embedCtx B3'))
 
 	      val _ = TomegaTypeCheck.checkFor (Psi2, F4)
-		handle _ => raise Error' F4
+		handle _ => raise Error ""(* ' F4 *)
 
-	      val B3 = deblockify  B3'
+	      val (B3, sigma3) = deblockify  B3'
 
-	      val sigma3 = blockToIota (T.Shift (I.ctxLength B3), B3')
+(*	      val sigma3 = blockToIota (T.Shift (I.ctxLength B3), B3', 0)
 					(* Psi2, B3 |- sigma3 : Psi2,  B3' *)
+*)
               val Pat'' = Normalize.normalizePrg (Pat', sigma3)
 	      val Pat = raisePrg (B3, Pat'', F4)
 		                        (* Psi0, G3 |- Pat :: F4  *)
