@@ -97,7 +97,7 @@ struct
 	       val G = T.coerceCtx Psi
 	       val D' = Names.decName (G, D)
 	     in
-	       [Fmt.String "All {", P.formatDec (G, D'), 
+	       [Fmt.String "all {", P.formatDec (G, D'), 
 		Fmt.String "}", Fmt.Break] @
 	       formatFor' (I.Decl (Psi, T.UDec D'), F)
 	     end)
@@ -108,7 +108,7 @@ struct
 	       val G = T.coerceCtx Psi
 	       val D' = Names.decName (G, D)
 	     in
-	       [Fmt.String "All^ {", P.formatDec (G, D'), 
+	       [Fmt.String "all^ {", P.formatDec (G, D'), 
 		Fmt.String "}", Fmt.Break] @
 	       formatFor' (I.Decl (Psi, T.UDec D'), F)
 	     end)
@@ -117,7 +117,7 @@ struct
 	  val G = T.coerceCtx Psi
 	  val D' = Names.decName (G, D)
 	in
-	  [Fmt.String "Ex {", P.formatDec (G,  D'), Fmt.String "}", Fmt.Break] @
+	  [Fmt.String "exists {", P.formatDec (G,  D'), Fmt.String "}", Fmt.Break] @
 	  formatFor' (I.Decl (Psi, T.UDec D'), F)
 	end
       | formatFor' (Psi, T.Ex ((D, T.Implicit), F)) =
@@ -125,7 +125,7 @@ struct
 	  val G = T.coerceCtx Psi
 	  val D' = Names.decName (G, D)
 	in
-	  [Fmt.String "Ex^ {", P.formatDec (G,  D'), Fmt.String "}", Fmt.Break] @
+	  [Fmt.String "exists^ {", P.formatDec (G,  D'), Fmt.String "}", Fmt.Break] @
 	  formatFor' (I.Decl (Psi, T.UDec D'), F)
 	end
       | formatFor' (Psi, T.And (F1, F2)) = 
@@ -135,9 +135,9 @@ struct
 	   Fmt.HVbox (formatFor' (Psi, F1)),
 	   Fmt.String ")"]
       | formatFor' (Psi, T.True) = 
-	[Fmt.String "True"]
+	[Fmt.String "true"]
       | formatFor' (Psi, T.World (T.Worlds L, F)) =
-	  [Fmt.String "World (", Fmt.HVbox (formatWorld L), Fmt.String ")", Fmt.Break] @
+	  [Fmt.String "world (", Fmt.HVbox (formatWorld L), Fmt.String ")", Fmt.Break] @
 	  formatFor' (Psi, F)
 	
 	
