@@ -254,6 +254,8 @@ struct
     *)
     and collectDec (G, (I.Dec (_, V), s), K) =
           collectExp (G, (V, s), K)
+      | collectDec (G, (I.BDec (_, t), s), K) =
+	  collectSub (G, I.comp (t, s), K)      (* Nov 26 11:28:36 EST 2001 -cs !!! *)
 
     (* collectSub (G, s, K) = K' 
 
