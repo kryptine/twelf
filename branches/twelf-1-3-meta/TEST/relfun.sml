@@ -53,19 +53,18 @@ in
   val _ = Twelf.chatter := 1
 (*  val _ = FunNames.reset(); --cs *)
   
+
+
   (* Regression print for Mini-ML *)
   val _ = load "examples/mini-ml/sources.cfg"
   val _ = Twelf.loadFile "examples/mini-ml/reduce.elf"
   val _ = print ["eval"]
-
-
-
   val _ = print ["value"]
   val _ = print ["vs"]
   val _ = print ["tps"]
   val _ = print ["==>"]
-(*  val _ = print ["==>*"]     -- error case: Lemmas not yet available *)
-(*  val _ = print ["closed"]   -- error case check back later *)
+  val _ = print ["==>*"]
+  val _ = print ["closed"]
 
   (* Regression print for prop-calc *)
   val _ = load "examples/prop-calc/sources.cfg"
@@ -109,21 +108,21 @@ in
   val _ = print ["s_sound", "h_sound", "i_sound"]
   val _ = print ["cmpcs", "cmpai"]
 
-(*
+
   (* Regression test for Cut-Elimination *)
   val _ = load "examples/cut-elim/sources.cfg"
   val _ = print ["ca"]
   val _ = print ["ce"]
   val _ = print ["ca'"]
   val _ = print ["ce'"]
-*)
 
 
 
   (* Regression test for Kolmogoroff translation *)
   val _ = load "examples/kolm/sources.cfg"
-  val _ = print ["kolm"]
+(*  val _ = print ["kolm"]
   val _ = print ["existskolm"]
+*)
   val _ = print ["nj_nk"]
   val _ = print ["equiv"]
   val _ = print ["complete"]
