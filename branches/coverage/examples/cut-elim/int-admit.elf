@@ -159,4 +159,4 @@ car_existsl : ca A D ([h:hyp A] existsl (E1 h) H) (existsl E1' H)
 %block l2 : block {a:i}.
 %block l3 : block {p:o}.
 %worlds (l1 | l2 | l3) (ca A D E F).
-%covers ca +A +D +E *P.
+% %covers ca +A +D +E *P.
