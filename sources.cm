@@ -3,5 +3,7 @@ Library
   structure Timing
   signature TWELF
   structure Twelf
+  signature MTPI
+  structure MTPi
 is
   src/frontend/sources.cm

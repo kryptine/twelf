@@ -5,6 +5,8 @@ Library
   structure CombiProver
   signature WEAKEN
   structure Weaken
+  signature MTPI
+  structure MTPi
 is
 #if defined(NEW_CM)
   $/basis.cm

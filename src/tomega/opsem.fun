@@ -89,6 +89,9 @@ struct
      | matchVal _ = raise NoMatch
 
 
+    fun append (G1, I.Null) = G1
+      | append (G1, I.Decl (G2, D)) = I.Decl (append (G1, G2), D)
+
 (* raisePrg is used in handling of NEW construct 
    raisePrg (G, P, F) = (P', F'))  
 
@@ -99,24 +102,28 @@ struct
        and  P = raise (G, P')   (using subordination)
        and  F = raise (G, F')   (using subordination)
 *)
-and raisePrg (G, T.Unit) = T.Unit
-      | raisePrg (G, T.PairPrg (P1, P2)) =
+and raisePrg (Psi, G, T.Unit) = T.Unit
+      | raisePrg (Psi, G, T.PairPrg (P1, P2)) =
         let 
-	  val P1' = raisePrg (G, P1)
-	  val P2' = raisePrg (G, P2)
+	  val P1' = raisePrg (Psi, G, P1)
+	  val P2' = raisePrg (Psi, G, P2)
 	in
 	  T.PairPrg (P1', P2')
 	end
-      | raisePrg (G, T.PairExp (U, P)) =
+      | raisePrg (Psi, G, T.PairExp (U, P)) =
 	let 
-	  val V = TypeCheck.infer' (G, U)
+	  val V = TypeCheck.infer' (append (T.coerceCtx Psi, G), U)    
+   (* this is a real time sink, it would be much better if we did not have to
+      compute the type information of U,  
+      more thought is required 
+   *)
 	  val w = S.weaken (G, I.targetFam V)
                                                    (* G  |- w  : G'    *)
 	  val iw = Whnf.invert w 	            (* G' |- iw : G     *)
 	  val G' = Whnf.strengthen (iw, G)        (* Psi0, G' |- B'' ctx *)
 
 	  val U' = A.raiseTerm (G', I.EClo (U, iw))
-	  val P' = raisePrg (G, P)
+	  val P' = raisePrg (Psi, G, P)
 	in
 	  T.PairExp (U', P')
 	end
@@ -200,7 +207,7 @@ and raisePrg (G, T.Unit) = T.Unit
 	     val _ = print (TomegaPrint.prgToString (I.Decl (Psi, D'''), V))
 	     val _ = print "."
 
-	     val newP = raisePrg (G, Normalize.normalizePrg (V, t'))
+	     val newP = raisePrg (Psi, G, Normalize.normalizePrg (V, t'))
 	     val _ = print (TomegaPrint.prgToString (Psi, newP))
 	     val _ = print "]\n"
 	   in 

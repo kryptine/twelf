@@ -14,6 +14,8 @@ Library
   structure Tomega
   structure ParseTerm
   structure ReconTerm
+  signature MTPI
+  structure MTPi
   signature TYPECHECK
   structure TypeCheck
 is
