@@ -12,9 +12,6 @@ struct
   local
     structure I = IntSyn
 
-    fun cidFromHead (I.Const c) = c
-      | cidFromHead (I.Def c) = c
-
     (* Index array                             
 
        Invariant: 
@@ -45,7 +42,7 @@ struct
     *)
     fun install (H as I.Const c) =
         (case I.sgnLookup (c)
-           of I.ConDec (_, _, _, _, A, I.Type) => update (cidFromHead (I.targetHead A), H)
+           of I.ConDec (_, _, _, _, A, I.Type) => update (I.targetFam A, H)
             | _ => ())
 
     fun remove (a, cid) =
@@ -57,7 +54,7 @@ struct
 
     fun uninstall cid =
         (case I.sgnLookup cid
-           of I.ConDec (_, _, _, _, A, I.Type) => remove (cidFromHead (I.targetHead A), cid)
+           of I.ConDec (_, _, _, _, A, I.Type) => remove (I.targetFam A, cid)
             | _ => ())
 
     fun resetFrom mark =

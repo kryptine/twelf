@@ -465,14 +465,6 @@ struct
         error (r, msg ^ "\n" ^ F.makestring_fmt amb)
       end
 
-  (* NOTE regarding type definitions:
-
-     We want to preserve the eta-long property for terms that end up
-     having types involving type definitions.  So the approximate version
-     (shape) of a type definition is expanded in makeApprox.  Also,
-     family-level lambda abstractions are discarded in the shape of a term
-     (which matches the discarding of arguments in applications). *)
-        
   fun whnfApprox (V) =
       let
         val (V', s) = Whnf.whnf (V, IntSyn.id)
@@ -520,9 +512,6 @@ struct
       in
         (IntSyn.Pi ((Da1, P), Va2), isType)
       end
-    | makeApproxW (IntSyn.Lam (_, V1)) = makeApprox V1
-    | makeApproxW (IntSyn.Root (IntSyn.Def d, S)) =
-        makeApprox (IntSyn.constDef d)
     | makeApproxW (IntSyn.Root (H, S)) =
         (IntSyn.Root (H, IntSyn.Nil), false)
 
@@ -567,7 +556,6 @@ struct
         val Da1 = approxReconDec (Ga, d1)
         val (Ua2Opt, Va2, r2) = approxReconShow (IntSyn.Decl (Ga, Da1), t2)
       in
-        (* discard abstraction in approximate result *)
         (Ua2Opt, IntSyn.Pi ((IntSyn.Dec (x, Va1), IntSyn.Maybe), Va2),
          Paths.join (r, r2))
       end
@@ -656,12 +644,9 @@ struct
     | approxReconHead (Ga, TermSyn.Const (H, condec, r)) =
       let
         val (Va, isType) = makeApprox (IntSyn.conDecType (condec))
-        val Va1 = if isType then
-                   let val (Va1, _ (* false *)) = makeApprox (IntSyn.Root (H, IntSyn.Nil))
-                   in SOME Va1 end
-                  else NONE
       in
-        (Va1, Va, r)
+        (if isType then SOME (IntSyn.Root (H, IntSyn.Nil))
+         else NONE, Va, r)
       end
 
   and approxReconSpine (Ga, Va, r, TermSyn.Nil) = (Va, r)
@@ -1154,7 +1139,10 @@ struct
 	val name = case optName of NONE => "_" | SOME(name) => name
 	val ocd = Paths.def (i, oc1, SOME(oc2))
         val cd = if abbFlag then Names.nameConDec (IntSyn.AbbrevDef (name, NONE, i, U'', V'', level))
-		 else (Strict.check ((U'', V''), SOME(ocd));
+		 else (case level
+			 of IntSyn.Kind => error (r, "Type definitions must use %abbrev")
+		          | _ => ();
+		       Strict.check ((U'', V''), SOME(ocd));
 		       Names.nameConDec (IntSyn.ConDef (name, NONE, i, U'', V'', level)))
 		    
        val _ = if !Global.chatter >= 3
@@ -1182,7 +1170,10 @@ struct
 	val name = case optName of NONE => "_" | SOME(name) => name
 	val ocd = Paths.def (i, oc1, NONE)
         val cd = if abbFlag then Names.nameConDec (IntSyn.AbbrevDef (name, NONE, i, U'', V'', level))
-		 else (Strict.check ((U'', V''), SOME(ocd));
+		 else (case level
+			 of IntSyn.Kind => error (r, "Type definitions must use %abbrev")
+		          | _ => ();
+		       Strict.check ((U'', V''), SOME(ocd));
 		       Names.nameConDec (IntSyn.ConDef (name, NONE, i, U'', V'', level)))
 	           
         val _ = if !Global.chatter >= 3

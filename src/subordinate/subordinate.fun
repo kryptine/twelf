@@ -72,7 +72,6 @@ struct
 
     fun fSet (a, frozen) = fInsert (a, frozen)
 
-    (* pre: a is not a type definition *)
     fun checkFreeze (c, a) =
         if fGet a
         then raise Error ("Freezing violation: constant "
@@ -87,13 +86,11 @@ struct
                      ^ "\nwould depend on unfrozen type family "
                      ^ Names.qidToString (Names.constQid a))
 
-    (* pre: a, b are not type definitions *)
     fun checkFrozenSub (a, b) =
         (case (fGet a, fGet b)
            of (false, true) => frozenSubError (a, b)
             | _ => ())
 
-    (* pre: b is not a type definition *)
     fun checkMakeFrozen (b, otherFrozen) =
         let
           fun check a =
@@ -110,20 +107,9 @@ struct
           else List.app check BL
         end
 
-    fun expandFamilyAbbrevs a =
-        (case IntSyn.sgnLookup a
-           of IntSyn.ConDec _ => a
-            | IntSyn.SkoDec _ => a
-            | IntSyn.AbbrevDef _ =>
-                expandFamilyAbbrevs (IntSyn.targetFam (IntSyn.constDef a)))
-
     fun installFrozen (L) =
-        let
-          val L = map expandFamilyAbbrevs L
-        in
-          List.app (fn a => checkMakeFrozen (a, L)) L;
-          List.app (fn a => fSet (a, true)) L
-        end
+        (List.app (fn a => checkMakeFrozen (a, L)) L;
+         List.app (fn a => fSet (a, true)) L)
 
     (* a <| b = true iff a is (transitively) subordinate to b
 
@@ -243,8 +229,8 @@ struct
     fun installKind (I.Uni(L), a) =
         ( set (a, (nil, nil)) ; () )
       | installKind (I.Pi ((I.Dec (_, V1), P), V2), a) =
-        ( transClosure (I.targetFam V1, a) ;
-	  installKind (V2, a) )
+        ( installKind (V2, a);
+	  transClosure (I.targetFam V1, a)  )
 
     (* Passing around substitutions and calling whnf below is
        redundant, since the terms starts in normal form and
@@ -378,7 +364,6 @@ struct
 	     | SOME a => (case IntSyn.sgnLookup c
                             of IntSyn.ConDec _ => checkFreeze (c, a)
                              | IntSyn.SkoDec _ => checkFreeze (c, a)
-                               (* FIX: skolem types should probably be created frozen -kw *)
                              | _ => ();
                           (* installExp (I.Null, (V, I.id), (I.Uni I.Type, I.id)) *)
 			  (* simplified  Tue Mar 27 20:58:31 2001 -fp *)
