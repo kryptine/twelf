@@ -73,24 +73,24 @@ struct
      Effects: instantiation of EVars in g, s, and dp
               any effect  sc M  might have
   *)
-  fun gSolve ((C.Atom(p), s), dp as F.DProg (G, dPool), sc) =
+  fun gSolve ((C.Atom(p), s), dp as C.DProg (G, dPool), sc) =
       matchAtom ((p,s), dp, sc)
-    | gSolve ((C.Impl(r, A, a, g), s), F.DProg (G, dPool), sc) =
+    | gSolve ((C.Impl(r, A, a, g), s), C.DProg (G, dPool), sc) =
       let
 	val D' as I.Dec(SOME(x),_) = N.decUName (G, I.Dec(NONE, I.EClo(A,s)))
 	val _ = T.signal (G, T.IntroHyp (I.Const(a), D'))
       in
-	gSolve ((g, I.dot1 s), F.DProg (I.Decl(G, D'), I.Decl (dPool, SOME(r, s, a))),
+	gSolve ((g, I.dot1 s), C.DProg (I.Decl(G, D'), I.Decl (dPool, SOME(r, s, a))),
 	       (fn M => (T.signal (G, T.DischargeHyp (I.Const(a), D'));
 			 sc (I.Lam (D', M)))))
       end
-    | gSolve ((C.All(D, g), s), F.DProg (G, dPool), sc) =
+    | gSolve ((C.All(D, g), s), C.DProg (G, dPool), sc) =
       let
 	val D' as I.Dec(SOME(x),V) = N.decUName (G, I.decSub (D, s))
 	val a = I.targetFam V
 	val _ = T.signal (G, T.IntroParm (I.Const(a), D'))
       in
-	gSolve ((g, I.dot1 s), F.DProg (I.Decl(G, D'), I.Decl(dPool, NONE)),
+	gSolve ((g, I.dot1 s), C.DProg (I.Decl(G, D'), I.Decl(dPool, NONE)),
 	       (fn M => (T.signal (G, T.DischargeParm (I.Const(a),  D'));
 			 sc (I.Lam (D', M)))))
       end
@@ -109,7 +109,7 @@ struct
      Effects: instantiation of EVars in p[s'], r[s], and dp
               any effect  sc S  might have
   *)
-  and rSolve (ps', (C.Eq(Q), s), F.DProg (G, dPool), HcHa, sc) =
+  and rSolve (ps', (C.Eq(Q), s), C.DProg (G, dPool), HcHa, sc) =
       (T.signal (G, T.Unify (HcHa, I.EClo (Q, s), I.EClo ps'));
        case Unify.unifiable' (G, (Q, s), ps') (* effect: instantiate EVars *)
 	 of NONE => (T.signal (G, T.Resolved HcHa);
@@ -118,7 +118,7 @@ struct
 	  | SOME(msg) => (T.signal (G, T.FailUnify (HcHa, msg));
 			  false)	(* shallow backtracking *)
       )
-    | rSolve (ps', (C.And(r, A, g), s), dp as F.DProg (G, dPool), HcHa, sc) =
+    | rSolve (ps', (C.And(r, A, g), s), dp as C.DProg (G, dPool), HcHa, sc) =
       let
 	(* is this EVar redundant? -fp *)
 	val X = I.newEVar (G, I.EClo(A, s))
@@ -130,7 +130,7 @@ struct
 			 (fn M => 
 			  (sc (I.App (M, S))))))))
       end
-    | rSolve (ps', (C.Exists(I.Dec(_,A), r), s), dp as F.DProg (G, dPool), HcHa, sc) =
+    | rSolve (ps', (C.Exists(I.Dec(_,A), r), s), dp as C.DProg (G, dPool), HcHa, sc) =
       let
 	val X = I.newEVar (G, I.EClo (A,s))
       in
@@ -151,7 +151,7 @@ struct
      This first tries the local assumptions in dp then
      the static signature.
   *)
-  and matchAtom (ps' as (I.Root(Ha as I.Const(a),S),s), dp as F.DProg (G,dPool), sc) =
+  and matchAtom (ps' as (I.Root(Ha as I.Const(a),S),s), dp as C.DProg (G,dPool), sc) =
       let
         (* matchSig [c1,...,cn] = ()
 	   try each constant ci in turn for solving atomic goal ps', starting
@@ -228,8 +228,13 @@ struct
     | qSolve ((C.QueryVar(U, _, q), s), dp, sc) =
         qSolve ((q, I.Dot(I.Exp(U), s)), dp, sc)
 
+  fun gBoundedSolve _ = raise Fail "not implemented"
+  fun rBoundedSolve _ = raise Fail "not implemented"
+
+  val trail = CSManager.trail
+
   val solve = fn (q, sc) =>
-                 (T.init (); qSolve ((q, I.id), F.DProg(I.Null, I.Null), sc))
+                 (T.init (); qSolve ((q, I.id), C.DProg(I.Null, I.Null), sc))
   val reset = CSManager.reset
   end (* local ... *)
 

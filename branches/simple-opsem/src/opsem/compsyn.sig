@@ -21,10 +21,15 @@ sig
   | In   of ResGoal			(*     | r virt& (A,g)        *)
               * IntSyn.Exp * Goal       
   | Exists of IntSyn.Dec * ResGoal      (*     | exists x:A. r        *)
+  | True                                (*     | true                 *)
 
   and Query =
     QueryGoal of Goal
   | QueryVar  of IntSyn.Exp * IntSyn.Dec * Query
+
+  (* Dynamic programs: context with synchronous clause pool *)
+  datatype DProg =
+    DProg of (IntSyn.dctx * (ResGoal * IntSyn.Sub * IntSyn.cid) option IntSyn.Ctx)
 
   datatype GoalSol =
     DynAtom   of int * ResGoalSol
@@ -37,6 +42,7 @@ sig
     EqSol
   | AndSol    of ResGoalSol * GoalSol
   | ExistsSol of ResGoalSol
+  | TrueSol
 
   (* Explicit Substitutions *)
   val goalSub   : Goal * IntSyn.Sub -> Goal

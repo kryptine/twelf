@@ -16,10 +16,7 @@ struct
   structure CompSyn = CompSyn'
   structure I = IntSyn
 
-  (* The dynamic clause pool --- compiled version of the context *)
-  (* Dynamic programs: context with synchronous clause pool *)
-
-  datatype DProg = DProg of IntSyn.dctx * (CompSyn.ResGoal * IntSyn.Sub * IntSyn.cid) option IntSyn.Ctx
+  type DProg = CompSyn.DProg
 
   (* Static programs --- compiled version of the signature *)
   datatype ConDec =			(* Compiled constant declaration *)
@@ -45,17 +42,17 @@ struct
      then |- G ~> dPool  (context G compile to clause pool dPool)
      and  |- dPool  dpool
   *)
-  fun compileCtx (G) =
+  fun compileCtx fromCS (G) =
       let 
 	fun compileCtx' (I.Null) = I.Null
 	  | compileCtx' (I.Decl (G, D as I.Dec (_, A))) =
 	    let 
 	      val a = I.targetFam A
 	    in
-	      I.Decl (compileCtx' (G), SOME (PTCompile.compileClause false A, I.id, a))
+	      I.Decl (compileCtx' (G), SOME (PTCompile.compileClause fromCS A, I.id, a))
 	    end
       in
-	DProg (G, compileCtx' (G))
+	CompSyn.DProg (G, compileCtx' (G))
       end
 
   fun compileGoal V = PTCompile.compileGoal false V

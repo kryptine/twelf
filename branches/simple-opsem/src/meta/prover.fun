@@ -14,6 +14,9 @@ functor MTProver (structure IntSyn' : INTSYN
 		    sharing MTPInit.StateSyn = StateSyn
 		  structure MTPStrategy : MTPSTRATEGY
 		    sharing MTPStrategy.StateSyn = StateSyn
+                  structure MTPSplitting : MTPSPLITTING
+                  structure MTPRecursion : MTPRECURSION
+                  structure MTPFilling : MTPFILLING
 		  structure RelFun : RELFUN
 		    sharing RelFun.FunSyn = FunSyn)
   : PROVER =
@@ -140,9 +143,9 @@ struct
     fun auto () =
 	let 
 	  val (Open, solvedStates') = MTPStrategy.run (!openStates)
-	     handle Splitting.Error s => error ("Splitting Error: " ^ s)
-		  | Filling.Error s => error ("Filling Error: " ^ s)
-		  | Recursion.Error s => error ("Recursion Error: " ^ s)
+	     handle MTPSplitting.Error s => error ("Splitting Error: " ^ s)
+		  | MTPFilling.Error s => error ("Filling Error: " ^ s)
+		  | MTPRecursion.Error s => error ("Recursion Error: " ^ s)
 
 	  val _ = openStates := Open
 	  val _ = solvedStates := (!solvedStates) @ solvedStates' 

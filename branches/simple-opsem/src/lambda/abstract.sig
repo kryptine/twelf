@@ -8,6 +8,7 @@ sig
 
   exception Error of string
 
+  val occursInExp : int * IntSyn.Exp -> IntSyn.Depend
   val piDepend  : (IntSyn.Dec * IntSyn.Depend) * IntSyn.Exp -> IntSyn.Exp
   val closedDec : IntSyn.Dec IntSyn.Ctx * (IntSyn.Dec * IntSyn.Sub) -> bool
   val closedSub : IntSyn.Dec IntSyn.Ctx * IntSyn.Sub -> bool

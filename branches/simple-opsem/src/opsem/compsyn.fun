@@ -23,10 +23,17 @@ struct
   | In     of ResGoal                   (*     | r && (A,g)           *)
               * IntSyn.Exp * Goal       
   | Exists of IntSyn.Dec * ResGoal      (*     | exists x:A. r        *)
+  | True                                (*     | true                 *)
 
   and Query =
     QueryGoal of Goal
   | QueryVar  of IntSyn.Exp * IntSyn.Dec * Query
+
+  (* The dynamic clause pool --- compiled version of the context *)
+  (* Dynamic programs: context with synchronous clause pool *)
+
+  datatype DProg =
+    DProg of IntSyn.dctx * (ResGoal * IntSyn.Sub * IntSyn.cid) option IntSyn.Ctx
 
   datatype GoalSol =
     DynAtom   of int * ResGoalSol
@@ -39,6 +46,7 @@ struct
     EqSol
   | AndSol    of ResGoalSol * GoalSol
   | ExistsSol of ResGoalSol
+  | TrueSol
 
   (* Representation invariants for compiled syntax:
      Judgments:
@@ -107,5 +115,6 @@ struct
         In (resGoalSub (r, IntSyn.dot1 s), IntSyn.EClo(A,s), goalSub (g, s))
     | resGoalSub (Exists(D, r), s) =
         Exists (IntSyn.decSub(D, s), resGoalSub (r, IntSyn.dot1 s))
+    | resGoalSub (True, s) = True
 
 end;  (* functor CompSyn *)

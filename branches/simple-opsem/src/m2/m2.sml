@@ -28,6 +28,7 @@ structure Init =
   Init (structure MetaSyn' = MetaSyn
 	structure MetaAbstract = MetaAbstract);
 
+(*
 structure Search = 
   Search (structure MetaGlobal = MetaGlobal
 	  structure IntSyn' = IntSyn
@@ -42,6 +43,7 @@ structure Search =
 	  structure Print = Print
 	  structure Names = Names
           structure CSManager = CSManager); 
+*)
 
 structure Lemma =
   Lemma (structure MetaSyn' = MetaSyn
@@ -59,6 +61,7 @@ structure Splitting =
 	     structure Unify = UnifyTrail
              structure CSManager = CSManager);
 
+(*
 structure Filling =
   Filling (structure Global = Global
 	   structure MetaSyn' = MetaSyn
@@ -148,7 +151,7 @@ structure Mpi =
        structure Names = Names
        structure Timers = Timers
        structure Ring = Ring);
-
+*)
 structure Skolem = 
   Skolem (structure Global = Global
           structure IntSyn' = IntSyn
@@ -158,5 +161,5 @@ structure Skolem =
 	  structure ModeSyn = ModeSyn
 	  structure Print = Print
 	  structure Timers = Timers
-	  structure Compile = FullComp
+	  structure Compile = SimpComp
 	  structure Names = Names);

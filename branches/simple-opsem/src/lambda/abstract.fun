@@ -555,6 +555,7 @@ struct
 
   in
 
+    val occursInExp = occursInExp
     val piDepend = piDepend
     val closedDec = closedDec
     val closedSub = closedSub

@@ -313,14 +313,14 @@ struct
     | unifyExpW ((Lam (U1), s1), (Lam (U2), s2)) =           
         unifyExp ((U1, dot1 s1),(U2, dot1 s2))
 
-    | unifyExpW ((Lam (U1), s1), (U2, s2)) = (*raise Fail "Eta violation"*)
+    | unifyExpW ((Lam (U1), s1), (U2, s2)) =
 	(* ETA: can't occur if eta expanded*)
 	unifyExp ((U1, dot1 s1),
                   (Redex (EClo (U2, shift), App (Root (BVar (1), Nil), Nil)), dot1 s2))
         (* for rhs:  (U2[s2])[^] 1 = U2 [s2 o ^] 1 = U2 [^ o (1. s2 o ^)] 1
                      = (U2 [^] 1) [1.s2 o ^] *) 
 
-    | unifyExpW ((U1, s1), (Lam (U2), s2)) = (*raise Fail "Eta violation"*)
+    | unifyExpW ((U1, s1), (Lam (U2), s2)) =
         (* Cannot occur if expressions are eta expanded *)
 	unifyExp ((Redex (EClo (U1, shift), App (Root (BVar (1), Nil), Nil)), dot1 s1),
                   (U2, dot1 s2))  

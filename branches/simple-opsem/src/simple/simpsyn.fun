@@ -104,15 +104,23 @@ struct
   | All    of Goal
 
   and ResGoal =
-    Eq     of Exp
-  | And    of ResGoal * Goal
-  | Exists of int * ResGoal  (* EVars are pre-lowered -- the int
-                                is a count of the number of abstractions
-                                in the type of the variable *)
+    True
+  | Eq         of Exp
+  | And        of ResGoal * Goal
+  | AndMeta    of ResGoal * Goal
+  | Exists     of int * ResGoal  (* EVars are pre-lowered -- the int
+                                    is a count of the number of abstractions
+                                    in the type of the variable *)
+  | ExistsMeta of int * ResGoal
 
   and Query =
     QueryGoal of Goal
   | QueryVar  of Exp * Query
+
+  (* Dynamic programs: clause pool *)
+  (* In the simple compiler there is no context because types
+     are unnecessary. *)
+  type DProg = CompSyn.DProg * ((ResGoal * Sub * IntSyn.cid) option) IntSyn.Ctx
 
   val id = Shift(0)
   val shift = Shift(1)
@@ -177,5 +185,8 @@ struct
   and rawFront (t, Idx(n)) = "Idx(" ^ Int.toString(n) ^ ")"
     | rawFront (t, Exp(U)) = "Exp(" ^ rawExp(t^"    ", U) ^ ")"
     | rawFront (t, Undef) = "Undef"
+
+  and rawEClo (t, (U, s)) = "(" ^ rawExp(t^" ", U) ^ ",\n" ^ t
+                          ^ " " ^ rawSub(t^" ", s) ^ ")"
 
 end

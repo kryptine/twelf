@@ -19,6 +19,9 @@ functor UniqueSearch (structure Global : GLOBAL
 			sharing Unify.IntSyn = IntSyn'
 		      structure Index : INDEX
 		        sharing Index.IntSyn = IntSyn'
+                      structure PTCompile : PTCOMPILE
+                        sharing PTCompile.IntSyn = IntSyn'
+                        sharing PTCompile.CompSyn = CompSyn'
 		      structure FullComp : FULLCOMP
 			sharing FullComp.IntSyn = IntSyn'
 			sharing FullComp.CompSyn = CompSyn'
@@ -156,20 +159,20 @@ struct
        if  G |- M :: g[s] then G |- sc :: g[s] => Answer, Answer closed
   *)
   fun solve (max, depth, (C.Atom p, s), dp, sc, acc) = matchAtom (max, depth, (p,s), dp, sc, acc)
-    | solve (max, depth, (C.Impl (r, A, cid, g), s), FullComp.DProg (G, dPool), sc, acc) =
+    | solve (max, depth, (C.Impl (r, A, cid, g), s), CompSyn.DProg (G, dPool), sc, acc) =
        let
 	 val D' = I.Dec (NONE, I.EClo (A, s))
        in
 	 solve (max, depth+1, (g, I.dot1 s), 
-		FullComp.DProg (I.Decl(G, D'), I.Decl (dPool, SOME(r, s, cid))),
+		CompSyn.DProg (I.Decl(G, D'), I.Decl (dPool, SOME(r, s, cid))),
 		(fn (M, acc') => sc (I.Lam (D', M), acc')), acc)
        end
-    | solve (max, depth, (C.All (D, g), s), FullComp.DProg (G, dPool), sc, acc) =
+    | solve (max, depth, (C.All (D, g), s), CompSyn.DProg (G, dPool), sc, acc) =
        let
 	 val D' = I.decSub (D, s)
        in
 	 solve (max, depth+1, (g, I.dot1 s), 
-		FullComp.DProg (I.Decl (G, D'), I.Decl (dPool, NONE)),
+		CompSyn.DProg (I.Decl (G, D'), I.Decl (dPool, NONE)),
 		(fn (M, acc') => sc (I.Lam (D', M), acc')), acc)
        end
 
@@ -186,13 +189,13 @@ struct
 	    used in the universal case for max search depth)
        if G |- S :: r[s] then G |- sc : (r >> p[s']) => Answer
   *)
-  and rSolve (max, depth, ps', (C.Eq Q, s), FullComp.DProg (G, dPool), sc, acc) =
+  and rSolve (max, depth, ps', (C.Eq Q, s), CompSyn.DProg (G, dPool), sc, acc) =
       if Unify.unifiable (G, ps', (Q, s))
 	then sc (I.Nil, acc)
       else acc
       (* replaced below by above.  -fp Mon Aug 17 10:41:09 1998
         ((Unify.unify (ps', (Q, s)); sc (I.Nil, acck)) handle Unify.Unify _ => acc) *)
-    | rSolve (max, depth, ps', (C.And(r, A, g), s), dp as FullComp.DProg (G, dPool), sc, acc) =
+    | rSolve (max, depth, ps', (C.And(r, A, g), s), dp as CompSyn.DProg (G, dPool), sc, acc) =
       let
 	(* is this EVar redundant? -fp *)
 	val X = I.newEVar (G, I.EClo(A, s))
@@ -202,7 +205,7 @@ struct
 				(fn (M, acc'') => sc (I.App (M, S), acc'')), acc')), acc)
 
       end
-    | rSolve (max, depth, ps', (C.In (r, A, g), s), dp as FullComp.DProg (G, dPool), sc, acc) =
+    | rSolve (max, depth, ps', (C.In (r, A, g), s), dp as CompSyn.DProg (G, dPool), sc, acc) =
       let
 					(* G |- g goal *)
 					(* G |- A : type *)
@@ -223,13 +226,13 @@ struct
 	rSolve (max, depth, ps', (r, I.Dot (I.Exp (X'), s)), dp,
 		(fn (S, acc') => 
 		 if isInstantiated X then sc (I.App (X', S), acc')
-		 else  solve (max, 0, (g, s'), FullComp.DProg (G0, dPool0),
+		 else  solve (max, 0, (g, s'), CompSyn.DProg (G0, dPool0),
 			      (fn (M, acc'') => 
 			       ((Unify.unify (G0, (X, I.id), (M, I.id)); 
 				 sc (I.App (I.EClo (M, w), S), acc'')) 
 				handle Unify.Unify _ => acc'')), acc')), acc)
       end
-    | rSolve (max, depth, ps', (C.Exists (I.Dec (_, A), r), s), dp as FullComp.DProg (G, dPool), sc, acc) =
+    | rSolve (max, depth, ps', (C.Exists (I.Dec (_, A), r), s), dp as CompSyn.DProg (G, dPool), sc, acc) =
         let
 	  val X = I.newEVar (G, I.EClo (A, s))
 	in
@@ -250,7 +253,7 @@ struct
   and matchAtom (0, _, _, _, _, acc) = acc
     | matchAtom (max, depth, 
 		 ps' as (I.Root (I.Const cid, _), _), 
-		 dp as FullComp.DProg (G, dPool), sc, acc) =
+		 dp as CompSyn.DProg (G, dPool), sc, acc) =
       let
 	fun matchSig' (nil, acc') = acc'
 	  | matchSig' (H ::sgn', acc') =
@@ -300,8 +303,8 @@ struct
 	   Check if there are still variables left over
 	*)
       | searchEx' max ((X as I.EVar (r, G, V, _)) :: GE, sc, acc) = 
-	  solve (max, 0, (FullComp.compileGoal V, I.id), 
-		 FullComp.compileCtx G,
+	  solve (max, 0, (PTCompile.compileGoal false V, I.id), 
+		 FullComp.compileCtx false G,
 		 (fn (U', acc') => (Unify.unify (G, (X, I.id), (U', I.id));
 					 searchEx' max (GE, sc, acc')) handle Unify.Unify _ => acc'), acc)
 

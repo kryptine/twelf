@@ -8,21 +8,23 @@
 signature FULLCOMP =
 sig
 
-  include COMPILE
+  structure IntSyn: INTSYN
+  structure CompSyn: COMPSYN
 
-  (* Dynamic programs: context with synchronous clause pool *)
-  datatype DProg = DProg of (IntSyn.dctx * (CompSyn.ResGoal * IntSyn.Sub * IntSyn.cid) option IntSyn.Ctx)
+  type DProg = CompSyn.DProg
+
+  val compileCtx : bool -> IntSyn.dctx -> DProg
+
+  val installResGoal : IntSyn.cid * CompSyn.ResGoal -> unit
+  val install : bool -> IntSyn.cid -> unit
+  val reset : unit -> unit
+  (*include COMPILE where type DProg = CompSyn.DProg*)
 
   (* Static programs --- compiled version of the signature *)
   datatype ConDec =			(* Compiled constant declaration *)
     SClause of CompSyn.ResGoal          (* c : A                      *)
   | Void 		                (* Other declarations are ignored  *)
 
-  val sProgInstall : IntSyn.cid * ConDec -> unit
   val sProgLookup: IntSyn.cid -> ConDec
-  val sProgReset : unit -> unit
-
-  val compileCtx: IntSyn.Dec IntSyn.Ctx -> DProg
-  val compileGoal: IntSyn.Exp -> CompSyn.Goal
 
 end
