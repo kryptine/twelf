@@ -1537,13 +1537,13 @@ exception Error' of Tomega.Sub
 	  val name = I.conDecName (I.sgnLookup cid)
 	  val lemma = T.lemmaAdd (T.ValDec (name, P, F))
 	in
-	  (lemma, [])
+	  (lemma, [], [])
 	end
       | installPrg cids = 
 	let 
 	  val F = convertFor cids
 	  val Proj = createProjection (I.Null, F, fn P => P)
-	  val projs = installProjection (cids, 0, F, Proj)
+	  val projs = installProjection (cids, 1, F, Proj)
 
 	  val P = convertPrg (cids, SOME projs)
 	  val s = name cids
@@ -1553,7 +1553,7 @@ exception Error' of Tomega.Sub
 	  val sels = installSelection (cids, projs, F, lemma)
 
 	in
-	  (lemma, projs)
+	  (lemma, projs, sels)
 	end
 
 

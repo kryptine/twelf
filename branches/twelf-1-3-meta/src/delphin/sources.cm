@@ -3,6 +3,8 @@ Library
    structure Delphin
    signature TRANS
    structure Trans
+   signature TOMEGA
+   structure Tomega
 is
    ../frontend/sources.cm
    ../stream/sources.cm

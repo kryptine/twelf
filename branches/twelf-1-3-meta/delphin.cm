@@ -5,6 +5,8 @@ Library
   structure Timing
   signature TWELF
   structure Twelf
+  signature TOMEGA
+  structure Tomega
 is
   src/frontend/sources.cm
   src/delphin/sources.cm
