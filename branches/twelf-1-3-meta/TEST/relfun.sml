@@ -53,7 +53,6 @@ in
   val _ = Twelf.chatter := 1
 (*  val _ = FunNames.reset(); --cs *)
   
-(*
   (* Regression print for Mini-ML *)
   val _ = load "examples/mini-ml/sources.cfg"
   val _ = Twelf.loadFile "examples/mini-ml/reduce.elf"
@@ -87,7 +86,6 @@ in
   val _ = print ["cpt"] 
   val _ = print ["new"]
 
-*)
 
   (* Regression test for Church-Rosser *)
   val _ = load "examples/church-rosser/sources.cfg"
@@ -95,12 +93,44 @@ in
   val _ = print ["append"]
   val _ = print ["subst"] 
   val _ = print ["dia"] 
-
-(*      -- problem here.  Lemmas not yet supported
-
   val _ = print ["strip"] 
   val _ = print ["conf"]
   val _ = print ["cr"]
+
+
+
+  (* Regression test for logic programming *)
+  val _ = Twelf.loadFile "TEST/evenodd.elf"
+  val _ = test ["even", "odd"]
+
+
+  (* Regression test for logic programming *)
+  val _ = load "examples/lp-horn/sources.cfg"
+  val _ = test ["can", "atm"]
+  val _ = test ["iscan", "isatm"]
+  val _ = test ["s_sound", "h_sound", "i_sound"]
+  val _ = test ["cmpcs", "cmpai"]
+  val _ = test ["gl", "pg"]
+  val _ = test ["r_total"]
+  (* Cannot work yet because we do not have mutual
+     recursive functions.
+  *)
+
+
+
+
+(*
+  (* Regression test for logic programming *)
+  val _ = load "examples/lp/sources.cfg"
+  val _ = test ["can", "atm"]
+  val _ = test ["iscan", "isatm"]
+  val _ = test ["s_sound", "h_sound", "i_sound"]
+  val _ = test ["cmpcs", "cmpai"]
+  val _ = test ["gl", "pg"]
+  val _ = test ["r_total"]
+  (* Cannot work yet because we do not have mutual
+     recursive functions.
+  *)
 *)
 
 (*
@@ -143,19 +173,5 @@ in
 
 *)
 
-(*
-  (* Regression test for logic programming *)
-  val _ = load "examples/lp/sources.cfg"
-  val _ = test ["can", "atm"]
-  val _ = test ["iscan", "isatm"]
-  val _ = test ["s_sound", "h_sound", "i_sound"]
-  val _ = test ["cmpcs", "cmpai"]
-  val _ = test ["gl", "pg"]
-  val _ = test ["r_total"]
-  (* Cannot work yet because we do not have mutual
-     recursive functions.
-  *)
-
-*)
 end
 

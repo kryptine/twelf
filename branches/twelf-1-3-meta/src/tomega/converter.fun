@@ -53,6 +53,8 @@ exception Error' of Tomega'.For
     structure M = ModeSyn
     structure S = Subordinate    
     structure A = Abstract
+ 
+
 
     fun modeSpine a =
         case M.modeLookup a
@@ -979,15 +981,43 @@ exception Error' of Tomega'.For
 	      val n = domain (Psi1, w1)	(* n = |Psi0, G', B'| *)
 	      val m = I.ctxLength Psi0  (* m = |Psi0| *)
 
-	      fun lookup (b :: L, a) = 
+
+              (* lookup (L, a) = (H, F) *)
+
+	
+	      fun lookup (nil, a) = 
+		  let
+		    val s = I.conDecName (I.sgnLookup a)
+		    val l = T.lemmaName s
+		    val T.ValDec (_, P, F) = T.lemmaLookup l
+		  in
+		    (T.Const l, F)
+		  end
+		| lookup (b :: L, a) = 
+		  if a = b then 
+		    let 
+		      val k = 1 + (List.length L) 
+		      val T.PDec(_, F) = I.ctxLookup (Psi0, k)
+					(* . |- F : for *)
+		      val k' = k + n - m	
+					(* Psi0, G', B' |- k' :: F  *)
+		    in
+		      (T.Var k', F)
+		    end
+		  else lookup (L, a)
+	
+	      val (H, F) = lookup (L, a)
+
+(*	      fun lookup (b :: L, a) = 
 		  if a = b then 1 + (List.length L) 
 		  else lookup (L, a)
+		 
 
 	      val k = lookup (L, a)   
 	      val T.PDec(_, F) = I.ctxLookup (Psi0, k)
 					(* . |- F : for *)
 	      val k' = k + n - m	(* Psi0, G', B' |- k' :: F  *)
-		
+*)		
 	      (* apply ((S, mS), F')= (S'', F'')
 	        
 	         Invariant:
@@ -1026,7 +1056,7 @@ exception Error' of Tomega'.For
 	
 
 
-	      val P'' = T.Root (T.Var k', S'')
+	      val P'' = T.Root (H (*T.Var k' *) , S'')
 					(* Psi0, G', B' |- P'' :: F'' *)
 
 	      val b = I.ctxLength B     (* b = |B| = |B'| *)
@@ -1216,6 +1246,8 @@ exception Error' of Tomega'.For
       | staticSig (I.ConDec (name, _, _, _, V, I.Type) :: Sig) =
           (I.Null, V) :: staticSig Sig
 
+    fun name [a] = I.conDecName (I.sgnLookup a)
+      | name (a :: L) = I.conDecName (I.sgnLookup a) ^ "/" ^ (name L)
         
     (* convertPrg L = P'
 
@@ -1234,8 +1266,6 @@ exception Error' of Tomega'.For
 	    val (Psi, P, F) = createIHCtx (I.Null, L)
 	    val t = T.Dot (T.Prg P, T.Shift (I.ctxLength Psi))
 	      
-	    fun name [a] = I.conDecName (I.sgnLookup a)
-	      | name (a :: L) = I.conDecName (I.sgnLookup a) ^ "/" ^ (name L)
 	  in
 	    (Psi, fn p => T.Rec (T.PDec (SOME (name L), F), 
 				 T.Case (T.Cases [(Psi, t, p)])), F)
@@ -1337,6 +1367,32 @@ exception Error' of Tomega'.For
 	end
 *)
 
+
+    fun createProjection (Psi, T.And (F1, F2), Pattern) = 
+          createProjection (I.Decl (Psi, T.PDec (NONE, F1)), F2, 
+			    fn P => T.PairPrg (T.Root (T.Var (1+ I.ctxLength Psi), T.Nil),
+					       Pattern P))
+      | createProjection (Psi, F,  Pattern) =
+          fn k => T.Case (T.Cases [(I.Decl (Psi, T.PDec (NONE, F)),
+			    T.Dot (T.Prg (Pattern (T.Root (T.Var 1, T.Nil))), T.id),
+			    T.Root (T.Var k, T.Nil))])
+	  
+    fun installMutual ([cid], F, k, Proj) = 
+        let
+	  val name = I.conDecName (I.sgnLookup cid)
+	  val _ = T.lemmaAdd (T.ValDec (name, Proj k , F))
+	in
+	  ()
+	end
+      | installMutual (cid :: cids, T.And (F1, F2), k, Proj) =
+        let
+	  val name = I.conDecName (I.sgnLookup cid)
+	  val _ = T.lemmaAdd (T.ValDec (name, Proj k , F1))
+	in
+	  installMutual (cids, F2, k+1, Proj)
+	end
+
+
     fun installPrg [cid] = 
         let 
 	  val F = convertFor [cid]
@@ -1345,6 +1401,18 @@ exception Error' of Tomega'.For
 	  val _ = T.lemmaAdd (T.ValDec (name, P, F))
 	in
 	  ()
+	end
+      | installPrg cids = 
+	let 
+	  val F = convertFor cids
+	  val P = convertPrg cids
+	  val s = name cids
+	  val l = T.lemmaAdd (T.ValDec (s, P , F))
+	  val Proj = fn k => T.Redex (T.Lam (T.PDec (NONE, F), 
+					     createProjection (I.Null, F, fn P => P) k),
+				      T.AppPrg (T.Root (T.Const l, T.Nil), T.Nil))
+	in
+	  installMutual (cids, F, 1, Proj)
 	end
 
 

@@ -33,3 +33,4 @@ atm_impe : atm (impe D (E : pf B))
 
 atm_foralle : atm (foralle D T)
 	       <- atm D.
+
