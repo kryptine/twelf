@@ -235,7 +235,8 @@ struct
        Effect: instantiate EVars in right-hand sides of equations.
     *)
     fun resolveCands (Eqns (es)) =
-        if matchEqns (es) then (Eqns (nil))
+        (* reversed equations Fri Dec 28 09:39:55 2001 -fp !!! *)
+        if matchEqns (List.rev es) then (Eqns (nil))
 	else Fail
       | resolveCands (Cands (ks)) = Cands (ks)
       | resolveCands (Fail) = Fail
@@ -420,7 +421,7 @@ struct
 	else fail () (* fails, with no candidates since type families don't match *)
       | matchTopW (G, d, (I.Pi ((D1,_), V1), s1),
 		         (I.Pi ((D2,_), V2), s2), ci, cands) = 
-	(* this case can only arises in output coverage *)
+	(* this case can only arise in output coverage *)
 	(* we do not match D1 and D2, since D1 is always an instance of D2 *)
 	(* and no splittable variables should be suggested here *)
 	(* Sat Dec 22 23:53:44 2001 -fp !!! *)
@@ -444,7 +445,7 @@ struct
 	   matchTopSpine (G, d, (S1, s1), (S2, s2), ci', cands)
 
     (* matchClause (G, (a @ S1, s1), V, ci) = cands
-       as in matchTop, but r is compiled clause
+       as in matchTop, but r is clause
        NOTE: Simply use constant type for more robustness (see below)
     *)
     fun matchClause (G, ps', qs as (I.Root (_, _), s), ci) =

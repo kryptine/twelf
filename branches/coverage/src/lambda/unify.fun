@@ -307,7 +307,11 @@ struct
 	   of Undef => raise Unify "Parameter dependency"
 	    | Idx k' => BVar k')
       | pruneHead (G, H as Const _, ss, rOccur, prunable) = H
-      | pruneHead (G, H as Proj (Bidx k, i), ss, rOccur, pruneable) = H 
+      | pruneHead (G, Proj (B as Bidx k, i), ss, rOccur, pruneable) =
+	(* blockSub (B, ss) should always be defined *)
+	(* Fri Dec 28 10:03:12 2001 -fp !!! *)
+	(case blockSub (B, ss)
+	   of Bidx(k') => Proj (Bidx (k'), i))
       | pruneHead (G, H as Proj (LVar (r, (l, t)), i), ss, rOccur, prunable) = 
         (* claim: LVar does not need to be pruned since . |- t : Gsome *)
 	(* so we perform only the occurs-check here as for FVars *)

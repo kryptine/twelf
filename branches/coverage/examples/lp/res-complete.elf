@@ -22,9 +22,10 @@ rt_forall : r_total (forall^ D1) (r_forall R1)
 
 rt_atom : r_total (atom^ Q) (r_atom).
 
+%{
 %worlds (l2) (r_total _ _).
 %covers r_total +D -R.
-
+}%
 
 % Completeness of resolution
 
@@ -66,13 +67,13 @@ rs'_forall : r_comp (i_forall T I1) (pg_forall PG1) (r_forall R1)
 
 rs'_atom : r_comp (i_atom) (pg_atom) (r_atom) (s'_eqp).
 
+%{
 %block l6 : some {A2:o}{D2:prog}{PG2:pg A2 D2} 
 	    block {h : assume A2} {h' : assume' D2}{hc:h'_comp h PG2 h'}.
 %worlds (l2 | l6)
   (s'_comp _ _ _)
   (h'_comp _ _ _)
   (r_comp _ _ _ _).
-%{
 %covers 
   (s'_comp +S +GL -S')
   (h'_comp +H -PG -H')
