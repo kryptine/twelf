@@ -249,12 +249,15 @@ struct
             | B' as LVar _ => whnfRoot ((Proj (B', i), SClo (S, s)), id)
 	    | Inst L => whnfRedex (whnf (List.nth (L, i-1), id), (S, s)))
       | whnfRoot ((Proj (LVar (ref (SOME L), (l, t)), i), S), s) =
+	 (* the some-variable instatiation t' in L must be equal to t *)
 	 whnfRoot ((Proj (L, i), S), s)
       | whnfRoot ((Proj (L as LVar (r, (l, t)), i), S), s) = (* r = ref NONE *)
-	 (* was: (Root (Proj (LVar (r, (l, comp (t, s))), i), SClo (S, s)), id) *)
+	 (Root (Proj (LVar (r, (l, comp (t, s))), i), SClo (S, s)), id)
          (* do not compose with t due to globality invariant *)
 	 (* Thu Dec  6 20:34:30 2001 -fp !!! *)
-	 (Root (Proj (L, i), SClo (S, s)), id)
+	 (* was: (Root (Proj (L, i), SClo (S, s)), id) *)
+	 (* going back to first version, because globality invariant *)
+	 (* no longer satisfied Wed Nov 27 09:49:58 2002 -fp *)
       (* Undef and Exp should be impossible by definition of substitution -cs *)
       | whnfRoot ((FVar (name, V, s'), S), s) =
 	 (Root (FVar (name, V, comp (s', s)), SClo (S, s)), id)
