@@ -1043,7 +1043,7 @@ struct
 			  val Const (n, i) = Array.sub (internal, c)
 			  val (I.App (I.Root (I.BVar b, I.Nil), S')) = dropSpine (n, S)
 			in
-			  I.Root (I.Proj (I.Bidx b, i), S')
+			  I.Root (I.Proj (I.Bidx b, i), externalizeSpine S')
 			end)
       | externalizeExp' (I.Root (I.Proj _, _)) = raise Domain
       | externalizeExp' (I.Root (I.Skonst _, _)) = raise Domain

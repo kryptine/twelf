@@ -27,7 +27,7 @@ struct
 	val P = Trans.transDecs EDs
 	val _ = print "* Type reconstruction done\n"
 	val P' = Trans.externalizePrg P 
-	val _ = raise What P' 
+(*	val _ = raise What P' *)
 	val _ = print "* Externalization done\n"
 (*	val _  = TomegaTypeCheck.checkPrg (IntSyn.Null, (P', Tomega.True))
 	val _ = print "* Typechecking done\n"
