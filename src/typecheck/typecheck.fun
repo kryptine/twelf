@@ -161,9 +161,9 @@ struct
 	in
 	  checkSub (G', s', G)
 	end
-      | checkSub (G', I.Dot (I.Idx (w), t), I.Decl (G, (I.BDec (l, s)))) =
+      | checkSub (G', I.Dot (I.Idx (w), t), I.Decl (G, (I.BDec (_, (l, s))))) =
 	let
-	  val I.BDec (l', s') = I.ctxLookup (G', w)
+	  val I.BDec (_, (l', s')) = I.ctxLookup (G', w)
 	in
 	  if (l <> l') 
 	    then raise Error "Incompatible block labels found"
@@ -179,7 +179,7 @@ struct
     *)
     and checkDec (G, (I.Dec (_, V) ,s)) =
           checkExp (G, (V, s), (I.Uni (I.Type), I.id))
-      | checkDec (G, (I.BDec (c, t), s)) =
+      | checkDec (G, (I.BDec (_, (c, t)), s)) =
 	  let 
 	    val (Gsome, piDecs) = I.constBlock c
 	  in

@@ -76,11 +76,11 @@ sig
 
   and Dec =				(* Declarations:              *)
     Dec of string option * Exp		(* D ::= x:V                  *)
-  | BDec of cid * Sub			(*     | v:l[s]               *)
+  | BDec of string option * (cid * Sub)	(*     | v:l[s]               *)
 
   and Block =				(* Blocks:                    *)
     Bidx of int				(* b ::= v                    *)
-  | LVar of Block option ref * cid * Sub 
+  | LVar of Block option ref * (cid * Sub) 
                                         (*     | L(l,s)               *)
 (*  | BClo of Block * Sub                 (*     | b[s]                 *) *)
 

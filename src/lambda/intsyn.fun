@@ -93,11 +93,11 @@ struct
 
   and Dec =				(* Declarations:              *)
     Dec of name option * Exp		(* D ::= x:V                  *)
-  | BDec of cid * Sub			(*     | v:l[s]               *)
+  | BDec of name option * (cid * Sub)	(*     | v:l[s]               *)
 
   and Block =				(* Blocks:                    *)
     Bidx of int 			(* b ::= v                    *)
-  | LVar of Block option ref * cid * Sub 
+  | LVar of Block option ref * (cid * Sub) 
                                         (*     | L(l,s)               *)
 
   (* Constraints *)
@@ -370,8 +370,8 @@ struct
       (case bvarSub (k, s)
 	 of Idx k' => Bidx k'
           | Block B => B)
-    | blockSub (LVar (r, l, s), t) = 
-      LVar (r, l, comp (s, t)) 
+    | blockSub (LVar (r, (l, s)), t) = 
+      LVar (r, (l, comp (s, t))) 
 
 
   (* frontSub (Ft, s) = Ft'
@@ -408,7 +408,7 @@ struct
     | decSub (Dec (x, V), s) = Dec (x, EClo (V, s))
   *)
   fun decSub (Dec (x, V), s) = Dec (x, EClo (V, s))
-    | decSub (BDec (l, t), s) = BDec (l, comp (t, s))   (* Nov 26 11:36:38 EST 2001 -cs !!! *)
+    | decSub (BDec (n, (l, t)), s) = BDec (n, (l, comp (t, s)))   (* Nov 26 11:36:38 EST 2001 -cs !!! *)
       
 
   (* dot1 (s) = s'
@@ -450,7 +450,7 @@ struct
 	     where G |- ^(k-k') : G'', 1 <= k' <= k
            *)
 	fun ctxDec' (Decl (G', Dec (x, V')), 1) = Dec (x, EClo (V', Shift (k)))
-	  | ctxDec' (Decl (G', BDec (l, s)), 1) = BDec (l, comp (s, Shift (k)))
+	  | ctxDec' (Decl (G', BDec (n, (l, s))), 1) = BDec (n, (l, comp (s, Shift (k))))
 	  | ctxDec' (Decl (G', _), k') = ctxDec' (G', k'-1)
 	 (* ctxDec' (Null, k')  should not occur by invariant *)
       in
@@ -468,7 +468,7 @@ struct
 
   fun blockDec (G, v as (Bidx k), i) =
     let 
-      val BDec (l, s) = ctxDec (G, k)   
+      val BDec (_, (l, s)) = ctxDec (G, k)   
       val (Gsome, Lblock) = conDecBlock (sgnLookup l)
       fun blockDec' (t, D :: L, 1, j) = decSub (D, t)
 	| blockDec' (t, _ :: L, n, j) =
@@ -490,7 +490,7 @@ struct
   fun newTypeVar (G) = EVar(ref NONE, G, Uni(Type), ref nil)
 
   (* newLVar (l, s) = (l:s) *)
-  fun newLVar (cid, s) = LVar (ref NONE, cid, s)
+  fun newLVar (cid, s) = LVar (ref NONE, (cid, s))
 
   (* Type related functions *)
 
