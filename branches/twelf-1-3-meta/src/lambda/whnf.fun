@@ -246,9 +246,10 @@ struct
 	 (* was: (Root (Proj (blockSub (B, s), i), SClo (S, s)), id) *)
 	(case blockSub (B, s)
 	   of B' as Bidx (k) => (Root (Proj (B', i), SClo (S, s)), id)
-            | B' as LVar _ => whnfRoot ((Proj (B', i), SClo (S, s)), id))
+            | B' as LVar _ => whnfRoot ((Proj (B', i), SClo (S, s)), id)
+	    | Inst iota => whnfRedex (whnfRoot ((BVar i, Nil), iota), (S, s)))
       | whnfRoot ((Proj (LVar (ref (SOME L), (l, t)), i), S), s) =
-	 whnfRoot ((Proj (L, i), S), s) 
+	 whnfRoot ((Proj (L, i), S), s)
       | whnfRoot ((Proj (L as LVar (r, (l, t)), i), S), s) = (* r = ref NONE *)
 	 (* was: (Root (Proj (LVar (r, (l, comp (t, s))), i), SClo (S, s)), id) *)
          (* do not compose with t due to globality invariant *)

@@ -106,6 +106,8 @@ struct
     Bidx of int 			(* b ::= v                    *)
   | LVar of Block option ref * (cid * Sub) 
                                         (*     | L(l,s)               *)
+  | Inst of Sub                         (*     | U1, ..., Un          *)
+
 
   (* Constraints *)
 

@@ -962,14 +962,21 @@ val _ = print (TomegaPrint.forToString (Psi2, F4) ^ "\n")
 	      val _ = TomegaTypeCheck.checkFor (Psi2, F4)
 		handle _ => raise Error' F4
 val  _ = print "]"
+	      val B3 = deblockify B3'
 
 
 (* the pattern is wrong.  Pat' might be defined in B3. But we need to remove
 the the projections from inside. It's something to think about *)
 (* Idea 1 : use unification *)
+(* Solutiion use inst *)
 (* remark : use "test ["cpt"]; " as  example *)
 
-	      val B3 = deblockify B3'
+(* ---------------- *)
+val iota0 = T.Shift (I.ctxlength (Psi2) + I.ctxLength (B3))
+					(* Psi0, G3, B3 |- iota0 : . *)
+
+(* ---------------- *)
+
 	      val Pat = raisePrg (B3, Pat', F4)
 		                        (* Psi0, G3 |- Pat :: F4  *)
 		                        (* Here's a commutative diagram
