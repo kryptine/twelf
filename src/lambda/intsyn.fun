@@ -292,7 +292,7 @@ struct
   fun constType (c) = conDecType (sgnLookup c)
   fun constImp (c) = conDecImp (sgnLookup c)
   fun constUni (c) = conDecUni (sgnLookup c)
-
+  fun constBlock (c) = conDecBlock (sgnLookup c)
 
   fun constStatus (c) =
       (case sgnLookup (c)
@@ -464,6 +464,9 @@ struct
      where G |- X : type
   *)
   fun newTypeVar (G) = EVar(ref NONE, G, Uni(Type), ref nil)
+
+  (* newLVar (l, s) = (l:s) *)
+  fun newLVar (cid, s) = LVar (ref NONE, cid, s)
 
   (* Type related functions *)
 

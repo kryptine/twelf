@@ -166,6 +166,7 @@ sig
   val constImp    : cid -> int
   val constStatus : cid -> Status
   val constUni    : cid -> Uni
+  val constBlock  : cid -> dctx * Dec list
 
   (* Declaration Contexts *)
 
@@ -190,6 +191,7 @@ sig
 
   val newEVar    : dctx * Exp -> Exp	(* creates X:G|-V, []         *) 
   val newTypeVar : dctx -> Exp		(* creates X:G|-type, []      *)
+  val newLVar    : cid * Sub -> Block	(* creates B:(l,s)            *) 
 
   (* Type related functions *)
 
