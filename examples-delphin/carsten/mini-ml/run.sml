@@ -1,0 +1,1 @@
+Delphin.loadFile ("examples-delphin/carsten/mini-ml/mini-ml.elf", "examples-delphin/carsten/mini-ml/count.delphin");
