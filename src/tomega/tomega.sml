@@ -8,6 +8,7 @@ structure Converter = Converter
    structure TypeCheck = TypeCheck
    structure Trail = Trail
    structure Unify = UnifyTrail
+   structure Normalize = Normalize
    structure Whnf = Whnf
    structure WorldSyn = WorldSyn
    structure Worldify = Worldify

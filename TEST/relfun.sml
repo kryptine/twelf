@@ -40,7 +40,8 @@ in
 (*  val _ = test ["eval"] *)
 (*  val _ = test ["value"] *)
   val _ = test ["vs"]
-
+  val _ = test ["tps"]
+  val _ = test ["closed"]
 
 (*  (* Regression test for copy *)
   val _ = Twelf.loadFile "TEST/cp.elf"
