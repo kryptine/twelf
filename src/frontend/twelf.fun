@@ -502,15 +502,6 @@ struct
       fun exit () = OS.Process.exit (OS.Process.success)
     end
 
-    structure Compile :
-    sig
-      val optimize : bool ref
-    end
-    =
-    struct
-      val optimize = Compile.optimize
-    end
-
     structure Prover :
     sig					(* F=Filling, R=Recursion, S=Splitting *)
       datatype Strategy = datatype MetaGlobal.Strategy  (* FRS or RFS *)
@@ -546,6 +537,6 @@ struct
       end
     = Config
 
-    val version = "Twelf 1.2 R 1 (optimize)"
+    val version = "Twelf 1.2, Aug 27 1998"
   end  (* local *)
 end; (* functor Twelf *)
