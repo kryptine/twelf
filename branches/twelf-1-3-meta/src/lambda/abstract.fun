@@ -10,7 +10,10 @@ functor Abstract (structure IntSyn' : INTSYN
 		  structure Unify   : UNIFY
 		    sharing Unify.IntSyn = IntSyn'
 		  structure Constraints : CONSTRAINTS
-		    sharing Constraints.IntSyn = IntSyn')
+		    sharing Constraints.IntSyn = IntSyn'
+		  structure Normalize : NORMALIZE
+		    sharing Normalize.IntSyn = IntSyn'
+		    sharing Normalize.Tomega = Tomega')
   : ABSTRACT =
 struct
 
@@ -31,6 +34,7 @@ struct
       EV of I.Exp			(* Y ::= X         for  GX |- X : VX *)
     | FV of string * I.Exp		(*     | (F, V)        if . |- F : V *)
     | LV of I.Block                     (*     | L             if . |- L in W *) 
+    | PV of T.Prg                       (*     | P                            *)
 
 
     (*
@@ -600,6 +604,7 @@ struct
       | abstractKLam (I.Decl (K', FV (name,V')), U) =
  	  abstractKLam (K', I.Lam (I.Dec(SOME(name), abstractExp (K', 0, (V', I.id))), U))
 
+
     fun abstractKCtx (I.Null) = I.Null
       | abstractKCtx (I.Decl (K', EV (I.EVar (_, GX, VX, _)))) =
         let
@@ -624,6 +629,7 @@ struct
 	in
 	  I.Decl (abstractKCtx K', I.BDec (NONE, (l, t')))
 	end
+
 
     (* abstractDecImp V = (k', V')   (* rename --cs  (see above) *)
 
@@ -728,21 +734,88 @@ struct
        collect and abstract in subsitutions  including residual lemmas       
        pending approval of Frank.
     *)
+    fun collectPrg (P as T.EVar (Psi, r, F), K) =
+          I.Decl (K, PV P)          
+
+
+    (* abstractPVar (K, depth, L) = C'
+     
+       Invariant:
+       If   G |- L : V
+       and  |G| = depth
+       and  L occurs in K  at kth position (starting at 1)
+       then C' = Bidx (depth + k)
+       and  {{K}}, G |- C' : V
+    *)
+    fun abstractPVar (I.Decl(K', PV (T.EVar (_, r', _))), depth, P as T.EVar (_, r, _)) = 
+	  if r = r' then T.Var (depth+1)
+	  else abstractPVar (K', depth+1, P)
+      | abstractPVar (I.Decl(K', _), depth, P) =
+  	  abstractPVar (K', depth+1, P)
+
+    fun abstractPrg (K, depth, X as T.EVar _) =
+ 	  T.Root (abstractPVar (K, depth, X), T.Nil)
+
     fun collectTomegaSub (T.Shift 0) = I.Null
       | collectTomegaSub (T.Dot (T.Exp U, t)) =
           collectExp (I.Null, (U, I.id), collectTomegaSub t)
       | collectTomegaSub (T.Dot (T.Block B, t)) =
           collectBlock (B, collectTomegaSub t)
       | collectTomegaSub (T.Dot (T.Prg P, t)) = 
-	  raise Error "not yet implemented"
+	  collectPrg (P, collectTomegaSub t)
 
+       
+    fun abstractMetaDec (K, depth, T.UDec D) = T.UDec (abstractDec (K, depth, (D, I.id)))
+      | abstractMetaDec (K, depth, T.PDec (xx, F)) = T.PDec (xx, abstractFor (K, depth, F))
+
+    (* Argument must be in normal form *)
+    and abstractFor (K, depth, T.True) = T.True
+      | abstractFor (K, depth, T.All (MD, F)) = 
+          T.All (abstractMetaDec (K, depth, MD), abstractFor (K, depth, F))
+      | abstractFor (K, depth, T.Ex (D, F)) = 
+	  T.Ex (abstractDec (K, depth, (D, I.id)), abstractFor (K, depth, F))
+      | abstractFor (K, depth, T.And (F1, F2)) = 
+	  T.And (abstractFor (K, depth, F1), abstractFor (K, depth, F2))
+      | abstractFor (K, depth, T.World (W, F)) =
+	  T.World (W, abstractFor (K, depth, F))
+
+    fun abstractPsi (I.Null) = I.Null
+      | abstractPsi (I.Decl (K', EV (I.EVar (_, GX, VX, _)))) =
+        let
+	  val V' = raiseType (GX, VX)
+	  val V'' = abstractExp (K', 0, (V', I.id))
+          (* enforced by reconstruction -kw
+	  val _ = checkType V''	*)
+	in
+	  I.Decl (abstractPsi K', T.UDec (I.Dec (NONE, V'')))
+	end
+      | abstractPsi (I.Decl (K', FV (name, V'))) =
+	let
+	  val V'' = abstractExp (K', 0, (V', I.id))
+          (* enforced by reconstruction -kw
+	  val _ = checkType V'' *)
+	in
+	  I.Decl (abstractPsi K', T.UDec (I.Dec (SOME(name), V'')))
+	end
+      | abstractPsi (I.Decl (K', LV (I.LVar (r, (l, t))))) =
+	let
+	  val t' = abstractSOME (K', t)	  
+	in
+	  I.Decl (abstractPsi K', T.UDec (I.BDec (NONE, (l, t'))))
+	end
+      | abstractPsi (I.Decl (K', PV (T.EVar (GX, _, FX)))) =
+	(* What's happening with GX? *)
+        let
+	  val F' = abstractFor (K', 0, Normalize.normalizeFor (FX, T.id))
+	in
+	  I.Decl (abstractPsi K', T.PDec (NONE, F'))
+	end
+      
     fun abstractTomegaSub t =
       let 
 	val K = collectTomegaSub t
 	val t' = abstractTomegaSub' (K, 0, t)
-	val G = abstractKCtx K
-	val Psi = T.embedCtx G 
-	val _ = () (* don't forget to collect all other meta assumptions from t *)
+	val Psi = abstractPsi K
       in
 	(Psi, t')
       end
@@ -755,33 +828,13 @@ struct
           (T.Dot (T.Block (abstractLVar (K, depth, B)),
 		  abstractTomegaSub' (K, depth, t)))
       | abstractTomegaSub' (K, depth, T.Dot (T.Prg P, t)) =
-	  raise Error "residual lemmas not yet abstracted"
-        
-        (* let
-	  val (t', K') = abstractTomegaSub' (t, K)  
-	    (* by invariant: Programs cannot mention new variables, hence nothing is added to K *)
-	  (* follows closely the other two cases, implement abstactPrg *)
-	   (* val P' = abstractPrg (K, P) *)
-	in
-	  (t', K') (* (T.Dot (T.Prg P', t'), K') *)
-	end *)
-      
+	  (T.Dot (T.Prg (abstractPrg (K, depth, P)),
+		  abstractTomegaSub' (K, depth, t)))
+
     (* just added to abstract over residual lemmas  -cs *)
     (* Tomorrow: Make collection in program values a priority *)
     (* Then just traverse the Tomega by abstraction to get to the types of those 
        variables. *)
-
-    fun abstractMetaDec (K, depth, T.UDec D) = T.UDec (abstractDec (K, depth, (D, I.id)))
-      | abstractMetaDec (K, depth, T.PDec (xx, F)) = T.PDec (xx, abstractFor (K, depth, F))
-
-    (* Argument must be in normal form *)
-    and abstractFor (K, depth, T.True) = T.True
-      | abstractFor (K, depth, T.All (MD, F)) = 
-          T.All (abstractMetaDec (K, depth, MD), abstractFor (K, depth, F))
-      | abstractFor (K, depth, T.Ex (D, F)) = 
-	  T.Ex (abstractDec (K, depth, (D, I.id)), abstractFor (K, depth, F))
-      | abstractFor (K, depth, T.And (F1, F2)) = 
-	  T.And (abstractFor (K, depth, F1), abstractFor (K, depth, F2))
 
 				
   in

@@ -27,11 +27,17 @@ structure UnifyTrail =
 	 structure Whnf = Whnf
 	 structure Trail = Trail);
 
+structure Normalize : NORMALIZE =  
+  Normalize (structure IntSyn' = IntSyn
+             structure Tomega' = Tomega
+             structure Whnf = Whnf)
+
 structure Abstract =
   Abstract (structure IntSyn' = IntSyn
 	    structure Tomega' = Tomega
 	    structure Whnf = Whnf
 	    structure Constraints = Constraints
+	    structure Normalize = Normalize
 	    structure Unify = UnifyNoTrail);
 
 structure Approx =

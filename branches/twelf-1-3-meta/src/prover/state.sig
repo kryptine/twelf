@@ -13,5 +13,10 @@ sig
            * Tomega.Worlds
 
   val init : Tomega.For * Tomega.Worlds -> State
-  val close : State -> bool
+  val close : State -> bool  
+
+  val construct : State              
+                  -> (Tomega.Prg -> Tomega.Prg)      (* Success continuation *)
+                  -> (unit -> Tomega.Prg)            (* Failure continuation *)
+                  -> Tomega.Prg
 end

@@ -4,6 +4,6 @@ Group is
   ../worldcheck/sources.cm
   tomegaprint.sig
   tomegaprint.fun
-  normalize.sig
-  normalize.fun
+(*  normalize.sig
+  normalize.fun *)
   tomega.sml

@@ -45,6 +45,7 @@ sig
   = Parameter
   | Dec of ResGoal * IntSyn.Sub * IntSyn.Head
   | BDec of (ResGoal * IntSyn.Sub * IntSyn.Head) list
+  | PDec
 
   (* Dynamic programs: context with synchronous clause pool *)
   datatype DProg = DProg of (IntSyn.dctx * ComDec IntSyn.Ctx)
