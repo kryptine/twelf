@@ -732,7 +732,7 @@ exception Error' of Tomega'.For
        then Psi0, G[t] |- t : Psi, G
     *)
     fun dotn (t, 0) = t
-      | dotn (t, n) = (print "*"; I.dot1 (dotn (t, n-1)))
+      | dotn (t, n) = I.dot1 (dotn (t, n-1))
 
 
     fun strengthenToSpine (I.Shift _ (* =0 *), 0, (n, S)) = S
@@ -891,7 +891,6 @@ exception Error' of Tomega'.For
       | deblockify  (I.Decl (G, I.BDec (x, (c, s)))) = 
         let
 	  val G' = deblockify  G
-	  val _ = print ("deblockify " ^ Int.toString c)
           val (_, L) = I.constBlock c
 	in 
 	  append (G', (L, s))
@@ -957,17 +956,12 @@ exception Error' of Tomega'.For
         and traversePos ((Psi0, Psi, G), I.Pi ((D as I.BDec (x, (c, s)), _), V), SOME (w1, (P, Q))) =
   	    let 
 	      val c' = wmap c
-	      val _ = print (Int.toString c ^ " is mapped to " ^ Int.toString c' ^ "\n")
 	      val n = I.ctxLength Psi0 + I.ctxLength G
 	      val s' = mediateSub (n, I.Shift (n+I.ctxLength Psi0))
 
 	      val (Gsome, Lpi) = I.constBlock c
-	      val _ = print "1"
 	      val _ = TypeCheck.typeCheckCtx (T.coerceCtx (append(append(Psi0, Psi), T.embedCtx G)))
-	      val _ = print "2"
 	      val _ = TypeCheck.typeCheckSub (T.coerceCtx (append(append(Psi0, Psi), T.embedCtx G)), I.comp(s, s'), Gsome)
-	      val _ = print "3"
-
 	    in
 	      traversePos ((Psi0, Psi, 
 			    I.Decl (G,  (* T.UDec *) (I.BDec (x, (c', I.comp (s, s')))))), 
@@ -979,30 +973,9 @@ exception Error' of Tomega'.For
 					(* Psi0, G, B |- V : type *)
 					(* Psi0, G, B |- w1 : Psi0, G', B' *)
 	    let
-
-
-	      (* just testing *)
-
-	      val carstenB = deblockify B
-					(* Psi0, G |- carstenB ctx *)
-	      val iota = blockToIota (T.Shift (I.ctxLength carstenB), B)
-					(* Psi0, G, carstenB |- iota : Psi0, G, B *)
-	      val _ = print "\n[begin of experiment]\n"
-	      val _ = print (Print.expToString ((append (append (T.coerceCtx Psi0, T.coerceCtx G), carstenB)), I.EClo (V, T.coerceSub iota)))
-	      val _ = print "\n[end of experiment]"
-
-
-	      (* end just testing *)
-
-
-
-
-val  _ = print "["
 	      val Psi1 = append (Psi0, append (G, T.embedCtx B))
 					(* Psi1 = Psi0, G, B *)
 	      val _ = TomegaTypeCheck.checkCtx (append(append(Psi0, G), T.embedCtx B))
-val _  = print "."
-
 	      val n = domain (Psi1, w1)	(* n = |Psi0, G', B'| *)
 	      val m = I.ctxLength Psi0  (* m = |Psi0| *)
 
@@ -1048,8 +1021,6 @@ val _  = print "."
 	      val (S'', F'') = apply ((S, modeSpine a), (F, T.id))
 					(* Psi0, G', B' |- F'' :: for *)
 					(* Psi0, G', B' |- S'' :: F' >> F'' *)
-
-val _ = print "&"
 	      val _ = TomegaTypeCheck.checkFor (append (append (Psi0, G), T.embedCtx B), 
 						(Normalize.normalizeFor(F'', T.embedSub w1)))
 	
@@ -1074,8 +1045,6 @@ val _ = print "&"
 
 	      val (B'', _) = subCtx (B', w1')
 	      val _ = TomegaTypeCheck.checkCtx (append (append (Psi0, G), T.embedCtx B''))
-val _ = print "."
-
 
 
 	      (* lift (B, (P, F)) = (P', F')
@@ -1096,48 +1065,21 @@ val _ = print "."
               val GB' = deblockify  B'    (* Psi0, G' |- GB' ctx *)
 
 	      val b4 = I.ctxLength GB'
-	      val _ = print (Int.toString (b4))
-	      val _ = print (Int.toString (n'))
 	      val iota = blockToIota (T.Shift b4, B')
 					(* Psi0, G', GB'  |- s' : Psi0, G', B' *)
-
-
-
-(* val _ = TomegaTypeCheck.checkSub (T.embedCtx GB',  blockToIota (T.Shift b4, B', I.Shift b4), T.embedCtx B')  *)
-val _ = print "."
-
 
 	      val RR = Normalize.normalizeFor (F'', iota) 
  					(* Psi0, G, B |- w1 : Psi0, G', B' *)	
 					(* Psi0, G', GB'  |- s' : Psi0, G', B' *)
 					(* Psi0, G', GB' |- RR for *)
 
-(*
-val _ = print "\n"
-val _ = print (Print.ctxToString (I.Null, T.coerceCtx (append (append (Psi0, G), T.embedCtx GB'))) ^ "\n")
-val _ = print (TomegaPrint.forToString (append (append (Psi0, G), T.embedCtx GB'), Normalize.normalizeFor(RR, T.embedSub w1')) ^ "\n")
-
-	      val _ = TomegaTypeCheck.checkFor (append (append (Psi0, G), T.embedCtx GB'), 
-						(Normalize.normalizeFor(RR, T.embedSub w1')))
-		    
-*)
-val _ = print ";"
-
 	      val F''' = raiseFor (GB', (RR, I.id))
                                           (* Psi0, G |- w1' : Psi0, G' *)
                                           (* Psi0, G' |- F''' for *)
-	      val _ = print "\n Checkpoint 1:\n"
-	      val _ = print (Print.ctxToString (I.Null, T.coerceCtx (append (Psi0, G))) ^ "\n")
-	      val _ = print (TomegaPrint.forToString (append (Psi0, G), Normalize.normalizeFor(F''', T.embedSub w1')))
 
 	      val _ = TomegaTypeCheck.checkFor (append (Psi0, G), 
 						(Normalize.normalizeFor(F''', T.embedSub w1')))
 	
-
-
-
-val _ = print "*"
-
 	      val (Psi1'', w2, z2) = strengthen (Psi1, (a, S), w1, M.Minus)
 		                        (* |- Psi0, Psi1'' ctx *)
 					(* Psi0, G, B |- w2 : Psi1'' *)
@@ -1158,29 +1100,18 @@ val _ = print "*"
 	      val F4 = Normalize.normalizeFor (F''', T.embedSub z3)
 					(* Psi0, G3 |- F4 for *)
 	      val _ = TomegaTypeCheck.checkCtx (Psi1'')
-val _ = print "."
 	      val _ = TomegaTypeCheck.checkCtx (append (Psi2, T.embedCtx B3'))
-val _ = print ".\n"
 
-val _ = print (TomegaPrint.forToString (Psi2, F4) ^ "\n")
 	      val _ = TomegaTypeCheck.checkFor (Psi2, F4)
 		handle _ => raise Error' F4
-val  _ = print "]"
 	      val B3 = deblockify  B3'
 
 
-val  _ = print (TomegaPrint.prgToString (T.embedCtx (Names.ctxName 
-				(T.coerceCtx (append (Psi2, T.embedCtx B3')))), Pat'))
 
 
-val sigma3 = blockToIota (T.Shift (I.ctxLength B3), B3')
+	      val sigma3 = blockToIota (T.Shift (I.ctxLength B3), B3')
 					(* Psi2, B3 |- sigma3 : Psi2,  B3' *)
               val Pat'' = Normalize.normalizePrg (Pat', sigma3)
-
-(*val  _ = print (TomegaPrint.prgToString (T.embedCtx (Names.ctxName 
-				(T.coerceCtx (append (Psi2, T.embedCtx B3)))), Pat''))
-*)
-
 	      val Pat = raisePrg (B3, Pat'', F4)
 		                        (* Psi0, G3 |- Pat :: F4  *)
 		                        (* Here's a commutative diagram
@@ -1188,17 +1119,7 @@ val sigma3 = blockToIota (T.Shift (I.ctxLength B3), B3')
 					   correct 
                                         *)
 
-
-val  _ = print (TomegaPrint.prgToString (T.embedCtx (Names.ctxName 
-				(T.coerceCtx Psi2)), Pat))
-
-
-val  _ = print "[..."
-(* somthing is wrong with raisePrg.  I have to pay very careful attention *)
 	      val _ = TomegaTypeCheck.checkPrg (Psi2, (Pat, F4))
-val  _ = print "]"
-
-(*	      val s3 = Whnf.invert w3	(* Psi0, G3 |- s3 :  Psi0, G'*) *)
 	      val t = T.Dot (T.Prg Pat, T.embedSub z3)
                                         (* Psi0, G3 |- t :: Psi0, G', x :: F4  *)
 
@@ -1218,11 +1139,6 @@ val  _ = print "]"
       end
 
 
-
-    fun blockCases (Psi0, a, L, Sig, wmap) = nil
-
-
-    
 
     fun transformWorlds (fams, T.Worlds cids) = 
         let
@@ -1352,15 +1268,13 @@ val  _ = print "]"
 	    val Sig = Worldify.worldify a
 					(* Sig in LF(reg)   *)
 	    val dynSig = dynamicSig (Psi0, L, W)
-	    val _ = print "\nSummary of collecting dynamic cases\n"
+(*	    val _ = print "\nSummary of collecting dynamic cases\n"
 	    val _ = map (fn GV => print (Print.expToString GV ^ "\n")) dynSig
-	    val statSig = staticSig Sig
-	    val _ = print "\nSummary of collecting static cases\n"
+*)	    val statSig = staticSig Sig
+(*	    val _ = print "\nSummary of collecting static cases\n"
 	    val _ = map (fn GV => print (Print.expToString GV ^ "\n")) statSig
-
-	    val _ = print "[Type checking the result of worldify ..."
+*)
 	    val _ = map (fn (I.ConDec (_, _,_,_,U,V)) => TypeCheck.check (U, I.Uni  V)) Sig
-	    val _ = print "]"
 
 (*	    val C0 = blockCases (Psi0, a, L, Sig, wmap) *)
 	    val C0 = traverse (Psi0, L, dynSig, wmap) 

@@ -542,11 +542,8 @@ struct
 					(* Psi' |- s2 : SOME variables of c *)
 	  val (G, L) = I.constBlock c
 					(* Psi |- s2 : G *)
-val _ = print "==="
 	  val _ = TypeCheck.typeCheckSub (T.coerceCtx Psi', s2, G)
-val _ = print "==="
 	in
-
 	    checkBlock (Psi, (B, (c, I.comp (s2, T.coerceSub t))))
 	end
       | checkSub (Psi, T.Dot _, I.Null) = raise Error "Sub is not well typed"
@@ -564,9 +561,7 @@ val _ = print "==="
 	let
 	  val (G, L) = I.constBlock c2
 					(* Psi |- s2 : G *)
-val _ = print "---"
 	  val _ = TypeCheck.typeCheckSub (T.coerceCtx Psi, s2, G)
-val _ = print "---"
 	in
 	  checkInst (Psi, UL, (1, L, s2))
 	end
@@ -583,8 +578,6 @@ val _ = print "---"
        let
 	 val G = T.coerceCtx Psi
 	 val I.Dec (_ ,V) = I.decSub (D, s2)
-	 val _ = print (Print.expToString (G, U))
-	 val _ = print (Print.expToString (G, V))
 	 val _ = TypeCheck.typeCheck (G, (U, V))
        in
 	 checkInst (Psi, UL, (n+1, L, I.dot1 s2))
