@@ -5,13 +5,13 @@ Group is
   simpsyn.sig
   simpsyn.fun
   simpwhnf.sig
-  simpwhnf.fun
+  (*simpwhnf.fun*)
   simpwhnf_eta.fun
   simpunify.sig
-  simpunify.fun
+  (*simpunify.fun*)
   simpunify_eta.fun
   simpcomp.sig
-  simpcomp.fun
+  (*simpcomp.fun*)
   simpcomp_eta.fun
   simpmachine.fun
   simple_eta.sml

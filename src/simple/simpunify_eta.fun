@@ -313,9 +313,6 @@ struct
     | unifyExpW ((Lam (U1), s1), (Lam (U2), s2)) =           
         unifyExp ((U1, dot1 s1),(U2, dot1 s2))
 
-    | unifyExpW ((Lam (U1), s1), (U2, s2)) = raise Fail "Eta violation"
-    | unifyExpW ((U1, s1), (Lam (U2), s2)) = raise Fail "Eta violation"
-
     | unifyExpW (Us1 as (U1 as EVar(r1, cnstrs1), s1),
                  Us2 as (U2 as EVar(r2, cnstrs2), s2)) =
         (* postpone, if s1 or s2 are not patsub *)
@@ -428,7 +425,7 @@ struct
         (resetAwakenCnstrs (); unify1 (Us1, Us2))
 
   fun unifiable (Us1 as (U1, s1), Us2 as (U2, s2)) =
-        (unify (Us1, Us2); true)
+        (	 unify (Us1, Us2); true)
         handle Unify _ => false
 
 end

@@ -8,8 +8,8 @@ functor MTPFilling (structure IntSyn : INTSYN
 		      sharing StateSyn'.FunSyn = FunSyn'
 		    structure Abstract : ABSTRACT
 		      sharing Abstract.IntSyn = IntSyn
-		    structure TypeCheck : TYPECHECK
-		      sharing TypeCheck.IntSyn = IntSyn
+                    structure TypeCheck : TYPECHECK
+                      sharing TypeCheck.IntSyn = IntSyn
 		    structure MTPData : MTPDATA
 		    structure Search   : MTPSEARCH
   		      sharing Search.StateSyn = StateSyn'
@@ -26,32 +26,11 @@ struct
 
   local
     structure S = StateSyn
-    structure F = FunSyn
     structure I = IntSyn
 
-    exception Success of int
+    exception Success of int * FunSyn'.Pro
 
     (* Checking for constraints: Used to be in abstract, now must be done explicitly! --cs*)
-
-    (* createEVars (G, F) = (Xs', P')
-      
-       Invariant:
-       If   |- G ctx
-       and  G |- F = [[x1:A1]] .. [[xn::An]] formula
-       then Xs' = (X1', .., Xn') a list of EVars
-       and  G |- Xi' : A1 [X1'/x1..X(i-1)'/x(i-1)]          for all i <= n
-       and  G; D |- P' = <X1', <.... <Xn', <>> ..> in F     for some D
-    *)
-    fun createEVars (G, (F.True, s)) = (nil, F.Unit)
-      | createEVars (G, (F.Ex (I.Dec (_, V), F), s)) = 
-	let 
-	  val X = I.newEVar (G, I.EClo (V, s))
-	  val X' = Whnf.lowerEVar X
-	  val (Xs, P) = createEVars (G, (F, I.Dot (I.Exp X, s)))
-	in
-	  (X' :: Xs, F.Inx (X, P))
-	end
-
 
 (*    fun checkConstraints nil = raise Success
       | checkConstraints (X :: L) = 
@@ -68,15 +47,13 @@ struct
     fun expand (S as S.State (n, (G, B), (IH, OH), d, O, H, F)) = 
 	let 
 	  val _ = if (!Global.doubleCheck) then TypeCheck.typeCheckCtx (G) else ()
-	  val (Xs, P) = createEVars (G, (F, I.id))
 	in
-	  fn () => ((Search.searchEx (!MTPGlobal.maxFill, Xs, fn max => (if (!Global.doubleCheck) then 
-						       map (fn (X as I.EVar (_, G', V, _)) => 
-							    TypeCheck.typeCheck (G', (X, V))) Xs
-						     else []; raise Success max));
-		     raise Error "Filling unsuccessful")
-	            handle Success max => (MTPData.maxFill := Int.max (!MTPData.maxFill, max);
-					   (max, P)))
+	  fn () => ((Search.searchEx (!MTPGlobal.maxFill, G, F,
+                                     fn s => raise Success s);
+                     raise Error "Filling unsuccessful")
+                    handle Success (s as (max, _)) =>
+                      (MTPData.maxFill := Int.max (!MTPData.maxFill, max);
+                       s))
 	end
     
 

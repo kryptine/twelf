@@ -11,6 +11,10 @@ sig
   structure IntSyn: INTSYN
   structure CompSyn: COMPSYN
 
+  type DProg
+
+  val compileCtx : bool -> IntSyn.dctx -> DProg
+
   val installResGoal : IntSyn.cid * CompSyn.ResGoal -> unit
   val install : bool -> IntSyn.cid -> unit
   val reset : unit -> unit

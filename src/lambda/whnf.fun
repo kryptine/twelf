@@ -240,6 +240,9 @@ struct
 	 in
 	   whnfRedex (whnf (U, id), (S, s))  
 	 end
+      (* added case to expand nonstrict foreign constants -kw *)
+      | whnfRoot ((FgnConst (_, AbbrevDef(_, _, U, _, _)), S), s) =
+         whnfRedex (whnf (U, id), (S, s))
       | whnfRoot ((H, S), s) =
 	 (Root (H, SClo (S, s)), id)
 

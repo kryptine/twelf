@@ -130,8 +130,8 @@ struct
        Invariant: 
        If   G |- s1 : G'    s1 patsub
        and  G |- s2 : G'    s2 patsub
-       then G |- s' : G'' for some G''  
-       and  s' patsub
+       then G' |- s' : G'' for some G''  
+       and  s' weaksub
     *)
     fun intersection (Dot (Idx (k1), s1), Dot (Idx (k2), s2)) = 
  	  if (k1 = k2) then dot1 (intersection (s1, s2))

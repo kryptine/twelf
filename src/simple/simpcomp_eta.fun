@@ -5,6 +5,8 @@ functor SimpCompEta (structure Global : GLOBAL
                   structure IntSyn : INTSYN
                   structure Whnf : WHNF
                     sharing Whnf.IntSyn = IntSyn
+                  structure Abstract : ABSTRACT
+                    sharing Abstract.IntSyn = IntSyn
                   structure Print : PRINT
                     sharing Print.IntSyn = IntSyn
                   structure CompSyn : COMPSYN
@@ -27,7 +29,10 @@ struct
   structure C = CompSyn
   structure S = SimpSyn
 
-  type DProg = (SimpSyn.ResGoal * SimpSyn.Sub * IntSyn.cid) IntSyn.Ctx
+  (* Dynamic programs: clause pool *)
+  (* In the simple compiler there is no context because types
+     are unnecessary. *)
+  type DProg = CompSyn.DProg * ((SimpSyn.ResGoal * SimpSyn.Sub * IntSyn.cid) option) IntSyn.Ctx
 
   datatype ConDec =			(* Compiled constant declaration *)
     SClause of SimpSyn.ResGoal          (* c : A                      *)
@@ -70,6 +75,7 @@ struct
       end
     | translExp (G, I.Lam(D, U)) = S.Lam(translExp (I.Decl(G, D), U))
 
+  and translExp' (G, Us) = translExp (G, Whnf.normalize Us)
   and translExp1 (G, U) = translExp(G, Whnf.normalize(U, I.id))
 
   (* etaTail (G, V, n) = (G', S, k)
@@ -109,40 +115,77 @@ struct
     | translConDec (I.SkoDec(name, i, _, _)) =
         S.SkoDec(name, i)
 
-  fun translGoal (G, C.Atom(U)) = S.Atom(translExp1(G, U))
-    | translGoal (G, C.Impl(r, A, a, g)) =
+  fun occursInExp (k, U) =
+      (case Abstract.occursInExp (k, Whnf.normalize (U, I.id))
+         of I.No => false
+          | _ => true)
+
+  fun occursInResGoal (k, C.True) = false
+    | occursInResGoal (k, C.Eq (U)) = occursInExp (k, U)
+    | occursInResGoal (k, C.And (r, A, g)) =
+        occursInResGoal (k+1, r) orelse occursInExp (k, A)
+    | occursInResGoal (k, C.In (r, A, g)) =
+        occursInResGoal (k+1, r) orelse occursInExp (k, A)
+    | occursInResGoal (k, C.Exists (I.Dec (_, V), r)) =
+        occursInResGoal (k+1, r) orelse occursInExp (k, V)
+
+  fun translGoal (G, (C.Atom (U), s)) = S.Atom (translExp' (G, (U, s)))
+    | translGoal (G, (C.Impl (r, A, a, g), s)) =
         (* perhaps the definition of C.Impl should be changed so that
            instead of a type A we have a Dec D? -kw *)
-        S.Impl(translResGoal(G, r), a,
-               translGoal(I.Decl(G, I.Dec(NONE, A)), g))
-    | translGoal (G, C.All(D, g)) = S.All(translGoal(I.Decl(G, D), g))
+        S.Impl (translResGoal (G, (r, s)), a,
+                translGoal (I.Decl (G, I.Dec (NONE, A)), (g, I.dot1 s)))
+    | translGoal (G, (C.All(D, g), s)) =
+        S.All (translGoal (I.Decl (G, D), (g, I.dot1 s)))
 
-  and translResGoal (G, C.Eq(U)) = S.Eq(translExp1(G, U))
-    | translResGoal (G, C.And(r, A, g)) =
+  and translResGoal (G, (C.True, s)) = S.True
+    | translResGoal (G, (C.Eq (U), s)) = S.Eq (translExp' (G, (U, s)))
+    | translResGoal (G, (C.And (r, A, g), s)) =
+        (* Assume And is never dependent *)
         (* perhaps the definition of C.And should be changed so that
            instead of a type A we have a Dec D? -kw *)
-        S.And(translResGoal(I.Decl(G, I.Dec(NONE, A)), r), translGoal(G, g))
-  (*| translResGoal (G, C.In(r, A, g)) =
-        S.In(translResGoal(I.Decl(G, I.Dec(NONE, A)), r), translGoal(G, g))*)
-    | translResGoal (G, C.Exists(D as I.Dec(_, V), r)) =
-        S.Exists(I.abstractions(Whnf.normalize(V, I.id)),
-                 translResGoal(I.Decl(G, D), r))
+        S.And(translResGoal(G, (r, I.Dot (I.Undef, s))),
+              translGoal(G, (g, s)))
+    | translResGoal (G, (C.In(r, A, g), s)) =
+        if occursInResGoal (1, r)
+          then S.ExistsMeta (I.abstractions (Whnf.normalize (A, s)),
+                             translResGoal (I.Decl (G, I.Dec (NONE, A)), (r, I.dot1 s)))
+        else S.AndMeta (translResGoal (G, (r, I.Dot (I.Undef, s))),
+                        translGoal (G, (g, s)))
+    | translResGoal (G, (C.Exists(D as I.Dec(_, V), r), s)) =
+        S.Exists (I.abstractions (Whnf.normalize (V, s)),
+                  translResGoal (I.Decl (G, D), (r, I.dot1 s)))
 
-  and translQuery' (G, C.QueryGoal(g)) = S.QueryGoal(translGoal(G, g))
+  and translQuery (G, C.QueryGoal(g)) = S.QueryGoal(translGoal(G, (g, I.id)))
       (* must lower free variables of the query *)
-    | translQuery' (G, C.QueryVar(_, D as I.Dec(_, V), q)) =
+    | translQuery (G, C.QueryVar(_, D as I.Dec(_, V), q)) =
       let
         val n = I.abstractions(Whnf.normalize(V, I.id))
       in
         S.QueryVar(abstract (S.newEVar(), n),
-                   translQuery' (I.Decl(G, D), q))
+                   translQuery (I.Decl(G, D), q))
       end
 
-  fun translQuery (q) = translQuery' (I.Null, q)
+  fun compileCtx fromCS (G) =
+      let
+        fun compileCtx' (I.Null) = (I.Null, I.Null)
+          | compileCtx' (I.Decl (G, D as I.Dec (_, A))) =
+            let
+              val a = I.targetFam A
+              val r = PTCompile.compileClause fromCS A
+              val (dp1, dp2) = compileCtx' (G)
+            in
+              (I.Decl (dp1, SOME (r, I.id, a)),
+               I.Decl (dp2, SOME (translResGoal (G, (r, I.id)), S.id, a)))
+            end
+        val (dp1, dp2) = compileCtx' (G)
+      in
+        (C.DProg(G, dp1), dp2)
+      end
 
   fun installResGoal (c, r) =
       (FullComp.installResGoal (c, r);
-       sProgInstall (c, SClause(translResGoal(I.Null, r))))
+       sProgInstall (c, SClause(translResGoal(I.Null, (r, I.id)))))
   fun install fromCS c =
       let
         val conDec = I.sgnLookup (c)

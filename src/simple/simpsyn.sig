@@ -67,11 +67,14 @@ sig
   | All    of Goal
 
   and ResGoal =
-    Eq     of Exp
-  | And    of ResGoal * Goal
-  | Exists of int * ResGoal  (* EVars are pre-lowered -- the int
-                                is a count of the number of abstractions
-                                in the type of the variable *)
+    True
+  | Eq         of Exp
+  | And        of ResGoal * Goal
+  | AndMeta    of ResGoal * Goal
+  | Exists     of int * ResGoal  (* EVars are pre-lowered -- the int
+                                    is a count of the number of abstractions
+                                    in the type of the variable *)
+  | ExistsMeta of int * ResGoal
 
   and Query =
     QueryGoal of Goal
@@ -95,5 +98,6 @@ sig
   val rawSpine : string * Spine -> string
   val rawSub : string * Sub -> string
   val rawFront : string * Front -> string
+  val rawEClo : string * (Exp * Sub) -> string
 
 end

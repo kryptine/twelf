@@ -27,7 +27,10 @@ struct
   structure C = CompSyn
   structure S = SimpSyn
 
-  type DProg = (SimpSyn.ResGoal * SimpSyn.Sub * IntSyn.cid) IntSyn.Ctx
+  (* Dynamic programs: clause pool *)
+  (* In the simple compiler there is no context because types
+     are unnecessary. *)
+  type DProg = CompSyn.DProg * ((SimpSyn.ResGoal * SimpSyn.Sub * IntSyn.cid) option) IntSyn.Ctx
 
   datatype ConDec =			(* Compiled constant declaration *)
     SClause of SimpSyn.ResGoal          (* c : A                      *)
@@ -53,13 +56,15 @@ struct
 
   and translSpine (I.Nil) = S.Nil
     | translSpine (I.App(U, S)) = S.App(translExp(U), translSpine(S))
-  
+
+  (*
   and translSub (I.Shift(n)) = S.Shift(n)
     | translSub (I.Dot(Ft, s)) = S.Dot(translFront(Ft), translSub(s))
 
   and translFront (I.Idx(k)) = S.Idx(k)
     | translFront (I.Exp(U)) = S.Exp(translExp1(U))
     | translFront (I.Undef) = S.Undef
+  *)
 
   and translExp1 (U) = translExp(Whnf.normalize(U, I.id))
 
@@ -82,11 +87,13 @@ struct
   and translResGoal (C.Eq(U)) = S.Eq(translExp1(U))
     | translResGoal (C.And(r, _, g)) =
         S.And(translResGoal(r), translGoal(g))
-  (*| translResGoal (C.In(r, _, g)) =
-        S.In(translResGoal(r), translGoal(g))*)
+    | translResGoal (C.In(r, _, g)) =
+        S.In(translResGoal(r), translGoal(g))
     | translResGoal (C.Exists(I.Dec(_, V), r)) =
         S.Exists(I.abstractions(V), translResGoal(r))
-
+    | translResGoal (C.True) =
+        S.True
+        
   and translQuery (C.QueryGoal(g)) = S.QueryGoal(translGoal(g))
       (* must lower free variables of the query *)
     | translQuery (C.QueryVar(_, I.Dec(_, V), q)) =
@@ -96,6 +103,23 @@ struct
           | abstract (U, n) = abstract (S.Lam(U), n-1)
       in
         S.QueryVar(abstract (S.newEVar(), n), translQuery(q))
+      end
+
+  fun compileCtx fromCS (G) =
+      let
+        fun compileCtx' (I.Null) = (I.Null, I.Null)
+          | compileCtx' (I.Decl (G, D as I.Dec (_, A))) =
+            let
+              val a = I.targetFam A
+              val r = PTCompile.compileClause fromCS A
+              val (dp1, dp2) = compileCtx' (G)
+            in
+              (I.Decl (dp1, SOME (r, I.id, a)),
+               I.Decl (dp2, SOME (translResGoal (r), S.id, a)))
+            end
+        val (dp1, dp2) = compileCtx' (G)
+      in
+        (C.DProg(G, dp1), dp2)
       end
 
   fun installResGoal (c, r) =

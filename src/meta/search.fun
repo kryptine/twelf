@@ -5,33 +5,51 @@ functor MTPSearch (structure Global : GLOBAL
 		   structure IntSyn' : INTSYN
 		   structure Abstract : ABSTRACT
 		     sharing Abstract.IntSyn = IntSyn'
+                   structure TypeCheck : TYPECHECK
+                     sharing TypeCheck.IntSyn = IntSyn'
 		   structure MTPGlobal : MTPGLOBAL
+                   structure FunSyn' : FUNSYN
+                     sharing FunSyn'.IntSyn = IntSyn'
 		   structure StateSyn' : STATESYN
-		   sharing StateSyn'.FunSyn.IntSyn = IntSyn'
+		     sharing StateSyn'.FunSyn = FunSyn'
 		   structure CompSyn' : COMPSYN
-		   sharing CompSyn'.IntSyn = IntSyn'
+		     sharing CompSyn'.IntSyn = IntSyn'
 		   structure Whnf : WHNF
-		   sharing Whnf.IntSyn = IntSyn'
+		     sharing Whnf.IntSyn = IntSyn'
 		   structure Unify : UNIFY
-		   sharing Unify.IntSyn = IntSyn'
+		     sharing Unify.IntSyn = IntSyn'
 		   structure Index : INDEX
-		   sharing Index.IntSyn = IntSyn'
-		   structure FullComp : FULLCOMP
-		   sharing FullComp.IntSyn = IntSyn'
-		   sharing FullComp.CompSyn = CompSyn'
+		     sharing Index.IntSyn = IntSyn'
+                   structure PTCompile : PTCOMPILE
+                     sharing PTCompile.IntSyn = IntSyn'
+                     sharing PTCompile.CompSyn = CompSyn'
+		   structure Compile1 : COMPILE
+		     sharing Compile1.IntSyn = IntSyn'
+		     sharing Compile1.CompSyn = CompSyn'
+                   structure AbsMachine1 : ABSMACHINE
+                     sharing AbsMachine1.Compile = Compile1
+		   structure Compile2 : COMPILE
+		     sharing Compile2.IntSyn = IntSyn'
+		     sharing Compile2.CompSyn = CompSyn'
+                   structure AbsMachine2 : ABSMACHINE
+                     sharing AbsMachine2.Compile = Compile2
+                   (*
 		   structure CPrint : CPRINT
-		   sharing CPrint.IntSyn = IntSyn'
-		   sharing CPrint.CompSyn = CompSyn'
+		     sharing CPrint.IntSyn = IntSyn'
+		     sharing CPrint.CompSyn = CompSyn'
+                     sharing CPrint.FullComp = Compile1
 		   structure Print : PRINT
-		   sharing Print.IntSyn = IntSyn'
+		     sharing Print.IntSyn = IntSyn'
 		   structure Names : NAMES 
-		   sharing Names.IntSyn = IntSyn'
+		     sharing Names.IntSyn = IntSyn'
+                   *)
                    structure CSManager : CS_MANAGER
                      sharing CSManager.IntSyn = IntSyn')
   : MTPSEARCH =
 struct
 
   structure IntSyn = IntSyn'
+  structure FunSyn = FunSyn'
   structure StateSyn = StateSyn'
   structure CompSyn = CompSyn'
 
@@ -40,22 +58,8 @@ struct
   local
     structure I = IntSyn
     structure C = CompSyn
-
+    structure F = FunSyn
       
-    (* isInstantiated (V) = SOME(cid) or NONE
-       where cid is the type family of the atomic target type of V,
-       NONE if V is a kind or object or have variable type.
-    *)
-    fun isInstantiated (I.Root (I.Const(cid), _)) = true
-      | isInstantiated (I.Pi(_, V)) = isInstantiated V
-      | isInstantiated (I.Root (I.Def(cid), _)) = true
-      | isInstantiated (I.Redex (V, S)) = isInstantiated V
-      | isInstantiated (I.Lam (_, V)) = isInstantiated V
-      | isInstantiated (I.EVar (ref (SOME(V)),_,_,_)) = isInstantiated V
-      | isInstantiated (I.EClo (V, s)) = isInstantiated V
-      | isInstantiated _ = false
-      
-
     (* exists P K = B
        where B iff K = K1, Y, K2  s.t. P Y  holds
     *)
@@ -126,160 +130,6 @@ struct
 	  else Xs
 	end
 
-
-    (* pruneCtx (G, n) = G'
-
-       Invariant:
-       If   |- G ctx
-       and  G = G0, G1
-       and  |G1| = n
-       then |- G' = G0 ctx
-    *)
-    fun pruneCtx (G, 0) = G
-      | pruneCtx (I.Decl (G, _), n) = pruneCtx (G, n-1)
-
-  (* solve ((g,s), (G,dPool), sc, (acc, k)) => ()
-     Invariants:
-       G |- s : G'
-       G' |- g :: goal
-       G ~ dPool  (context G matches dPool)
-       acc is the accumulator of results
-       and k is the max search depth limit 
-	   (used in the existential case for iterative deepening,
-	    used in the universal case for max search depth)
-       if  G |- M :: g[s] then G |- sc :: g[s] => Answer, Answer closed
-  *)
-  fun solve (max, depth, (C.Atom p, s), dp, sc) = matchAtom (max, depth, (p,s), dp, sc)
-    | solve (max, depth, (C.Impl (r, A, cid, g), s), FullComp.DProg (G, dPool), sc) =
-       let
-	 val D' = I.Dec (NONE, I.EClo (A, s))
-       in
-	 solve (max, depth+1, (g, I.dot1 s), 
-		FullComp.DProg (I.Decl(G, D'), I.Decl (dPool, SOME(r, s, cid))),
-		(fn M => sc (I.Lam (D', M))))
-       end
-    | solve (max, depth, (C.All (D, g), s), FullComp.DProg (G, dPool), sc) =
-       let
-	 val D' = I.decSub (D, s)
-       in
-	 solve (max, depth+1, (g, I.dot1 s), 
-		FullComp.DProg (I.Decl (G, D'), I.Decl (dPool, NONE)),
-		(fn M => sc (I.Lam (D', M))))
-       end
-
-  (* rsolve (max, depth, (p,s'), (r,s), (G,dPool), sc, (acc, k)) = ()
-     Invariants:
-       G |- s : G'
-       G' |- r :: resgoal
-       G |- s' : G''
-       G'' |- p :: atom
-       G ~ dPool
-       acc is the accumulator of results
-       and k is the max search depth limit 
-	   (used in the existential case for iterative deepening,
-	    used in the universal case for max search depth)
-       if G |- S :: r[s] then G |- sc : (r >> p[s']) => Answer
-  *)
-  and rSolve (max, depth, ps', (C.Eq Q, s), FullComp.DProg (G, dPool), sc) =
-      if Unify.unifiable (G, ps', (Q, s))
-	then sc I.Nil
-      else ()
-      (* replaced below by above.  -fp Mon Aug 17 10:41:09 1998
-        ((Unify.unify (ps', (Q, s)); sc (I.Nil, acck)) handle Unify.Unify _ => acc) *)
-    | rSolve (max, depth, ps', (C.And(r, A, g), s), dp as FullComp.DProg (G, dPool), sc) =
-      let
-	(* is this EVar redundant? -fp *)
-	val X = I.newEVar (G, I.EClo(A, s))
-      in
-        rSolve (max, depth, ps', (r, I.Dot(I.Exp(X), s)), dp,
-		(fn S => solve (max, depth, (g, s), dp,
-				(fn M => sc (I.App (M, S))))))
-
-      end
-    | rSolve (max, depth, ps', (C.In (r, A, g), s), dp as FullComp.DProg (G, dPool), sc) =
-      let
-					(* G |- g goal *)
-					(* G |- A : type *)
-					(* G, A |- r resgoal *)
-					(* G0, Gl  |- s : G *)
-	val G0 = pruneCtx (G, depth)
-	val dPool0 = pruneCtx (dPool, depth)
-	val w = I.Shift (depth)		(* G0, Gl  |- w : G0 *)
-	val iw = Whnf.invert w
-					(* G0 |- iw : G0, Gl *)
-	val s' = I.comp (s, iw)
-					(* G0 |- w : G *)
-	val X = I.newEVar (G0, I.EClo(A, s'))
-					(* G0 |- X : A[s'] *)
-	val X' = I.EClo (X, w)
-					(* G0, Gl |- X' : A[s'][w] = A[s] *)
-      in
-	rSolve (max, depth, ps', (r, I.Dot (I.Exp (X'), s)), dp,
-		(fn S => 
-		 if isInstantiated X then sc (I.App (X', S))
-		 else  solve (max, 0, (g, s'), FullComp.DProg (G0, dPool0),
-			      (fn M => 
-			       ((Unify.unify (G0, (X, I.id), (M, I.id)); 
-				 sc (I.App (I.EClo (M, w), S))) 
-				handle Unify.Unify _ => ())))))
-      end
-    | rSolve (max, depth, ps', (C.Exists (I.Dec (_, A), r), s), dp as FullComp.DProg (G, dPool), sc) =
-        let
-	  val X = I.newEVar (G, I.EClo (A, s))
-	in
-	  rSolve (max, depth, ps', (r, I.Dot (I.Exp (X), s)), dp,
-		  (fn S => sc (I.App (X, S))))
-	end
-
-  (* matchatom ((p, s), (G, dPool), sc, (acc, k)) => ()
-     G |- s : G'
-     G' |- p :: atom
-     G ~ dPool
-     acc is the accumulator of results
-     and k is the max search depth limit 
-         (used in the existential case for iterative deepening,
-          used in the universal case for max search depth)
-     if G |- M :: p[s] then G |- sc :: p[s] => Answer
-  *)
-  and matchAtom (0, _, _, _, _) = ()
-    | matchAtom (max, depth, 
-		 ps' as (I.Root (I.Const cid, _), _), 
-		 dp as FullComp.DProg (G, dPool), sc) =
-      let
-	fun matchSig' nil = ()
-	  | matchSig' (H ::sgn') =
-	    let
-	      val cid' = (case H  
-			    of I.Const cid => cid
-			     | I.Skonst cid => cid)
-				  
-	      val FullComp.SClause(r) = FullComp.sProgLookup cid'
-	      val _ = CSManager.trail
-		      (fn () =>
-		       rSolve (max-1, depth, ps', (r, I.id), dp,
-			       (fn S => sc (I.Root (H, S)))))
-	    in
-	      matchSig' sgn'
-	    end
-
-	fun matchDProg (I.Null, _) = matchSig' (Index.lookup cid) 
-	  | matchDProg (I.Decl (dPool', SOME (r, s, cid')), n) =
-	    if cid = cid' then
-	      let
-		val _ = CSManager.trail (fn () =>
-			    rSolve (max-1,depth, ps', (r, I.comp (s, I.Shift n)), dp,
-				    (fn S => sc (I.Root (I.BVar n, S)))))
-	      in
-		matchDProg (dPool', n+1)
-	      end
-	    else matchDProg (dPool', n+1)
-	  | matchDProg (I.Decl (dPool', NONE), n) =
-	      matchDProg (dPool', n+1)
-      in
-	matchDProg (dPool, 1)
-      end
-
-
     (* searchEx' max (GE, sc) = acc'
 
        Invariant: 
@@ -289,15 +139,17 @@ struct
             otherwise searchEx' terminates with []
     *)
     (* contexts of EVars are recompiled for each search depth *)
-    and searchEx' max (nil, sc) = sc max
+    fun searchEx' max (metaLen, nil, sc) = sc ()
         (* Possible optimization: 
 	   Check if there are still variables left over
 	*)
-      | searchEx' max ((X as I.EVar (r, G, V, _)) :: GE, sc) = 
-	  solve (max, 0, (FullComp.compileGoal V, I.id), 
-		 FullComp.compileCtx G, 
-		 (fn U' => (Unify.unify (G, (X, I.id), (U', I.id));
-					 searchEx' max (GE, sc)) handle Unify.Unify _ => ()))
+      | searchEx' max (metaLen, (X as I.EVar (r, G, V, _)) :: GE, sc) =
+          AbsMachine2.gBoundedSolve
+          (max, PTCompile.compileGoal false V, I.ctxLength(G) - metaLen,
+           Compile2.compileCtx false G,
+           fn U' => (Unify.unify (G, (X, I.id), (U', I.id));
+                     searchEx' max (metaLen, GE, sc))
+                    handle Unify.Unify _ => ())
 
     (* deepen (f, P) = R'
 
@@ -307,12 +159,12 @@ struct
        then R' is the result of applying f to P and 
 	 traversing all possible numbers up to MTPGlobal.maxLevel
     *)
-    fun deepen depth f P =
+    fun deepen depth trail f =
 	let 
 	  fun deepen' level = 
 	    if level > depth then ()
 	    else (if !Global.chatter > 5 then print "#" else (); 
-		    (f level P;
+		    (trail (fn () => f level);
 		     deepen' (level+1)))
 	in
 	  deepen' 1
@@ -329,24 +181,59 @@ struct
 	 All EVar's got instantiated with the smallest possible terms.
     *)    
 
-    fun searchEx (it, depth) (GE, sc) = 
-      (if !Global.chatter > 5 then print "[Search: " else ();  
-	 deepen depth searchEx' (selectEVar (GE), 
-				 fn max => (if !Global.chatter > 5 then print "OK]\n" else ();
-					    let
-					      val GE' = foldr (fn (X as I.EVar (_, G, _, _), L) => 
-							       Abstract.collectEVars (G, (X, I.id), L)) nil GE
-					      val gE' = List.length GE'
-					    in
-					      if gE' > 0 then  
-						if it > 0 then searchEx (it-1, 1) (GE', sc) 
-						else ()
-					      else sc max
-					    (* warning: iterative deepening depth is not propably updated. 
-					     possible that it runs into an endless loop ? *)
-					 end)); 
-	 if !Global.chatter > 5 then print "FAIL]\n" else ();
-	   ())
+    fun searchMore (metaLen, it, depth) (nil, sc) = sc ()
+      | searchMore (metaLen, 0, depth) (GE, sc) = ()
+      | searchMore (metaLen, it, depth) (GE, sc) =
+        (if !Global.chatter > 5 then print "[Search: " else ();
+         deepen depth AbsMachine2.trail
+         (fn max =>
+          searchEx' max
+          (metaLen,
+           selectEVar (GE),
+           fn () =>
+           (if !Global.chatter > 5 then print "OK]\n" else ();
+            let
+              val GE' = foldr (fn (X as I.EVar (_, G, _, _), L) =>
+                               Abstract.collectEVars (G, (X, I.id), L))
+                              nil GE
+              val gE' = List.length GE'
+            in
+              searchMore (metaLen, it-1, depth) (GE', sc)
+            end)));
+         if !Global.chatter > 5 then print "FAIL]\n" else ())
+
+    fun collectSpine (G, I.Nil, L) = L
+      | collectSpine (G, I.App(U, S), L) =
+          collectSpine (G, S, Abstract.collectEVars (G, (U, I.id), L))
+
+    fun occursInFor (k, F.True) = false
+      | occursInFor (k, F.Ex (I.Dec (_, V), F)) =
+        (case Abstract.occursInExp (k, Whnf.normalize(V, I.id))
+           of I.No => occursInFor (k+1, F)
+            | _ => true)
+
+    (* compileEx (G, F) = (Xs', P')
+      
+       Invariant:
+       If   |- G ctx
+       and  G |- F = [[x1:A1]] .. [[xn::An]] formula
+       then Xs' = (X1', .., Xn') a list of EVars
+       and  G |- Xi' : A1 [X1'/x1..X(i-1)'/x(i-1)]          for all i <= n
+       and  G; D |- P' = <X1', <.... <Xn', <>> ..> in F     for some D
+    *)
+    fun compileEx (F.True) = C.True
+      | compileEx (F.Ex (D as I.Dec (_, V), F)) =
+        if occursInFor (1, F)
+          then C.Exists (D, compileEx F)
+        else C.And (compileEx F, V, PTCompile.compileGoal false V)
+
+    fun uncompileSpine (I.Nil) = F.Unit
+      | uncompileSpine (I.App (U, S)) = F.Inx (U, uncompileSpine S)
+
+    fun checkSpine (G, _ (* (F.True,_) *), I.Nil) = ()
+      | checkSpine (G, (F.Ex (I.Dec (_, V), F), s), I.App (U, S)) =
+        (TypeCheck.typeCheck (G, (U, Whnf.normalize (V, s)));
+         checkSpine (G, (F, I.Dot (I.Exp (U), s)), S))
 
     (* search (GE, sc) = ()
 
@@ -358,10 +245,35 @@ struct
        success continuation will raise exception 
     *)
     (* Shared contexts of EVars in GE may recompiled many times *)
-    fun search (maxFill, GE, sc) = searchEx (1, maxFill) (GE, sc)
+    fun searchEx (maxFill, G, F, sc) =
+        let
+          val r = compileEx F
+          val G' = Compile1.compileCtx false G
+          val metaLen = I.ctxLength G
+          (*
+          val Gn = Names.ctxLUName G
+          val _ = print (CPrint.sProgToString ())
+          val _ = print (CPrint.dProgToString G')
+          val _ = print (CPrint.clauseToString "" (Gn, r))
+          *)
+        in
+          if !Global.chatter > 5 then print "[Search: " else ();
+          deepen maxFill AbsMachine1.trail
+          (fn max =>
+           AbsMachine1.rBoundedSolve
+           (max, r, 0, G',
+            fn S =>
+            (if !Global.chatter > 5 then print "OK]\n" else ();
+             searchMore (metaLen, 1, 1)
+               (collectSpine (G, S, nil),
+                fn () =>
+                (if !Global.doubleCheck then checkSpine (G, (F, I.id), S) else ();
+                 sc (max, uncompileSpine S))))));
+          if !Global.chatter > 5 then print "FAIL]\n" else ()          
+        end
 
   in 
-    val searchEx = search
+    val searchEx = searchEx
   end (* local ... *)
 
 end; (* functor Search *)

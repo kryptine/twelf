@@ -102,16 +102,24 @@ structure MTPSearch =
              structure MTPGlobal = MTPGlobal
 	     structure IntSyn' = IntSyn
 	     structure Abstract = Abstract
+             structure TypeCheck = TypeCheck
 	     structure Conv = Conv
+             structure FunSyn' = FunSyn
 	     structure StateSyn' = StateSyn
 	     structure CompSyn' = CompSyn
-	     structure FullComp = FullComp
 	     structure Whnf = Whnf
 	     structure Unify = UnifyTrail
 	     structure Index = IndexSkolem
+             structure PTCompile = PTCompile
+             structure Compile1 = SimpComp
+             structure AbsMachine1 = SimpMachine
+             structure Compile2 = FullComp
+             structure AbsMachine2 = FullMachine
+             (*
 	     structure CPrint = CPrint
 	     structure Print = Print
 	     structure Names = Names
+             *)
              structure CSManager = CSManager); 
 
 structure MTPFilling =
@@ -121,7 +129,7 @@ structure MTPFilling =
 	      structure MTPData = MTPData
 	      structure Whnf = Whnf
 	      structure Abstract = Abstract
-	      structure TypeCheck = TypeCheck
+              structure TypeCheck = TypeCheck
 	      structure Search = MTPSearch
 	      structure Whnf = Whnf)
 
@@ -161,6 +169,7 @@ structure UniqueSearch =
 		structure Whnf = Whnf
 		structure Unify = Unify
 		structure Index = Index
+                structure PTCompile = PTCompile
 		structure FullComp = FullComp
 		structure CPrint = CPrint
 		structure Print = Print
@@ -223,14 +232,18 @@ structure MTProver =
 	    structure MTPrint = MTPrint
 	    structure MTPInit = MTPInit
 	    structure MTPStrategy = MTPStrategy
+            structure MTPFilling = MTPFilling
+            structure MTPSplitting = MTPSplitting
+            structure MTPRecursion = MTPRecursion
 	    structure RelFun = RelFun)
 
-structure CombiProver = 
+structure CombiProver = MTProver
+(*
   CombiProver (structure MTPGlobal = MTPGlobal
 	       structure IntSyn' = IntSyn
 	       structure ProverNew = MTProver
 	       structure ProverOld = Prover)
-
+*)
 
 structure MTPi = 
   MTPi (structure MTPGlobal = MTPGlobal
