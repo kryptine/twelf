@@ -12,12 +12,13 @@ structure TomegaTypeCheck = TomegaTypeCheck
    structure Abstract = Abstract
    structure Tomega' = Tomega
    structure TypeCheck = TypeCheck
+   structure Normalize = Normalize
    structure Conv = Conv
    structure Whnf = Whnf
    structure Subordinate = Subordinate
+   structure TomegaPrint = TomegaPrint
    structure Print = Print
    structure Weaken = Weaken);
-
 
 
 structure Converter = Converter

@@ -260,30 +260,30 @@ struct
       end
 
 
-	    (* createIHCtx (Psi, L) = (Psi', P', F')
+    (* createIHCtx (Psi, L) = (Psi', P', F')
      
-	       Invariant:
-               If   L is a list of type families
-               and  Psi is a context
-               then Psi' extends Psi' by declarations in L
-               and  F' is the conjunction of the formuals 
-            	    that corresponds to each type family in L
-               and  Psi' |- P' in F'
-	    *)
-	    fun createIHCtx (Psi, nil) = raise Error "Empty theorem"
-	      | createIHCtx (Psi, [a]) = 
-	        let 
-		  val F = convertOneFor a
-		in
-		  (Psi,  T.Root (T.Var 1, T.Nil), F)
-		end
-	      | createIHCtx (Psi, a :: L) = 
-		let
-		  val F = convertOneFor a
-		  val (Psi', P', F') = createIHCtx (I.Decl (Psi,  T.PDec (NONE, F)), L)
-		in
-		  (Psi', T.PairPrg (T.Root (T.Var (1+length L), T.Nil), P'), T.And (F, F'))
-		end
+       Invariant:
+       If   L is a list of type families
+       and  Psi is a context
+       then Psi' extends Psi' by declarations in L
+       and  F' is the conjunction of the formuals 
+      	    that corresponds to each type family in L
+       and  Psi' |- P' in F'
+    *)
+    fun createIHCtx (Psi, nil) = raise Error "Empty theorem"
+      | createIHCtx (Psi, [a]) = 
+        let 
+	  val F = convertOneFor a
+	in
+	  (I.Decl (Psi, T.PDec (NONE, F)),  T.Root (T.Var 1, T.Nil), F)
+	end
+      | createIHCtx (Psi, a :: L) = 
+	let
+	  val F = convertOneFor a
+	  val (Psi', P', F') = createIHCtx (I.Decl (Psi,  T.PDec (NONE, F)), L)
+	in
+	  (Psi', T.PairPrg (T.Root (T.Var (1+length L), T.Nil), P'), T.And (F, F'))
+	end
 
 
     fun convertFor L = 
@@ -890,11 +890,7 @@ struct
 	
 	fun recursion () =
 	  let
-
-	      
-
 	    val (Psi, P, F) = createIHCtx (I.Null, L)
-	    val _ = chatter 4 (fn () => TomegaPrint.forToString (I.Null, F) ^ "\n")
 	    val t = T.Dot (T.Prg P, T.Shift (I.ctxLength Psi))
 	      
 	    fun name [a] = I.conDecName (I.sgnLookup a)

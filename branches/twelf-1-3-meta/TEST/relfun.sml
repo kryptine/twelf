@@ -22,13 +22,15 @@ in
       val Ss = map Worldify.worldify a
       val S = foldr op@ nil Ss
       val _ = printS S
-      val P = Converter.convertPrg a
-      val F = Converter.convertFor a
       val _ = print "[CHECKING "
-      val _ = TomegaTypeCheck.check (P, F)
-      val _ = print "]"
-(*      val _ = TextIO.print (TomegaPrint.forToString (I.Null, F) ^ "\n")
-      val _ = (FunTypeCheck.check (P, F); Twelf.OK)  *)
+      val P = Converter.convertPrg a
+      val _ = print "*"
+      val F = Converter.convertFor a
+      val _ = print "*"
+      val _ = TomegaTypeCheck.check (P, F)  
+       val _ = print "]"
+(*      val _ = TextIO.print (TomegaPrint.forToString (I.Null, F) ^ "\n") *)
+(*      val _ = (FunTypeCheck.check (P, F); Twelf.OK)   *)
 (*      val LD = F.LemmaDec (names, P, F) *)
 (*      val _ = TextIO.print (FunPrint.lemmaDecToString LD) *)
     in P
@@ -42,8 +44,8 @@ in
 (*  val _ = Twelf.loadFile "examples/mini-ml/reduce.elf"*)
 (*  val _ = test ["eval"] *)
 (*  val _ = test ["value"] *)
-  val _ = test ["vs"]
-  val _ = test ["tps"]
+(*  val _ = test ["vs"] *)
+(*  val _ = test ["tps"] *)
  (*   val _ = test ["closed"]   -- error case check back later *)
 
 (*
