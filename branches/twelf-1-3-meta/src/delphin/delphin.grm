@@ -88,7 +88,6 @@ structure L = Lexer
           | term of D.Term 
           | cases of D.Cases 
           | dec of D.Dec
-          | worlds of string list
           | form of D.Form
           | head of D.Head
           | mdec of D.MDec 
@@ -181,7 +180,7 @@ term      : TYPE                                       (D.Type)
 
 world     : LTPAREN world RTPAREN                      (world)
           | ID                                         (D.WorldIdent ID)
-	  | world world                                (D.Concat (world, world))
+	  | world world                                (D.Concat (world1, world2))
 	  | world PLUS world                           (D.Plus (world, world))
 	  | world TIMES                                (D.Times world)
 

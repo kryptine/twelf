@@ -66,10 +66,6 @@ struct
         dl
       end
 
-
-
-
-
     (* stringToWorlds s = W
 
        Invariant:
@@ -85,8 +81,6 @@ struct
         in
 	  t
         end
-
-
 
     fun transTerm (D.Rtarrow (t1, t2)) = 
           transTerm (t1) ^ " -> " ^ transTerm (t2) 
@@ -105,11 +99,32 @@ struct
 	  "(" ^ transTerm t ^ ")"
 	  
     and transDec (D.Dec (s, t)) = s ^ ":" ^ (transTerm t)
-      
 
+    fun transWorld (D.WorldIdent s) =
+	   (* We should use the worlds we have defined in Tomega, but this
+	      is not good enough, because worlds are not defined
+	      by a regualar expression.  Therefore this is a patch *)
+        let
+          val qid = Names.Qid (nil, s)
+	  val cid = (case Names.constLookup qid
+			            of NONE => raise Names.Error ("Undeclared label "
+                                         ^ Names.qidToString (valOf (Names.constUndef qid))
+                                         ^ ".")
+                                     | SOME cid => cid)	
+	in
+	  [cid]
+	end
+      | transWorld (D.Plus (W1, W2)) = transWorld W1 @ transWorld W2
+      | transWorld (D.Concat (W1, W2)) = transWorld W1 @ transWorld W2
+      | transWorld (D.Times W) = transWorld W
 
-
-
+    fun transFor' (Psi, D) = 
+        let
+	  val G = I.Decl (I.Null, D)
+	  val ReconTerm.JWithCtx (I.Decl (I.Null, D'), ReconTerm.JNothing) = 
+	    ReconTerm.reconWithCtx (Psi, ReconTerm.jwithctx(G, ReconTerm.jnothing))
+	in D'
+	end
 
     (* transFor (ExtDctx, ExtF) = (Psi, F)
      
@@ -119,69 +134,36 @@ struct
        then |- Psi <= ExtDPsi
        and  Psi |- F <= ExtF
     *)  
-    fun transFor (ExtDPsi, D.True) = 
-        let
-	  val ReconTerm.JWithCtx (G, ReconTerm.JNothing) = 
-	    ReconTerm.recon (ReconTerm.jwithctx(ExtDPsi, ReconTerm.jnothing))
-	in (G, Tomega.True)
-	end
-      | transFor (ExtDPsi, D.And (EF1, EF2)) = 
-        let
-	  val (Psi1, F1) = transFor (ExtDPsi, EF1)
-	  val (Psi2, F2) = transFor (ExtDPsi, EF2)
-	   (* Psi1 = Psi2 by invariant *)
-	   (* inefficency. transFor may redo work --cs !!! *)
-	in 
-	   (Psi1, Tomega.And (F1, F2))
-	end
-      | transFor (ExtDPsi, D.Forall (dec, EF)) =
+    fun transFor (Psi, D.True) = T.True
+      | transFor (Psi, D.And (EF1, EF2)) = 
+          T.And (transFor (Psi, EF1), transFor (Psi, EF2))
+      | transFor (Psi, D.Forall (D, F)) =
         let 
-	  val dec = stringTodec (transDec dec)
-          val (I.Decl (Psi, D), F) = transFor (I.Decl (ExtDPsi, dec), EF)
-        in 
-	  (Psi, Tomega.All ((T.UDec D, T.Explicit), F))
-        end
-      | transFor (ExtDPsi, D.Exists (dec, EF)) =  
-        let 
-	  val dec = stringTodec (transDec dec)
-          val (I.Decl (Psi, D), F) = transFor (I.Decl (ExtDPsi, dec), EF)
-        in 
-	  (Psi, Tomega.Ex ((D, T.Explicit), F))
-        end
-      | transFor (ExtDPsi, D.ForallOmitted (dec, EF)) =
-        let 
-	  val dec = stringTodec (transDec dec)
-          val (I.Decl (Psi, D), F) = transFor (I.Decl (ExtDPsi, dec), EF)
-        in 
-	  (Psi, Tomega.All ((T.UDec D, T.Implicit), F))
-        end
-      | transFor (ExtDPsi, D.ExistsOmitted (dec, EF)) =  
-        let 
-	  val dec = stringTodec (transDec dec)
-          val (I.Decl (Psi, D), F) = transFor (I.Decl (ExtDPsi, dec), EF)
-        in 
-	  (Psi, Tomega.Ex ((D, T.Implicit), F))
-        end
-      | transFor (ExtDPsi, D.World (_, EF)) =  transFor (ExtDPsi, EF)
-	
-
-
-(*      | transFor (ExtDPsi, D.World (lfstring, EF)) =  
-        let 
-          val qids = List.map Names.Qid (stringToWorlds lfstring)
-	  val W = T.Worlds
-	          (List.map (fn qid => case Names.constLookup qid
-			            of NONE => raise Names.Error ("Undeclared label "
-                                         ^ Names.qidToString (valOf (Names.constUndef qid))
-                                         ^ ".")
-                                     | SOME cid => cid)
-	      qids)
-	  val (Psi, F) = transFor (ExtDPsi, EF)
+	  val D' = transFor' (Psi, stringTodec (transDec D))
 	in
-	  (Psi, T.World (W, F))
+	   T.All ((T.UDec D', T.Explicit), transFor (I.Decl (Psi, D'), F))
         end
-
-*)
+      | transFor (Psi, D.Exists (D, F)) =
+        let 
+	  val D' = transFor' (Psi, stringTodec (transDec D))
+	in
+	   T.Ex ((D', T.Explicit), transFor (I.Decl (Psi, D'), F))
+        end
+      | transFor (Psi, D.ForallOmitted (D, F)) =
+        let 
+	  val D' = transFor' (Psi, stringTodec (transDec D))
+	in
+	   T.All ((T.UDec D', T.Implicit), transFor (I.Decl (Psi, D'), F))
+        end
+      | transFor (Psi, D.ExistsOmitted (D, F)) =
+        let 
+	  val D' = transFor' (Psi, stringTodec (transDec D))
+	in
+	   T.Ex ((D', T.Implicit), transFor (I.Decl (Psi, D'), F))
+        end
+      | transFor (Psi, D.World (W, EF)) = 
+	   T.World (T.Worlds (transWorld W), transFor (Psi, EF))
+	   
 
 
 
@@ -701,7 +683,7 @@ val _ = print "!";
     fun transDecs ((Psi, env), D.Empty, sc, W) = (sc (Psi, env, W))
   (*    | transDecs ((Psi, env), D as D.FunDecl (FunD, Ds), sc, W) =  (transFun1 ((Psi, env), D, sc, W)) *)
       | transDecs ((Psi, env), D.FormDecl (FormD, Ds), sc, W) = (transForDec ((Psi, env), FormD, Ds, sc, W))
-(*     | transDecs ((Psi, env), D.ValDecl (ValD, Ds), sc, W) = (transValDec ((Psi, env), ValD, Ds, sc, W)) *)
+(*      | transDecs ((Psi, env), D.ValDecl (ValD, Ds), sc, W) = (transValDec ((Psi, env), ValD, Ds, sc, W)) *)
 
 (*
     (* transFun1 ((Psi, env), dDs, sc, W) = x
@@ -876,7 +858,7 @@ val _ = print "!";
     *)
     and transForDec ((Psi, env), D.Form (s, eF), Ds, sc, W) = 
         let
-	  val (_, F) = transFor (I.Null, eF)   
+	  val F = transFor (I.Null, eF)   
 					(* fix the context I.Null from
                                            external to internal form--cs *)
 	  val G = Names.ctxName (T.coerceCtx Psi)
@@ -1186,7 +1168,7 @@ val _ = print "!";
         end
 *)
   in 
-    val transFor = fn F => let val (_, F') = transFor (I.Null, F) in F' end
+    val transFor = fn F => let val  F' = transFor (I.Null, F) in F' end
 
 (*    val makePattern = makePattern *)
 (*    val transPro = fn P => let val (P', _) = transProgS ((I.Null, []), P, T.Worlds []) in P' end *)
