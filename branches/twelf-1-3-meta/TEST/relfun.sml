@@ -87,8 +87,40 @@ in
 
 
 
+  (* Regression test for Church-Rosser *)
+  val _ = load "examples/church-rosser/sources.cfg"
+  val _ = print ["identity"]
+  val _ = print ["append"]
+  val _ = print ["subst"] 
+(*  val _ = print ["dia"]             -- problem here:  we need to support lemmas 
+  val _ = print ["strip"] 
+  val _ = print ["conf"]
+  val _ = print ["cr"]
+*)
+
+(*
+  (* Regression test for Kolmogoroff translation *)
+  val _ = load "examples/kolm/sources.cfg"
+  val _ = test ["kolm"]
+  val _ = test ["existskolm"]
+  val _ = test ["nj_nk"]
+  val _ = test ["equiv"]
+  val _ = test ["complete"]
+
+*)
+
 (*
 
+  (* Regression test for Cut-Elimination *)
+  val _ = load "examples/cut-elim/sources.cfg"
+  val _ = test ["ca"]
+  val _ = test ["ce"]
+  val _ = test ["ca'"]
+  val _ = test ["ce'"]
+*)
+
+
+(*
   (* Regression test for compile *)
   val _ = load "examples/compile/cls/sources.cfg"
   val _ = test ["trans", "vtrans"]
@@ -104,6 +136,9 @@ in
   val _ = test ["spl"]
   val _ = test ["cls_sound"]
 
+*)
+
+(*
   (* Regression test for logic programming *)
   val _ = load "examples/lp/sources.cfg"
   val _ = test ["can", "atm"]
@@ -116,30 +151,6 @@ in
      recursive functions.
   *)
 
-  (* Regression test for Church-Rosser *)
-  val _ = load "examples/church-rosser/sources.cfg"
-  val _ = test ["identity"]
-  val _ = test ["append"]
-  val _ = test ["subst"] 
-  val _ = test ["dia"]
-  val _ = test ["strip"] 
-  val _ = test ["conf"]
-  val _ = test ["cr"]
-
-
-  (* Regression test for Cut-Elimination *)
-  val _ = load "examples/cut-elim/sources.cfg"
-  val _ = test ["ca"]
-  val _ = test ["ce"]
-  val _ = test ["ca'"]
-  val _ = test ["ce'"]
-
-  val _ = load "examples/kolm/sources.cfg"
-  val _ = test ["kolm"]
-  val _ = test ["existskolm"]
-  val _ = test ["nj_nk"]
-  val _ = test ["equiv"]
-  val _ = test ["complete"]
 *)
 end
 
