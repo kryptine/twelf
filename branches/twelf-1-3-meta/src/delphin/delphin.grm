@@ -130,6 +130,7 @@ formdecl  : FORMID form	                               (D.Form (chop (FORMID), f
 
 fundecl   : FUN head EQUAL prog %prec PREC1            (D.Fun (head, prog))
           | BAR head EQUAL prog %prec PREC1            (D.Bar (head, prog)) 
+          | AND head EQUAL prog %prec PREC1            (D.FunAnd (head, prog)) 
 
 valdecl   : VAL pat DBLCOLON form EQUAL prog %prec ID  (D.Val (pat, prog, SOME form))
 	  | VAL pat EQUAL prog %prec ID                (D.Val (pat, prog, NONE))

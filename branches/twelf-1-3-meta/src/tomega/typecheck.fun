@@ -26,6 +26,7 @@ functor TomegaTypeCheck
    (*! sharing Subordinate.IntSyn = IntSyn' !*)
    structure Weaken : WEAKEN
    (*! sharing Weaken.IntSyn = IntSyn' !*)
+   structure TomegaAbstract : TOMEGAABSTRACT
        ) : TOMEGATYPECHECK = 
 struct
   (*! structure IntSyn = IntSyn' !*)
@@ -36,7 +37,8 @@ struct
   local 
     structure I = IntSyn
     structure T = Tomega
-    structure S = Subordinate    
+    structure S = Subordinate
+    structure TA = TomegaAbstract
 
     fun chatter chlev f =
         if !Global.chatter >= chlev
@@ -113,7 +115,7 @@ struct
 	let
 	  val T.All ((T.UDec (D as (I.BDec _)), _), F) = inferPrg (Psi, P)
 	in
-	  F (* raise (D, F) *)
+	  TA.raiseF (I.Decl (I.Null, D), (F, I.id))
 	end
       | inferPrg (Psi, T.PairExp (U, P)) =
 	let 
@@ -312,20 +314,44 @@ struct
 	in
 	  ()
 	end
-      | checkPrgW (Psi, (T.New (T.Lam (D as T.UDec (I.BDec (_, (cid, s))), P)), (F, t))) =
-	  (print "* Temporary incompleteness;  code is written but not yet clean\n") 
+      | checkPrgW (Psi, (T.New (P' as T.Lam (T.UDec (D as I.BDec (_, (cid, s))), P)), (F, t))) =
+	let 
+	  val _ = chatter 5 (fn () => "[new1...")
+	  val T.All ((T.UDec D'', _), F') = inferPrg (Psi, P')   (* D'' == D *)
+	  val _ = chatter 5 (fn () => "][new2...")
+	  val F'' = TA.raiseF (I.Decl (I.Null, D), (F', I.id))
+	in
+	  (convFor (Psi, (F'', T.id), (F, t))
+	  ;chatter 5 (fn () => "]\n"))
+	end
 (*      | checkPrgW (Psi, (T.Lam (T.UDec (D as I.BDec (_, _)), P), 
 			 (T.All ((T.UDec D', _), F'), t))) =
 	  (Conv.convDec ((D, I.id), (D', T.coerceSub t)); 
 	   checkPrg (I.Decl (Psi, T.UDec D), (P, (F', (T.dot1 t))))) *)
-      | checkPrgW (Psi, (T.Redex (P1, P2), (F, t))) =
-	  (print "* Temporary incompleteness; redex not checkable")
+      | checkPrgW (Psi, (T.Redex (P1, S2), (F, t))) =
+	  let
+	    val F' = inferPrg (Psi, P1)
+	  in
+	   checkSpine (Psi, S2, (F', T.id), (F, t))
+	  end
       | checkPrgW (Psi, (T.Box (W, P), (T.World (W', F), t))) =
 	  checkPrgW (Psi, (P, (F, t)))
 	  (* don't forget to check if the worlds match up --cs Mon Apr 21 01:51:58 2003 *)
-      | checkPrgW (Psi, (T.New _, (F, t))) =
+ (*     | checkPrgW (Psi, (T.New (, (F, t))) =
 	  (print "* Temporary incompleteness;  new not expected alone \n")
+*)
 
+    and checkSpine (Psi, T.Nil, (F, t), (F', t')) =  convFor (Psi, (F, t), (F', t'))
+      | checkSpine (Psi, T.AppExp (U, S), (T.All ((T.UDec (I.Dec (_, V)), _), F), t), (F', t')) =
+        (TypeCheck.typeCheck (T.coerceCtx Psi, (U, I.EClo (V, T.coerceSub t)));
+         checkSpine (Psi, S, (F, T.Dot (T.Exp U, t)), (F', t')))
+(*      | checkSpine (Psi, T.AppBlock (B, S), (T.All ((T.UDec (I.BDec (_, (c, s))), _), F), t), (F', t')) =
+        (TypeCheck.blockCheck (T.coerceCtx Psi, (B, (c, I.comp (s, t))));   (* implement ! *)
+         checkSpine (Psi, S, (F, T.Dot (I.Block B, t)), (F', t')))
+*)
+      | checkSpine (Psi, T.AppPrg (P, S), (T.All ((T.PDec (_, F1) , _), F2), t),  (F', t')) =
+	(checkPrgW (Psi, (P, (F1, t)));  checkSpine (Psi, S, (F2, T.Dot (T.Undef, t)), (F', t')))
+   
 
 (*	let 
 

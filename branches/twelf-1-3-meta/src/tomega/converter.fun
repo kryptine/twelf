@@ -39,6 +39,7 @@ functor Converter
    structure TypeCheck : TYPECHECK
    (*! sharing TypeCheck.IntSyn = IntSyn' !*)
    structure Redundant : REDUNDANT
+   structure TomegaAbstract :TOMEGAABSTRACT
        )
      : CONVERTER = 
 struct
@@ -55,6 +56,7 @@ exception Error' of Tomega.Sub
     structure M = ModeSyn
     structure S = Subordinate    
     structure A = Abstract
+    structure TA = TomegaAbstract
  
     (* ABP - 4/20/03, determine if Front is (I.Idx 1) *)
     fun isIdx1 (I.Idx 1) = true
@@ -774,6 +776,7 @@ exception Error' of Tomega.Sub
 	  (G, renameExp f V)
 	end
 
+(*
 (* this is the code we need below *)
 
 
@@ -808,7 +811,7 @@ exception Error' of Tomega.Sub
       | strengthenToSpine (I.Shift k, l, (n, S)) = 
 	  strengthenToSpine (I.Dot (I.Idx (k+1), I.Shift (k+1)), l, (n, S))
 
-
+*)
 (*
     (* weaken (G, a) = (w')
     *)
@@ -828,7 +831,7 @@ exception Error' of Tomega.Sub
 	  end
 
 *)
-    (* raiseFor (B, (F, t)) = (P', F')) 
+(*    (* raiseFor (B, (F, t)) = (P', F')) 
  
        Invariant:
        If   Psi, B, G |-  F for
@@ -911,7 +914,7 @@ exception Error' of Tomega.Sub
 	end
 
 
-
+*)
 
 
 
@@ -1119,7 +1122,7 @@ exception Error' of Tomega.Sub
 					(* Psi0, G', GB'  |- s' : Psi0, G', B' *)
 					(* Psi0, G', GB' |- RR for *)
 
-	      val F''' = raiseFor (GB', (RR, I.id))
+	      val F''' = TA.raiseFor (GB', (RR, I.id))
                                           (* Psi0, G |- w1' : Psi0, G' *)
                                           (* Psi0, G' |- F''' for *)
 
@@ -1178,7 +1181,7 @@ exception Error' of Tomega.Sub
 					(* Psi2, B3 |- sigma3 : Psi2,  B3' *)
 *)
               val Pat'' = Normalize.normalizePrg (Pat', sigma3)
-	      val Pat = raisePrg (B3, Pat'', F4)
+	      val Pat = TA.raisePrg (B3, Pat'', F4)
 		                        (* Psi0, G3 |- Pat :: F4  *)
 		                        (* Here's a commutative diagram
 					   at work which one has to prove 
@@ -1568,7 +1571,7 @@ exception Error' of Tomega.Sub
 
 
 
-    fun raiseP (G, P, F) =
+(*    fun raiseP (G, P, F) =
       let 
 	val (G', s) = T.deblockify G
 	val P' = Normalize.normalizePrg (P, s) (* G' |- P' : F' *)
@@ -1577,7 +1580,7 @@ exception Error' of Tomega.Sub
       in
 	P''
       end
-
+*)
 
     fun mkResult 0 = T.Unit
       | mkResult n = T.PairExp (I.Root (I.BVar n, I.Nil), mkResult (n-1))
@@ -1602,8 +1605,8 @@ exception Error' of Tomega.Sub
     val installFor = installFor
     val installPrg = installPrg
     val traverse = traverse
-    val raisePrg = raiseP
-    val raiseFor = raiseFor
+(*    val raisePrg = raiseP
+    val raiseFor = raiseFor *)
     val convertGoal = convertGoal
   end
 end (* functor FunSyn *)

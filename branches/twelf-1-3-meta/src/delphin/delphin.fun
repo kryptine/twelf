@@ -11,7 +11,7 @@ functor Delphin ((* structure Tomega : TOMEGA *)
 		   sharing Trans.DextSyn = DextSyn) : DELPHIN =
 struct
   local
-    val version = "Delphin, Version 0.1, January 2003"
+    val version = "Delphin, Version 0.5, July 2003"
 
     val prompt = "> "
 
@@ -21,23 +21,34 @@ struct
     structure I = IntSyn
     structure T = Tomega
 
+    fun chatter chlev f =
+        if !Global.chatter >= chlev
+	  then print (f ())
+	else ()
     
     fun loadFile (s1, s2) =
       let 
 	val _ = Twelf.reset ()
 	val _ = Twelf.loadFile s1
+	val _ = chatter 1 (fn () => "[Opening file " ^ s2 ^ "]\n")
 	val _ = Trans.internalizeSig ()
+	val _ = chatter 4 (fn () => "[Parsing ...")
 	val (DextSyn.Ast EDs) = Parse.gparse s2
-(*	val _ = print "* Parsing done\n" *)
+	val _ = chatter 4 (fn () => "]\n[Translation ...")
 	val P = Trans.transDecs EDs
+	val _ = chatter 4 (fn () => "]\n[Externalization ...")
 (*	val _ = print "* Type reconstruction done\n" *)
 	val P' = Trans.externalizePrg P 
+	val _ = chatter 4 (fn () => "]\n")
+	val _ = chatter 4 (fn () => "[Operational Semantics ...")
 (*	val _ = raise What P' 
 	val _ = print "* Externalization done\n" *)
 (*	val _  = TomegaTypeCheck.checkPrg (IntSyn.Null, (P', Tomega.True))
 	val _ = print "* Typechecking done\n"
 *)	val V  = Opsem.topLevel P'  (* was evalPrg --cs Mon Jun 30 12:09:21 2003*)
+	val _ = chatter 4 (fn () => "]\n")
 (*	val _ = print "* Operational semantics done\n" *)
+	val _ = chatter 1 (fn () => "[Closing file " ^ s2 ^ "]\n")
       in 
 	V
       end

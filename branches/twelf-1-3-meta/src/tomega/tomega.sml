@@ -1,3 +1,10 @@
+structure TomegaAbstract = TomegaAbstract 
+  (structure Global = Global
+   structure Abstract = Abstract
+   structure Whnf = Whnf
+   structure Subordinate = Subordinate);
+  
+
 structure TomegaPrint = TomegaPrint
   ((*! structure IntSyn' = IntSyn !*)
    (*! structure Tomega' = Tomega !*)
@@ -18,7 +25,8 @@ structure TomegaTypeCheck = TomegaTypeCheck
    structure Subordinate = Subordinate
    structure TomegaPrint = TomegaPrint
    structure Print = Print
-   structure Weaken = Weaken);
+   structure Weaken = Weaken
+   structure TomegaAbstract = TomegaAbstract);
 
 structure TomegaUnify = TomegaUnify
   (structure Global = Global
@@ -82,6 +90,7 @@ structure Converter = Converter
    structure ModeSyn = ModeSyn
    structure Names = Names
    structure TypeCheck = TypeCheck
+   structure TomegaAbstract = TomegaAbstract
    structure TomegaTypeCheck = TomegaTypeCheck
    structure Trail = Trail
    structure Unify = UnifyTrail

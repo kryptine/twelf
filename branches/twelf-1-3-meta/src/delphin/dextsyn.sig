@@ -21,6 +21,7 @@ and FormDecl
 and FunDecl 
   = Fun of Head * Prog
   | Bar of Head * Prog
+  | FunAnd of Head * Prog
 
 and ValDecl
   = Val of Pat * Prog * Form option

@@ -686,6 +686,8 @@ struct
   	in
 	  transFun2 (Psi, (s, F), D.FunDecl (D.Bar (eH, eP), Ds), sc, fn Cs => T.Case (T.Cases Cs), W)
 	end
+      | transFun1 (Psi, (s', F), D.FunDecl (D.FunAnd (eH, eP), Ds), sc, W) =
+	raise Error "Mutual recursive functions not yet implemented"
       | transFun1 _ = raise Error "Function declaration expected"
 
 
