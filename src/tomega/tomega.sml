@@ -76,6 +76,8 @@ structure TomegaCoverage = TomegaCoverage
   (structure Global = Global
    structure IntSyn' = IntSyn
    structure Tomega' = Tomega
+   structure Normalize = Normalize
    structure TomegaPrint = TomegaPrint
+   structure TomegaTypeCheck = TomegaTypeCheck
    structure Cover = Cover);
 
