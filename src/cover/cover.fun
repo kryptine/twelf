@@ -265,6 +265,23 @@ struct
     *)
     datatype Equation = Eqn of I.dctx * I.eclo * I.eclo
 
+    fun equationToString (Eqn (G, Us1, Us2)) =
+        let val G' = Names.ctxLUName G
+	  val fmt =
+	      F.HVbox [Print.formatCtx (I.Null, G'), F.Break,
+		       F.String "|-", F.Space,
+		       Print.formatExp (G', I.EClo (Us1)), F.Break,
+		       F.String "=", F.Space,
+		       Print.formatExp (G', I.EClo (Us2))]
+	in
+	  F.makestring_fmt (fmt)
+	end
+
+    fun eqnsToString (nil) = ".\n"
+      | eqnsToString (eqn::eqns) =
+          equationToString (eqn) ^ ",\n"
+	  ^ eqnsToString (eqns)
+
     (* Splitting candidates *)
     (* Splitting candidates [k1,...,kl] are indices
        into coverage goal {xn:Vn}...{x1:V1} a M1...Mm, counting right-to-left
@@ -273,6 +290,10 @@ struct
         Eqns of Equation list		(* equations to be solved, everything matches so far *)
       | Cands of int list		(* candidates for splitting, matching fails *)
       | Fail				(* coverage fails without candidates *)
+
+    fun candsToString (Fail) = "Fail"
+      | candsToString (Cands(ks)) = "Cands [" ^ List.foldl (fn (k,str) => Int.toString k ^ "," ^ str) "]" ks
+      | candsToString (Eqns(eqns)) = "Eqns [\n" ^ eqnsToString eqns ^ "]"
 
     (* fail () = Fail
        indicate failure without splitting candidates
@@ -490,11 +511,15 @@ struct
       | matchBlock (G, d, B1 as I.Bidx(k), I.LVar (r2, (l2, t2)), cands) =
 	let
 	  val I.BDec (bOpt, (l1, t1)) = I.ctxDec (G, k)
+	  (* val _ = print (candsToString (cands) ^ "\n")*)
 	in
 	  if l1 <> l2 then fail ()
 	  else let 
 		 val cands2 = matchSub (G, d, t1, t2, cands)
 		 (* instantiate if matching is successful *)
+		 (* val _ = print (candsToString (cands2) ^ "\n") *)
+		 (* instantiate, instead of postponing because *)
+		 (* LVars are only instantiated to Bidx's which are rigid *)
 		 val _ = Unify.instantiateLVar (r2, B1)
 	       in
 		 cands2
@@ -513,8 +538,8 @@ struct
 	     (I.Idx (n1), I.Idx (n2)) => 
 	       if n1 <> n2 then fail ()
 	       else cands
-           | (I.Exp (U1), I.Exp (U2)) => matchExp
-		 (G, d, (U1, I.id), (U2, I.id), cands)
+           | (I.Exp (U1), I.Exp (U2)) =>
+		 matchExp (G, d, (U1, I.id), (U2, I.id), cands)
 	   | (I.Exp (U1), I.Idx (n2)) =>
 		 matchExp (G, d, (U1, I.id), (I.Root (I.BVar (n2), I.Nil), I.id), cands)
            | (I.Idx (n1), I.Exp (U2)) =>
@@ -1235,7 +1260,7 @@ struct
 	  covers' (cases, 1, wci, ccs, lab, missing) )
 
     and covers' (nil, n, wci, ccs, lab, missing) =
-        ( chatter 6 (fn () => "All subcases of " ^ labToString(lab) ^ " covered\n");
+        ( chatter 6 (fn () => "All subcases of " ^ labToString(lab) ^ " considered\n");
 	  missing )
       | covers' ((V,p)::cases', n, wci, ccs, lab, missing) =
           covers' (cases', n+1, wci, ccs, lab, cover (V, p, wci, ccs, Child(lab, n), missing))
@@ -1409,12 +1434,6 @@ struct
 	in
 	  "Split " ^ x ^ " in " ^ F.makestring_fmt (F.HVbox (Print.formatSpine (G, S)))
 	end
-
-    (*
-    fun showCands (Fail) = "Fail - irrecoverable failure of coverage"
-      | showCands (Cands(ks)) = "Cands - " ^ List.foldl (fn (k,str) => Int.toString k ^ str) "" ks
-      | showCands (Eqns(eqns)) = "Eqns - residual"
-    *)
 
     (* newEVarSubst (G, G') = s
        Invariant:   If G = xn:Vn,...,x1:V1
@@ -1640,7 +1659,7 @@ struct
 		     ^ pluralize (List.length cases, " case") ^ "\n");
 	  covers' (cases, 1, w, ccs, lab, missing) )
     and covers' (nil, n, w, ccs, lab, missing) =
-        ( chatter 6 (fn () => "All subcases of " ^ labToString(lab) ^ " covered\n");
+        ( chatter 6 (fn () => "All subcases of " ^ labToString(lab) ^ " considered\n");
 	  missing )
       | covers' (cg::cases', n, w, ccs, lab, missing) =
 	let
