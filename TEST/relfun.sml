@@ -57,7 +57,10 @@ in
   val _ = load "examples/mini-ml/sources.cfg"
   val _ = Twelf.loadFile "examples/mini-ml/reduce.elf"
   val _ = print ["eval"]
-  val _ = test ["value"]
+
+
+
+  val _ = print ["value"]
   val _ = print ["vs"]
   val _ = print ["tps"]
   val _ = print ["==>"]

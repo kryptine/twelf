@@ -404,12 +404,38 @@ struct
 
 *)	
 
+
+
+
+
+
+
+ (* fmtSpine (G, d, l, (S, s)) = fmts
+     format spine S[s] at printing depth d, printing length l, in printing
+     context G which approximates G', where G' |- S[s] is valid
+  *)
+  fun fmtSpine (Psi,  T.Nil) = []
+    | fmtSpine (Psi, T.AppExp (U, S)) =
+	 (* Print.formatExp (T.coerceCtx Psi, U) *)
+         Fmt.HVbox (Print.formatSpine (T.coerceCtx Psi, I.App (U, I.Nil)))         
+	 :: fmtSpine' (Psi, S)
+    | fmtSpine (Psi, T.AppPrg (P, S)) =
+	 formatPrg3 (Psi, P)
+	 :: fmtSpine' (Psi, S)
+
+  and fmtSpine' (Psi, T.Nil) = []
+    | fmtSpine' (Psi, S) =
+	Fmt.Break :: fmtSpine (Psi, S)
+	  
+
+
+(*
 	(* frontToExp (Ft) = U'
 	 
 	   Invariant: 
 	   G |- Ft = U' : V   for a G, V
         *)
-	fun frontToExp (T.Idx k) = I.Root (I.BVar k, I.Nil)
+	and frontToExp (T.Idx k) = I.Root (I.BVar k, I.Nil)
 	  | frontToExp (T.Exp (U)) = U
 	  | frontToExp (T.Prg (T.PairExp (U, _))) = U    (* this is a patch -cs
 							    works only with one exists quantifier
@@ -418,7 +444,9 @@ struct
 
 							    Next step program printer for tomega spines
 							    Then change this code. *)
-	  
+*)
+
+
  
 	(* argsToSpine (Psi1, s, S) = S'
 
@@ -430,11 +458,18 @@ struct
 	   where 
            then Fmts is a list of arguments
         *)
-	fun argsToSpine (s, 0, S) = S
+	and argsToSpine (s, 0, S) = S
 	  | argsToSpine (T.Shift (n), k, S) = 
               argsToSpine (T.Dot (T.Idx (n+1), T.Shift (n+1)), k, S) 
-	  | argsToSpine (T.Dot (Ft, s), k, S) =
-	      argsToSpine (s, k-1, I.App (frontToExp Ft, S))
+	  | argsToSpine (T.Dot (T.Idx n, s), k, S) =
+	      argsToSpine (s, k-1, T.AppExp (I.Root (I.BVar n, I.Nil), S))
+	  | argsToSpine (T.Dot (T.Exp (U), s), k, S) =
+	      argsToSpine (s, k-1, T.AppExp (U, S))
+	  | argsToSpine (T.Dot (T.Prg P, s), k, S) =
+	      argsToSpine (s, k-1, T.AppPrg (P, S))
+
+	      (* Idx will always be expanded into Expressions and never into programs
+	         is this a problem? -- cs *)
 
 
 	(* formatTuple (Psi, P) = fmt'
@@ -444,7 +479,7 @@ struct
 	   and  Psi; Delta |- P = Inx (M1, Inx ... (Mn, Unit))
 	   then fmt' is a pretty print format of (M1, .., Mn)
 	*)
-	fun formatTuple (Psi, P) =
+	and formatTuple (Psi, P) =
 	  let 
 	    fun formatTuple' (T.Unit) = nil 
 	      | formatTuple' (T.PairExp (M, T.Unit)) = 
@@ -462,16 +497,10 @@ struct
 
 
 
-
-	fun spineToSpine (T.Nil) = I.Nil
-	  | spineToSpine (T.AppExp (U, S)) =
-	      I.App (U, spineToSpine S)
-
-	fun formatRoot (Psi, T.Var (k), S) = 
+	and formatRoot (Psi, T.Var (k), S) = 
 	    let 
 	      val T.PDec (SOME name, _) = I.ctxLookup (Psi, k)
-	      val S' = spineToSpine S
-	      val Fspine =   Print.formatSpine (T.coerceCtx Psi, S')
+	      val Fspine = fmtSpine (Psi, S)
 	    in
               Fmt.Hbox [Fmt.Space, 
 			Fmt.HVbox (Fmt.String name :: Fmt.Break  :: Fspine)]
@@ -487,10 +516,14 @@ struct
 	   and  P = let .. in .. end | <..,..> | <>
 	   then fmt is a pretty print of P
 	*)
-	and formatPrg3 (Psi, P as T.Unit) = formatTuple (Psi, P)
-	  | formatPrg3 (Psi, P as T.PairExp _) = formatTuple (Psi, P)
+	and formatPrg3 (Psi, T.Unit) = Fmt.String "<>"  (* formatTuple (Psi, P) *)
+	  | formatPrg3 (Psi, T.PairExp (U, P)) = 
+	      Fmt.HVbox [Fmt.String "<", Print.formatExp (T.coerceCtx Psi, U), 
+			 Fmt.String ",", Fmt.Break, formatPrg3 (Psi, P), Fmt.String ">"]
+(* formatTuple (Psi, P) *)
 	  | formatPrg3 (Psi, P as T.Let _) = formatLet (Psi, P, nil) 
 	  | formatPrg3 (Psi, P as T.Root (H, S)) =  formatRoot (Psi, H, S)
+	  | formatPrg3 (Psi, P as T.New _) = Fmt.String "..."
 	  | formatPrg3 _ = Fmt.String "missing case"
 
 
@@ -510,8 +543,10 @@ struct
 	      val Psi1' = psiName (Psi1, s1, Psi, 1)
 	      val F1 = formatPrg3 (Psi, P1)
 
-	      val S = argsToSpine (s1, 1, I.Nil)   (* was I.ctxLength Psi - max  --cs *)
-	      val Fspine =   Print.formatSpine (T.coerceCtx Psi1, S)
+	      val S = argsToSpine (s1, 1, T.Nil)   (* was I.ctxLength Psi - max  --cs *)
+(*	      val Fspine =   Print.formatSpine (T.coerceCtx Psi1, S) *)
+	      val Fspine = fmtSpine (Psi1, S)
+
 	      val Fpattern =  Fmt.Hbox [Fmt.Hbox (Fspine), Fmt.Space, Fmt.String "=" ]
 	      val Fbody = Fmt.Hbox [F1]
 	      val fmt = Fmt.HVbox  [Fmt.String "val", Fmt.Space, Fpattern, Fbody]
@@ -524,8 +559,10 @@ struct
 	      val Psi1' = psiName (Psi1, s1, Psi, 1)
 	      val F1 = formatPrg3 (Psi, P1)
 
-	      val S = argsToSpine (s1, 1, I.Nil)   (* was I.ctxLength Psi - max  --cs *)
-	      val Fspine =   Print.formatSpine (T.coerceCtx Psi1, S)
+	      val S = argsToSpine (s1, 1, T.Nil)   (* was I.ctxLength Psi - max  --cs *)
+(*	      val Fspine =   Print.formatSpine (T.coerceCtx Psi1, S) *)
+	      val Fspine = fmtSpine (Psi1, S)
+
 	      val Fpattern =  Fmt.Hbox [Fmt.Hbox (Fspine), Fmt.Space, Fmt.String "=" ]
 	      val Fbody = Fmt.Hbox [F1]
 	      val fmt = Fmt.HVbox  [Fmt.String "val", Fmt.Space, Fpattern, Fbody]
@@ -533,7 +570,7 @@ struct
 (*	      val fmt = (* formatDecs (0, Psi, Ds, (Psi1', s1)) *)
 		Fmt.Hbox [Fmt.String " ..." , Fmt.Space, Fmt.String "=",  Fmt.Break, F1] *)
 	    in
-	      Fmt.Vbox0 0 1 ([Fmt.String "let", Fmt.Break,
+	      Fmt.Vbox0 0 1 ([Fmt.String "let", 
 			      Fmt.Spaces 2, Fmt.Vbox0 0 1 (fmts @ [Fmt.Break, fmt]),
 			      Fmt.Break,
 			      Fmt.String "in", Fmt.Break,
@@ -556,8 +593,9 @@ struct
 	fun formatHead ((max, index), Psi', s, Psi) = 
 	    let 
 	      val T.PDec (SOME name, _) = I.ctxLookup (Psi, index)
-	      val S = argsToSpine (s, I.ctxLength Psi - max, I.Nil)
-	      val Fspine =   Print.formatSpine (T.coerceCtx Psi', S)
+	      val S = argsToSpine (s, I.ctxLength Psi - max, T.Nil)
+(*	      val Fspine =   Print.formatSpine (T.coerceCtx Psi', S) *)
+	      val Fspine = fmtSpine (Psi', S)
 	    in
               Fmt.Hbox [Fmt.Space, 
 			Fmt.HVbox (Fmt.String name :: Fmt.Break  :: Fspine)]
