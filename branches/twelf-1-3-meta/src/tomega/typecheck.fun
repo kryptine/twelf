@@ -35,6 +35,7 @@ struct
   local 
     structure I = IntSyn'
     structure T = Tomega
+    structure S = Subordinate    
 
 
 
@@ -226,18 +227,71 @@ struct
 	in
 	  ()
 	end
-      | checkPrgW (Psi, (T.New P, (T.All (T.UDec (I.BDec (_, (cid, s))), F), t))) =
-	 (print "* unsoundenss -- missing code\n")
-      | checkPrgW _ =
-	 (print "* unsoundenss -- missing code == the general case\n")
-(* raise Domain *)
-(*	let 
-	  val (G', _) = I.conDecBlock (I.sgnLookup cid')
-	  val D' = IDecl
-	  val _ = checkPrgW (Psi, (P
+      | checkPrgW (Psi, (T.New (T.Lam (D as T.UDec (I.BDec (_, (cid, s))), P)), (F, t))) =
+	  (print "* Temporary incompleteness;  code is written but not yet clean\n")
+(*
+	let 
+	  val (Gsome, Lpi) = I.conDecBlock (I.sgnLookup cid)
+	                        (* Psi |- s : Gsome*)
+
+	  fun makeCtx (G, (nil, s)) = G
+	    | makeCtx (G, (D::L, s)) = 
+	       makeCtx (I.Decl (G, I.decSub (D, s)), (L, I.dot1 s))
+	       
+	  fun drop n Vs = dropW n (Whnf.whnf Vs)
+	  and dropW 0 (V, s) = (V, s)
+	    | dropW n (I.Pi (_, V), s) = drop (n-1) (V, I.dot1 s)
+
+
+	  (* removeFor (Gpi, (F, s)) = F'
+	   
+	     Invariant:
+	     If   Psi |- Gpi ctx
+	     and  Psi |- F[s] formula
+	     then Psi, Gpi |- F' formula
+	  *)
+	  fun removeFor (Gpi, (T.True, _)) = T.True
+	    | removeFor (Gpi, (T.All (T.UDec (I.Dec (x, V)), F), s)) = 
+	      let 
+		val w = S.weaken (Gpi, I.targetFam V)
+                                                        (* Gpi  |- w  : G'    *)
+		val iw = Whnf.invert w 	                (* G' |- iw : G     *)
+		val G' = Whnf.strengthen (iw, Gpi)        (* Psi0, G' |- B'' ctx *)
+		val g = I.ctxLength G'
+		val (V', s') = drop g (V, s)
+		val V'' = I.EClo (V', I.comp (s', w))                (* Gpi |- V : type *)
+		val F' = removeFor (Gpi, (F, I.dot1 s))
+	      in
+		T.All (T.UDec (I.Dec (x, V'')), F')
+	      end
+	    | removeFor (Gpi, (T.Ex (I.Dec (x, V), F), s)) = 
+	      let 
+		val w = S.weaken (Gpi, I.targetFam V)
+                                                        (* Gpi  |- w  : G'    *)
+		val iw = Whnf.invert w 	                (* G' |- iw : G     *)
+		val G' = Whnf.strengthen (iw, Gpi)        (* Psi0, G' |- B'' ctx *)
+		val g = I.ctxLength G'
+		val (V', s') = drop g (V, s)
+		val V'' = I.EClo (V', I.comp (s', w))                (* Gpi |- V : type *)
+		val F' = removeFor (Gpi, (F, I.dot1 s))
+	      in
+		T.Ex (I.Dec (x, V''), F')
+	      end
+
+	    fun makeSub (0, t) = t
+	      | makeSub (n, t) = 
+	          makeSub (n-1, T.Dot (T.Exp (I.Root (I.Proj (I.Bidx 1, n), I.Nil)), t))
+
+	  val Gpi = makeCtx (I.Null, (Lpi, s))   (* Psi |- Gpi ctx *)
+	  val F' = removeFor (Gpi, (F, T.coerceSub t))       (* Psi, Gpi |- F' for *)
+	  val t' = makeSub (List.length Lpi, T.Shift (I.ctxLength Psi + 1))
 	in
+	  checkPrgW (I.Decl (Psi, D), (P, (F', t')))
 	end
+
 *)
+
+(* raise Domain *)
 (*      | checkPrg (G, ((T.Redex (P, T.Nil), s), Fs)) = checkPrg (G, ((P, s), Fs)) *)
 (*      | checkPrg (G, ((T.Redex (P, T.AppExp(M, S)), s), (F2, s2))) =  -- Yu Liao *)
 (*      | checkPrg (G, ((T.PClo(P1,s1), s11), (F2, s2))) = checkPrg (G, ((P1, T.comp(s1, s11)), (F2, s2))) *)
