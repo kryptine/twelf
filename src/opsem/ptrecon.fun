@@ -108,8 +108,8 @@ struct
   *)
   and rSolve (O, ps', (C.Eq(Q), s), C.DProg (G, dPool), sc) =
      (if Unify.unifiable (G, ps', (Q, s)) (* effect: instantiate EVars *)
-	then sc (O, I.Nil)			(* call success continuation *)
-      else ()				(* fail *)
+	then sc (O, I.Nil) 		  (* call success continuation *)
+      else ()				  (* fail *)
 	)
 
     | rSolve (O, ps', (C.Assign(Q, eqns), s), dp as C.DProg(G, dPool), sc) = 

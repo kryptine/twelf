@@ -213,7 +213,63 @@ struct
 	mSig(Index.lookup (cidFromHead Ha))
       end 
 
+  and matchHASig (ps' as (I.Root(Ha,S),s), dp as C.DProg (G, dPool), sc) = 
+      let
+	fun mSig nil = ()	(* return on failure *)
+	  | mSig ((Hc as I.Const c)::sgn') =
+	  let
+	    val C.HeadGoals(H, Sgoals) = C.sProgDHLookup (cidFromHead Hc)
+	    val C.Head(Q', G', eqns, cname) = H
+	  in 
+	    (* trail to undo EVar instantiations *)
+	    CSManager.trail
+	    (fn () =>
+	     let 
+	       val s' = ctxToEVarSub (G, G', I.id)
+	     in 
+	       case Assign.assignable (G, ps', (Q', s')) of
+		 SOME(cnstr) => (aSolve((eqns, s'), dp, cnstr, 
+					(fn () => (sSolve ((Sgoals, s'), dp, (fn S => sc ((C.Pc cname) :: S)))))))
+	       | NONE => ()
+	     end);
+	    mSig (sgn')
+	  end
+      in 
+	mSig(Index.lookup (cidFromHead Ha))	
+      end
 
+   and matchFASig (ps as (I.Root(Ha,S),s), dp as C.DProg (G, dPool), sc) = ()
+(*    let
+      val a = cidFromHead Ha
+      val farg = case Assign.firstConstArg(I.Root(Ha,S), s) of NONE => 0
+                  | SOME(farg) => (print ("Retrieve for index " ^ Names.qidToString(Names.constQid(farg)) ^ "\n"); farg)
+
+(*      val sProg = C.lookupIndex a*)
+      val _ = print ("family " ^ Names.qidToString(Names.constQid(a)) ^ "\n") 
+      val candidates = C.sProgIndexLookup (a, farg)
+      val clist = List.length candidates
+      val _ = print ("Cands " ^ Int.toString clist ^ "\n")
+(*      val defCand = C.sProgIndexLookup (a, 0)
+      val dlist = List.length defCand
+      val _ = print ("DefaultCands " ^ Int.toString dlist ^ "\n") *)
+
+      fun tryCand (nil) = ()
+	| tryCand ((C.HeadGoals(H as C.Head(Q', G', eqns, cname), Sgoals))::Cand) = 
+	  let
+	    val s' = ctxToEVarSub (G, G', I.id)
+	    val _ = print ("try clause " ^ Names.qidToString(Names.constQid(cname)) ^ "\n") 
+	  in 
+	    CSManager.trail (fn () => 
+	    (case Assign.assignable (G, ps, (Q', s')) of
+	      SOME(cnstr) => (print ("Successful application of " ^ Names.qidToString(Names.constQid(cname)) ^ "\n");
+			      aSolve((eqns, s'), dp, cnstr, (fn () => (print "Solved eqns\n"; sc ((Sgoals, s'), cname)))))
+	    | NONE => ()));
+	     tryCand (Cand)
+	  end 
+    in 
+      tryCand (rev(candidates))
+    end 
+*)
    and matchIndexSig (ps' as (I.Root(Ha,S),s), dp as C.DProg (G, dPool), sc) = 
          SubTree.matchSig (cidFromHead Ha, G, ps', 
 			   (fn ((ConjGoals, s), clauseName) => 
@@ -280,8 +336,8 @@ struct
 	    (case (!CompSyn.optimize) of
 	       CompSyn.No => (mSig := matchSig ; solve' args)
 	     | CompSyn.LinearHeads => (mSig := matchSig; solve' args)
-(*	     | CompSyn.HeadAccess => (mSig := matchHASig; solve' args)
-	     | CompSyn.FirstArg => (mSig := matchFASig; solve' args)*)
+	     | CompSyn.HeadAccess => (mSig := matchHASig; solve' args)
+	     | CompSyn.FirstArg => (mSig := matchFASig; solve' args)
 	     | CompSyn.Indexing => (mSig := matchIndexSig; solve' args))
 
   end (* local ... *) 

@@ -115,3 +115,20 @@ structure SwMachine =
   SwMachine (structure Trace = Trace
 	     structure AbsMachine = AbsMachine
              structure TMachine = TMachine);
+
+(*structure HAPtRecon = 
+  HAPtRecon (structure IntSyn' = IntSyn
+	  structure CompSyn' = CompSyn
+	  structure Unify = UnifyTrail
+	  structure Assign = Assign 
+	  structure Index = Index
+	  structure CPrint = CPrint
+	  structure Names = Names
+	  structure CSManager = CSManager); 
+
+
+structure SwPtRecon =
+  SwPtRecon (structure PtRecon = PtRecon
+             structure HAPtRecon = HAPtRecon);
+
+*)

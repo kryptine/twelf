@@ -166,6 +166,11 @@ struct
 	  val (G'') = compose'(G', G)
 	  val s1 = shift (G', I.id) 
 	  val _ = case s1 of I.Shift 0 => () | _ => print "s1 =/= id\n"
+	  val _ = case U of I.Root(I.BVar k, S) => print ("UNIFY BV " ^ Int.toString k ^ " ")
+	                  | _ =>  ()
+	  val _ = case N of I.Root(I.BVar k, S) => print ("= BV " ^ Int.toString k ^ "\n ")
+	                  | _ =>  ()
+	    
 	in 
 	  (print "Unify "; print (Print.expToString (I.Null, A.raiseType(G'', I.EClo(U, s1)))); print " = ";
 	   print (Print.expToString (G'', I.EClo(N, s1)) ^ "\n");
@@ -280,6 +285,7 @@ struct
        val s1' = ctxToEVarSub (DEVars, I.id) (* from DEVars |- s1 : D  and D' |- asub : D
 					        create: DEVars' |-  r1 : D' 
 						s.t. s1 = asub o r1 *) 
+       val _ = print ("Retrieve answer " ^ C.pskeletonToString O1 ^ "\n")
      in
          CSManager.trail (fn () => if unifySub' (I.Null, I.comp(asub, s), I.comp(s1, s1'))  
 				   then ((sc O1)) else ());
@@ -333,12 +339,25 @@ struct
      (if TabledSyn.tabledLookup (I.targetFam p) 
 	then 
 	  let 
+	    val _ = (print "SOLVE (original)"; print (Print.expToString(I.Null, A.raiseType(G, I.EClo(p,s))) ^ "\n"))
+(*	    val (G', DAVars, DEVars, U', eqn', s') = CSManager.trail(fn () => A.abstractEVarCtx (G, p, s))*)
 	    val (G', DAVars, DEVars, U', eqn', s') = A.abstractEVarCtx (G, p, s)
+	    val _ = print "SOLVE (abstracted): "
+	    val _ = print (Print.expToString(I.Null, A.raiseType(DAVars, A.raiseType(DEVars, A.raiseType(G', U')))))
+	      
+(*	    val _ = print "solve Eqn\n"
+	    val _ = printResEqn (compose'(compose'(G', DEVars), DAVars), eqn')  *)
 	    val _ = if solveEqn ((eqn', s'), G')
 		      then () 
 		    else print "\nresidual equation not solvable!\n" 
+
+(* 	    val _ = print "After solving residual eqn : Reinstantiated "    *)
+(* 	    val _ = print (Print.expToString(I.Null, I.EClo(A.raiseType(G', U'), s')) ^ "\n")   *)
+
+(* 	    val _ = print (Print.expToString (G', I.EClo(U', (shift(G',s')))) ^ "\n") (* equiv. to the one above *)   *)
+	 
 	  in
-	    case MT.callCheck (DAVars, DEVars, G', U', eqn') 
+	    case MT.callCheck (DAVars, DEVars, G', dPool, U', eqn') 
 	      (* Side effect: D', G' |- U' added to table *)	    
 	      of T.NewEntry (answRef) => 		
 		matchAtom ((p,s), dp, 
@@ -602,7 +621,8 @@ struct
    let   
      fun resume ([],n) = ()
        | resume ((((Susp, (G, U,s), dp, sc), trail, (asub, answRef), k)::Goals),n) =
-       (CSManager.trail	(fn () => (Unify.resume trail; 	 				   
+       (CSManager.trail	(fn () => (Unify.resume trail;
+				   print ("Resume " ^ Print.expToString(I.Null, I.EClo(A.raiseType(G, U), s)) ^ "\n");
 				   retrieval (Susp, (G, U,s), dp, sc, (asub, answRef), k)));
 	resume (Goals, n-1))  
       val SG = rev(!SuspGoals) 

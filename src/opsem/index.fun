@@ -507,8 +507,9 @@ struct
 	      true
 	    else 
 	      member ((Dk, sk, eqnk), S)
-	
+	val _ = print "Answer abstraction\n"
 	val (Dk, sk, eqnk) = A.abstractAnswSub (G, s)
+	val _ = print "DONE\n"
 (*	val _ = print ("Length of Dk = " ^ Int.toString (I.ctxLength(Dk)) ^ "\n")
 	val _ = print ("Length of G = " ^ Int.toString (I.ctxLength(G)) ^ "\n") *)
       in 	

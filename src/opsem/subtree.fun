@@ -85,7 +85,7 @@ functor MemoTable (structure IntSyn' : INTSYN
   *)
   datatype Tree =  
       Leaf of (ctx *  normalSubsts) * 
-      (((int (* #EVar *)* int (* #G *)) * IntSyn.dctx (* G *) * 
+      (((int (* #EVar *)* int (* #G *)) * CompSyn.DProg (* G, dpool *) *
 	TableParam.ResEqn * TableParam.answer * int) list) ref
     | Node of (ctx *  normalSubsts) * (Tree ref) list
 
@@ -221,6 +221,7 @@ functor MemoTable (structure IntSyn' : INTSYN
 
    fun equalDec (I.Dec(_, U), I.Dec(_, U')) = Conv.conv ((U, I.id), (U', I.id))
      | equalDec (I.ADec(_, d), I.ADec(_, d')) = (d = d')
+     | equalDec (_,_ ) = false
      
     (* too restrictive if we require order of both eqn must be the same ? 
      Sun Sep  8 20:37:48 2002 -bp *) 
@@ -228,6 +229,7 @@ functor MemoTable (structure IntSyn' : INTSYN
     fun equalCtx (I.Null, s, I.Null, s') = true
       | equalCtx (I.Decl(G, D), s, I.Decl(G', D'), s') = 
         Conv.convDec((D, s), (D', s')) andalso (equalCtx (G, I.dot1 s, G', I.dot1 s'))
+      | equalCtx (_, _, _, _) = false
 
     (* in general, we need to carry around and build up a substitution *)
     fun equalEqn (T.Trivial, T.Trivial) = true
@@ -256,6 +258,23 @@ functor MemoTable (structure IntSyn' : INTSYN
         ((d = d') andalso equalCtx'(Dk, D1))
       | equalCtx' (_, _) = false
 
+
+    fun equalDProg (C.DProg(I.Null, I.Null), C.DProg(I.Null, I.Null)) = true
+      | equalDProg (C.DProg(I.Decl(Dk, Dec), I.Decl(dp, NONE)), 
+                    C.DProg(I.Decl(D1, Dec1), I.Decl(dp1, NONE))) = 
+        equalDProg (C.DProg(Dk, dp), C.DProg(D1, dp1))
+      | equalDProg (C.DProg(I.Decl(Dk, Dec), I.Decl(dp, NONE)), 
+                    dprog1 as C.DProg(I.Decl(D1, Dec1), I.Decl(dp1, SOME(_,_,_)))) = 
+        equalDProg (C.DProg(Dk, dp), dprog1)
+      | equalDProg (dprog as C.DProg(I.Decl(Dk, Dec), I.Decl(dp, SOME(_,_,_))),
+		    C.DProg(I.Decl(D1, Dec1), I.Decl(dp1, NONE)))= 
+        equalDProg (dprog, C.DProg(D1, dp1))
+      | equalDProg (dprog as C.DProg(I.Decl(Dk, I.Dec(_, A)), I.Decl(dp, SOME(_,_,_))),
+		    dprog1 as C.DProg(I.Decl(D1, I.Dec(_, A1)), I.Decl(dp1, SOME(_,_,_)))) = 
+        (Conv.conv ((A, I.id), (A1, I.id)) andalso equalDProg(C.DProg(Dk,dp), C.DProg(D1, dp1)))
+(*      | equalDProg (C.DProg(I.Decl(Dk, I.ADec(_, d')), I.Decl(D1, I.ADec(_, d))) = 	
+        ((d = d') andalso equalDProg(Dk, D1))*)
+      | equalDProg (_, _) = false
 
    (* ---------------------------------------------------------------*)   
 
@@ -583,13 +602,15 @@ functor MemoTable (structure IntSyn' : INTSYN
 
   (* ---------------------------------------------------------------------- *)
 
-  fun compatibleCtx ((G, eqn), []) = NONE
-    | compatibleCtx ((G, eqn), ((l', G', eqn', answRef', _)::GRlist)) = 
+  fun compatibleCtx ((dpEqn as C.DProg(G, dpool), eqn), []) = NONE
+    | compatibleCtx (dpEqn as (C.DProg(G, dp), eqn), ((l', C.DProg(G',dp'), eqn', answRef', _)::GRlist)) = 
        (* we may not need to check that the DAVars are the same *)
+(*      (if (equalDProg (C.DProg(G, dp), C.DProg(G', dp')) andalso equalEqn(eqn, eqn'))*)
+(*      (if (equalCtx (G, I.id, G', I.id) andalso equalEqn(eqn, eqn'))*)
       (if (equalCtx' (G, G') andalso equalEqn(eqn, eqn'))
 	 then SOME(l', answRef')
        else 
-	 compatibleCtx((G, eqn), GRlist))
+	 compatibleCtx(dpEqn, GRlist))
 
   fun compChild (N as Leaf((D_t, nsub_t), GList), (D_e, nsub_e), asub) = 
         compatibleSub ((D_t, nsub_t), (D_e,  nsub_e), asub)
@@ -628,7 +649,7 @@ functor MemoTable (structure IntSyn' : INTSYN
     let
       val l = I.ctxLength(G)
     in 
-    List.exists (fn ((evar, l), G', _, _, stage') => (stage = stage' andalso (l > (I.ctxLength(G')))))
+    List.exists (fn ((evar, l), C.DProg(G', _), _, _, stage') => (stage = stage' andalso (l > (I.ctxLength(G')))))
     (!GRlistRef)
     end 
 
@@ -668,18 +689,18 @@ functor MemoTable (structure IntSyn' : INTSYN
 
   fun insert (Nref, (D_u, nsub_u), asub, GR) = 
     let    
-      fun insert' (N as Leaf ((D,  _), GRlistRef), (D_u, nsub_u), asub, GR as ((evarl,l), G_r, eqn, answRef, stage)) = 
+      fun insert' (N as Leaf ((D,  _), GRlistRef), (D_u, nsub_u), asub, GR as ((evarl,l), dp as C.DProg(G_r, dpool), eqn, answRef, stage)) = 
 	(* need to compare D and D_u *)
-	(case compatibleCtx ((G_r, eqn), (!GRlistRef))
+	(case compatibleCtx ((dp, eqn), (!GRlistRef))
 	   of NONE => ((* compatible path -- but different ctx! *)		  
 		       if ((!TableParam.divHeuristic) andalso divergingCtx (stage, G_r, GRlistRef))
 			 then
-			   (print "ctx are diverging --- force suspension \n";
+			   (print "\t ctx are diverging --- force suspension ";
 			    (fn () => (GRlistRef := (GR::(!GRlistRef));   
 				      answList := (answRef :: (!answList))),   
 			    T.DivergingEntry(answRef))) 
 		       else 			 
-			 ((* print "compatible path -- ctx are different\n";*)
+			 (print "\t compatible path (variant) -- ctx are different ";
 			  (fn () => (GRlistRef := (GR::(!GRlistRef)); 
 				    answList := (answRef :: (!answList))), 
 			  T.NewEntry(answRef))))
@@ -689,7 +710,7 @@ functor MemoTable (structure IntSyn' : INTSYN
 				))
 
        
-      | insert' (N as Node((D, sub), children), (D_u, nsub_u), asub, GR as (l, G_r, eqn, answRef, stage)) = 
+      | insert' (N as Node((D, sub), children), (D_u, nsub_u), asub, GR as (l, dp as C.DProg(G_r, dpool), eqn, answRef, stage)) = 
 	let
 	  val (VariantCand, InstCand, SplitCand) = findAllCandidates (G_r, children, (D_u, nsub_u), asub)
 	    
@@ -766,7 +787,11 @@ functor MemoTable (structure IntSyn' : INTSYN
 	    else 
 	      member ((D, sk), S)
 	
+	val _ = print ("Answer ")
+	val _ = print (Print.expToString(I.Null, I.EClo(A.raiseType(G', U'), s')) ^ "\n")
 	val (DEVars, sk) = A.abstractAnswSub (G', s')
+	val _ = print "Abstracted answer\n"
+	val _ = print (Print.expToString(I.Null, A.raiseType(DEVars, I.EClo(A.raiseType(G', U'), sk))) ^ "\n")
       in 	
 	if member ((DEVars, sk), T.solutions answRef) then  
 	  T.repeated
@@ -789,7 +814,7 @@ functor MemoTable (structure IntSyn' : INTSYN
         (insertList ((n, D), DEVars); 
 	 makeCtx (n+1, G, DEVars))
       
-    fun callCheck (a, DAVars, DEVars, G , U, eqn) = 
+    fun callCheck (a, DAVars, DEVars, G , dPool, U, eqn) = 
       let 
 	val (n, Tree) = Array.sub (indexArray, a)     
 	val nsub_goal = S.new()             
@@ -800,14 +825,14 @@ functor MemoTable (structure IntSyn' : INTSYN
 	val l = I.ctxLength(DAEVars)
 	val _ = S.insert nsub_goal (1, U) 
 	val result =  insert (Tree, (D, nsub_goal), nid() (* assignable subst *), 
-			      ((l, n+1), G, eqn, emptyAnswer(), !TableParam.stageCtr))
+			      ((l, n+1), C.DProg(G, dPool), eqn, emptyAnswer(), !TableParam.stageCtr))
       in       
 	case result 
-	  of (sf, T.NewEntry(answRef)) => (sf(); added := true; (* print "Add goal \n"; *) 
+	  of (sf, T.NewEntry(answRef)) => (sf(); added := true; print "\t -- Add goal \n"; 
 					   T.NewEntry(answRef))
-	  | (_, T.RepeatedEntry(asub, answRef)) =>  ((* print "Suspend goal\n";*)
+	  | (_, T.RepeatedEntry(asub, answRef)) =>  (print "\t -- Suspend goal\n";
 						     T.RepeatedEntry(asub, answRef))
-	  | (sf, T.DivergingEntry(answRef)) => (sf(); added := true;  print "Add diverging goal\n";
+	  | (sf, T.DivergingEntry(answRef)) => (sf(); added := true;  print "\t -- Add diverging goal\n";
 					     T.DivergingEntry(answRef))
       end 
 
@@ -845,8 +870,8 @@ functor MemoTable (structure IntSyn' : INTSYN
   
   in
     val reset = reset
-    val callCheck = (fn (DAVars, DEVars, G, U, eqn) => 
-		        callCheck(cidFromHead(I.targetHead U), DAVars, DEVars, G, U, eqn))
+    val callCheck = (fn (DAVars, DEVars, G, dpool, U, eqn) => 
+		        callCheck(cidFromHead(I.targetHead U), DAVars, DEVars, G, dpool, U, eqn))
 
 (*
     val findAll (DAVars, DEVars, G, U, eqn) = 
@@ -861,3 +886,4 @@ functor MemoTable (structure IntSyn' : INTSYN
     val tableSize = (fn () => (length(!answList)))
   end (* local *)
 end; (* functor MemoTable *)
+
