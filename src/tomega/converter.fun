@@ -1146,20 +1146,7 @@ exception Error' of Tomega.Sub
 	      val _ = TomegaTypeCheck.checkCtx (append (append (Psi0, G), T.embedCtx B''))
 
 
-	      (* lift (B, (P, F)) = (P', F')
-	        
-	         Invariant:
-		 If   Psi0, G, B |- P :: F
-		 then Psi0, G |- P'  :: F'
-		 and  P' =  (lam B. P)
-		 and  F' = raiseFor (B, F)
- 	      *)
-	      fun lift (I.Null, P) = P
-		| lift (I.Decl (G, D), P) = 
-		    lift (G, T.New (T.Lam (T.UDec D, P)))
 
-
-              val P''' = lift (B', P'') (* Psi0, G' |- P''' :: F''' *)
   
               val (GB', iota) = deblockify  B'    (* Psi0, G' |- GB' ctx *)
 
@@ -1178,6 +1165,26 @@ exception Error' of Tomega.Sub
 	      val F''' = raiseFor (GB', (RR, I.id))
                                           (* Psi0, G |- w1' : Psi0, G' *)
                                           (* Psi0, G' |- F''' for *)
+
+
+	      (* lift (B, (P, F)) = (P', F')
+	        
+	         Invariant:
+		 If   Psi0, G, B |- P :: F
+		 then Psi0, G |- P'  :: F'
+		 and  P' =  (lam B. P)
+		 and  F' = raiseFor (B, F)
+ 	      *)
+	      fun lift (I.Null, P) = P
+		| lift (I.Decl (G, D), P) = 
+		  let
+		    val (Bint, _) = deblockify (I.Decl (I.Null, D)) 
+		  in
+		    lift (G, T.New (T.Lam (T.UDec D, P)))
+		  end
+
+              val P''' = lift (B', P'') (* Psi0, G' |- P''' :: F''' *)
+
 
 	      val _ = TomegaTypeCheck.checkCtx (append (Psi0, G))
 	      val _ = TomegaTypeCheck.checkFor (append (Psi0, G), 
@@ -1530,7 +1537,7 @@ exception Error' of Tomega.Sub
 	  val name = I.conDecName (I.sgnLookup cid)
 	  val lemma = T.lemmaAdd (T.ValDec (name, P, F))
 	in
-	  lemma
+	  (lemma, [])
 	end
       | installPrg cids = 
 	let 
@@ -1546,7 +1553,7 @@ exception Error' of Tomega.Sub
 	  val sels = installSelection (cids, projs, F, lemma)
 
 	in
-	  lemma
+	  (lemma, projs)
 	end
 
 

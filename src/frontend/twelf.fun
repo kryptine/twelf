@@ -645,14 +645,19 @@ struct
 	      end
 
 	  val _ = checkFreeOut La
-	  val lemma = Converter.installPrg La
+	  val (lemma, projs) = Converter.installPrg La
 	  val P = Tomega.lemmaDef lemma
 	  val F = Converter.convertFor La
-	  val _ = if !Global.chatter >= 6
-		    then print (TomegaPrint.funToString P ^ "\n")
-		  else ()
-	  val _ = TomegaTypeCheck.checkPrg (IntSyn.Null, (P, F))
 
+	  val _ = if !Global.chatter >= 2
+		    then print (TomegaPrint.funToString ((map (fn (cid) => IntSyn.conDecName (IntSyn.sgnLookup cid)) La,
+							  projs), P) ^ "\n")
+		  else ()
+
+	  val _ = print "["
+	  val _ = TomegaTypeCheck.checkPrg (IntSyn.Null, (P, F))
+	  val _ = print "]"
+	      
 	  val _ = TomegaCoverage.coverageCheckPrg (WorldSyn.lookup (hd La), IntSyn.Null, P)
 
 (* ******************************************* *)
