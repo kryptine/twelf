@@ -32,6 +32,7 @@ struct
 
   and Prg =				(* Programs:                  *)
     Lam of Dec * Prg	 	        (*     | lam LD. P            *)
+  | New of Prg                          (*     | new P                *)
   | PairExp of IntSyn.Exp * Prg         (*     | <M, P>               *)
   | PairBlock of IntSyn.Block * Prg     (*     | <rho, P>             *) 
   | PairPrg of Prg * Prg                (*     | <P1, P2>             *)
@@ -524,6 +525,11 @@ struct
 temorarily removed --Carsten
 
 *)
+
+  fun raisePrg (I.Null, P) = P
+   (* the other case is missing *)
+
+
   in 
     val lemmaLookup = lemmaLookup 
     val lemmaAdd = lemmaAdd
@@ -563,5 +569,6 @@ temorarily removed --Carsten
 (*  val ctxDec = ctxDec  temporarily removed *)
   val revCoerceSub = revCoerceSub
 (*  val revCoerceCtx = revCoerceCtx  temporarily removed *)
+    val raisePrg = raisePrg
   end
 end (* functor FunSyn *)

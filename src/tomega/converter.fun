@@ -557,7 +557,6 @@ struct
       end
     
  
-    fun transformDec (Ts, (Psi, G0), d, (a, S), w1, w2, t0) = raise Error "not yet implemented"
 
 (*
     (* transformDec (c'', (Psi+-, G0), d, (a, S), w1, w2, t) = (d', w', s', t', Ds)
@@ -826,7 +825,35 @@ struct
 	transformConc' (S, mS)
       end
 	
-		     
+
+    (* transformApp (Psi0, (a, S), w) = (P', F')
+
+       Invariant:
+       Psi0 |- w : Psi
+       a is the type family that is being converted
+       Psi  |- S  : V >> V'
+       Psi  |- P' : F'
+    *)
+    fun transformApp ((Psi, I.Null), (a, S), w) = 
+        let
+	  val mS = case M.modeLookup a
+	             of NONE => raise Error "Mode declaration expected"
+		      | SOME mS => mS
+	  val V = case I.sgnLookup a 
+	            of I.ConDec (name, _, _, _, V, I.Kind) => V
+	             | _ => raise Error "Type Constant declaration expected"
+	
+	  fun transformApp' (I.Nil, M.Mnil) = T.Nil 
+	    | transformApp' (I.App (U, S), (M.Mapp (M.Marg (M.Plus, _), mS))) =
+	        T.AppExp (strengthenExp (U, w), transformApp' (S, mS))
+	    | transformApp' (I.App (_, S), (M.Mapp (M.Marg (M.Minus, _), mS))) =
+		transformApp' (S, mS)
+
+	in 
+	  (T.Root (T.Var ~1  (* Compute correctly *), transformApp' (S, mS)))
+	end
+      | transformApp ((Psi, I.Decl(Psi', D)), (a, S), w) =
+          T.Lam (T.UDec D, transformApp ((Psi, Psi'), (a, S), peel w))
 
     (* traverse (Ts, c) = L'
 
@@ -837,6 +864,7 @@ struct
     *)
     fun traverse (Ts, c, Sig, wmap) =
       let 
+
 
 	(* traverseNeg (Psi0, V, L) = ([w', d', PQ'], L')    [] means optional
 	   
@@ -853,50 +881,47 @@ struct
 
 	fun traverseNeg (Psi, I.Pi ((D as I.Dec (_, V1), I.Maybe), V2)) =
 	    (case traverseNeg (I.Decl (Psi, T.UDec D), V2)
-	       of (SOME (w', d', PQ')) => (SOME (peel w', d', PQ'))
-  	        | (NONE) => (NONE))
+	       of (SOME (w', d', PQ')) => SOME (peel w', d', PQ')
+  	        | NONE                 => NONE)
 
 	  | traverseNeg (Psi, I.Pi ((D as I.Dec (_, V1), I.No), V2)) =
 	    (case traverseNeg (Psi, V2) 
-	       of (SOME (w', d', PQ')) => traversePos (Psi, (V1, I.id), 
-						       SOME (w', d', PQ'))
-	        | (NONE) => traversePos (Psi, (V1, I.id), NONE))
+	       of (SOME (w', d', PQ')) => traversePos ((Psi, I.Null), V1, SOME (peel w', d', PQ'))
+	        | NONE                 => traversePos ((Psi, I.Null), V1, NONE))
 	       
 	  | traverseNeg (Psi, I.Root (I.Const a, S)) = 
 	    let 
 	      val (Psi', w') = strengthen (Psi, (a, S), I.Shift (I.ctxLength Psi), M.Plus)
-		(* Psi  |- w' : Psi' *)
-		(* Psi' is a subcontext of Psi', which contains all those
-		   variables that occur in a M.Plus position *)	 
 	      val (w'', s'') = transformInit (Psi', (a, S), w')
-		(* Let Sigma (a) = PI{PsiDef} type *)
-		(* Psi+ is a subset of PsiDef, of all the parameters that occur in a 
-		   plus position *)
-		(* Psi+ |- w' : PsiDef *)
-		(* Psi' |-  s'' : Psi+ *)  
-		(* s'' is the substitution in a case *)
-		(* Psi' is the context in a case *) 
 	    in
-	      (SOME (w', 1, (fn p => (Psi', s'', p), fn wf => transformConc ((a, S), wf))))
+	      (SOME (w', 1, (fn P => (Psi', s'', P), fn wf => transformConc ((a, S), wf))))
 	    end
 	  
-        and traversePos (Psi, (I.Pi ((D as I.BDec (x, (c, s)), _), V), v), SOME (w1, d, (P, Q))) =
+        and traversePos ((Psi, Psi'), I.Pi ((D as I.BDec (x, (c, s)), _), V), 
+			 SOME (w1, d, (P, Q))) =
   	    let 
 	      val c' = wmap c
-	      val _ = traversePos (I.Decl (Psi, T.UDec (strengthenDec (D, v))), (V, I.dot1 v), SOME (w1, d, (P, Q)))
 	    in
-	      NONE
+	      traversePos ((Psi, I.Decl (Psi', I.BDec (x, (c', s)))), 
+			   V, SOME (I.dot1 w1, d, (P, Q)))
 	    end
-          | traversePos (Psi, (V as I.Root _, v), SOME (w1, d, (P, Q))) =
-	    let 
-	      val I.Root (I.Const a', S) = Whnf.normalize (strengthenExp (V, v), I.id)
-	      val (Psi', w2) = strengthen (Psi, (a', S), w1, M.Minus)
-	      val w3 = strengthenSub (w1, w2)
-	      val (d4, w4, t4, Ds) = transformDec (Ts, (Psi', I.Null), d, (a', S), w1, w2, w3) 
+          | traversePos ((Psi, Psi'), V as I.Root (I.Const a, S), SOME (w1, d, (P, Q))) =
+	    let 	   
+	      val P' = transformApp ((Psi, Psi'), (a, S), w1)
+	      val (Psi', w2) = strengthen (Psi, (a, S), w1, M.Minus)
+	      val P'' = T.raisePrg (Psi', transformConc ((a, S), w2))
+	      val w3 = peeln (I.ctxLength Psi', w2)
+	      val t = T.Dot (T.Prg P'', T.id)
+	      val d4 = ~1   (* also to be fixed later *)
 	    in     
-	      (SOME (w2, d4, (fn p => P ( (* T.Let (Ds,  *)
-						T.Case (T.Cases [(Psi', t4, p)])), Q)))
+	      (SOME (w3, d4, 
+		     (fn p => P (T.Let (T.PDec (NONE, T.True), T.New P', 
+					(* should be  the ex type *)
+					T.Case (T.Cases [(Psi', t, p)]))), Q)))
 	    end
+
+
+
 
 	(* traversePos (c, Psi, (V, v), [w', d', PQ'], L) =  ([w'', d'', PQ''], L'') 
 	   
