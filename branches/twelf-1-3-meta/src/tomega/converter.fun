@@ -932,9 +932,56 @@ val _ = print "."
 	      val _ = TomegaTypeCheck.checkCtx (append (append (Psi0, G), 
 							T.embedCtx (deblockify B)))
 val _ = print "."
+
+
+(* ---------------- *)
+
+(* mk_iota (n, t) = t'
+
+   Invariant:
+   If   G, V1[t] ... Vn[t] |- iota : Sigma
+   and  G, V1[t] ... Vn[t] |- n ... 1.iota :  <V1; ...; <Vn ;Sigma>>
+*)
+fun mk_iota (0, t) = t
+  | mk_iota (n, t) = I.Dot (I.Idx n, mk_iota (n-1, t))
+    (* blockToIota (t, G) = t'
+     
+       Invariant:
+       If   |- G is a block ctx
+       then G' |- t : .
+       and  G' |- t' : G
+    *)
+    fun blockToIota (t, I.Null, iota0) = t 
+      | blockToIota (t, I.Decl (G, I.BDec (x, (c, s))), iota0) = 
+        let
+	  val t' = blockToIota (t, G,iota0)
+	  val (_, L) = I.constBlock c
+	in
+	  T.Dot (T.Block (I.Inst (mk_iota (List.length L, iota0))), t')
+	end
+
+
+(* ---------------- *)
+
+(*
+val iota0 = I.Shift (I.ctxLength Psi2 + I.ctxLength B3)
+					(* Psi2, B3 |- iota0 : . *)
+
+val sigma3 = blockToIota (T.Shift (I.ctxLength B3), B3')
+					(* Psi2, B3 |- sigma3 : Psi2, B3' *)
+
+*)
+
 	     
               val P''' = lift (B', P'') (* Psi0, G' |- P''' :: F''' *)
               val B4 = deblockify B'    (* Psi0, G' |- B4 ctx *)
+
+
+
+
+
+
+
               val F''' = raiseFor (B4, F'')
                                         (* Psi0, G' |- F''' for *)
 
@@ -975,39 +1022,13 @@ val  _ = print "]"
 (* Solutiion use inst *)
 (* remark : use "test ["cpt"]; " as  example *)
 
-(* ---------------- *)
-
-(* mk_iota (n, t) = t'
-
-   Invariant:
-   If   G, V1[t] ... Vn[t] |- iota : Sigma
-   and  G, V1[t] ... Vn[t] |- n ... 1.iota :  <V1; ...; <Vn ;Sigma>>
-*)
-fun mk_iota (0, t) = t
-  | mk_iota (n, t) = I.Dot (I.Idx n, mk_iota (n-1, t))
-
 val iota0 = I.Shift (I.ctxLength Psi2 + I.ctxLength B3)
 					(* Psi2, B3 |- iota0 : . *)
-    (* blockToIota (t, G) = t'
-     
-       Invariant:
-       If   |- G is a block ctx
-       then G' |- t : .
-       and  G' |- t' : G
-    *)
-    fun blockToIota (t, I.Null) = t 
-      | blockToIota (t, I.Decl (G, I.BDec (x, (c, s)))) = 
-        let
-	  val t' = blockToIota (t, G)
-	  val (_, L) = I.constBlock c
-	in
-	  T.Dot (T.Block (I.Inst (mk_iota (List.length L, iota0))), t')
-	end
 
-val sigma3 = blockToIota (T.Shift (I.ctxLength B3), B3')
+val sigma3 = blockToIota (T.Shift (I.ctxLength B3), B3', iota0)
 					(* Psi2, B3 |- sigma3 : Psi2, B3' *)
 
-(* ---------------- *)
+
 
 	      val Pat = raisePrg (B3, Normalize.normalizePrg (Pat', sigma3), F4)
 		                        (* Psi0, G3 |- Pat :: F4  *)
