@@ -69,6 +69,7 @@ structure Opsem = Opsem
    structure Whnf = Whnf
    structure Subordinate = Subordinate
    structure TomegaPrint = TomegaPrint
+   structure TomegaTypeCheck = TomegaTypeCheck
    structure Print = Print
    structure Weaken = Weaken);
 
