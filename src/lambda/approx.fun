@@ -3,6 +3,7 @@
 
 functor Approx ((*! structure IntSyn' : INTSYN !*)
                 structure Whnf : WHNF
+		structure Unify : UNIFY
 		(*! sharing Whnf.IntSyn = IntSyn' !*)
 		  )
   : APPROX =
@@ -374,11 +375,10 @@ struct
       | matchW (AdamVar (X1 as ref NONE, G1), AdamVar (X2 as ref (SOME F), G2)) = 
 	   X1 := SOME(I.EVar(X2, G2, I.Uni(I.Type), ref nil))
 	     (* Carsten:  do we need to check that G1 = G2??? *)
-      | matchW (AdamVar (X1 as ref (SOME F), G1), AdamVar (X2 as ref (SOME F2), G2)) = raise Domain
-	   (* UnifyNoTrail causes problems 
-	   (UnifyNoTrail.unify(G1, (F, I.id), (F2, I.id))
-	    handle UnifyNoTrail.Unify s => raise Unify s)
-	    *)
+      | matchW (AdamVar (X1 as ref (SOME F), G1), AdamVar (X2 as ref (SOME F2), G2)) = 
+	   (Unify.unify(G1, (F, I.id), (F2, I.id))
+	    handle Unify.Unify s => raise Unify s)
+	    
 
 
       | matchW (AdamVar (X as ref NONE,G), Const H) =  
@@ -397,10 +397,31 @@ struct
 	     (X := SOME(I.Pi ((D, I.Maybe), V2')))
 	   end
 
+      | matchW (AdamVar (X as ref (SOME U), G), Const H) =
+	   let
+	     val U2 = I.Root (H, Whnf.newSpineVar (G, (I.conDecType (headConDec H), I.id)))
+	   in
+	     (Unify.unify(G, (U, I.id), (U2, I.id))
+	      handle Unify.Unify s => raise Unify s)
+	   end
+
+      | matchW (AdamVar (X as ref (SOME U), G), Arrow (V1, V2)) = 
+	   let
+	     val L = Type
+	     val allowed = false (* What is this? *)
+	     val V1' = apxToClass(G, V1, Type, allowed)
+	     val D = I.Dec(NONE, V1')
+	     val V2' = apxToClass (I.Decl (G, D), V2, L, allowed)
+	     val U2 = I.Pi ((D, I.Maybe), V2')
+	   in
+	     (Unify.unify(G, (U, I.id), (U2, I.id))
+	      handle Unify.Unify s => raise Unify s)
+	   end
+
+
 
       | matchW (X, Y as AdamVar _) = matchW(Y, X)
 
-      | matchW (AdamVar (X as ref (SOME _), G), _) = () (* FIX THIS! CALL UNIFY! *)
       | matchW (AdamVar _, _) = raise Domain (* Missing a case *)
 
       | matchW (Uni L1, Uni L2) = matchUni (L1, L2)
