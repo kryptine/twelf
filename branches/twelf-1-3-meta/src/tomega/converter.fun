@@ -79,6 +79,21 @@ struct
 	end
 
 
+    (* strengthenFor (F, s) = F'
+     
+       If   Psi0 |- F for
+       and  Psi0 |- s :: Psi1 
+       then Psi1 |- F' = F[s^-1] ctx
+    *)
+    fun strengthenFor (T.True, s) = T.True
+      | strengthenFor (T.And (F1, F2), s) = 
+          T.And (strengthenFor (F1, s), strengthenFor (F2, s))
+      | strengthenFor (T.All (T.UDec D, F), s) =
+	  T.All (T.UDec (strengthenDec (D, s)), strengthenFor (F, I.dot1 s))
+      | strengthenFor (T.Ex (D, F), s) =
+	  T.Ex (strengthenDec (D, s), strengthenFor (F, I.dot1 s))
+
+
     fun strengthenSpine (I.Nil, t) = I.Nil
       | strengthenSpine (I.App (U, S), t) = I.App (strengthenExp (U, t), strengthenSpine (S, t))
 
@@ -98,14 +113,14 @@ struct
 	in
 	  (I.Decl (Psi', T.UDec (strengthenDec (D, s'))), I.dot1 s')
 	end
-(*      | strengthenPsi (I.Decl (Psi, F.Block (F.CtxBlock (l, G))), s) =
-	let 
+      | strengthenPsi (I.Decl (Psi, T.PDec (name, F)), s) = 
+        let 
 	  val (Psi', s') = strengthenPsi (Psi, s)
-	  val (G'', s'') = strengthenCtx (G, s')
 	in
-	  (I.Decl (Psi', F.Block (F.CtxBlock (l, G''))), s'')
+	  (I.Decl (Psi', T.PDec (name, strengthenFor (F, s'))), I.dot1 s')
 	end
- *)
+
+
     (* strengthenPsi' (Psi, s) = (Psi', s')
      
        If   Psi0 |- Psi ctx
@@ -211,18 +226,38 @@ struct
       end
 
 
-    (* convertFor L = F'
+    (* createIHCtx (Psi, L) = (Psi', P', F')
 
        Invariant:
        If   L is a list of type families
-       then F' is the conjunction of the logical interpretation of each
-	    type family
+       and  Psi is a context
+       then Psi' extends Psi' by declarations in L
+       and  F' is the conjunction of the formuals 
+	    that corresponds to each type family in L
+       and  Psi' |- P' in F'
      *)
-    fun convertFor nil = raise Error "Empty theorem"
-      | convertFor [a] = convertOneFor a
-      | convertFor (a :: L) = T.And (convertOneFor a, convertFor L)
+    fun createIHCtx (Psi, nil) = raise Error "Empty theorem"
+      | createIHCtx (Psi, [a]) = 
+        let 
+	  val F = convertOneFor a
+	in
+	  (I.Decl (I.Null, T.PDec (NONE, F)),  T.Root (T.Var 1, T.Nil), F)
+	end
+      | createIHCtx (Psi, a :: L) = 
+	let
+	  val F = convertOneFor a
+	  val (Psi', P', F') = createIHCtx (I.Decl (Psi,  T.PDec (NONE, F)), L)
+	in
+	  (Psi', T.PairPrg (T.Root (T.Var (1+length L), T.Nil), P'), T.And (F, F'))
+	end
 
 
+    fun convertFor L = 
+      let 
+	val (Psi', P', F') = createIHCtx (I.Null, L)
+      in
+	F'
+      end
 
     (* occursInExpN (k, U) = B, 
 
@@ -291,7 +326,7 @@ struct
       | domain (I.Decl (G, _), I.Shift n) = domain (G, I.Shift (n-1))
 
 
-    (* strenghten (Psi, (a, S), w, m) = (Psi', w')       
+    (* strengthen (Psi, (a, S), w, m) = (Psi', w')       
      
        This function traverses the spine, and finds 
        all variables in a position input/output position
@@ -422,6 +457,17 @@ struct
 		  (Psi1'', I.comp (w', I.shift))
 		end
 	    end
+	  | strengthen' (I.Decl (Psi1, LD as T.PDec (name, F)), Psi2, L, w1) =
+	    let 
+	      val (bw, w1') = if (I.bvarSub (1, w1) = I.Idx 1) then (true, dot1inv w1)
+			      else (false, strengthenSub (w1, I.shift))
+	      val (Psi1', w') = strengthen' (Psi1, LD :: Psi2, L, w1')
+	      val F' = strengthenFor (F, w')
+	    in
+	      (I.Decl (Psi1', T.PDec (name, F')), I.dot1 w')
+	    end	    
+	  
+
 (*	  | strengthen' (I.Decl (Psi1, LD as F.Block (F.CtxBlock (name, G))), Psi2, L, w1) =
 	    let 
 	      val (bw, w1') = inBlock (G, (false, w1))
@@ -451,16 +497,40 @@ struct
 
 
     fun recursion L =
-      let
-	val F = convertFor L
-	  
-	fun name [a] = I.conDecName (I.sgnLookup a)
-	  | name (a :: L) = I.conDecName (I.sgnLookup a) ^ "/" ^ (name L)
-      in
-	fn p => T.Rec (T.PDec (SOME (name L), F), p)
-      end
-	
+        let
+	  val (Psi, P, F) = createIHCtx (I.Null, L)
+	  val t = T.Dot (T.Prg P, T.Shift (I.ctxLength Psi))
 
+	  fun name [a] = I.conDecName (I.sgnLookup a)
+	    | name (a :: L) = I.conDecName (I.sgnLookup a) ^ "/" ^ (name L)
+	in
+	  (Psi, fn p => T.Rec (T.PDec (SOME (name L), F), 
+			       T.Case (T.Cases [(Psi, t, p)])))
+	end
+
+
+    fun lookupIH (Psi, L, a) = 
+        let
+	  fun lookupIH' (b::L, a, k)= 
+	      if a = b then k
+	      else lookupIH' (L, a, k-1)
+	in
+	  lookupIH' (L, a, I.ctxLength Psi)
+	end
+
+
+    (* createSub (Psi, L) = t'
+     
+       Invariant:
+       If  |- Psi = Psi0, Psi1 ctx
+       and Psi0 contains all declarations for invariants in L
+       and |Psi0| = n
+       and |L| = k
+       and n = k + m - 1
+       then Psi |- t' = m, m+1 ... n. ^n :  Psi0
+    *)
+    fun createIHSub (Psi, L) =
+         T.Shift (I.ctxLength Psi - List.length L)
 
     (* abstract a = P'
 
@@ -517,7 +587,7 @@ struct
        and  Psi+ |- s' : Gamma+
        and  x1:A1 .. xn:An |- w: Gamma+    (w weakening substitution)
     *)
-    fun transformInit (Psi, (a, S), w1) = 
+    fun transformInit (Psi, L, (a, S), w1) = 
       let
 	val mS = case M.modeLookup a
 	           of NONE => raise Error "Mode declaration expected"
@@ -551,260 +621,16 @@ struct
 			    I.Pi ((I.Dec (name, V1), _), V2), (w, s)) =
 	    let 
 	      val V1' = strengthenExp (V1, w)
-	      val w' =  I.dot1 w
+	      val w' = I.dot1 w
 	      val U' = strengthenExp (U, w1)
-	      val s' = Whnf.dotEta (I.Exp (U'), s)
+	      val s' = T.dotEta (T.Exp U', s)
 	    in
 	      transformInit' ((S, mS), V2, (w', s'))
 	    end
       in
-	transformInit' ((S, mS), V, (I.id, I.Shift (I.ctxLength Psi)))
+	transformInit' ((S, mS), V, (I.id, createIHSub (Psi, L)))
       end
     
- 
-
-(*
-    (* transformDec (c'', (Psi+-, G0), d, (a, S), w1, w2, t) = (d', w', s', t', Ds)
-     
-       Invariant:
-       If   |- Psi ctx
-       and  Psi |- G0 ctx
-       and  d = |Delta|
-       and  Sigma (a) = {x1:A1} .. {xn:An} type
-       and  Psi, G0 |- S : m1{x1:A1} .. mn{xn:An} type > type
-       and  Psi, G0 |- w1 : Psi+, G0[w1^-1]
-       and  Psi |- w2 : Psi+-
-       and  Psi+- |- t0 : Psi+
-       then |- Gamma+ ctx
-       and  Gamma+ = +x(k1):A(k1), ... +x(km):A(km) 
-       and  Psi |- s' : Gamma+
-       and  x1:A1 .. xn:An |- w': Gamma+    (w weakening substitution)
-       and  Psi+- |- t' : Psi+, -x(k1):{G0} A(k1), ... -x(km):{G0} A(km)
-       and  d' = |Delta'|
-    *)
-
-    fun transformDec (Ts, (Psi, G0), d, (a, S), w1, w2, t0) = 
-      let
-	val mS = case M.modeLookup a
-	           of NONE => raise Error "Mode declaration expected"
-		    | SOME mS => mS
-	val V = case I.sgnLookup a 
-	           of I.ConDec (name, _, _, _, V, I.Kind) => V
-	            | _ => raise Error "Type Constant declaration expected"
-
-
-	(* raiseExp (G, U, a) = U'  
-	 
-	   Invariant: 
-	   If   |- Psi ctx         (for some given Psi)
-	   and  Psi |- G ctx
-           and  Psi, G |- U : V    (for some V)
-	   then Psi, G |- [[G]] U : {{G}} V     (wrt subordination)
-	*)
-	fun raiseExp (G, U, a) =
-	  let
-
-	    (* raiseExp G = (w', k)
-	       
-	       Invariant:
-	       If   |-  Psi ctx
-	       and  Psi |- G ctx
-	       and  Psi |- G' ctx   which ARE subordinate to a
-	       then Psi, G |- w : Psi, G'
-	       and  k is a continuation calculuting the right exprssion:
-		    for all U, s.t. Psi, G |- U : V 
-		    Psi |- [[G']] U : {{G'}} V
-	    *)
-	    fun raiseExp' I.Null = (I.id, fn x => x)  
-	      | raiseExp' (I.Decl (G, D as I.Dec (_, V))) =
-	        let
-		  val (w, k) = raiseExp' G
-		in
-		  if Subordinate.belowEq (I.targetFam V, a) then 
-		    (I.dot1 w, fn x => k (I.Lam (strengthenDec (D, w), x)))
-		  else 
-		    (I.comp (w, I.shift), k)
-		end
-	      
-	    val (w, k) = raiseExp' G 
-	  in 
-	    k (strengthenExp (U, w))
-	  end
-	
-
-	(* raiseType (G, U, a) = U'  
-	 
-	   Invariant: 
-	   If   |- Psi ctx         (for some given Psi)
-	   and  Psi |- G ctx
-           and  Psi, G |- U : V    (for some V)
-	   then Psi, G |- [[G]] U : {{G}} V     (wrt subordination)
-	   and  Psi, G, x:{{G}} V |- x G : V
-	*)
-
-	fun raiseType (G, U, a) =
-	  let
-	    (* raiseType (G, n) = (w', k, S')
-	     
-	      Invariant:
-              If   |-  Psi ctx
-              and  Psi |- G, Gv ctx
-	      and  Psi |- G' ctx   which ARE subordinate to a
-	      and  n = |Gv| + 1
-              then Psi, G |- w : Psi, G'
-	      and  k is a continuation calculating the right exprssion:
-	           for all U, s.t. Psi, G |- U : V 
-	           Psi |- [[G']] U : {{G'}} V
-	      and  k' is a continuation calculating the corresponding spine:
-		   for all S, s.t. Psi, G, G0,|- ... refine
-	    *)
-	    fun raiseType' (I.Null, n) = (I.id, fn x => x, fn S => S)
-	      | raiseType' (I.Decl (G, D as I.Dec (_, V)), n) =
-		let
-		  val (w, k, k') = raiseType' (G, n+1)
-		in
-		  if Subordinate.belowEq (I.targetFam V, a) then 
-		    (I.dot1 w, fn x => k (I.Pi ((strengthenDec (D, w), I.Maybe), x)), 
-		               fn S => I.App (I.Root (I.BVar n, I.Nil), S))
-		  else 
-		    (I.comp (w, I.shift), k, k')
-		end
-	      
-	    val (w, k, k') = raiseType' (G, 2)
-	  in 
-	    (k (strengthenExp (U, w)), I.Root (I.BVar 1, k' I.Nil))
-	  end
-
-
-	(* exchangeSub (G0) = s'
-
-	   Invariant:
-	   For some Psi, some G, some V:
-	   Psi, V, G0 |- s' : Psi, G0, V
-	*)
-	fun exchangeSub (G0) = 
-	  let 
-	    val g0 = I.ctxLength G0 
-	    fun exchangeSub' (0, s) = s 
-	      | exchangeSub' (k, s) = exchangeSub' (k-1, I.Dot (I.Idx (k), s))
-	  in
-	    I.Dot (I.Idx (g0 + 1), exchangeSub' (g0, I.Shift (g0 + 1)))
-	  end
-
-
-	(* transformDec' (d, (S, mS), V, (z1, z2), (w, t)) = (d', w', t', (Ds+, Ds-))
- 
-  	   Invariant: 
-	   If   Psi, G0 |- S : V > type
-	   and  S doesn't contain Skolem constants
-	   and  d = |Delta|
-	   and  x1:A1...x(j-1):A(j-1) |- V = mj{xj:Aj} .. mn{xn:An} type : kind
-	   and  x1:A1...x(j-1):A(j-1) |- w : +x1:A1... +x(j-1):A(j-1)
-	   and  Psi, G0 |- w1 : Psi+, G0[w1^-1]
-           and  Psi |- w2 : Psi+-
-	   and  Psi+- |- t : Psi+, -x1:{{G0}} A1... -xj:{{G0}} Aj    
-           and  Psi+, -x1:{{G0}} A1...-x(j-1):{{G0}} A(j-1) |- z1: Psi+
-	   and  Psi+, -x1:{{G0}} A1...-x(j-1):{{G0}} A(j-1), G0 |- z2: x1:A1...x(j-1):A(j-1)
-           then x1:A1...xn:An |- w' : +x1:A1... +xn:An
-	   and  Psi+- |- s' : +x1:A1 .. +xn:An
-           and  Psi+- |- t' : Psi+, -x1:{{G0}} A1... -xn:{{G0}} An   
-	   and  d' = |Delta'|
-	*)
-       	fun transformDec' (d, (I.Nil, M.Mnil), I.Uni I.Type, (z1, z2), (w, t)) = 
-	      (w, t, (d, fn (k, Ds) => Ds k, fn _ => T.Empty))
-	  | transformDec' (d, (I.App (U, S), M.Mapp (M.Marg (M.Minus, _), mS)), 
-			  I.Pi ((I.Dec (_, V1), DP), V2), (z1, z2), (w, t)) =
-	      let 
-		val g = I.ctxLength G0
-		val w1' = peeln (g, w1)
-		val (G1, _) = strengthenCtx (G0, w1')
-		val (G2, _) = ctxSub (G1, z1)
-                val (V1'', Ur) = raiseType (G2, I.EClo (V1, z2), I.targetFam V1)
-                val w' = (case DP 
-			    of I.Maybe => I.dot1 w
-			    |  I.No => I.comp (w, I.shift))
-
-		val U0 = raiseExp (G0, U, I.targetFam V1'')
-		val U' = strengthenExp (U0, w2)
-	       	val t' = Whnf.dotEta (I.Exp (U'), t)
-		val z1' = I.comp (z1, I.shift)
-		val xc  = exchangeSub G0
-		val z2n = I.comp (z2, I.comp (I.shift, xc))
-		val Ur' = I.EClo (Ur, xc)
-		val z2' = Whnf.dotEta (I.Exp (Ur'), z2n)
-		val (w'', t'', (d', Dplus, Dminus)) = 
-		  transformDec' (d+1, (S, mS), V2, (z1', z2'), (w', t'))
-	      in
-		(w'', t'', (d', Dplus, fn k => T.Split (k, Dminus 1)))
-	      end
-	  | transformDec' (d, (I.App (U, S), M.Mapp (M.Marg (M.Plus, _), mS)),
-			  I.Pi ((I.Dec (name, V1), _), V2), (z1, z2), (w, t)) =
-	    let 
-	      val V1' = strengthenExp (V1, w)
-	      val w' =  I.dot1 w
-	      val U' = strengthenExp (U, w1)
-	      val t' = t
-	      val z1' = T.dot1n (G0, z1)
-	      val z2' = I.Dot (I.Exp (I.EClo (U', z1')), z2)
-	      val (w'', t'', (d', Dplus, Dminus)) = 
-		transformDec' (d+1, (S, mS), V2, (z1, z2'), (w', t'))
-	    in
-	      (w'', t'', (d', fn (k, Ds) => T.App ((k, U'), Dplus (1, Ds)), Dminus))
-	    end
-
-	  val (w'', t'', (d', Dplus, Dminus)) = 
-	    transformDec' (d, (S, mS), V, (I.id, I.Shift (domain (Psi, t0) + I.ctxLength G0)), 
-			   (I.id, t0))
-
-
-	  (* head Ts (w, t, (d, Dplus, Dminus)) = (d', w', t', P')
-
-	     Invariant:
-	     If   a not in Ts  then d'= d+1,  P' makes a lemma call
-	     If   Ts = [a]     then d'= d     P' used directly the ih.
-	     If   Ts = a1 .. ai ... and ai = a  
-	     then d' = d+i   and P' select ih, and then decomposes is, using
-	          (i-1) Rights and 1 Left
-          *)
-	  fun varHead Ts (w'', t'', (d', Dplus, Dminus)) =
-	    let 
-	      fun head' ([a'], d1, k1) = (d1, k1)
-		| head' (a'::Ts', d1, k1) =
-		  if a = a' then 
-		    (d1+1, fn xx => T.Left (xx, (k1 1)))
-		  else 
-		    let 
-		      val (d2, k2) = head' (Ts', d1+1, k1)
-		    in
-		      (d2, fn xx => T.Right (xx, (k2 1)))
-		    end
-
-		val (d2, k2) = head' (Ts, d', fn xx => Dplus (xx, Dminus))
-	      in
-		(d2, w'', t'', k2 d)
-	      end
-	    
-
-(*
-	  fun lemmaHead (w'', t'', (d', Dplus, Dminus)) = 
-	    let 
-	      val name = I.conDecName (I.sgnLookup a)
-	      val l = (case NONE (* (FunNames.nameLookup name) --cs *)
-			 of NONE => raise Error ("Lemma " ^ name ^ " not defined")
-		       | SOME lemma => lemma)
-	    in
-	      (d'+1, w'', t'', F.Lemma (l, Dplus (1, Dminus)))
-	    end
-*)	        
-      in
-	if List.exists (fn x => x = a) Ts 
-	  then varHead Ts (w'', t'', (d', Dplus, Dminus))
-	else (* lemmaHead (w'', t'', (d', Dplus, Dminus)) *) 
-	  raise Error "Lemmas temporarily disabled --cs"
-      end
-
-
-*)
     (* transformConc ((a, S), w) = P
 
        Invariant:
@@ -892,7 +718,7 @@ struct
 	in
 	  (T.PairExp (U', P'), T.Ex (I.Dec (x, V'), F'))
 	end
-
+      | raisePrg (G, (_, T.All _)) = raise Domain
     
     (* deblockify G = G'
      
@@ -922,7 +748,7 @@ struct
        and  c is a type family which entries are currently traversed
        then L' is a list of cases
     *)
-    fun traverse (Psi0, Ts, c, Sig, wmap) =
+    fun traverse (Psi0, L, c, Sig, wmap) =
       let 
 	(* traverseNeg (Psi0, V, L) = ([w', d', PQ'], L')    [] means optional
 	   
@@ -938,139 +764,45 @@ struct
 	*)
 	fun traverseNeg (Psi, I.Pi ((D as I.Dec (_, V1), I.Maybe), V2)) =
 	    (case traverseNeg (I.Decl (Psi, T.UDec D), V2)
-	       of (SOME (w', d', PQ')) => SOME (peel w', d', PQ'))
+	       of (SOME (w', PQ')) => SOME (peel w', PQ'))
 	  | traverseNeg (Psi, I.Pi ((D as I.Dec (_, V1), I.No), V2)) =
 	    (case traverseNeg (Psi, V2) 
-	       of (SOME (w', d', PQ')) => traversePos ((Psi, I.Null), V1, SOME (peel w', d', PQ')))
+	       of (SOME (w', PQ')) => traversePos ((Psi, I.Null), V1, SOME (peel w', PQ')))
 	  | traverseNeg (Psi, I.Root (I.Const a, S)) = 
 	    let 
 	      val (Psi', w') = strengthen (Psi, (a, S), I.Shift (I.ctxLength Psi), M.Plus)
-	      val (w'', s'') = transformInit (Psi', (a, S), w')
+	      val (w'', s'') = transformInit (Psi', L, (a, S), w')
 	    in
-	      (SOME (w', 1, (fn P => (Psi', s'', P), fn wf => transformConc ((a, S), wf))))
+	      (SOME (w', (fn P => (Psi', s'', P), fn wf => transformConc ((a, S), wf))))
 	    end
 	  
-        and traversePos ((Psi, G), I.Pi ((D as I.BDec (x, (c, s)), _), V), 
-			 SOME (w1, d, (P, Q))) =
+        and traversePos ((Psi, G), I.Pi ((D as I.BDec (x, (c, s)), _), V), SOME (w1, (P, Q))) =
   	    let 
 	      val c' = wmap c
 	    in
 	      traversePos ((Psi, I.Decl (G, I.BDec (x, (c', s)))), 
-			   V, SOME (I.dot1 w1, d, (P, Q)))
+			   V, SOME (I.dot1 w1, (P, Q)))
 	    end
-          | traversePos ((Psi, G), V as I.Root (I.Const a, S), SOME (w1, d, (P, Q))) =
+          | traversePos ((Psi, G), V as I.Root (I.Const a, S), SOME (w1, (P, Q))) =
 	    let 	   
+	      val (Psi'', _) = strengthenPsi (Psi, w1)
+	      val k = lookupIH (Psi'', L, a) 
+	      val T.PDec(_, F) = I.ctxLookup (Psi'', k)
 	      val P' = transformApp ((Psi, G), (a, S), w1)
-	      val F = T.True   (*fix me -cs *)
 	      val (Psi', w2) = strengthen (Psi, (a, S), w1, M.Minus)
 	      val (P'', F'') = raisePrg (deblockify G, (transformConc ((a, S), w2), F))
 	      val w3 = peeln (I.ctxLength G, w2)
 	      val t = T.Dot (T.Prg P'', T.id)
-	      val d4 = ~1   (* also to be fixed later *)
 	    in     
-	      (SOME (w3, d4, 
+	      (SOME (w3, 
 		     (fn p => P (T.Let (T.PDec (NONE, F''), T.New P'', 
-					(* should be  the ex type *)
 					T.Case (T.Cases [(Psi', t, p)]))), Q)))
 	    end
 
-
-
-
-	(* traversePos (c, Psi, (V, v), [w', d', PQ'], L) =  ([w'', d'', PQ''], L'') 
-	   
-	   Invariant:
-	   If   Psi, G |- V : type
-	   and  Psi, G |- v : Psi'       (s.t.  Psi' |- V[v^-1] : type exists)
-	   and V[v^-1] does not contain Skolem constants 
-	   [ and Psi', G |- w' : Psi''
-	     and |Delta'| = d'    for a Delta'
-	     and PQ' can generate the proof term so far in Delta'; Psi''
-	   ]
-	   and  c is the name of the constant currently considered
-	   and  L is a list of cases
-	   then L'' list of cases and L'' extends L
-	   and  Psi |- w'' : Psi2
-	   and  |Delta''| = d''  for a Delta'
-	   and  PQ'' can genreate the proof term so far in Delta''; Psi2
-	*)
-(*	and traversePos (c'', Psi, (I.Pi ((D as I.Dec (_, V1), I.Maybe), V2), v), 
-			 SOME (w, d, PQ), L) = 
-	    (case traversePos (c'', I.Decl (Psi,  T.UDec (strengthenDec (D, v))), 
-			       (V2, I.dot1 v), 
-			       SOME (I.dot1 w, d, PQ), L)
-	       of (SOME (w', d', PQ'), L') => (SOME  (w', d', PQ'), L'))
-	  | traversePos (c'', Psi, G, (I.Pi ((D as I.Dec (_, V1), I.No), V2), v), SOME (w, d, PQ), L) =
-	    (case traversePos (c'', Psi, G, (V2, I.comp (v, I.shift)), SOME (w, d, PQ), L)
-	       of (SOME (w', d', PQ'), L') => 
-		 (case traverseNeg (c'', I.Decl (Psi, F.Block (F.CtxBlock (NONE, G))), 
-				    (V1, v), L')
-		    of (SOME (w'', d'', (P'', Q'')), L'') => (SOME (w', d', PQ'), (P'' (Q'' w'')) :: L'')
-	             | (NONE, L'') => (SOME (w', d', PQ'), L'')))
-
-	  | traversePos (c'', Psi, (V, v), SOME (w1, d, (P, Q)), L) = 
-	    let (* Lemma calls (no context block) *)
-	      val I.Root (I.Const a', S) = Whnf.normalize (strengthenExp (V, v), I.id)
-	      val (Psi', w2) = strengthen (Psi, (a', S), w1, M.Minus)
-
-	      val _ = if !Global.doubleCheck 
-			then TypeCheck.typeCheck (T.coerceCtx Psi', (I.Uni I.Type, I.Uni I.Kind))
-		      else ()    (* provide typeCheckCtx from typecheck *)
-	      val w3 = strengthenSub (w1, w2)
-		
-	      (* val (d4, w4, t4, Ds) = transformDec (Ts, (Psi', I.Null), d, (a', S), w1, w2, w3) *)
-	      val D = transformDec (Psi', (a', S))
-	    in     
-	      (SOME (w2, d4, (fn p => P (T.Let (Ds, 
-				       T.Case (T.Cases [(Psi', t4, p)]))), Q)), L)
-	    end
-
-
-	  | traversePos (c'', Psi, G, (V, v), SOME (w1, d, (P, Q)), L) = 
-	    let (* Lemma calls (under a context block) *)
-	      val I.Root (I.Const a', S) = strengthenExp (V, v)
-	      val (dummy as I.Decl (Psi', F.Block (F.CtxBlock (name, G2))), w2) = 
-		    strengthen (I.Decl (Psi, F.Block (F.CtxBlock (NONE, G))),
-					    (a', S), w1, M.Minus)
-	      val _ = if !Global.doubleCheck 
-			then TypeCheck.typeCheck (F.makectx dummy, (I.Uni I.Type, I.Uni I.Kind))
-		      else ()   (* provide typeCheckCtx from typecheck *)
-	      val g = I.ctxLength G
-	      val w1' = peeln (g, w1)
-	      val w2' = peeln (g, w2)  (* change w1 to w1' and w2 to w2' below *)
-	      val (G1, _) = strengthenCtx (G, w1')
-	      val w3 = strengthenSub (w1', w2')
-	      val (d4, w4, t4, Ds) = transformDec (Ts, (Psi', G), d, (a', S), w1, w2', w3)
-	    in
-	      (SOME (w2', d4, (fn p => P (F.Let (F.New (F.CtxBlock (NONE, G1), Ds), 
-				       T.Case (T.Cases [(Psi', t4, p)]))), Q)), L)
-	    end
-*)
-(* cannot occur in our setting
-
-	  | traversePos (c'', Psi, (I.Pi ((D as I.Dec (_, V1), I.Maybe), V2), v), NONE, L) =
-	      traversePos (c'',  I.Decl (Psi, T.UDec (strengthenDec (D, v))), 
-			       (V2, I.dot1 v), 
-			       NONE, L)
-
-*)
-(*	  | traversePos (c'', Psi, G, (I.Pi ((D as I.Dec (_, V1), I.No), V2), v), NONE, L) =
-	    (case traversePos (c'', Psi, G, (V2, I.comp (v, I.shift)), NONE, L)
-	       of (NONE, L') => 
-		 (case traverseNeg (c'', I.Decl (Psi, F.Block (F.CtxBlock (NONE, G))), 
-				    (V1, v), L')
-		    of (SOME (w'', d'', (P'', Q'')), L'') => (NONE, (P'' (Q'' w'')) :: L'')
-	             | (NONE, L'') => (NONE, L'')))
-*)
-(* cannot occur in our design now, can it?
-
-	  | traversePos (c'', Psi, (V, v), NONE, L) =
-	    (NONE, L) *)
-
 	fun traverseSig' nil = nil
           | traverseSig' (I.ConDec (name, _, _, _, V, I.Type) :: Sig) = 
-  	    (case traverseNeg (Psi0, Whnf.normalize (V, I.shift))
-	       of (SOME (wf, d', (P', Q'))) =>  (P' (Q' wf)) :: traverseSig' Sig)
+  	    (case traverseNeg (Psi0, Whnf.normalize (V, I.Shift (I.ctxLength Psi0)))
+	       of (SOME (wf, (P', Q'))) =>  (P' (Q' wf)) :: traverseSig' Sig)
       in
 	traverseSig' Sig
       end
@@ -1100,23 +832,18 @@ struct
 	  convertList (a, (L, I.comp (w, I.shift)))
         
         
-
-		
-
-
-    (* convertPrg Ts = P'
+    (* convertPrg L = P'
 
        Invariant:
-       If   Ts is a list of type families
+       If   L is a list of type families
        then P' is a conjunction of all programs resulting from converting
 	    the relational encoding of the function expressed by each type 
-	    family in Ts into functional form 
+	    family in L into functional form 
     *)
 
-    fun convertPrg Ts = 
+    fun convertPrg (L) = 
       let
-
-	val F = convertFor Ts
+	val (Psi0, R) = recursion L
 
 	fun convertOnePrg a =
 	  let 
@@ -1130,26 +857,20 @@ struct
 	    val W = WorldSyn.lookup a
 	    val (W', wmap) = convertWorlds (a, W)
 	    val P = abstract a
-	    val Psi0 = I.Decl (I.Null, T.PDec (SOME name, F))
-	    val C = traverse (Psi0, Ts, a, Sig, wmap)
+	    val C = traverse (Psi0, L, a, Sig, wmap)
 	  in
-	    P (T.Case (T.Cases (nil (* C -cs *))))
+	    P (T.Case (T.Cases C))
 	  end
 
 	fun convertPrg' nil = raise Error "Cannot convert Empty program"
 	  | convertPrg' [a] = convertOnePrg a
-	  | convertPrg' (a :: Ts') = T.PairPrg (convertOnePrg a, convertPrg' Ts')
+	  | convertPrg' (a :: L') = T.PairPrg (convertOnePrg a, convertPrg' L')
 
 
-
-
-	val R = recursion Ts
       in
-	R (convertPrg' Ts)
+	R (convertPrg' L)
       end
 	  
-	  
-
   in 
     val convertFor = convertFor
     val convertPrg = convertPrg
