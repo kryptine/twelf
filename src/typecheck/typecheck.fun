@@ -134,7 +134,7 @@ struct
           (checkCtx G; checkExp (G, (U, I.id), (V, I.id)))
 
 
-    (* checkSub (Psi1, s, Psi2) = ()
+    (* checkSub (G1, s, G2) = ()
 
        Invariant:
        The function terminates 
@@ -163,13 +163,17 @@ struct
 	end
       | checkSub (G', I.Dot (I.Idx (w), t), I.Decl (G, (I.BDec (_, (l, s))))) =
 	let
-	  val I.BDec (_, (l', s')) = I.ctxLookup (G', w)
+	  val I.BDec (_, (l', s')) = I.ctxDec (G', w)
+	  (* G' |- s' : GSOME *)
+	  (* G  |- s  : GSOME *)
+	  (* G' |- t  : G       (verified below) *) 
 	in
 	  if (l <> l') 
 	    then raise Error "Incompatible block labels found"
-	  else if Conv.convSub (I.comp (s, t), s')
-		 then raise Error "Incompatible SOME substitutions found" 
-	       else checkSub (G', t, G)
+	  else 
+	    if Conv.convSub (I.comp (s, t), s')
+	      then checkSub (G', t, G)
+	    else raise Error "Substitution in block declaration not well-typed"
 	end
     (* checkDec (G, (x:V, s)) = B
 
@@ -181,6 +185,8 @@ struct
           checkExp (G, (V, s), (I.Uni (I.Type), I.id))
       | checkDec (G, (I.BDec (_, (c, t)), s)) =
 	  let 
+	    (* G1 |- t : GSOME *)
+	    (* G  |- s : G1 *)
 	    val (Gsome, piDecs) = I.constBlock c
 	  in
 	    checkSub (G, I.comp (t, s), Gsome)

@@ -469,6 +469,7 @@ struct
   fun blockDec (G, v as (Bidx k), i) =
     let 
       val BDec (_, (l, s)) = ctxDec (G, k)   
+      (* G |- s : Gsome *)
       val (Gsome, Lblock) = conDecBlock (sgnLookup l)
       fun blockDec' (t, D :: L, 1, j) = decSub (D, t)
 	| blockDec' (t, _ :: L, n, j) =
