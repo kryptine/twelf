@@ -62,3 +62,4 @@ ce_existsl : ce (existsl* D1* H) (existsl D1 H)
 		    
 %worlds (l1 | l2 | l3) (ce D* D).
 %covers ce +D *D*.
+%terminates D (ce D _).

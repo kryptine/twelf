@@ -109,3 +109,94 @@ However, in meta-abstract, I also just do the left-to-right traversal.  It
 worked there, so it should be fine.
 
 -- Carsten
+----------------------------------------------------------------------
+Sun Dec 16 18:12:17 2001 -f
+
+Hi Carsten,
+
+  here are some notes on the algorithm for output coverage.
+I am using as an example:
+
+tp : type.				%name tp A.
+arrow : tp -> tp -> tp.
+
+exp : tp -> type.			%name exp E x.
+lam : (exp A -> exp B) -> exp (arrow A B).
+app : exp (arrow A B) -> exp A -> exp B.
+
+cp : exp A -> exp A -> type.		%name cp D u.
+
+cp_lam : cp (lam E) (lam F)
+	  <- ({x:exp A} {y:exp A} cp x y -> cp (E x) (F y)).
+	     
+cp_app : cp (app E1 E2) (app F1 F2)
+	  <- cp E1 F1
+	  <- cp E2 F2.
+
+
+When examining a subgoal, we are in a context with two parts: the
+existential and the universal part.  We represent the universal
+part via explicit abstraction.  From cp_lam:
+
+{A:tp} {B:tp} {E:exp A -> exp B} {F:exp A -> exp B}
+|- {x:exp A} {y:exp A} {u:cp x y} cp (E x) (F y)
+
+Lets call this the coverage clause.  Since we don't factor different
+clauses for output coverage,, the coverage clauses is unique.
+
+We next set up the initial coverage goal.  For this coverage goal the
+output arguments of the eventual atomic subgoal are maximally general
+(irrelevant arguments are replaced by underscore here for simplicity).
+Splittable variables are named V* and local parameters remain in the
+coverage goal.
+
+{A*:tp} {B*:tp} {G*:exp A* -> exp A* -> exp B*}
+?- {x:exp A*} {y:exp A*} {u:cp x y} cp _ (G* x y)
+
+Now we perform matching as for input coverage: we check if
+the single coverage clause above covers the single coverage
+goal below.
+
+We instantiate A, B, E, F with new logical variables _A, _B, _E, _F that
+can depend on A*, B*, G* (modulo subordination) and match
+
+{A*:tp} {B*:tp} {G*:exp A* -> exp A* -> exp B*}
+?- {x:exp A} {y:exp A} {u:cp x y} cp (E x) (F y)
+   = {x:exp A*} {y:exp A*} {u:cp x y} cp _ (G* x y) : type
+
+In this case this fails because of dependencies, where G* is
+not suggested as a splitting candidate.
+
+If we modify our example slightly (e.g. cp (E x) (app (F1 y) (F2 y))
+in the subgoal), the G* would become a candidate.  In that case
+we split the goal
+
+{A*:tp} {B*:tp} {G*:exp A* -> exp A* -> exp B*}
+?- {x:exp A*} {y:exp A*} {u:cp x y} cp _ (G* x y)
+
+by instantiating A*, B*, G* with new EVars (but not x, y, u),
+enumerating all possibilities for G*, then abstracting to
+obtain, for example (among others):
+
+{A*:tp} {B1*:tp} {B2*:tp}
+{G1*:exp A* -> exp A* -> exp (arrow B1* B2*)}
+{G1*:exp A* -> exp A* -> exp B1*}
+?- {x:exp A*} {y:exp A*} {u:cp x y} cp _ (app (G1* x y) (G2* x y))
+
+Then we proceed as before, this time without candidates.
+
+The main generalization to the current situation is that coverage clauses
+and coverage goals are no longer atomic.
+
+I am not sure if this is sound and terminating for the second-order
+case, but it seems at least plausible.  I haven't consider the case
+where local assumptions again have subgoals, because some issues of
+quantifier alternation may come into play.
+
+One possibility would be to rule that out for the moment, giving
+an error message for orders >= 3, and just implement what I sketched
+above.
+
+What do you think?  Do you believe the development above?
+Do you have any ideas for orders >= 3?  I'll wait for your input
+before proceeding with the implementation.
