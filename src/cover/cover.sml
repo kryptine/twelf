@@ -11,6 +11,7 @@ structure Cover =
          structure Names = Names
 	 structure Paths = Paths
 	 structure Print = Print
+         structure TypeCheck = TypeCheck
 	 structure CSManager = CSManager);
 
 structure Total =

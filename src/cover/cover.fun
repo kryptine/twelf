@@ -23,6 +23,8 @@ functor Cover
    structure Paths : PATHS
    structure Print : PRINT
      sharing Print.IntSyn = IntSyn'
+   structure TypeCheck : TYPECHECK
+     sharing TypeCheck.IntSyn = IntSyn'
    structure CSManager : CS_MANAGER
      sharing CSManager.IntSyn = IntSyn')
   : COVER =
@@ -705,6 +707,9 @@ struct
     fun abstract (V, s) = 
         let
 	  val (i, V') = Abstract.abstractDecImp (I.EClo (V, s))
+	  val _ = if !Global.doubleCheck
+		    then TypeCheck.typeCheck (I.Null, (V', I.Uni(I.Type)))
+		  else ()
 	in
 	  V'
 	end
@@ -738,7 +743,7 @@ struct
 	in
 	  SOME (getCases ())
 	end
-        (* Constraints.Error could be raise by abstract *)
+        (* Constraints.Error could be raised by abstract *)
         handle Constraints.Error (constrs) =>
 	  (if !Global.chatter >= 6	
      then print ("Inactive split:\n" ^ Print.cnstrsToString (constrs) ^ "\n")
@@ -758,7 +763,7 @@ struct
         (* raised exception bypasses trail manager *)
         (* trail here explicitly because of dependencies *)
         CSManager.trail
-	(fn () => (if !Global.chatter >= 6
+	(fn () => (if !Global.chatter >= 7
 		     then print ("Testing: " ^ Print.expToString (I.Null, X) ^ "\n")
 		   else ();
 		   splitEVar (X, W, fn () => raise Possible);
@@ -980,7 +985,7 @@ struct
 	  val negMs = negateMode ms	(* swap input/output modes *)
 	  val V' = createCoverClause (G, V)
 	  val V0 = createCoverGoal ((V', I.id), ms) (* replace output by new EVars *)
-	  val V0' = abstract (V0, I.id)
+	  val V0' = abstract (V0, I.id)	(* abstract will double-check *)
 	  val W = W.lookup a
 	  val missing = cover (V0', (W, negMs), V'::nil, nil)
 	  val _ = case missing
@@ -998,6 +1003,9 @@ struct
     fun checkCovers (a, ms) =
         let
 	  val V0 = initCGoal (a)
+	  val _ = if !Global.doubleCheck
+		    then TypeCheck.typeCheck (I.Null, (V0, I.Uni (I.Type)))
+		  else ()
 	  val _ = CSManager.reset ()
 	  val cs = Index.lookup a
 	  val ccs = constsToTypes cs	(* calculate covering clauses *)
