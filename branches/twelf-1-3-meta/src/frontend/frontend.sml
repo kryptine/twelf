@@ -184,6 +184,7 @@ structure Twelf =
 	 structure Converter = Converter
 	 structure TomegaPrint = TomegaPrint
 	 structure TomegaCoverage = TomegaCoverage
+	 structure TomegaTypeCheck = TomegaTypeCheck
          structure Total = Total
 
 	 structure Reduces = Reduces
