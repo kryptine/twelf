@@ -16,6 +16,20 @@ struct
   local 
     structure I = IntSyn
 
+    (* for debugging purposes *)
+    fun subToString (G, I.Dot (I.Idx (n), s)) =
+          Int.toString (n) ^ "." ^ subToString (G, s)
+      | subToString (G, I.Dot (I.Exp (U), s)) =
+	  "(" ^ Print.expToString (G, U) ^ ")." ^ subToString (G, s)
+      | subToString (G, I.Dot (I.Block (L as I.LVar _), s)) =
+	  LVarToString (G, L) ^ "." ^ subToString (G, s)
+      | subToString (G, I.Shift(n)) = "^" ^ Int.toString (n)
+
+    and LVarToString (G, I.LVar (ref (SOME B), _)) =
+          LVarToString (G, B)
+      | LVarToString (G, I.LVar (ref NONE, (cid, s))) =
+	  "#" ^ I.conDecName (I.sgnLookup cid) ^ "["
+	  ^ subToString (G, s) ^ "]"
 	  
     (* some well-formedness conditions are assumed for input expressions *)
     (* e.g. don't contain "Kind", Evar's are consistently instantiated, ... *)
@@ -182,8 +196,8 @@ struct
 	      then ()
 	    else raise Error "Substitution in block declaration not well-typed"
 	end
-      | checkSub (G', I.Dot (_, _), I.Null) =
-	raise Error "Long substitution"
+      | checkSub (G', s as I.Dot (_, _), I.Null) =
+	raise Error ("Long substitution" ^ "\n" ^ subToString (G', s)) 
       (*
       | checkSub (G', I.Dot (I.Block (I.Bidx _), t), G) =
 	raise Error "Unexpected block index in substitution"
@@ -204,6 +218,10 @@ struct
 	    (* G1 |- t : GSOME *)
 	    (* G  |- s : G1 *)
 	    val (Gsome, piDecs) = I.constBlock c
+	    (* Debugging output --- remove !!! *)
+	    val _ = print (Print.ctxToString (I.Null, G) ^ " |- "
+			   ^ subToString (G, I.comp (t, s)) ^ " : "
+			   ^ Print.ctxToString (I.Null, Gsome) ^ ".\n")
 	  in
 	    checkSub (G, I.comp (t, s), Gsome)
 	  end

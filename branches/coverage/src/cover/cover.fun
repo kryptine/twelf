@@ -627,12 +627,23 @@ struct
        then G |- s : G'
     *)
     (* copied from worldsyn.fun *)
-    fun createEVarSub (G, I.Null) = I.Shift (I.ctxLength G)
+    (* I think EVarSubs for Gsome variables need to be created
+       in the empty context!
+	Wed Dec  5 15:58:23 2001 -fp !!!
+    *)
+    fun createEVarSub (G, I.Null) =
+        (* change here Wed Dec  5 16:01:35 2001 -fp !!! *)
+        (* I.Shift (I.ctxLength G) *)
+        I.id
       | createEVarSub (G, I.Decl(G', D as I.Dec (_, V))) =
         let
 	  val s = createEVarSub (G, G')
 	  val V' = I.EClo (V, s)
+	  (* 
 	  val X = I.newEVar (G, V')
+	  *)
+	  (* change here Wed Dec  5 15:58:45 2001 -fp !!! *)
+	  val X = I.newEVar (I.Null, V')
 	in
 	  I.Dot (I.Exp X, s)
 	end
@@ -713,8 +724,8 @@ struct
 	  val _ = print ("!- " ^ Print.expToString (I.Null, V') ^ "\n")
 	  val _ = if !Global.doubleCheck
 		    then TypeCheck.typeCheck (I.Null, (V', I.Uni(I.Type)))
-		  else ()
-	  val _ = print ("+\n")
+		         handle TypeCheck.Error (msg) => print ("-- " ^ msg ^ "\n")
+		  else print ("++ Type well-formed\n")
 	in
 	  V'
 	end
