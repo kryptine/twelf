@@ -96,16 +96,19 @@ struct
 	(* clause head *)
 	()
     and checkGoal (G, Vs, occ) = checkGoalW (G, Whnf.whnf Vs, occ)
-    and checkGoalW (G, (I.Pi _, s), occ) =
-        raise Error' (occ, "Totality: can not check parametric or hypothetical subgoals yet")
-      | checkGoalW (G, (V as I.Root (I.Const a, S), s), occ) =	(* s = id *)
+    and checkGoalW (G, (V, s), occ) =
 	let
+	  val a = I.targetFam V
 	  val _ = if not (total a)
 		    then raise Error' (occ, "Subgoal " ^ Names.qidToString (Names.constQid a)
 				       ^ " not declared to be total")
 		  else ()
+	  val _ = case V
+	            of I.Pi _ => print ("Warning: " ^ Names.qidToString (Names.constQid a)
+					^ " not checked recursively.\n")
+		     | _ => ()
 	in
-	  Cover.checkOut (G, V)
+	  Cover.checkOut (G, (V, s))
 	  handle Cover.Error (msg)
 	  => raise Error' (occ, "Totality: Output of subgoal not covered\n" ^ msg)
 	end

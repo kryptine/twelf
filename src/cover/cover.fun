@@ -571,7 +571,7 @@ struct
       val caseList : I.Exp list ref = ref nil
     in
       fun resetCases () = (caseList := nil)
-      fun addCase (V) = (caseList := V :: !caseList)
+      fun addCase (V, p) = (caseList := V :: !caseList)
       fun getCases () = (!caseList)
     end
 
@@ -792,7 +792,7 @@ struct
 		    then TypeCheck.typeCheck (I.Null, (V', I.Uni(I.Type)))
 		  else ()
 	in
-	  V'
+	  (V', i)
 	end
 
     (* splitVar ({{G}} a @ S, k) = SOME [{{G1}} a @ S1 ,..., {{Gn}} a @ Sn]
@@ -1128,10 +1128,10 @@ struct
     (* createCoverClause (G, V) = {{G}} V
        where {{G}} V is in NF
     *)
-    fun createCoverClause (I.Decl (G, D), V) =
-          createCoverClause (G, (I.Pi ((D, I.Maybe), V)))
-      | createCoverClause (I.Null, V) =
-	  Whnf.normalize (V, I.id)
+    fun createCoverClause (I.Decl (G, D), V, p) =
+          createCoverClause (G, I.Pi ((D, I.Maybe), V), p+1)
+      | createCoverClause (I.Null, V, p) =
+	  (Whnf.normalize (V, I.id), p)
 
     (* createCoverGoal (({{G}} a @ S, s), ms) = V'
        createCoverSpine ((S, s), (V, s'), ms) = S'
@@ -1145,15 +1145,22 @@ struct
 
        Could probably be done more efficiently.
     *)
-    fun createCoverGoal (Vs, ms) =
-           createCoverGoalW (Whnf.whnf (Vs), ms)
-    and createCoverGoalW ((I.Pi ((D as I.Dec (_, V1), _), V2), s), ms) =
+    fun createCoverGoal (G, Vs, p, ms) =
+           createCoverGoalW (G, Whnf.whnf (Vs), p, ms)
+    and createCoverGoalW (G, (I.Pi ((D1,P1), V2), s), 0, ms) =
         let
+	  val D1' = I.decSub (D1, s)
+	  val V2' = createCoverGoal (I.Decl (G, D1'), (V2, I.dot1 s), 0, ms)
+	in
+	  I.Pi ((D1',P1), V2')
+	end
+      | createCoverGoalW (G, (I.Pi ((D as I.Dec (_, V1), _), V2), s), p, ms) =
+        let (* p > 0 *)
 	  val X = I.newEVar (I.Null, I.EClo (V1, s))
 	in
-	  createCoverGoalW ((V2, I.Dot (I.Exp (X), s)), ms)
+	  createCoverGoal (G, (V2, I.Dot (I.Exp (X), s)), p-1, ms)
 	end
-      | createCoverGoalW ((I.Root (a as I.Const(cid), S), s), ms) = (* s = id *)
+      | createCoverGoalW (G, (I.Root (a as I.Const(cid), S), s), p, ms) = (* s = id, p >= 0 *)
 	I.Root (a, createCoverSpine ((S, s), (I.constType (cid), I.id), ms))
 
     and createCoverSpine ((I.Nil, s), _, M.Mnil) = I.Nil
@@ -1174,18 +1181,37 @@ struct
 	  createCoverSpine ((S, I.comp (s', s)), Vs, ms)
 
   in
-    (* checkOut (G, a @ S) = ()
-       checks if the most general goal a @ S' is locally output-covered by a @ S
+    (* checkOut (G, (V, s)) = ()
+       checks if the most general goal V' is locally output-covered by V
        Effect: raises Error (msg) otherwise
     *)
-    fun checkOut (G, V as I.Root (I.Const (a), S)) =
-        let
+    (*
+    fun checkOut (G, (V as I.Root (I.Const (a), S), s)) = (* s = id *)
+        let (* eventually, this special case shold be obsolete *)
 	  (* already know that subgoal is well-moded *)
 	  val SOME(ms) = ModeSyn.modeLookup a
 	  val negMs = negateMode ms	(* swap input/output modes *)
 	  val V' = createCoverClause (G, V)
 	  val V0 = createCoverGoal ((V', I.id), ms) (* replace output by new EVars *)
 	  val V0' = abstract (V0, I.id)	(* abstract will double-check *)
+	  val W = W.lookup a
+	  val missing = cover (V0', (W, negMs), V'::nil, nil)
+	  val _ = case missing
+	            of nil => ()
+		     | _::_ => raise Error ("Output coverage error --- missing cases:\n"
+					    ^ missingToString (missing, ms) ^ "\n")
+	in
+	  ()
+	end
+     *)
+    fun checkOut (G, (V, s)) =
+	let
+	  val a = I.targetFam V
+	  val SOME(ms) = ModeSyn.modeLookup a (* must be defined and well-moded *)
+	  val negMs = negateMode ms	(* swap input/output modes *)
+	  val (V', p) = createCoverClause (G, I.EClo(V, s), 0) (* abstract all variables in G *)
+	  val V0 = createCoverGoal (I.Null, (V', I.id), p, ms) (* replace output by new EVars *)
+	  val (V0', q) = abstract (V0, I.id)	(* abstract will double-check *)
 	  val W = W.lookup a
 	  val missing = cover (V0', (W, negMs), V'::nil, nil)
 	  val _ = case missing
