@@ -784,13 +784,13 @@ exception Error' of Tomega.Sub
 		    val l = T.lemmaName s
 		    val T.ValDec (_, P, F) = T.lemmaLookup l
 		  in
-		    (T.Root (T.Const l, T.Nil), F)
+		    (T.Const l, F)
 		  end
 
 	      fun lookup (([b], NONE, F), a) = 
 		  if a=b then
 		    let 
-		      val P = T.Root (T.Var n, T.Nil)
+		      val P = T.Var n
 		    in
 		      (P, F)
 		    end
@@ -798,7 +798,7 @@ exception Error' of Tomega.Sub
 		| lookup (([b], SOME [lemma], F), a) =
 		  if a = b then 
 		    let 
-		      val P = T.Root (T.Const lemma, T.AppPrg (T.Root (T.Var n, T.Nil), T.Nil))
+		      val P = T.Redex (T.Const lemma, T.AppPrg (T.Var n, T.Nil))
 		    in
 		      (P, F)
 		    end
@@ -806,7 +806,7 @@ exception Error' of Tomega.Sub
 		| lookup ((b :: L, SOME (lemma :: lemmas), T.And (F1, F2)), a) = 
 		  if a = b then 
 		    let 
-		      val P = T.Root (T.Const lemma, T.AppPrg (T.Root (T.Var n, T.Nil), T.Nil))
+		      val P = T.Redex (T.Const lemma, T.AppPrg (T.Var n, T.Nil))
 		    in
 		      (P, F1)
 		    end
@@ -1227,8 +1227,7 @@ exception Error' of Tomega.Sub
     fun createProjection (Psi, depth, F as T.And (F1, F2), Pattern) = 
           createProjection (I.Decl (Psi, T.PDec (NONE, F1)), depth+1, 
 			    Normalize.normalizeFor (F2, T.Shift 1), 
-			    T.PairPrg (T.Root (T.Var (depth+2), T.Nil),
-					       Pattern))
+			    T.PairPrg (T.Var (depth+2), Pattern))
       | createProjection (Psi, depth, F,  Pattern) =
 	  let 
 	    val Psi' = I.Decl (Psi, T.PDec (NONE, F))
@@ -1240,7 +1239,7 @@ exception Error' of Tomega.Sub
 		      (T.Case (T.Cases [(Psi',
 				       T.Dot (T.Prg (Pattern), 
 					      T.Shift (depth')),
-				       T.Root (T.Var k, T.Nil))]), F')
+				       T.Var k)]), F')
 		    end
 	  end
 	  
@@ -1260,7 +1259,7 @@ exception Error' of Tomega.Sub
 
     fun installSelection ([cid], [lemma], F1, main) =
         let
-	  val P = T.Root (T.Const lemma, T.AppPrg (T.Root (T.Const main, T.Nil), T.Nil))
+	  val P = T.Redex (T.Const lemma, T.AppPrg (T.Const main, T.Nil))
 	  val name = I.conDecName (I.sgnLookup cid)
 	  val _ = TomegaTypeCheck.checkPrg (I.Null, (P, F1)) 
 	  val lemma' = T.lemmaAdd (T.ValDec (name, P, F1))
@@ -1269,7 +1268,7 @@ exception Error' of Tomega.Sub
 	end
       | installSelection (cid :: cids, lemma :: lemmas, T.And (F1, F2), main) = 
         let
-	  val P = T.Root (T.Const lemma, T.AppPrg (T.Root (T.Const main, T.Nil), T.Nil))
+	  val P = T.Redex (T.Const lemma, T.AppPrg (T.Const main, T.Nil))
 	  val name = I.conDecName (I.sgnLookup cid)
 	  val _ = TomegaTypeCheck.checkPrg (I.Null, (P, F1))
 	  val lemma' = T.lemmaAdd (T.ValDec (name, P, F1))
@@ -1299,7 +1298,7 @@ exception Error' of Tomega.Sub
 	  val F = convertFor cids
 	  val _ = TomegaTypeCheck.checkFor (I.Null, F)
 
-	  val Proj = createProjection (I.Null, 0, F, T.Root (T.Var 1, T.Nil))
+	  val Proj = createProjection (I.Null, 0, F, T.Var 1)
 	  val projs = installProjection (cids, depthConj F, F, Proj)
 
 	  val P = convertPrg (cids, SOME projs)

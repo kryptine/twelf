@@ -58,8 +58,7 @@ struct
        and  Psi |- P' [t'] :nf: F [t]
     *)
 
-    fun normalizePrg (P as (T.Root (T.Const _, _)), t) = P
-      | normalizePrg ((P as (T.Root (T.Var n, T.Nil))), t) = 
+    fun normalizePrg (T.Var n, t) = 
 	   (* ABP -- 1/20/03 *)
         (case T.varSub (n, t) 
 	   of (T.Prg P) => P

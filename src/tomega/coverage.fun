@@ -85,7 +85,13 @@ struct
 	in 
           (t', Psi', T.Dot (T.Undef, s'))
 	end
-      | purifyCtx (T.Dot (T.Prg (T.Root (_, T.Nil)), t), I.Decl (Psi, T.PDec (_, _))) =
+      | purifyCtx (T.Dot (T.Prg (T.Var _), t), I.Decl (Psi, T.PDec (_, _))) =
+        let 
+	  val (t', Psi', s') = purifyCtx (t, Psi)
+	in 
+          (t', Psi', T.Dot (T.Undef, s'))
+	end
+      | purifyCtx (T.Dot (T.Prg (T.Const _), t), I.Decl (Psi, T.PDec (_, _))) =
         let 
 	  val (t', Psi', s') = purifyCtx (t, Psi)
 	in 
@@ -136,8 +142,8 @@ struct
       | coverageCheckPrg (W, Psi, T.PairPrg (P1, P2)) = 
 	  (coverageCheckPrg (W, Psi, P1); coverageCheckPrg (W, Psi, P2))
       | coverageCheckPrg (W, Psi, T.Unit) = ()
-      | coverageCheckPrg (W, Psi, T.Root (H, S)) = 
-	  coverageCheckSpine (W, Psi, S)
+      | coverageCheckPrg (W, Psi, T.Var _) =  ()
+      | coverageCheckPrg (W, Psi, T.Const _) =  ()
       | coverageCheckPrg (W, Psi, T.Rec (D, P)) = 
 	  coverageCheckPrg (W, I.Decl (Psi, D), P)
       | coverageCheckPrg (W, Psi, T.Case (T.Cases Omega)) = 

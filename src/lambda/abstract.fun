@@ -779,7 +779,7 @@ struct
   	  abstractPVar (K', depth+1, P)
 
     fun abstractPrg (K, depth, X as T.EVar _) =
- 	  T.Root (abstractPVar (K, depth, X), T.Nil)
+ 	  abstractPVar (K, depth, X)
       | abstractPrg (K, depth, T.Unit) = T.Unit
       | abstractPrg (K, depth, T.PairExp (U, P)) = 
            T.PairExp (abstractExp (K, depth, (U, I.id)), abstractPrg (K, depth, P))

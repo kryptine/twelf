@@ -43,7 +43,6 @@ struct
   | PairBlock of IntSyn.Block * Prg     (*     | <rho, P>             *) 
   | PairPrg of Prg * Prg                (*     | <P1, P2>             *)
   | Unit				(*     | <>                   *)
-  | Root of Head * Spine                (*     | P . S                *)
   | Redex of Prg * Spine
   | Rec of Dec * Prg			(*     | mu xx. P             *)
   | Case of Cases                       (*     | case t of O          *)
@@ -51,9 +50,7 @@ struct
   | Let of Dec * Prg * Prg              (*     | let D = P1 in P2     *)
   | EVar of (Dec IntSyn.Ctx * Prg option ref * For)
 					(*     | E (G, F)             *)
-					(*     | E (G, F)             *)
-  and Head =
-    Const of lemma                      (* P ::= cc                   *)
+  | Const of lemma                      (* P ::= cc                   *)
   | Var of int                          (*     | xx                   *)
 
   and Spine =				(* Spines:                    *)
@@ -353,8 +350,8 @@ struct
 	  
 
 	(* getPrgIndex returns NONE if it is not an index *)
-	and getPrgIndex (Root(Var k, Nil )) = SOME(k)
-	  | getPrgIndex (Redex(P, Nil) ) = getPrgIndex(P)
+	and getPrgIndex (Redex (Var k, Nil )) = SOME(k)
+	  | getPrgIndex (Redex (P, Nil)) = getPrgIndex(P)
 	  
 	  (* it is possible in the matchSub that we will get PClo under a sub (usually id) *)
 	  | getPrgIndex (PClo (P,t)) = 
