@@ -66,9 +66,12 @@ struct
 
     *)
     datatype SuspType = Loop | Divergence
+    (* note: that dctx and exp and DProg are not really needed *)     
+    val SuspGoals : (((SuspType * (IntSyn.dctx * IntSyn.Exp * IntSyn.Sub) * CompSyn.DProg * 
+		       (CompSyn.pskeleton -> unit)) * 
+		      Unify.unifTrail * (IntSyn.Sub * T.answer) * int ref)  list) ref  = ref []
 
-    val SuspGoals : (((SuspType * (IntSyn.Exp * IntSyn.Sub) * CompSyn.DProg * (CompSyn.pskeleton -> unit)) * 
-		      Unify.unifTrail * T.answer * int ref)  list) ref  = ref []
+    exception Error of string
 
     (* ---------------------------------------------------------------------- *)
       
@@ -88,6 +91,11 @@ struct
 
     fun compose'(IntSyn.Null, G) = G
       | compose'(IntSyn.Decl(G', D), G) = IntSyn.Decl(compose'(G', G), D)
+
+
+    fun append(IntSyn.Null, G) = G
+      | append(IntSyn.Decl(G', D), G) = IntSyn.Decl(append(G', G), D)
+
 
     fun shift (IntSyn.Null, s) = s
       | shift (IntSyn.Decl(G, D), s) = I.dot1 (shift(G, s))
@@ -125,18 +133,29 @@ struct
       end 
 
     fun ctxToAVarSub (I.Null, s) = s
+      | ctxToAVarSub (I.Decl(G,I.Dec(_,A)), s) = 
+      let
+(*	val X = I.newEVar (I.Null, I.EClo (A,s))   (* ???? *) 
+        bp Wed Feb 20 11:06:51 2002 *)
+	val X = I.newEVar (I.Null, A)
+      in
+	I.Dot(I.Exp(X), ctxToAVarSub (G, s))
+      end 
+
       | ctxToAVarSub (I.Decl(G,I.ADec(_,d)), s) = 
       let
 	val X = I.newAVar ()
       in
 	I.Dot(I.Exp(I.EClo(X, I.Shift(~d))), ctxToAVarSub (G, s))
       end 
+
+
     (* ---------------------------------------------------------------------- *)
-  fun printSub (I.Shift n) = print ("I.Shift " ^ Int.toString n ^ "\n")
+    fun printSub (I.Shift n) = print ("I.Shift " ^ Int.toString n ^ "\n")
     | printSub (I.Dot(I.Idx n, s)) = (print ("Idx " ^ Int.toString n ^ " . "); printSub s)
     | printSub (I.Dot (I.Exp(I.EVar (_, _, _, _)), s)) = (print ("Exp (EVar _ ). "); printSub s)
     | printSub (I.Dot (I.Exp(I.AVar (_)), s)) = (print ("Exp (AVar _ ). "); printSub s)
-    | printSub (I.Dot (I.Exp(I.EClo (I.AVar (_), _)), s)) = (print ("Exp (AVar _ ). "); printSub s)
+    | printSub (I.Dot (I.Exp(I.EClo (I.AVar (_), _)), s)) = (print ("Exp (EClo(AVar _, _ )). "); printSub s)
     | printSub (I.Dot (I.Exp(I.EClo (_, _)), s)) = (print ("Exp (EClo _ ). "); printSub s)
     | printSub (I.Dot (I.Exp(_), s)) = (print ("Exp (_ ). "); printSub s)
     | printSub (I.Dot (I.Undef, s)) = (print ("Undef . "); printSub s)
@@ -170,7 +189,7 @@ struct
    (* ---------------------------------------------------------------------- *)
 
    (* retrieve' (n, G, ((M, V), s), answ_i, sc) = ()
-   
+    
      G |- s : G'
      G' |- M : V atomic goal 
 
@@ -201,21 +220,70 @@ struct
 	andalso solveEqn ((eqns, s), G)
      end
 
+  (* instantiateSub (s, s') = r
+     
+      . |- s : D  and X_m, ...X_1, A_n, ...A_1
+      . |- s': D  and X'_m, ...X'_1, A'_n, ..., A'_1
+     
 
-   (* see retrieve *)      
-   fun retrieve' (n, goal, G, Vs, (G', U'), [], sc)  = ()
-     | retrieve' (n, goal, G, Vs as (V,s), (G', U'), (((DEVars, s1), O1)::A),  sc) =  
+  *)
+  fun lengthSub (I.Shift n) = 0
+    | lengthSub (I.Dot(U, s)) = 1 + lengthSub (s)
+
+
+  (* in general it should be possible to s1 o s and s2 o s'
+     note: there is a problem that the final shift is not |D_i|
+     apparently... even if we change it in abstract.fun it doesn't quite work right 
+     
+     *)
+
+    (* unifySub (G, s1, s2) = ()
+     
+       Invariant:
+       If   G |- s1 : G'
+       and  G |- s2 : G'
+       then unifySub (G, s1, s2) terminates with () 
+	    iff there exists an instantiation I, such that
+	    s1 [I] = s2 [I]
+
+       Remark:  unifySub is used only to unify the instantiation of SOME variables
+    *)
+    (* conjecture: G == Null at all times *)
+    (* Thu Dec  6 21:01:09 2001 -fp *)
+    and unifySub (G, I.Shift (n1), I.Shift (n2)) = ()
+         (* by invariant *)
+      | unifySub (G, I.Shift(n), s2 as I.Dot _) = 
+          unifySub (G, I.Dot(I.Idx(n+1), I.Shift(n+1)), s2)
+      | unifySub (G, s1 as I.Dot _, I.Shift(m)) = 
+	  unifySub (G, s1, I.Dot(I.Idx(m+1), I.Shift(m+1)))
+      | unifySub (G, I.Dot(Ft1,s1), I.Dot(Ft2,s2)) =
+	  ((case (Ft1, Ft2) of
+	     (I.Idx (n1), I.Idx (n2)) => 
+	       if n1 <> n2 then raise Error "SOME variables mismatch"
+	       else ()                      
+           | (I.Exp (U1), I.Exp (U2)) => Unify.unify (G, (U1, I.id), (U2, I.id))
+	   | (I.Exp (U1), I.Idx (n2)) => Unify.unify (G, (U1, I.id), (I.Root (I.BVar (n2), I.Nil), I.id))
+           | (I.Idx (n1), I.Exp (U2)) => Unify.unify (G, (I.Root (I.BVar (n1), I.Nil), I.id), (U2, I.id)));
+(*	   | (Undef, Undef) => 
+	   | _ => false *)   (* not possible because of invariant? -cs *)
+	  unifySub (G, s1, s2))
+
+  fun unifySub' (G, s1, s2) = (unifySub (G, s1, s2); true) handle Unify.Unify _ => false
+
+    (* see retrieve *)      
+   fun retrieve' (n, goal, G, Vs, (G', U'), asub, [], sc)  = ()
+     | retrieve' (n, goal, G, Vs as (V,s), (G', U'), asub, (((DEVars, s1), O1)::A), sc) =  
      let 
        val Vpi = A.raiseType(G, V)
        val Upi = A.raiseType(G', U')
-       val s1' = ctxToEVarSub (DEVars, I.id)
+
+       val s1' = ctxToEVarSub (DEVars, I.id) (* from DEVars |- s1 : D  and D' |- asub : D
+					        create: DEVars' |-  r1 : D' 
+						s.t. s1 = asub o r1 *) 
      in
-       (* could be done more efficient by assigning the substitutions only ? *)
-       (* s = s1 o s1' Wed Sep 18 17:29:06 2002 -bp 
-          this would also make abstraction during retrieval superflous *)
-       CSManager.trail (fn () => if Unify.unifiable(I.Null, (Vpi, s), (I.EClo(Upi, s1), s1')) 
-	 then (sc O1) else ());
-       retrieve' (n+1, goal, G, Vs, (G', U'), A, sc)
+         CSManager.trail (fn () => if unifySub' (I.Null, I.comp(asub, s), I.comp(s1, s1'))  
+				   then ((sc O1)) else ());
+       retrieve' (n+1, goal, G, Vs, (G', U'), asub, A, sc)
      end 
    
 
@@ -231,18 +299,22 @@ struct
       (Pi G. V)[s] ==  (Pi G'.U')[si][si'] 
     then evaluate (sc Oi)
 
+     !!! important part: . |- s : D
+     !!! U = V, and G = G' 
+     !!! goal, U, V, G, G' are really not important
+     !!! what should happen: s is matched against s_i (where s_i is an answer)
      Effects: instantiation of EVars in s, and G
               any effects the success continuation might have   
    *)
-    and retrieve (k, goal, G, Vs as (V, s), (H as ((G', DAVars, DEVars, U, eqn), answ)), sc) =
+    and retrieve (k, goal, G, Vs as (V, s), (H as ((G', U), (asub, answRef))), sc) =
         let
-	  val lkp  = T.lookup(answ) 
-	  val asw' = List.take(rev(T.solutions(answ)), 
-			       T.lookup(answ))
+	  val lkp  = T.lookup(answRef) 
+	  val asw' = List.take(rev(T.solutions(answRef)), 
+			       T.lookup(answRef))
 	  val answ' = List.drop(asw', !k) 
 	in 
 	k := lkp;
-        retrieve' (0,goal, G, Vs, (G', U), answ', sc)
+        retrieve' (0,goal, G, Vs, (G', U), asub, answ', sc)
 	end
 
   (* ---------------------------------------------------------------------- *)
@@ -261,10 +333,7 @@ struct
      (if TabledSyn.tabledLookup (I.targetFam p) 
 	then 
 	  let 
-
-(*	    val _ = (print "SOLVE : goal "; print (Print.expToString (I.Null, A.raiseType (G, I.EClo(p,s))) ^ "\n"))*)
 	    val (G', DAVars, DEVars, U', eqn', s') = A.abstractEVarCtx (G, p, s)
-(*	    val _ = (print "SOLVE : abstraction "; print (Print.expToString (I.Null, A.raiseType(DAVars, A.raiseType(DEVars, A.raiseType (G', U')))) ^ "\n"))*)
 	    val _ = if solveEqn ((eqn', s'), G')
 		      then () 
 		    else print "\nresidual equation not solvable!\n" 
@@ -273,30 +342,31 @@ struct
 	      (* Side effect: D', G' |- U' added to table *)	    
 	      of T.NewEntry (answRef) => 		
 		matchAtom ((p,s), dp, 
-			   (fn pskeleton =>
+			   (fn pskeleton =>			    
 			    (case MT.answerCheck (G', U', s', answRef, pskeleton)
 			       of T.repeated => ()
 			     | T.new      => sc pskeleton)))
 		
-	       | T.RepeatedEntry(answRef) => 
+	       | T.RepeatedEntry(asub, answRef) => 
 	       if T.noAnswers answRef then 	    
 		 (* loop detected  
 		  * NOTE: we might suspend goals more than once.
 		  *     case: answer list for goal (p,s) is saturated
 		  *           but not the whole table is saturated.
 		  *)
-		 (SuspGoals :=  ((Loop, (p,s), dp, sc), Unify.suspend() , answRef, ref 0)::(!SuspGoals); 
-		  ())
-	       else 
+		 (SuspGoals :=  ((Loop, (G', U',s'), dp, sc), Unify.suspend() , (asub, answRef), ref 0)::(!SuspGoals);  
+		  ()) 
+	       else  
 		 (* loop detected
 		  * new answers available from previous stages
 		  * resolve current goal with all possible answers
 		  *)	
-		 let 
-		   val le = T.lookup(answRef)
+		 let  
+		   val le = T.lookup(answRef) 
 		 in 
-		  SuspGoals := ((Loop, (p,s), dp, sc), Unify.suspend(), answRef, ref le)::(!SuspGoals);
-		  retrieve (ref 0, A.raiseType(G, I.EClo(p,s)), G', (U' , s'), ((G', DAVars, DEVars, U', eqn'), answRef), sc)
+		   (* add to suspended goals the abstracted forms? *)
+		  SuspGoals := ((Loop, (G', U',s'), dp, sc), Unify.suspend(), (asub, answRef), ref le)::(!SuspGoals);
+		  retrieve (ref 0, A.raiseType(G, I.EClo(p,s)), G', (U' , s'), ((G', U'), (asub, answRef)), sc)
 		end
 
 	       | T.DivergingEntry(answRef) => 
@@ -306,7 +376,8 @@ struct
 		  *           but not the whole table is saturated.
 		  *)
 		 (print "Divergence - suspended\n";
-		  SuspGoals :=  ((Divergence, (p,s), dp, sc), Unify.suspend() , answRef, ref 0)::(!SuspGoals); 
+		  SuspGoals :=  ((Divergence, (G', U', s'), dp, sc), Unify.suspend() , 
+				 (I.id, answRef), ref 0)::(!SuspGoals); 
 		  ())
 	      end 
 	else 
@@ -426,7 +497,7 @@ struct
 	      (* trail to undo EVar instantiations *)
 	      CSManager.trail (fn () =>
 			       (rSolve (ps', (r, I.id), dp,
-					(fn S => sc ((C.Pc c)::S)))));
+					(fn S =>  sc ((C.Pc c)::S)))));
 	      matchSig sgn'
 	    end
 
@@ -442,15 +513,11 @@ struct
 	  | matchDProg (I.Decl (dPool', SOME(r, s, Ha')), k) =
 	    if eqHead (Ha, Ha')	      
 	      then 
-		let
-(*		  val _ = print ("Pick dynamic assumption " ^ Int.toString k ^ "\n") *)
-		in 
-		  (* trail to undo EVar instantiations *)
-		  (CSManager.trail (fn () =>
-				    rSolve (ps', (r, I.comp(s, I.Shift(k))), dp,
-					    (fn S => sc ((C.Dc k)::S)))); 
-		   matchDProg (dPool', k+1))
-		end 
+		(* trail to undo EVar instantiations *)
+		(CSManager.trail (fn () =>
+				  rSolve (ps', (r, I.comp(s, I.Shift(k))), dp,
+					  (fn S => sc ((C.Dc k)::S)))); 
+		 matchDProg (dPool', k+1))
 	    else matchDProg (dPool', k+1)
 	  | matchDProg (I.Decl (dPool', NONE), k) =
 	      matchDProg (dPool', k+1)
@@ -489,36 +556,26 @@ struct
       then retrieve all new answers
      else fail
      *)
-  fun retrieval (Loop, (p,s), dp as C.DProg(G, dPool), sc, answRef, n) =    
+  fun retrieval (Loop, (G', U', s'), dp, sc, (asub, answRef), n) =    
     if T.noAnswers answRef then 	    
       (* still  no answers available from previous stages *)
       (* NOTE: do not add the susp goal to suspGoal list
 	        because it is already in the suspGoal list *)
       ()
       else 
-	let
-	  val goal = A.raiseType(G, I.EClo(p,s))
-	  val (G', DAVars, DEVars, U', eqn', s') =   A.abstractEVarCtx (G, p, s)
-	    val _ = if solveEqn ((eqn', s'), G') 
-		    then ()  
-		  else print "\nresidual equation not solvable!\n"  
-	in 
 	(*  new answers available from previous stages
 	 * resolve current goal with all "new" possible answers
 	 *)
-	retrieve (n, goal, G', (U', s'),((G', DAVars, DEVars, U', eqn'), answRef), sc)
-	end 
-    | retrieval (Divergence, (p,s), dp as C.DProg(G, dPool), sc, answRef, n) =    
-	let
-	  val (G', DAVars, DEVars, U', eqn', s') =   A.abstractEVarCtx (G, p, s)
-	in 
-	  matchAtom ((p,s), dp, 
-		     (fn pskeleton =>
-		      case MT.answerCheck (G', U', s', answRef, pskeleton)
-			of T.repeated => ()
-		      | T.new      => sc pskeleton
-			  ))
-	end 
+	retrieve (n, I.EClo(A.raiseType(G', U'), s'), G', (U', s'),((G', U'), (asub, answRef)), sc)
+
+(*    | retrieval (Divergence, (G', U',s'), dp as C.DProg(G, dPool), sc, (asub, answRef), n) =    
+	matchAtom ((p,s), dp, 
+		   (fn pskeleton =>
+		    case MT.answerCheck (G', U', s', answRef, pskeleton)
+		      of T.repeated => ()
+		    | T.new      => sc pskeleton
+			))
+*)
 
   
     fun updateAbsParam () = ()
@@ -544,9 +601,9 @@ struct
  fun nextStage () = 
    let   
      fun resume ([],n) = ()
-       | resume ((((Susp, (p,s), dp as C.DProg (G, _), sc), trail, answRef, k)::Goals),n) =
+       | resume ((((Susp, (G, U,s), dp, sc), trail, (asub, answRef), k)::Goals),n) =
        (CSManager.trail	(fn () => (Unify.resume trail; 	 				   
-				   retrieval (Susp, (p,s), dp, sc, answRef, k)));
+				   retrieval (Susp, (G, U,s), dp, sc, (asub, answRef), k)));
 	resume (Goals, n-1))  
       val SG = rev(!SuspGoals) 
       val l = length(SG)

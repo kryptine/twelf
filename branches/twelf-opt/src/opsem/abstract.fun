@@ -631,22 +631,23 @@ struct
 
 	 *) 
        
-    and abstractSub' (flag, Gs, posEA, Vars, G, total, d, I.Shift (k), eqn) =  
-        if (k + d) < (d + total)
+    and abstractSub' (flag, Gs, evartotal, posEA, Vars, G, total, d, I.Shift (k), eqn) =  
+        if k < d
 	  then 
 	    (posEA, Vars, I.Dot(I.Idx(k+1), I.Shift (k+1)), eqn) 
 	else 
-	  (posEA, Vars, I.Shift(k), eqn)
-      | abstractSub' (flag, Gs, posEA, Vars, G, total, d, I.Dot (I.Idx (k), s), eqn) =
+	  (posEA, Vars, I.Shift(k + evartotal), eqn)
+      | abstractSub' (flag, Gs, evartotal, posEA, Vars, G, total, d, I.Dot (I.Idx (k), s), eqn) =
 	  let
-	    val (posEA', Vars', s', eqn') = abstractSub' (flag, Gs, posEA, Vars, G, total, d, s, eqn)
+	    val (posEA', Vars', s', eqn') = abstractSub' (flag, Gs, evartotal, posEA, Vars, G, total, d, s, eqn)
 	  in 
 	    (posEA', Vars', I.Dot(I.Idx(k),s'), eqn')
 	  end 
-      | abstractSub' (flag, Gs, posEA, Vars, G, total, d, I.Dot (I.Exp (U), s), eqn) =
+      | abstractSub' (flag, Gs, evartotal, posEA, Vars, G, total, d, I.Dot (I.Exp (U), s), eqn) =
 	  let
-	    val (posEA', Vars', s', eqn') = abstractSub' (flag, Gs, posEA, Vars, G, total, d, s, eqn)
-	    val (posEA'', Vars'', U', eqn'') = abstractExp (false, Gs, posEA', Vars', (G, I.Null), total, d, (U, I.id), eqn')
+	    val (posEA', Vars', s', eqn') = abstractSub' (flag, Gs, evartotal, posEA, Vars, G, total, d, s, eqn) 
+	    val (posEA'', Vars'', U', eqn'') = abstractExp (false, Gs, posEA', Vars', (G, I.Null), total, d, (U, I.id), eqn') 	
+
 	  in 
 	    (posEA'', Vars'', I.Dot(I.Exp(U'), s'), eqn'')
 	  end 
@@ -708,7 +709,6 @@ struct
        and  . ||- U[s]
     *)
     (* epos = apos = 0 ? *)
-    (* can't we just make them all AVars since they will be instantiated by the answer substitution ?*)
     fun createEVarCtx (Gs, posEA, G, I.Null, s, eqn) = (posEA, G, s, eqn)
       | createEVarCtx (Gs, posEA, G, I.Decl (K', (_, EV (E as I.EVar (_, GX, VX, _)))),s, eqn) =
         let
@@ -850,6 +850,7 @@ struct
 
 	 (* abstract over the assignable variables *)
 	 val s' = abstractKSubAVars (DupVars', I.id)
+
 	 val s'' = abstractKSubEVar (Vars'', s')
        in 		
 	 if (!TableParam.strengthen) then 
@@ -889,18 +890,18 @@ struct
 	 val (K, DupVars) = collectSub((I.Null, I.id), I.Null, I.Null, s, I.Null, I.Null, false, 0)
 	 val epos = I.ctxLength K
 	 val apos = I.ctxLength DupVars	   
+	 val evartotal = epos + apos
          (* total = length(G), depth = |Glocal|*)
-	 val (_ (* 0, 0 *), Vars, s', eqn) = abstractSub' (false, (I.Null, I.id), (epos, apos+epos), I.Null, G, total, 0, s, TableParam.Trivial)
+	 val (_ (* 0, 0 *), Vars, s', eqn) = abstractSub' (false, (I.Null, I.id), evartotal, (epos, apos+epos), I.Null, G, total, 0, s, TableParam.Trivial)
 (*	 val DAVars = createDupCtx (I.Null, Vars, DupVars, 0)  (* will have no avars! *)*)
 	 val ( _, DEVars,_, _ (* trivial *)) = createEVarCtx ((I.Null, I.id), (epos, apos+epos), I.Null, Vars, I.id, eqn)  
        in 
-	 (DEVars, s')   
+	 (DEVars, s')
        end)
 
     val raiseType = (fn (G, U) => 
 		       raiseType (G, U)
 			   )
-
 
   end
 end;  (* functor AbstractTabled *)
