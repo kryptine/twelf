@@ -681,8 +681,8 @@ struct
 	       otherwise redundant?  -fp !!!
 	       Wed Nov 28 10:08:00 2001
 	       *)
-	    ((* unifySub (G, comp (t1, s1), comp (t2, s2));
-	      unifySub (G, t1, t2); *)
+	    (unifySub (G, comp (t1, s1), comp (t2, s2));
+	     unifySub (G, t1, t2);
 	     instantiateLVar (r1, L))
 
 

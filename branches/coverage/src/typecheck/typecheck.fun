@@ -147,25 +147,29 @@ struct
       | checkSub (G', I.Shift k, G) =
 	  checkSub (G', I.Dot (I.Idx (k+1), I.Shift (k+1)), G)
       | checkSub (G', I.Dot (I.Idx k, s'), I.Decl (G, (I.Dec (_, V2)))) =
+        (* changed order of subgoals here Sun Dec  2 12:14:27 2001 -fp *)
 	let 
+	  val _ = checkSub (G', s', G) 
 	  val I.Dec (_, V1) = I.ctxDec (G', k)
 	in
-	  if Conv.conv ((V1, I.id), (V2, s')) then checkSub (G', s', G)
+	  if Conv.conv ((V1, I.id), (V2, s')) then ()
 	  else raise Error ("Substitution not well-typed \n  found: " ^
 			    Print.expToString (G', V1) ^ "\n  expected: " ^
 			    Print.expToString (G', I.EClo (V2, s')))
 	end
       | checkSub (G', I.Dot (I.Exp (U), s'), I.Decl (G, (I.Dec (_, V2)))) =
+	(* changed order of subgoals here Sun Dec  2 12:15:53 2001 -fp *)
 	let 
-	  val _ = typeCheck (G', (U, I.EClo (V2, s'))) 
+	  val _ = checkSub (G', s', G)
+	  val _ = typeCheck (G', (U, I.EClo (V2, s')))
 	in
-	  checkSub (G', s', G)
+	  ()
 	end
-      | checkSub (G', I.Dot (B, t), I.Decl (G, (I.BDec (_, (l, s))))) =
+      | checkSub (G', I.Dot (I.Idx w, t), I.Decl (G, (I.BDec (_, (l, s))))) =
+	(* Front of the substitution cannot be a I.Bidx or LVar *)
+	(* changed order of subgoals here Sun Dec  2 12:15:53 2001 -fp *)
 	let
-	  val w = (case B 
-		     of I.Idx w' => w'
-		     | I.Block (I.Bidx w') => w')
+	  val _ = checkSub (G', t, G)
 	  val I.BDec (_, (l', s')) = I.ctxDec (G', w)
 	  (* G' |- s' : GSOME *)
 	  (* G  |- s  : GSOME *)
@@ -175,9 +179,18 @@ struct
 	    then raise Error "Incompatible block labels found"
 	  else 
 	    if Conv.convSub (I.comp (s, t), s')
-	      then checkSub (G', t, G)
+	      then ()
 	    else raise Error "Substitution in block declaration not well-typed"
 	end
+      | checkSub (G', I.Dot (_, _), I.Null) =
+	raise Error "Long substitution"
+      (*
+      | checkSub (G', I.Dot (I.Block (I.Bidx _), t), G) =
+	raise Error "Unexpected block index in substitution"
+      | checkSub (G', I.Dot (I.Block (I.LVar _), t), G) =
+	raise Error "Unexpected LVar in substitution after abstraction"
+      *)
+
     (* checkDec (G, (x:V, s)) = B
 
        Invariant: 
