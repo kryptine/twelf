@@ -178,7 +178,7 @@ struct
 	 val D' = I.Dec (NONE, I.EClo (A, s))
        in
 	 solve (max, depth+1, (g, I.dot1 s), 
-		C.DProg (I.Decl(G, D'), I.Decl (dPool, SOME(r, s, H))),
+		C.DProg (I.Decl(G, D'), I.Decl (dPool, C.Dec (r, s, H))),
 		(fn (M, acc') => sc (I.Lam (D', M), acc')), acc)
        end
     | solve (max, depth, (C.All (D, g), s), C.DProg (G, dPool), sc, acc) =
@@ -186,7 +186,7 @@ struct
 	 val D' = I.decSub (D, s)
        in
 	 solve (max, depth+1, (g, I.dot1 s), 
-		C.DProg (I.Decl (G, D'), I.Decl (dPool, NONE)),
+		C.DProg (I.Decl (G, D'), I.Decl (dPool, C.Parameter)),
 		(fn (M, acc') => sc (I.Lam (D', M), acc')), acc)
        end
 
@@ -320,7 +320,7 @@ struct
 	    end
 
 	fun matchDProg (I.Null, _, acc') = matchSig' (Index.lookup (cidFromHead Ha), acc') 
-	  | matchDProg (I.Decl (dPool', SOME (r, s, Ha')), n, acc') =
+	  | matchDProg (I.Decl (dPool', C.Dec (r, s, Ha')), n, acc') =
 	    if eqHead (Ha, Ha') then
 	      let
 		val acc''' = CSManager.trail (fn () =>
@@ -330,7 +330,7 @@ struct
 		matchDProg (dPool', n+1, acc''')
 	      end
 	    else matchDProg (dPool', n+1, acc')
-	  | matchDProg (I.Decl (dPool', NONE), n, acc') =
+	  | matchDProg (I.Decl (dPool', C.Parameter), n, acc') =
 	      matchDProg (dPool', n+1, acc')
       in
 	matchDProg (dPool, 1, acc)
