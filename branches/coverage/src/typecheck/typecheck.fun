@@ -115,12 +115,12 @@ struct
 	in
 	  V
 	end
-      | inferCon (G, I.Proj (v, i)) =
-	let 
-	  val I.Dec (_, V) = I.blockDec (G, v, i)   
+      | inferCon (G, I.Proj (B,  i)) = 
+        let 
+	  val I.Dec (_, V) = I.blockDec (G, B, i) 
 	in
 	  V
-	end 
+	end
       | inferCon (G, I.Const(c)) = I.constType (c)
       | inferCon (G, I.Def(d))  = I.constType (d)
       | inferCon (G, I.Skonst(c)) = I.constType (c) (* this is just a hack. --cs 
@@ -129,27 +129,8 @@ struct
       (* no case for FVar *)
       | inferCon (G, I.FgnConst(cs, conDec)) = I.conDecType(conDec)
 
-    (* checkDec (G, (x:V, s)) = B
 
-       Invariant: 
-       If G |- s : G1 
-       then B iff G |- V[s] : type
-    *)
-    and checkDec (G, (I.Dec (_, V) ,s)) =
-          checkExp (G, (V, s), (I.Uni (I.Type), I.id))
-
-    and checkCtx (I.Null) =  ()
-      | checkCtx (I.Decl (G, D)) = 
-          (checkCtx G; checkDec (G, (D, I.id)))
-
-
-    fun check (U, V) = checkExp (I.Null, (U, I.id), (V, I.id))
-    fun infer U = I.EClo (inferExp (I.Null, (U, I.id)))
-    fun infer' (G, U) = I.EClo (inferExp (G, (U, I.id)))
-
-
-
-    fun typeCheck (G, (U, V)) = 
+    and typeCheck (G, (U, V)) = 
           (checkCtx G; checkExp (G, (U, I.id), (V, I.id)))
 
 
@@ -190,6 +171,31 @@ struct
 		 then raise Error "Incompatible SOME substitutions found" 
 	       else checkSub (G', t, G)
 	end
+    (* checkDec (G, (x:V, s)) = B
+
+       Invariant: 
+       If G |- s : G1 
+       then B iff G |- V[s] : type
+    *)
+    and checkDec (G, (I.Dec (_, V) ,s)) =
+          checkExp (G, (V, s), (I.Uni (I.Type), I.id))
+      | checkDec (G, (I.BDec (c, t), s)) =
+	  let 
+	    val (Gsome, piDecs) = I.constBlock c
+	  in
+	    checkSub (G, I.comp (t, s), Gsome)
+	  end
+
+    and checkCtx (I.Null) =  ()
+      | checkCtx (I.Decl (G, D)) = 
+          (checkCtx G; checkDec (G, (D, I.id)))
+
+
+    fun check (U, V) = checkExp (I.Null, (U, I.id), (V, I.id))
+    fun infer U = I.EClo (inferExp (I.Null, (U, I.id)))
+    fun infer' (G, U) = I.EClo (inferExp (G, (U, I.id)))
+
+
 
     fun checkConv (U1, U2) =
           if Conv.conv ((U1, I.id), (U2, I.id)) then ()
