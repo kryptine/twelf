@@ -1569,6 +1569,7 @@ exception Error' of Tomega.Sub
       end
 	  
   in 
+    val deblockify = deblockify
     val convertFor = convertFor
     val convertPrg = fn L => convertPrg (L, NONE)
     val installFor = installFor

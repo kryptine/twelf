@@ -39,7 +39,7 @@ structure Trans : TRANS =
 
 
 structure Delphin = 
-  Delphin (structure Tomega = Tomega
+  Delphin ((* structure Tomega = Tomega *)
 	   structure Twelf = Twelf
 	   structure Parse = Parse
 	   structure DextSyn = DextSyn

@@ -631,7 +631,11 @@ struct
 
     (* substitutions s1 and s2 were redundant here --- removed *)
     (* Sat Dec  8 11:47:12 2001 -fp !!! *)
-    and unifyBlock (G, LVar (r1, Shift(k1), (l1, t1)), LVar (r2, Shift(k2), (l2, t2))) = 
+    and unifyBlock (G, LVar (ref (SOME(B1)), s, _), B2) = unifyBlock (G, blockSub (B1, s), B2)
+      | unifyBlock (G, B1, LVar (ref (SOME(B2)), s, _)) = unifyBlock (G, B1, blockSub (B2, s))
+      | unifyBlock (G, B1, B2) = unifyBlockW (G, B1, B2)
+
+    and unifyBlockW (G, LVar (r1, Shift(k1), (l1, t1)), LVar (r2, Shift(k2), (l2, t2))) = 
         if l1 <> l2 then
   	  raise Unify "Label clash"
         else
@@ -652,12 +656,27 @@ struct
 	      in
 		instantiateLVar (r1, LVar(r2, Shift(0), (l2, t2'))) (* 0 = k2-k1 *)
 	      end )
+
+      | unifyBlockW (G, LVar (r1, s1, (l1, t1)),  B2) = 
+	    (r1 := SOME (blockSub (B2, Whnf.invert s1)) ; ()) (* -- ABP *)
+	    
+      | unifyBlockW (G,  B1, LVar (r2, s2, (l2, t2))) = 
+	    (r2 := SOME (blockSub (B1, Whnf.invert s2)) ; ()) (* -- ABP *)
+
+(*      | unifyBlockW (G, LVar (r1, Shift(k1), (l1, t1)), Bidx i2) = 
+	    (r1 := SOME (Bidx (i2 -k1)) ; ()) (* -- ABP *)
+
+      | unifyBlockW (G, Bidx i1, LVar (r2, Shift(k2), (l2, t2))) = 
+	    (r2 := SOME (Bidx (i1 -k2)) ; ()) (* -- ABP *)
+*)
       (* How can the next case arise? *)
-      (* Sat Dec  8 11:49:16 2001 -fp !!! *)
-      | unifyBlock (G, Bidx (n1), (Bidx (n2))) =
+      (* Sat Dec  8 11:49:16 2001 -fp !!! *)      
+      | unifyBlockW (G, Bidx (n1), (Bidx (n2))) =
 	 if n1 <> n2
 	   then raise Unify "Block index clash"
 	 else ()
+
+
 (*
       | unifyBlock (LVar (r1, _, _), B as Bidx _) = instantiate (r1, B) 
       | unifyBlock (B as Bidx _, LVar (r2, _, _)) = 
