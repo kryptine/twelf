@@ -651,7 +651,62 @@ struct
 	    end
 
 
-	  
+	  (* Added by ABP -- 2/25/03 -- Now a let can have multiple cases *)
+
+	  | formatLet callname (Psi, T.Let (D, P1, T.Case (T.Cases L)), nil) = 
+	    let 
+
+	      fun fmtCaseRest [] = []
+		| fmtCaseRest ((Psi1, s1, P2)::L) =
+		let
+		  val Psi1' = psiName (Psi1, s1, Psi, 1)
+		  val S = argsToSpine (s1, 1, T.Nil)
+		  val Fspine = fmtSpine callname (Psi1, S)
+
+		  val Fpattern =  Fmt.HVbox [Fmt.Hbox (Fspine)]
+		in
+		  [Fmt.HVbox  [Fmt.Space, Fmt.String "|", Fmt.Space, Fpattern, Fmt.Space, Fmt.String "-->"], 
+		   Fmt.Spaces 2, Fmt.Vbox0 0 1 [formatPrg3 callname (Psi1', P2)],
+		   Fmt.Break]
+		  @ fmtCaseRest(L)
+		end
+
+	      fun fmtCase ((Psi1, s1, P2)::L) = 
+		let
+		  val Psi1' = psiName (Psi1, s1, Psi, 1)
+		  val S = argsToSpine (s1, 1, T.Nil)
+		  val Fspine = fmtSpine callname (Psi1, S)
+
+		  val Fpattern =  Fmt.HVbox [Fmt.Hbox (Fspine)]
+		in
+		  Fmt.Vbox0 0 1 ([Fmt.HVbox  [Fmt.String "of", Fmt.Space, Fpattern, Fmt.Space, Fmt.String "-->"],  
+				  Fmt.Spaces 2,
+				  Fmt.Vbox0 0 1 [formatPrg3 callname (Psi1', P2)], Fmt.Break]
+				 @ fmtCaseRest(L))
+		end
+
+
+
+	      val F1 = Fmt.HVbox [formatPrg3 callname  (Psi, P1)]
+	      val Fbody = Fmt.HVbox [F1]
+
+	      val fmt = fmtCase(L)
+	    in
+	      Fmt.Vbox0 0 1 ([Fmt.String "case (", Fbody, Fmt.Space (* need space since there is one before Fbody *),
+			     Fmt.String ")", Fmt.Break, fmt])
+	    end
+
+	  | formatLet callname (Psi, R as (T.Let (D, P1, T.Case (T.Cases L))), fmts) = 	
+	      Fmt.Vbox0 0 1 ([Fmt.String "let", 
+			      Fmt.Vbox0 0 1 (fmts @ [Fmt.Break]),
+			      Fmt.Break,
+			      Fmt.String "in", Fmt.Break,
+			      Fmt.Spaces 2, formatLet callname (Psi, R, nil),
+			      Fmt.Break,
+			      Fmt.String "end"]) 
+
+		    
+	    
 
         (* formatHead callname (index, Psi1, s, Psi2) = fmt'
 

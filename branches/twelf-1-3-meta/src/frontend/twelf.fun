@@ -646,7 +646,12 @@ struct
 
 	  val _ = checkFreeOut La
 	  val (lemma, projs, sels) = Converter.installPrg La
-	  val P = Tomega.lemmaDef lemma
+
+	  (* ABP 2/28/03 -- Remove redundancy *)
+	  val _ = if (!Global.chatter >= 4) then print ("[Redundancy Checker (factoring) ...") else ()
+	  val P = Redundant.convert (Tomega.lemmaDef lemma)
+	  val _ = if (!Global.chatter >= 4) then print ("]\n") else ()
+
 	  val F = Converter.convertFor La
 
 	  val _ = if !Global.chatter >= 2

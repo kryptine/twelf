@@ -103,6 +103,10 @@ sig
   val ctxDec : Dec IntSyn.Ctx * int -> Dec
   val revCoerceSub : IntSyn.Sub -> Sub
   val revCoerceCtx : IntSyn.Dec IntSyn.Ctx -> Dec IntSyn.Ctx
+
+(* Added references by ABP *)
+  val coerceFront : Front -> IntSyn.Front
+  val revCoerceFront : IntSyn.Front -> Front
 end (* Signature TOMEGA *)
 
 

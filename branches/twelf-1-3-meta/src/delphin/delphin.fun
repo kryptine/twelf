@@ -56,7 +56,8 @@ struct
 	  (let 
 	     val La = map (fn x => valOf (Names.constLookup (valOf (Names.stringToQid x)))) names
 	     val (lemma, projs, sels) = Converter.installPrg La
-	     val P = Tomega.lemmaDef lemma
+	     (* val P = Tomega.lemmaDef lemma *)
+	     val P = Redundant.convert (Tomega.lemmaDef lemma)
 	     val F = Converter.convertFor La	       
 	     val _ = TomegaTypeCheck.checkPrg (I.Null, (P, F))
 	     val _ = TextIO.print ("\n" ^ TomegaPrint.funToString ((map (fn (cid) => IntSyn.conDecName (IntSyn.sgnLookup cid)) La,
@@ -67,7 +68,8 @@ struct
 	  (let 
 	     val La = map (fn x => valOf (Names.constLookup (valOf (Names.stringToQid x)))) names
 	     val (lemma, projs, sels) = Converter.installPrg La
-	     val P = Tomega.lemmaDef lemma
+	     (* val P = Tomega.lemmaDef lemma *)
+	     val P = Redundant.convert (Tomega.lemmaDef lemma)
 	     val F = Converter.convertFor La	       
 	     val _ = TomegaTypeCheck.checkPrg (I.Null, (P, F))
 	     val _ = TextIO.print ("\n" ^ TomegaPrint.funToString ((map (fn (cid) => IntSyn.conDecName (IntSyn.sgnLookup cid)) La,

@@ -336,12 +336,54 @@ struct
     *)
     fun invertSub s =
       let 
-	(* ABP 1/29/03 *)
+	(* returns NONE if not found *)
+	fun getFrontIndex (Idx k) = SOME(k)
+	  | getFrontIndex (Prg P) = getPrgIndex(P)
+	  | getFrontIndex (Exp U) = getExpIndex(U)
+	  | getFrontIndex (Block B) = getBlockIndex(B)
+	  | getFrontIndex (Undef) = NONE
+	  
+
+	(* getPrgIndex returns NONE if it is not an index *)
+	and getPrgIndex (Root(Var k, Nil )) = SOME(k)
+	  | getPrgIndex (Redex(P, Nil) ) = getPrgIndex(P)
+	  
+	  (* it is possible in the matchSub that we will get PClo under a sub (usually id) *)
+	  | getPrgIndex (PClo (P,t)) = 
+	       (case getPrgIndex(P) of
+		  NONE => NONE
+		| SOME i => getFrontIndex (varSub (i, t)))		
+	  | getPrgIndex _ = NONE
+
+	(* getExpIndex returns NONE if it is not an index *)
+	and getExpIndex (I.Root (I.BVar k, I.Nil)) = SOME(k)
+	  | getExpIndex (I.Redex (U, I.Nil)) = getExpIndex(U)
+	  | getExpIndex (I.EClo (U, t)) =
+	       (case getExpIndex(U) of
+		  NONE => NONE
+		| SOME i => getFrontIndex (revCoerceFront(I.bvarSub(i, t))))
+	    
+	  | getExpIndex (U as I.Lam (I.Dec (_, U1), U2)) = (SOME ( Whnf.etaContract(U) )  handle Whnf.Eta => NONE)
+	  | getExpIndex _ = NONE
+
+	(* getBlockIndex returns NONE if it is not an index *)
+	and getBlockIndex (I.Bidx k) = SOME(k)
+	  | getBlockIndex _ = NONE
+
+
 	fun lookup (n, Shift _, p) = NONE
 	  | lookup (n, Dot (Undef, s'), p) = lookup (n+1, s', p)
 	  | lookup (n, Dot (Idx k, s'), p) = 
 	    if k = p then SOME n 
 	    else lookup (n+1, s', p)
+
+	(* Suggested by ABP 
+	 * If you do not want this, remove the getFrontIndex and other 
+	  | lookup (n, Dot (Ft, s'), p) =
+	      (case getFrontIndex(Ft) of
+		 NONE => lookup (n+1, s', p)
+	       | SOME k => if (k=p) then SOME n else lookup (n+1, s', p))
+        *)
 	
 	fun invertSub'' (0, si) = si
 	  | invertSub'' (p, si) = 
@@ -613,5 +655,10 @@ struct
     val ctxDec = ctxDec 
     val revCoerceSub = revCoerceSub
     val revCoerceCtx = revCoerceCtx
+
+(* Added referenced by ABP *)
+    val coerceFront = coerceFront
+    val revCoerceFront = revCoerceFront
+
   end
 end;  (* functor FunSyn *)
