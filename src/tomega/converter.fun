@@ -7,6 +7,8 @@ functor Converter
    structure IntSyn' : INTSYN
    structure Tomega' : TOMEGA
      sharing Tomega'.IntSyn = IntSyn'
+   structure Abstract : ABSTRACT
+     sharing Abstract.IntSyn = IntSyn'
    structure ModeSyn : MODESYN
      sharing ModeSyn.IntSyn = IntSyn'
    structure Names : NAMES
@@ -21,6 +23,8 @@ functor Converter
    structure Worldify : WORLDIFY
      sharing Worldify.IntSyn = IntSyn'
      sharing Worldify.Tomega = Tomega'
+   structure Subordinate : SUBORDINATE
+     sharing Subordinate.IntSyn = IntSyn'
    structure TypeCheck : TYPECHECK
      sharing TypeCheck.IntSyn = IntSyn')
      : CONVERTER = 
@@ -34,7 +38,8 @@ struct
     structure T = Tomega
     structure I = IntSyn 
     structure M = ModeSyn
-    
+    structure S = Subordinate    
+    structure A = Abstract
 
     (* strengthenExp (U, s) = U' 
      
@@ -61,7 +66,7 @@ struct
     (* strengthenCtx (G, s) = (G', s')
      
        If   G0 |- G ctx
-       and  G0 |- s G1 
+       and  G0 |- s : G1 
        then G1 |- G' = G[s^-1] ctx
        and  G0 |- s' : G1, G'  
     *)
@@ -855,6 +860,61 @@ struct
       | transformApp ((Psi, I.Decl(Psi', D)), (a, S), w) =
           T.Lam (T.UDec D, transformApp ((Psi, Psi'), (a, S), peel w))
 
+
+
+
+
+    (* raiseProg (G, (P, F)) = (P', F')) 
+ 
+       Invariant:
+       If   Psi, G |- P in F
+       and  Psi |- G : blockctx
+       then Psi |- P' in F'
+       and  P = raise (G, P')   (using subordination)
+       and  F = raise (G, F')   (using subordination)
+    *)
+    fun raisePrg (G, (T.Unit, T.True)) = (T.Unit, T.True)
+      | raisePrg (G, (T.PairPrg (P1, P2), (T.And (F1, F2)))) =
+        let 
+	  val (P1', F1') = raisePrg (G, (P1, F1))
+	  val (P2', F2') = raisePrg (G, (P2, F2))
+	in
+	  (T.PairPrg (P1', P2'), (T.And (F1', F2')))
+	end
+      | raisePrg (G, (T.PairExp (U, P), T.Ex (I.Dec (x, V), F))) =
+	let 
+ 	  val w = S.weaken (G, I.targetFam V)       (* G  |- w  : G'    *)
+	  val iw = Whnf.invert w 	          (* G' |- iw : G     *)
+	  val G' = Whnf.strengthen (iw, G)
+	  val V' = A.raiseType (G', V)
+	  val U' = A.raiseTerm (G', U)
+	  val (P', F') = raisePrg (G, (P, F))
+	in
+	  (T.PairExp (U', P'), T.Ex (I.Dec (x, V'), F'))
+	end
+
+    
+    (* deblockify G = G'
+     
+       Invariant:
+       If   |- G is a block ctx
+       then |- G == G' 
+       and  |- G' is an LF context
+    *)
+    fun deblockify (I.Null) = I.Null
+      | deblockify (I.Decl (G, I.BDec (x, (c, s)))) = 
+        let
+	  val G' = deblockify G
+          val (_, L) = I.constBlock c
+	in 
+	  append (G', (L, s))
+	end
+    and append (G', (nil, s)) = G'
+      | append (G', (D :: L, s)) = 
+          append (I.Decl (G', I.decSub (D, s)), (L, I.dot1 s))
+
+
+
     (* traverse (Ts, c) = L'
 
        Invariant:
@@ -862,10 +922,8 @@ struct
        and  c is a type family which entries are currently traversed
        then L' is a list of cases
     *)
-    fun traverse (Ts, c, Sig, wmap) =
+    fun traverse (Psi0, Ts, c, Sig, wmap) =
       let 
-
-
 	(* traverseNeg (Psi0, V, L) = ([w', d', PQ'], L')    [] means optional
 	   
 	   Invariant:
@@ -878,17 +936,12 @@ struct
 	   and  d' is the length of Delta
 	   and  PQ'  is a pair, generating the proof term
 	*)
-
 	fun traverseNeg (Psi, I.Pi ((D as I.Dec (_, V1), I.Maybe), V2)) =
 	    (case traverseNeg (I.Decl (Psi, T.UDec D), V2)
-	       of (SOME (w', d', PQ')) => SOME (peel w', d', PQ')
-  	        | NONE                 => NONE)
-
+	       of (SOME (w', d', PQ')) => SOME (peel w', d', PQ'))
 	  | traverseNeg (Psi, I.Pi ((D as I.Dec (_, V1), I.No), V2)) =
 	    (case traverseNeg (Psi, V2) 
-	       of (SOME (w', d', PQ')) => traversePos ((Psi, I.Null), V1, SOME (peel w', d', PQ'))
-	        | NONE                 => traversePos ((Psi, I.Null), V1, NONE))
-	       
+	       of (SOME (w', d', PQ')) => traversePos ((Psi, I.Null), V1, SOME (peel w', d', PQ')))
 	  | traverseNeg (Psi, I.Root (I.Const a, S)) = 
 	    let 
 	      val (Psi', w') = strengthen (Psi, (a, S), I.Shift (I.ctxLength Psi), M.Plus)
@@ -897,25 +950,26 @@ struct
 	      (SOME (w', 1, (fn P => (Psi', s'', P), fn wf => transformConc ((a, S), wf))))
 	    end
 	  
-        and traversePos ((Psi, Psi'), I.Pi ((D as I.BDec (x, (c, s)), _), V), 
+        and traversePos ((Psi, G), I.Pi ((D as I.BDec (x, (c, s)), _), V), 
 			 SOME (w1, d, (P, Q))) =
   	    let 
 	      val c' = wmap c
 	    in
-	      traversePos ((Psi, I.Decl (Psi', I.BDec (x, (c', s)))), 
+	      traversePos ((Psi, I.Decl (G, I.BDec (x, (c', s)))), 
 			   V, SOME (I.dot1 w1, d, (P, Q)))
 	    end
-          | traversePos ((Psi, Psi'), V as I.Root (I.Const a, S), SOME (w1, d, (P, Q))) =
+          | traversePos ((Psi, G), V as I.Root (I.Const a, S), SOME (w1, d, (P, Q))) =
 	    let 	   
-	      val P' = transformApp ((Psi, Psi'), (a, S), w1)
+	      val P' = transformApp ((Psi, G), (a, S), w1)
+	      val F = T.True   (*fix me -cs *)
 	      val (Psi', w2) = strengthen (Psi, (a, S), w1, M.Minus)
-	      val P'' = T.raisePrg (Psi', transformConc ((a, S), w2))
-	      val w3 = peeln (I.ctxLength Psi', w2)
+	      val (P'', F'') = raisePrg (deblockify G, (transformConc ((a, S), w2), F))
+	      val w3 = peeln (I.ctxLength G, w2)
 	      val t = T.Dot (T.Prg P'', T.id)
 	      val d4 = ~1   (* also to be fixed later *)
 	    in     
 	      (SOME (w3, d4, 
-		     (fn p => P (T.Let (T.PDec (NONE, T.True), T.New P', 
+		     (fn p => P (T.Let (T.PDec (NONE, F''), T.New P'', 
 					(* should be  the ex type *)
 					T.Case (T.Cases [(Psi', t, p)]))), Q)))
 	    end
@@ -1015,7 +1069,7 @@ struct
 
 	fun traverseSig' nil = nil
           | traverseSig' (I.ConDec (name, _, _, _, V, I.Type) :: Sig) = 
-  	    (case traverseNeg (I.Null, V)
+  	    (case traverseNeg (Psi0, Whnf.normalize (V, I.shift))
 	       of (SOME (wf, d', (P', Q'))) =>  (P' (Q' wf)) :: traverseSig' Sig)
       in
 	traverseSig' Sig
@@ -1062,10 +1116,12 @@ struct
     fun convertPrg Ts = 
       let
 
+	val F = convertFor Ts
+
 	fun convertOnePrg a =
 	  let 
-	    val V = case I.sgnLookup a 
-	              of I.ConDec (name, _, _, _, V, I.Kind) => V
+	    val (name, V) = case I.sgnLookup a 
+	              of I.ConDec (name, _, _, _, V, I.Kind) => (name, V)
 		       | _ => raise Error "Type Constant declaration expected"
 	    val mS = case M.modeLookup a
 	               of NONE => raise Error "Mode declaration expected"
@@ -1074,7 +1130,8 @@ struct
 	    val W = WorldSyn.lookup a
 	    val (W', wmap) = convertWorlds (a, W)
 	    val P = abstract a
-	    val C = traverse (Ts, a, Sig, wmap)
+	    val Psi0 = I.Decl (I.Null, T.PDec (SOME name, F))
+	    val C = traverse (Psi0, Ts, a, Sig, wmap)
 	  in
 	    P (T.Case (T.Cases (nil (* C -cs *))))
 	  end
@@ -1082,6 +1139,9 @@ struct
 	fun convertPrg' nil = raise Error "Cannot convert Empty program"
 	  | convertPrg' [a] = convertOnePrg a
 	  | convertPrg' (a :: Ts') = T.PairPrg (convertOnePrg a, convertPrg' Ts')
+
+
+
 
 	val R = recursion Ts
       in

@@ -1,6 +1,7 @@
 structure Converter = Converter
   (structure Global = Global
    structure IntSyn' = IntSyn
+   structure Abstract = Abstract
    structure Tomega' = Tomega
    structure ModeSyn = ModeSyn
    structure Names = Names
@@ -10,6 +11,7 @@ structure Converter = Converter
    structure Whnf = Whnf
    structure WorldSyn = WorldSyn
    structure Worldify = Worldify
+   structure Subordinate = Subordinate
    structure Print = Print
    structure Weaken = Weaken);
 

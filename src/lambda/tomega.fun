@@ -526,8 +526,8 @@ temorarily removed --Carsten
 
 *)
 
-  fun raisePrg (I.Null, P) = P
-   (* the other case is missing *)
+
+
 
 
   in 
@@ -569,6 +569,5 @@ temorarily removed --Carsten
 (*  val ctxDec = ctxDec  temporarily removed *)
   val revCoerceSub = revCoerceSub
 (*  val revCoerceCtx = revCoerceCtx  temporarily removed *)
-    val raisePrg = raisePrg
   end
 end (* functor FunSyn *)

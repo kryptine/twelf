@@ -99,8 +99,6 @@ sig
 (*  val ctxDec : Dec IntSyn.Ctx * int -> Dec *)
   val revCoerceSub : IntSyn.Sub -> Sub
 (*  val revCoerceCtx : IntSyn.Dec IntSyn.Ctx -> Dec IntSyn.Ctx *)
-
-  val raisePrg     : Dec IntSyn.Ctx * Prg -> Prg
 end (* Signature TOMEGA *)
 
 
