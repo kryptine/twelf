@@ -51,3 +51,4 @@ fun count (B.of_z) = <B.z, <>>
 new (b:base)
 
 val <X, <>> = count ((b.of_s) (b.z) (b.of_z))
+(* val <Y, <>> = count ((b.of_fix) (b.nat) ([x] x) ([x][u] u)) *)
