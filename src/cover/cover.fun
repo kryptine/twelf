@@ -522,6 +522,22 @@ struct
 
     (* next section adapted from m2/metasyn.fun *)
 
+    (* weaken (depth,  G, a) = w'
+
+       Invariant:
+       If   a is a type family
+       then G |- w' : G'
+       and  forall x:A in G'  A subordinate to a
+     *)
+    fun weaken (I.Null, a) = I.id
+      | weaken (I.Decl (G', D as I.Dec (name, V)), a) =
+	let
+	  val w' = weaken (G', a)
+	in
+	  if Subordinate.belowEq (I.targetFam V, a) then I.dot1 w'
+	  else I.comp (w', I.shift)
+	end
+
     (* createEVarSpineW (G, (V, s)) = ((V', s') , S')
 
        Invariant:
@@ -536,7 +552,12 @@ struct
     and createEVarSpineW (G, Vs as (I.Root _, s)) = (I.Nil, Vs)   (* s = id *)
       | createEVarSpineW (G, (I.Pi ((D as I.Dec (_, V1), _), V2), s)) =  
 	let 
-	  val X = I.newEVar (G, I.EClo (V1, s))
+          val w = weaken (G, I.targetFam V1) (* G |- w : G' *)
+          val iw = Whnf.invert w        (* G' |- iw : G *)
+          val G' = Whnf.strengthen (iw, G)
+
+          val X' = I.newEVar (G', I.EClo (V1, I.comp (s, iw))) (* G' |- X' : V1. *)
+	  val X = I.EClo (X', w)
 	  val (S, Vs) = createEVarSpine (G, (V2, I.Dot (I.Exp (X), s)))
 	in
 	  (I.App (X, S), Vs)
