@@ -29,7 +29,7 @@ sig
     Leaf of normalSubsts *  IntSyn.Dec IntSyn.Ctx * CGoal
   | Node of normalSubsts * Tree RBSet.ordSet
 
-  type candidate = assSubsts * Cnstr * IntSyn.Dec IntSyn.Ctx * CGoal
+(*  type candidate = assSubsts * normalSubsts * cnstrSubsts * Cnstr * IntSyn.Dec IntSyn.Ctx * CGoal *)
 
   val indexArray : ((int ref) * (Tree ref)) Array.array
 

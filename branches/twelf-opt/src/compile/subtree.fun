@@ -59,7 +59,7 @@ struct
     Leaf of normalSubsts  * IntSyn.Dec IntSyn.Ctx * CGoal
   | Node of normalSubsts  * Tree RBSet.ordSet
 
-   type candidate = (assSubsts * Cnstr * IntSyn.Dec IntSyn.Ctx * CGoal)
+   type candidate = (assSubsts * normalSubsts * cnstrSubsts * Cnstr * IntSyn.Dec IntSyn.Ctx * CGoal)
 
    val nid : unit -> normalSubsts = RBSet.new 
    val assignSubId : unit -> assSubsts = RBSet.new 
@@ -90,8 +90,6 @@ struct
     structure C = CompSyn
     structure S = RBSet
 
-   val makeCandidateSet : unit -> candidate S.ordSet = S.new  
-    
     exception Error of string
     
     exception Assignment of string
@@ -576,7 +574,26 @@ struct
     G'     |- cnstr[csub]
     
    *)
-  fun assignable (nsub, nsub_query, assignSub, cnstrSub, cnstr) = 
+  fun assignableLazy (nsub, nsub_query, assignSub, (nsub_left, cnstrSub), cnstr) = 
+    let
+      val nsub_query' = querySubId ()   
+      val cref = ref cnstr
+      fun assign' (nsub_query, nsub) = 
+	let
+	  val (nsub_query_left, nsub_left1) = S.differenceModulo nsub_query nsub
+	                        (fn (Glocal_u, U) => fn  T => 
+				 cref := assign (Glocal_u, (U, I.id), T, nsub_query', assignSub, cnstrSub, !cref))
+	  val nsub_left' = S.update nsub_left1 (fn U => normalizeNExp (U, cnstrSub))
+	in 
+	  (SOME(S.union nsub_query_left nsub_query', (S.union nsub_left nsub_left', cnstrSub), !cref))
+	end 
+    in
+      assign' (nsub_query, nsub)
+      handle Assignment msg => ((* print (msg ^ "\n") *) NONE)
+    end 
+
+
+  fun assignableEager (nsub, nsub_query, assignSub, cnstrSub, cnstr) = 
     let
       val nsub_query' = querySubId ()   
       val cref = ref cnstr
@@ -585,6 +602,9 @@ struct
 	  val (nsub_query_left, nsub_left) = S.differenceModulo nsub_query nsub
 	                        (fn (Glocal_u, U) => fn  T => 
 				 cref := assign (Glocal_u, (U, I.id), T, nsub_query', assignSub, cnstrSub, !cref))
+          (* normalize nsub_left (or require that it is normalized
+	     collect all left-over nsubs and later combine it with cnstrsub
+           *)
 	  val _ = S.forall nsub_left (fn (nv, U) => case (S.lookup cnstrSub nv) 
 					                 of NONE =>  raise Error "Left-over nsubstitution" 
 						       | SOME(I.AVar A) => A := SOME(normalizeNExp (U, cnstrSub)))
@@ -593,7 +613,7 @@ struct
 	  (SOME(S.union nsub_query_left nsub_query', cnstrSub, !cref))
 	end 
     in
-      assign' (nsub_query, nsub) 
+      assign' (nsub_query, nsub)
       handle Assignment msg => ((* print (msg ^ "\n") *) NONE)
     end 
 
@@ -665,7 +685,7 @@ struct
   fun solveResiduals (Gquery, Gclause, CGoals(AuxG, cid, ConjGoals, i), asub, cnstr', sc) =
     let
       val s = ctxToExplicitSub (1, Gquery, Gclause, asub) 
-      val success = solveAuxG (AuxG, s, Gquery) andalso solveCnstr (Gquery, cnstr', s)
+      val success =  solveAuxG (AuxG, s, Gquery) andalso solveCnstr (Gquery, cnstr', s)	
     in
       if success
 	then 
@@ -679,7 +699,7 @@ struct
   fun retrieveChild (num, Child, nsub_query, assignSub, cnstr, Gquery, sc) = 
     let       
       fun retrieve (Leaf(nsub, Gclause, Residuals), nsub_query, assignSub, cnstrSub, cnstr) = 
-         (case assignable (nsub, nsub_query, assignSub, cnstrSub, cnstr)
+         (case assignableEager (nsub, nsub_query, assignSub, cnstrSub, cnstr)
 	  (* destructively updates assignSub, might initiate backtracking  *)
 	  of NONE => ()
 	  | SOME(nsub_query', cnstrSub', cnstr') => 
@@ -694,7 +714,7 @@ struct
 	      raise Error "Left-over normal substitutions!"))
 
 	| retrieve (Node(nsub, Children), nsub_query, assignSub, cnstrSub, cnstr) =
-	 (case assignable(nsub, nsub_query, assignSub, cnstrSub, cnstr)
+	 (case assignableEager (nsub, nsub_query, assignSub, cnstrSub, cnstr)
 	  (* destructively updates nsub_query, assignSub,  might fail and initiate backtracking *)
           (* we must undo any changes to assignSub and whatever else is destructively updated,
              cnstrSub?, cnstr? or keep them separate from different branches!*)
@@ -715,49 +735,51 @@ struct
       S.forall Children (fn (_, C) => retrieveChild (n, C, nsub_query, assignSub, nil, G, sc))
     end 
 
-
-
-(*
- fun retrieveAll (num, Child, nsub_query, assignSub, cnstr, candSet) : unit = 
+ (*----------------------------------------------------------------------------*)
+ (* Retrieval via set of candidates *)
+ fun retrieveAll (num, Child, nsub_query, assignSub, cnstr, candSet) = 
     let       
       val i = ref 0
-      fun retrieve (Leaf(nsub, Gclause, Residuals), nsub_query, assignSub, cnstrSub, cnstr) = 
-         (case assignable (nsub, nsub_query, assignSub, cnstrSub, cnstr)
+      fun retrieve (Leaf(nsub, Gclause, Residuals), nsub_query, assignSub, (nsub_left, cnstrSub), cnstr) = 
+         (case assignableLazy (nsub, nsub_query, assignSub, (nsub_left, cnstrSub), cnstr)
 	  (* destructively updates assignSub, might initiate backtracking  *)
 	  of NONE => ()
-	  | SOME(nsub_query', cnstrSub', cnstr') => 
+	  | SOME(nsub_query', (nsub_left', cnstrSub'), cnstr') => 
 	    (if (isId nsub_query') 
 	       then 
 		 (* LCO optimization *)		 
 		 (i := !i+1; 
-		  S.insert candSet (!i, (assignSub, cnstr', Gclause, Residuals));())
+		  S.insert candSet (!i, (assignSub, nsub_left', cnstrSub', cnstr', Gclause, Residuals));())
 	     else 
 	      raise Error "Left-over normal substitutions!"))
 
-	| retrieve (Node(nsub, Children), nsub_query, assignSub, cnstrSub, cnstr) =
-	 (case assignable(nsub, nsub_query, assignSub, cnstrSub, cnstr)
+	| retrieve (Node(nsub, Children), nsub_query, assignSub, (nsub_left, cnstrSub), cnstr) =
+	 (case assignableLazy (nsub, nsub_query, assignSub, (nsub_left, cnstrSub), cnstr)
 	  (* destructively updates nsub_query, assignSub,  might fail and initiate backtracking *)
           (* we must undo any changes to assignSub and whatever else is destructively updated,
              cnstrSub?, cnstr? or keep them separate from different branches!*)
 	    of NONE => ()
-	     | SOME (nsub_query', cnstrSub', cnstr') => 
+	     | SOME (nsub_query', (nsub_left', cnstrSub'), cnstr') => 
 	       (S.forall Children 
-		(fn (n, Child) => retrieve (Child, nsub_query', S.copy assignSub, S.copy cnstrSub', cnstr'))))
+		(fn (n, Child) => retrieve (Child, nsub_query', S.copy assignSub, (S.copy nsub_left', S.copy cnstrSub'), cnstr'))))
     in 
-      retrieve (Child, nsub_query, assignSub, cnstrSubId (), cnstr)
+      retrieve (Child, nsub_query, assignSub, (nid(), cnstrSubId ()), cnstr)
     end 
-
 
  fun retrieveCandidates (n, STree as Node(s, Children), Gquery, r, sc) =        
     (* s = id *)
     let
       val (nsub_query, assignSub) = (querySubId (), assignSubId ())
-      val candSet = makeCandidateSet ()
-      fun solveCandidate (i, candSet) = 
+      val candSet = S.new() 
+       fun solveCandidate (i, candSet) = 
 	case (S.lookup candSet i) 
 	  of NONE => () 
-	   | SOME(assignSub, cnstr, Gclause, Residuals) => 
-	     (CSManager.trail (fn () => solveResiduals (Gquery, Gclause, Residuals, assignSub, cnstr, sc (* fn S => (1::S) *)));
+	   | SOME(assignSub, nsub_left, cnstrSub, cnstr, Gclause, Residuals) => 
+	     (CSManager.trail (fn () => 
+	       (S.forall nsub_left (fn (nv, U) => case (S.lookup cnstrSub nv) 
+					                 of NONE =>  raise Error "Left-over nsubstitution" 
+						       | SOME(I.AVar A) => A := SOME(U));
+                solveResiduals (Gquery, Gclause, Residuals, assignSub, cnstr, sc (* fn S => (1::S) *))));
 	      solveCandidate (i+1, candSet (* sc = (fn S => (0::S)) *) ))
     in 
       S.insert nsub_query (1, (I.Null, r));
@@ -765,12 +787,13 @@ struct
       (* execute one by one all candidates : here ! *)
       solveCandidate (1, candSet) 
     end 
-*)
+
  fun matchSig (a, G, ps as (I.Root(Ha,S),s), sc) = 
      let
        val (n, Tree) = Array.sub (indexArray, a)
-     in
-       retrieval (n, !Tree, G, I.EClo(ps), sc)
+     in       
+       retrieval (n, !Tree, G, I.EClo(ps), sc)  
+(*       retrieveCandidates (n, !Tree, G, I.EClo(ps), sc)   *)
      end 
 
  fun sProgReset () = 
