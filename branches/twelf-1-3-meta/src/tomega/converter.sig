@@ -14,6 +14,8 @@ sig
 (*  val installFor : IntSyn.cid list -> unit *)
   val convertPrg : IntSyn.cid list -> Tomega.Prg
   val installPrg : IntSyn.cid list -> IntSyn.cid
+
+  val raisePrg : IntSyn.Dec IntSyn.Ctx * Tomega.Prg * Tomega.For -> Tomega.Prg
 end (* Signature CONVERTER *)       
 
 
