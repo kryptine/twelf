@@ -41,7 +41,6 @@ struct
     | ESTABLISH				(* `%establish' *)
     | ASSERT				(* `%assert' *)
     | ABBREV				(* `%abbrev' *)
-    | USE                               (* `%use' *)
 
   exception Error of string
 
@@ -50,7 +49,7 @@ struct
   (* isSym (c) = B iff c is a legal symbolic identifier constituent *)
   (* excludes quote character and digits, which are treated specially *)
   (* Char.contains stages its computation *)
-  val isSym : char -> bool = Char.contains "_!&$^+/<=>?@~|#*`;,-\\\""
+  val isSym : char -> bool = Char.contains "_!&$^+/<=>?@~|#*`;,-\\"
 
   (* isQuote (c) = B iff c is the quote character *)
   fun isQuote (c) = (c = #"'")
@@ -203,7 +202,6 @@ struct
       | lexPragmaKey (ID(_, "name"), r) = (NAME, r)
       | lexPragmaKey (ID(_, "solve"), r) = (SOLVE, r)
       | lexPragmaKey (ID(_, "query"), r) = (QUERY, r)
-      | lexPragmaKey (ID(_, "use"), r) = (USE, r)
       | lexPragmaKey (ID(_, s), r) =
         error (r, "Unknown keyword %" ^ s ^ " (single line comment starts with `%<whitespace>' or `%%')")
       (* comments are now started by %<whitespace> *)
@@ -285,7 +283,6 @@ struct
     | toString' (ESTABLISH) = "%establish"
     | toString' (ASSERT) = "%assert"
     | toString' (ABBREV) = "%abbrev"
-    | toString' (USE) = "%use"
 
  fun toString (ID(_,s)) = "identifier `" ^ s ^ "'"
    | toString (EOF) = "end of file or `%.'"

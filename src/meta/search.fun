@@ -23,15 +23,15 @@ sharing Assign.IntSyn = IntSyn'
 		   structure Compile : COMPILE
 		   sharing Compile.IntSyn = IntSyn'
 		   sharing Compile.CompSyn = CompSyn'
+		   structure Trail : TRAIL
+		   sharing Trail.IntSyn = IntSyn'
 		   structure CPrint : CPRINT
 		   sharing CPrint.IntSyn = IntSyn'
 		   sharing CPrint.CompSyn = CompSyn'
 		   structure Print : PRINT
 		   sharing Print.IntSyn = IntSyn'
 		   structure Names : NAMES 
-		   sharing Names.IntSyn = IntSyn'
-                   structure CSManager : CS_MANAGER
-                     sharing CSManager.IntSyn = IntSyn')
+		   sharing Names.IntSyn = IntSyn')
   : MTPSEARCH =
 struct
 
@@ -87,9 +87,6 @@ struct
 	  occursInDec (r, (D, s)) orelse occursInExp (r, (V, I.dot1 s))
       | occursInExpW (r, (I.EVar (r' , _, V', _), s)) = 
           (r = r') orelse occursInExp (r, (V', s))
-      | occursInExpW (r, (I.FgnExp (cs, ops), s)) =
-          occursInExp (r, (#toInternal(ops)(), s))
-          (* hack - should consult cs  -rv *)
 
     and occursInSpine (_, (I.Nil, _)) = false
       | occursInSpine (r, (I.SClo (S, s'), s)) = 
@@ -115,14 +112,14 @@ struct
     *)
     (* Efficiency: repeated whnf for every subterm in Vs!!! *)
     fun selectEVar (nil) = nil
-      | selectEVar ((X as I.EVar (r, _, _, ref nil)) :: GE) = 
+      | selectEVar ((X as I.EVar (r, _, _, nil)) :: GE) = 
         let 
 	  val Xs = selectEVar (GE)
 	in
 	  if nonIndex (r, Xs) then Xs @ [X]
 	  else Xs
 	end
-      | selectEVar ((X as I.EVar (r, _, _, cnstrs)) :: GE) =  (* Constraint case *)
+      | selectEVar ((X as I.EVar (r, _, _, Constr)) :: GE) =  (* Constraint case *)
         let 
 	  val Xs = selectEVar (GE)
 	in
@@ -264,7 +261,7 @@ struct
 			     | I.Skonst cid => cid)
 				  
 	      val C.SClause(r) = C.sProgLookup cid'
-	      val _ = CSManager.trail
+	      val _ = Trail.trail
 		      (fn () =>
 		       rSolve (max-1, depth, ps', (r, I.id), dp,
 			       (fn S => sc (I.Root (H, S)))))
@@ -276,7 +273,7 @@ struct
 	  | matchDProg (I.Decl (dPool', SOME (r, s, cid')), n) =
 	    if cid = cid' then
 	      let
-		val _ = CSManager.trail (fn () =>
+		val _ = Trail.trail (fn () =>
 			    rSolve (max-1,depth, ps', (r, I.comp (s, I.Shift n)), dp,
 				    (fn S => sc (I.Root (I.BVar n, S)))))
 	      in

@@ -10,8 +10,6 @@ functor MTPAbstract (structure IntSyn' : INTSYN
 		       sharing Whnf.IntSyn = IntSyn'
 		     structure Constraints : CONSTRAINTS
 		       sharing Constraints.IntSyn = IntSyn'
-                     structure Unify : UNIFY
-                       sharing Unify.IntSyn = IntSyn'
 		     structure Subordinate : SUBORDINATE
 		       sharing Subordinate.IntSyn = IntSyn'
 		     structure TypeCheck : TYPECHECK
@@ -20,7 +18,9 @@ functor MTPAbstract (structure IntSyn' : INTSYN
 		       sharing FunTypeCheck.FunSyn = FunSyn'
 		       sharing FunTypeCheck.StateSyn = StateSyn'
 		     structure Abstract : ABSTRACT
-		       sharing Abstract.IntSyn = IntSyn')
+		       sharing Abstract.IntSyn = IntSyn'
+		     structure Trail : TRAIL
+		       sharing Trail.IntSyn = IntSyn')
   : MTPABSTRACT =
 struct
 
@@ -74,8 +74,8 @@ struct
        to the empty constraint
     *)
     fun checkEmpty (nil) = ()
-      | checkEmpty (cnstrL) =
-        (case C.simplify cnstrL
+      | checkEmpty (Cnstr) =
+        (case C.simplify Cnstr
 	   of nil => ()
 	    | _ => raise Error "Typing ambiguous -- unresolved constraints")
 
@@ -197,24 +197,21 @@ struct
 	  collectSpine (S.decrease T, d, G, (S, s), K)
       | collectExpW (T, d, G, (I.Lam (D, U), s), K) =
 	  collectExp (T, d, I.Decl (G, I.decSub (D, s)), (U, I.dot1 s), collectDec (T, d, G, (D, s), K))
-      | collectExpW (T, d, G, (X as I.EVar (r, GdX, V, cnstrs), s), K) =
+      | collectExpW (T, d, G, (X as I.EVar (r, GdX, V, Cnstr), s), K) =
 	  if exists (eqEVar X) K
 	    then collectSub (T, d, G, s, K)
 	  else let
 	         val (Gp, GX) = restore (I.ctxLength GdX - d, GdX)   (* optimization possible for d = 0 *)
-	         val _ = checkEmpty (!cnstrs)
+	         val _ = checkEmpty Cnstr
 		 val w = weaken (GX, I.targetFam V)
 		 val iw = Whnf.invert w
 		 val GX' = Whnf.strengthen (iw, GX)
 		 val X' as I.EVar (r', _, _, _) = I.newEVar (concat (Gp, GX'), I.EClo (V, iw))
-		 val _ = Unify.instantiateEVar (r, I.EClo (X', w), nil)
+		 val _ = Trail.instantiateEVar (r, I.EClo (X', w))
 		 val V' = raiseType (GX', I.EClo (V, iw))
 	       in
 		 collectSub (T, d, G, I.comp (w, s), I.Decl (collectExp (T, d, Gp, (V', I.id), K), EV (r', V', T, d)))
 	       end
-      | collectExpW (T, d, G, (I.FgnExp (cs, ops), s), K) =
-          collectExp (T, d, G, (#toInternal(ops)(), s), K)
-          (* hack - should consult cs    -rv *)
       (* No other cases can occur due to whnf invariant *)
 
     (* collectExp (T, d, G, (U, s), K) = K' 
@@ -336,9 +333,6 @@ struct
 	  in
 	    I.Root (H, abstractSub (I.ctxLength G - d,  K, depth, s, I.Nil))
 	  end
-      | abstractExpW (K, depth, (I.FgnExp (cs, ops), s)) =
-          #map(ops)(fn U => abstractExp (K, depth, (U, s)))
-          (* hack - should consult cs   -rv *)
 
     (* abstractExp (K, depth, (U, s)) = U'
      

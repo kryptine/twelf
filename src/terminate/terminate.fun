@@ -10,6 +10,8 @@ functor Terminate (structure Global : GLOBAL
 		     sharing Conv.IntSyn = IntSyn'
 	           structure Unify : UNIFY
 		     sharing Unify.IntSyn = IntSyn'
+	           structure Trail : TRAIL
+		     sharing Trail.IntSyn = IntSyn'
 	           structure Names : NAMES
 		     sharing Names.IntSyn = IntSyn'
 	           structure Index : INDEX
@@ -25,9 +27,7 @@ functor Terminate (structure Global : GLOBAL
 		   structure Paths  : PATHS
 		   structure Origins : ORIGINS
 		     sharing Origins.Paths = Paths
-		     sharing Origins.IntSyn = IntSyn'
-	           structure CSManager : CS_MANAGER
-		     sharing CSManager.IntSyn = IntSyn')
+		     sharing Origins.IntSyn = IntSyn')
   :  TERMINATE =
 struct
   structure IntSyn = IntSyn'
@@ -137,7 +137,7 @@ struct
 
        Invariant: it participated only in matching, not full unification
     *)
-    and isFreeEVar (I.EVar (_, _, _, ref nil), _) = true   (* constraints must be empty *)
+    and isFreeEVar (I.EVar (_, _, _, nil), _) = true   (* constraints must be empty *)
       | isFreeEVar (I.Lam (D, U), s) = isFreeEVar (Whnf.whnf (U, I.dot1 s))
       | isFreeEVar _ = false
 
@@ -221,10 +221,10 @@ struct
        and only U'[s'] contains EVars
     *)
     and eq (G, (Us, Vs), (Us', Vs'), sc) = 
-        CSManager.trail (fn () =>
-		           Unify.unifiable (G, Vs, Vs')
-		           andalso Unify.unifiable (G, Us, Us')
-		           andalso sc ())
+        Trail.trail (fn () =>
+		     Unify.unifiable (G, Vs, Vs')
+		     andalso Unify.unifiable (G, Us, Us')
+		     andalso sc ())
 
     (* le (G, Q, ((U, s1), (V, s2)), (U', s'), sc) = B
      

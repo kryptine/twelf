@@ -20,16 +20,15 @@ functor Search (structure IntSyn' : INTSYN
 		structure Compile : COMPILE
 		sharing Compile.IntSyn = IntSyn'
 		sharing Compile.CompSyn = CompSyn'
+		structure Trail : TRAIL
+		sharing Trail.IntSyn = IntSyn'
 		structure CPrint : CPRINT
 		sharing CPrint.IntSyn = IntSyn'
 		sharing CPrint.CompSyn = CompSyn'
 		structure Print : PRINT
 		sharing Print.IntSyn = IntSyn'
 		structure Names : NAMES 
-		sharing Names.IntSyn = IntSyn'
-		structure CSManager : CS_MANAGER
-		sharing CSManager.IntSyn = IntSyn'
-)
+		sharing Names.IntSyn = IntSyn')
   : SEARCH =
 struct
 
@@ -160,7 +159,7 @@ struct
 				   | I.Skonst cid => cid)
 				  
 		    val C.SClause(r) = C.sProgLookup cid'
-		    val acc''' = CSManager.trail
+		    val acc''' = Trail.trail
 		                 (fn () =>
 				    rSolve (ps', (r, I.id), dp,
 					    (fn (S, acck') => sc (I.Root (H, S),
@@ -176,7 +175,7 @@ struct
 	  | matchDProg (I.Decl (dPool', SOME (r, s, cid')), n, acc') =
 	    if cid = cid' then
 	      let
-		val acc'' = CSManager.trail (fn () =>
+		val acc'' = Trail.trail (fn () =>
 			    rSolve (ps', (r, I.comp (s, I.Shift n)), dp,
 				    (fn (S, acck') => sc (I.Root (I.BVar n, S),
 							  acck')), (acc', k-1))) 
@@ -207,8 +206,6 @@ struct
 	  occursInDec (r, (D, s)) orelse occursInExp (r, (V, I.dot1 s))
       | occursInExpW (r, (I.EVar (r' , _, V', _), s)) = 
           (r = r') orelse occursInExp (r, (V', s))
-      | occursInExpW (r, (I.FgnExp (cs, ops), s)) =
-          occursInExp (r, (#toInternal(ops)(), s))
 
     and occursInSpine (_, (I.Nil, _)) = false
       | occursInSpine (r, (I.SClo (S, s'), s)) = 
@@ -264,7 +261,7 @@ struct
       | searchEx' max (I.EVar (r, G, V, _) :: GE, sc) = 
 	  solve ((Compile.compileGoal (G, V), I.id), 
 		 Compile.compileCtx false G, 
-		 (fn (U', (acc', _)) => (Unify.instantiateEVar (r, U', nil); 
+		 (fn (U', (acc', _)) => (Trail.instantiateEVar (r, U'); 
 					 searchEx' max (GE, sc))),
 		 (nil, max))
 
@@ -319,7 +316,7 @@ struct
       | searchAll' (I.EVar (r, G, V, _) :: GE, acc, sc) = 
 	  solve ((Compile.compileGoal (G, V), I.id), 
 		 Compile.compileCtx false G, 
-		 (fn (U', (acc', _)) => (Unify.instantiateEVar (r, U', nil); 
+		 (fn (U', (acc', _)) => (Trail.instantiateEVar (r, U'); 
 					 searchAll' (GE, acc', sc))),
 		 (acc, !MetaGlobal.maxFill))
 

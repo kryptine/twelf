@@ -1,6 +1,6 @@
 (* Printing *)
 (* Author: Frank Pfenning *)
-(* Modified: Jeff Polakow, Roberto Virga *)
+(* Modified: Jeff Polakow *)
 
 functor Print (structure IntSyn' : INTSYN
 	       structure Whnf : WHNF
@@ -182,16 +182,6 @@ local
     | fmtCon (G, I.Def(cid)) = Str0 (Symbol.def (Names.constName (cid)))
     | fmtCon (G, I.NSDef (cid)) = Str0 (Symbol.def (Names.constName (cid)))
     | fmtCon (G, I.FVar (name, _, _)) = Str0 (Symbol.fvar (name))
-    | fmtCon (G, I.FgnConst (cs, conDec)) =
-        let
-          val name = I.conDecName conDec
-        in
-          case Names.nameLookup (name)
-            of SOME _ => (* the user has re-defined this name *)
-                 Str0 (Symbol.const ("%" ^ name ^ "%"))
-             | NONE =>
-                 Str0 (Symbol.const name)
-        end
 
   (* for internal printing *)
   (* opargsImplicit (G, (C, S)) = oa
@@ -345,8 +335,6 @@ local
       (* assume dereferenced during whnf *)
       if !implicit then aa (ctx, F.HVbox (fmtEVar(G,X)::fmtSub(G,d,s)))
       else fmtOpArgs (G, d, ctx, evarArgs (G, d, X, s), I.id)
-    | fmtExpW (G, d, ctx, (U as I.FgnExp (_, ops), s)) =
-      fmtExp (G, d, ctx, (#toInternal(ops) (), s))
     (* I.EClo not possible for Whnf *)
 
   (* fmtOpArgs (G, d, ctx, oa, s) = fmt
@@ -568,7 +556,7 @@ local
 
      This function prints the quantifiers and abstractions only if hide = false.
   *)
-  fun fmtConDec (hide, I.ConDec (name, imp, _, V, L)) =
+  fun fmtConDec (hide, I.ConDec (name, imp, V, L)) =
       let
 	val _ = Names.varReset ()
         val (G, V) = if hide then skipI (imp, I.Null, V) else (I.Null, V)
@@ -628,30 +616,22 @@ local
 		F.HVbox [sym "%nonstrict ", Str0 (Symbol.def (name)), sym "."]]
 *)      end
 
-  fun fmtCnstr (I.Solved) = [Str "Solved Constraint"]
-    | fmtCnstr (I.Eqn (G, U1, U2)) =
-        let
-          val G' = Names.ctxLUName G
-        in
-          [F.HVbox [fmtExp (G, 0, noCtxt, (U1, I.id)),
-	            F.Break, sym "=", F.Space,
-	            fmtExp (G, 0, noCtxt, (U2, I.id))]]
-        end
-    | fmtCnstr (I.FgnCnstr (cs, ops)) =
-        let
-          fun fmtExpL (nil) = [Str "Empty Constraint"]
-            | fmtExpL ((G, U) :: nil) =
-                [fmtExp (Names.ctxLUName G, 0, noCtxt, (U, I.id))]
-            | fmtExpL ((G,U) :: expL) =
-                [fmtExp (Names.ctxLUName G, 0, noCtxt, (U, I.id)), Str ";", F.Break] @ fmtExpL expL
-        in
-          fmtExpL (#toInternal(ops)())
-        end
+  (* fmtEqn assumes that G is a valid printing context *)
+  fun fmtEqn (I.Eqn (G, U1, U2)) =
+      F.HVbox [fmtExp (G, 0, noCtxt, (U1, I.id)),
+	       F.Break, sym "=", F.Space,
+	       fmtExp (G, 0, noCtxt, (U2, I.id))]
 
-  fun fmtCnstrL (nil) = [Str "Empty Constraint"]
-    | fmtCnstrL (ref Cnstr :: nil) = (fmtCnstr Cnstr) @ [Str "."]
-    | fmtCnstrL (ref Cnstr :: cnstrL) =
-        (fmtCnstr Cnstr) @ [Str ";", F.Break] @ (fmtCnstrL cnstrL)
+  (* fmtEqnName and fmtEqns do not assume that G is a valid printing
+     context and will name or rename variables to make it so.
+     fmtEqns should only be used for printing constraints.
+  *)
+  fun fmtEqnName (I.Eqn (G, U1, U2)) =
+      fmtEqn (I.Eqn (Names.ctxLUName G, U1, U2))
+
+  fun fmtEqns (nil) = [Str "Empty Constraint"]
+    | fmtEqns (E::nil) = fmtEqnName E :: Str "." :: nil
+    | fmtEqns (E::Es) = fmtEqnName E :: Str ";" :: F.Break :: fmtEqns Es
 
   (* fmtNamedEVar, fmtEVarInst and evarInstToString are used to print
      instantiations of EVars occurring in queries.  To that end, a list of
@@ -687,8 +667,8 @@ local
 	collectEVars (Xnames, Abstract.collectEVars (I.Null, (U, I.id), Xs))
 
   fun collectConstraints (nil) = nil
-    | collectConstraints (I.EVar(ref(NONE),_,_,cnstrs) :: Xs) =
-	Constraints.simplify (!cnstrs) @ collectConstraints Xs
+    | collectConstraints (I.EVar(ref(NONE),_,_,Cnstr as (_::_)) :: Xs) =
+	Constraints.simplify Cnstr @ collectConstraints Xs
     | collectConstraints (_ :: Xs) = collectConstraints (Xs)
 
 in
@@ -703,27 +683,26 @@ in
   fun formatSpine (G, S) = fmtSpine (G, 0, 0, (S, I.id))
   fun formatConDec (condec) = fmtConDec (false, condec)
   fun formatConDecI (condec) = fmtConDec (true, condec)
-  fun formatCnstr (Cnstr) = F.Vbox0 0 1 (fmtCnstr Cnstr)
-  fun formatCnstrs (cnstrL) = F.Vbox0 0 1 (fmtCnstrL cnstrL)
+  fun formatEqn (E) = fmtEqn E
+  fun formatEqns (Es) = F.Vbox0 0 1 (fmtEqns Es)
 
   fun decToString (G, D) = F.makestring_fmt (formatDec (G, D))
   fun expToString (G, U) = F.makestring_fmt (formatExp (G, U))
   fun conDecToString (condec) = F.makestring_fmt (formatConDec (condec))
-  fun cnstrToString (Cnstr) = F.makestring_fmt (formatCnstr Cnstr)
-  fun cnstrsToString (cnstrL) = F.makestring_fmt (formatCnstrs cnstrL)
+  fun eqnToString (E) = F.makestring_fmt (formatEqn E)
+  fun eqnsToString (Es) = F.makestring_fmt (formatEqns Es)
 
   fun evarInstToString Xnames =
         F.makestring_fmt (F.Hbox [F.Vbox0 0 1 (fmtEVarInst Xnames), Str "."])
 
-
-  fun evarCnstrsToStringOpt Xnames =
+  fun evarConstrToStringOpt Xnames =
       let
 	val Ys = collectEVars (Xnames, nil)	(* collect EVars in instantiations *)
-	val cnstrL = collectConstraints Ys
+	val constraints = collectConstraints Ys
       in
-	case cnstrL
+	case constraints
 	  of nil => NONE
-	   | _ => SOME (cnstrsToString (cnstrL))
+	   | _ => SOME (eqnsToString constraints)
       end
 
   fun printSgn () =
