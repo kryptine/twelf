@@ -902,12 +902,21 @@ exception Error' of Tomega'.For
           append (I.Decl (G', I.decSub (D, s)), (L, I.dot1 s))
 
 
-    (* traverse (Ts, c) = L'
+    (* traverse (Psi0, L, Sig, wmap) = C'
 
        Invariant:
-       If   Ts is a list of type families
-       and  c is a type family which entries are currently traversed
-       then L' is a list of cases
+       If   |- Psi0  ctx
+       and  L is a the theorem we would like to transform
+       and  Sig is a signature 
+       and  forall (G, V) in Sig the following holds:
+	            Psi0, G |- V : type
+               and  head (V) in L
+       and  wmap is a mapping of old labels L to L'
+            where L' is a new label and w' is a weakensub
+	    with the following properties.
+	    If   Sig (L) = (Gsome, Lblock)
+	    and  Sig (L') = (Gsome, Lblock')
+       then C' is a list of cases (corresponding to each (G, V) in Sig)
     *)
     fun traverse (Psi0, L, Sig, wmap) =
       let 
@@ -915,9 +924,6 @@ exception Error' of Tomega'.For
 	  | append (G, I.Decl (G', D)) = I.Decl (append (G, G'), D)
 
 
-	fun mediateSub (0, s) = s
-	  | mediateSub (m, s) = 
-	      I.Dot (I.Idx m, mediateSub (m-1, s))
 
 	(* traverseNeg (Psi0, Psi, V) = ([w', PQ'], L')    [] means optional
 	   
@@ -959,14 +965,23 @@ exception Error' of Tomega'.For
   	    let 
 	      val c' = wmap c
 	      val n = I.ctxLength Psi0 + I.ctxLength G
-	      val s' = mediateSub (n, I.Shift (n+I.ctxLength Psi0))
+(*	      val s' = mediateSub (n, I.Shift (n+I.ctxLength Psi0)) *)
 
 	      val (Gsome, Lpi) = I.constBlock c
+val _ = print "*"
 	      val _ = TypeCheck.typeCheckCtx (T.coerceCtx (append(append(Psi0, Psi), T.embedCtx G)))
-	      val _ = TypeCheck.typeCheckSub (T.coerceCtx (append(append(Psi0, Psi), T.embedCtx G)), I.comp(s, s'), Gsome)
+val _ = print "*"
+	      val _ = TypeCheck.typeCheckSub (T.coerceCtx (append(append(Psi0, Psi), T.embedCtx G)), s, Gsome)
+val _ = print "*"
+	      val (Gsome', Lpi') = I.constBlock c'
+val _ = print "*"
+	      val _ = TypeCheck.typeCheckCtx (T.coerceCtx (append(append(Psi0, Psi), T.embedCtx G)))
+val _ = print "*"
+	      val _ = TypeCheck.typeCheckSub (T.coerceCtx (append(append(Psi0, Psi), T.embedCtx G)), s, Gsome')
+val _ = print "*"
 	    in
 	      traversePos ((Psi0, Psi, 
-			    I.Decl (G,  (* T.UDec *) (I.BDec (x, (c', I.comp (s, s')))))), 
+			    I.Decl (G,  (* T.UDec *) (I.BDec (x, (c', s))))), 
 			   V, SOME (I.dot1 w1, (P, Q)))
 	    end
           | traversePos ((Psi0, G, B), V as I.Root (I.Const a, S), SOME (w1, (P, Q))) =
@@ -1160,23 +1175,35 @@ exception Error' of Tomega'.For
 
 	fun traverseSig' nil = nil
           | traverseSig' ((G, V) :: Sig) =
-  	    (case traverseNeg ((Psi0, T.embedCtx G), V, I.id)
+  	    (print "[TC:..."; TypeCheck.typeCheck (append (T.coerceCtx Psi0, G), (V, I.Uni I.Type));print "]\n";
+	     case traverseNeg ((Psi0, T.embedCtx G), V, I.id)
 	       of (SOME (wf, (P', Q'))) =>  traverseSig' Sig @ [(P' Q')])
       in
 	traverseSig' Sig
       end
 
 
+ 
+    (* transformWorlds (fams, W) = (W', wmap)
 
+       Invariant:
+       If   fams is the theorem to be compiled
+       and  W a world with declarations,
+       then W' is the new world stripped of all dynamic extensions
+       and  wmap is a mapping of old labels L to L'
+            where L' is a new label and w' is a weakensub
+	    with the following properties.
+	    If   Sig (L) = (Gsome, Lblock)
+	    and  Sig (L') = (Gsome, Lblock')
+    *)
     fun transformWorlds (fams, T.Worlds cids) = 
         let
-
           (* convertList (a, L, w) = L'
         
 	     Invariant:
-	     If   |- G, L : ctx
-	     and  G |- w: G'
-	     then |- G', L' ctx
+	     If   G0 |- G, L : ctx
+	     and  G0, G |- w : G0, G'
+	     then G0 |- G', L' ctx
 	  *)
 	  fun transformList (nil, w) = nil
 	    | transformList ((D as I.Dec (x, V)) :: L, w) = 
@@ -1205,8 +1232,20 @@ exception Error' of Tomega'.For
           (T.Worlds cids', wmap)
 	end
 
+
+    (* dynamicSig (Psi0, fams, W) = Sig'
+
+       Invariant:
+       If   |- Psi0 ctx
+       and  fams are the typfamilies to be converted 
+       and  W is the world in which the translation takes place
+       then Sig' = (G1;V1) ... (Gn;Vn)
+       and  |- Psi0, Gi ctx
+       and  Psi, Gi |- Vi : type.
+    *)
     fun dynamicSig (Psi0, fams, T.Worlds cids) = 
         let
+
 
           (* findDec (G, n, L, s, S) = S'
         
@@ -1227,12 +1266,38 @@ exception Error' of Tomega'.For
 		findDec (G, n+1, L, I.Dot (I.Exp (I.Root (I.Proj (I.Bidx 1, n), I.Nil)), w), Sig')
 	      end		  
 	      
+	  (* mediateSub G = (G0, s)  
+
+	     Invariant:
+	     If   . |- G ctx 
+	     then Psi0 |- G0 ctx
+	     and  Psi0, G0 |- s : G
+	  *)
+	  fun mediateSub (I.Null) = (I.Null, I.Shift (I.ctxLength Psi0))
+	    | mediateSub (I.Decl (G, D)) =
+	        let 
+		  val (G0, s') = mediateSub G
+		  val D' = I.decSub (D, s')
+		in
+		  (I.Decl (G0, D'), I.dot1 s')
+		end
+
+
 	  fun findDecs' (nil, Sig) = Sig
 	    | findDecs' (cid :: cids', Sig) = 
 	      let 
+		val _ = print "["
 		val I.BlockDec (s, m, G, L) = I.sgnLookup cid
-		val D = Names.decName (G, I.BDec (NONE, (cid, I.Shift (I.ctxLength Psi0))))
-		val Sig' = findDec (I.Decl (G, D), 1, L, I.shift, Sig)
+					(* G |- L ctx *)
+		val (G0, s') = mediateSub G
+					(* Psi0, G0 |- s'' : G *)
+		val D' = Names.decName (G0, I.BDec (NONE, (cid, s')))
+					(* Psi0, G0 |- D : dec *)
+		val s'' = I.comp (s', I.shift)
+					(* Psi0, G0, D' |- s'' : G *)
+
+		val Sig' = findDec (I.Decl (G0, D'), 1, L, s'', Sig)
+		val _ = print "]"
 	      in
 		findDecs' (cids', Sig')	
 	      end
@@ -1240,9 +1305,16 @@ exception Error' of Tomega'.For
 	  findDecs' (cids, nil)
 	end
 
-    fun staticSig nil = nil
-      | staticSig (I.ConDec (name, _, _, _, V, I.Type) :: Sig) =
-          (I.Null, V) :: staticSig Sig
+    (* staticSig Sig = Sig'
+
+       Invariant:
+       If   |- Psi0 ctx
+       then Sig' = (c1:V1) ... (cn:Vn)
+       and  . |- Vi : type.
+    *)
+    fun staticSig (Psi0, nil) = nil
+      | staticSig (Psi0, I.ConDec (name, _, _, _, V, I.Type) :: Sig) =
+          (I.Null, Whnf.normalize (V, I.Shift (I.ctxLength Psi0))) :: staticSig (Psi0, Sig)
 
     fun name [a] = I.conDecName (I.sgnLookup a)
       | name (a :: L) = I.conDecName (I.sgnLookup a) ^ "/" ^ (name L)
@@ -1271,6 +1343,7 @@ exception Error' of Tomega'.For
 
 	val (Psi0, Prec, F0) = recursion ()
 
+
 	fun convertWorlds [a] = 
 	    let
 	      val W = WorldSyn.lookup a	(* W describes the world of a *)
@@ -1285,8 +1358,11 @@ exception Error' of Tomega'.For
 	      if T.eqWorlds (W, W') then W' else raise Error "Type families different in different worlds"
 	    end
 	    
+val _ = print "DEBUG"
 	val W = convertWorlds L
+val _ = print "DEBUG"
 	val (W', wmap) = transformWorlds (L, W)
+val _ = print "DEBUG"
 
 	fun convertOnePrg (a, F) =
 	  let 
@@ -1295,10 +1371,11 @@ exception Error' of Tomega'.For
 	    val mS = modeSpine a	(* |- mS : {x1:V1} ... {xn:Vn} > type  *)
 	    val Sig = Worldify.worldify a
 					(* Sig in LF(reg)   *)
+	    val _ = print "\n[Summary of collecting dynamic cases\n"
 	    val dynSig = dynamicSig (Psi0, L, W)
-(*	    val _ = print "\nSummary of collecting dynamic cases\n"
 	    val _ = map (fn GV => print (Print.expToString GV ^ "\n")) dynSig
-*)	    val statSig = staticSig Sig
+	    val _ = print "]"	
+	    val statSig = staticSig (Psi0, Sig)
 (*	    val _ = print "\nSummary of collecting static cases\n"
 	    val _ = map (fn GV => print (Print.expToString GV ^ "\n")) statSig
 *)
@@ -1392,7 +1469,7 @@ exception Error' of Tomega'.For
 
 
     fun installPrg [cid] = 
-        let 
+        let
 	  val F = convertFor [cid]
 	  val P = convertPrg [cid]
 	  val name = I.conDecName (I.sgnLookup cid)

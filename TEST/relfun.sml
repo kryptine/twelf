@@ -26,7 +26,7 @@ in
       val Ss = map Worldify.worldify a
       val S = foldr op@ nil Ss
       val _ = printS S
-      val _ = TextIO.print "[tomega] "
+      val _ = TextIO.print "[tomega=] "
       val P = Converter.convertPrg a
       val _ = TextIO.print "Checking: "
       val F = Converter.convertFor a
@@ -97,8 +97,6 @@ in
   val _ = print ["conf"]
   val _ = print ["cr"]
 
-
-
   (* Regression test for logic programming *)
   val _ = Twelf.loadFile "TEST/evenodd.elf"
   val _ = print ["even", "odd"]
@@ -110,10 +108,25 @@ in
   val _ = print ["iscan", "isatm"]
   val _ = print ["s_sound", "h_sound", "i_sound"]
   val _ = print ["cmpcs", "cmpai"]
-  (* Cannot work yet because we do not have mutual
-     recursive functions.
-  *)
 
+(*
+  (* Regression test for Cut-Elimination *)
+  val _ = load "examples/cut-elim/sources.cfg"
+  val _ = print ["ca"]
+  val _ = print ["ce"]
+  val _ = print ["ca'"]
+  val _ = print ["ce'"]
+*)
+
+
+
+  (* Regression test for Kolmogoroff translation *)
+  val _ = load "examples/kolm/sources.cfg"
+  val _ = print ["kolm"]
+  val _ = print ["existskolm"]
+  val _ = print ["nj_nk"]
+  val _ = print ["equiv"]
+  val _ = print ["complete"]
 
 
 
@@ -129,27 +142,6 @@ in
   (* Cannot work yet because we do not have mutual
      recursive functions.
   *)
-*)
-
-(*
-  (* Regression test for Kolmogoroff translation *)
-  val _ = load "examples/kolm/sources.cfg"
-  val _ = test ["kolm"]
-  val _ = test ["existskolm"]
-  val _ = test ["nj_nk"]
-  val _ = test ["equiv"]
-  val _ = test ["complete"]
-
-*)
-
-(*
-
-  (* Regression test for Cut-Elimination *)
-  val _ = load "examples/cut-elim/sources.cfg"
-  val _ = test ["ca"]
-  val _ = test ["ce"]
-  val _ = test ["ca'"]
-  val _ = test ["ce'"]
 *)
 
 
