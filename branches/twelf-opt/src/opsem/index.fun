@@ -48,7 +48,7 @@ struct
    * lookup  : pointer to the i-th element in solution list
    *)
 
-  type answer = {solutions : ((IntSyn.dctx * IntSyn.Sub) * IntSyn.pskeleton) list,
+  type answer = {solutions : ((IntSyn.dctx * IntSyn.Sub) * CompSyn.pskeleton) list,
 		 lookup: int}
 
   (* entry = (((i, G, D, U), A)) where i is the access counter     
@@ -83,13 +83,14 @@ struct
   val strengthen = AbstractTabled.strengthen ;
 
   (* original query *)
-  val query : (IntSyn.dctx * IntSyn.dctx  * IntSyn.Exp * IntSyn.Sub * (IntSyn.pskeleton -> unit))
+  val query : (IntSyn.dctx * IntSyn.dctx  * IntSyn.Exp * IntSyn.Sub * (CompSyn.pskeleton -> unit))
                 option ref = ref NONE
 
   (* ---------------------------------------------------------------------- *)
 
   local
     structure I = IntSyn
+    structure C = CompSyn
     structure A = AbstractTabled
 
     (* Global Table *)

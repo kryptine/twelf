@@ -21,6 +21,7 @@ functor Tabled (structure IntSyn' : INTSYN
 		    structure Queue : QUEUE
 		    structure TableIndex : TABLEINDEX
 		      sharing TableIndex.IntSyn = IntSyn'
+		      sharing TableIndex.CompSyn = CompSyn'
 		    structure AbstractTabled : ABSTRACTTABLED
 		      sharing AbstractTabled.IntSyn = IntSyn'
 		    structure Whnf : WHNF
@@ -60,7 +61,7 @@ struct
        hence do not have to be re-used again for this goal
      *)
 
-    val SuspGoals : ((((IntSyn.Exp * IntSyn.Sub) * CompSyn.DProg * (IntSyn.pskeleton -> unit)) * 
+    val SuspGoals : ((((IntSyn.Exp * IntSyn.Sub) * CompSyn.DProg * (CompSyn.pskeleton -> unit)) * 
 		      Unify.unifTrail * int ref)  list) ref  = ref []
 
 
@@ -392,7 +393,7 @@ bp Wed Feb 20 11:06:51 2002 *)
 	      (* trail to undo EVar instantiations *)
 	      CSManager.trail (fn () =>
 			       (rSolve (ps', (r, I.id), dp,
-					(fn S => sc ((I.pc c)::S)))));
+					(fn S => sc ((C.Pc c)::S)))));
 	      matchSig sgn'
 	    end
 
@@ -409,7 +410,7 @@ bp Wed Feb 20 11:06:51 2002 *)
 	      then (* trail to undo EVar instantiations *)
 		(CSManager.trail (fn () =>
 		                      rSolve (ps', (r, I.comp(s, I.Shift(k))), dp,
-				              (fn S => sc ((I.dc k)::S)))); 
+				              (fn S => sc ((C.Dc k)::S)))); 
 		 matchDProg (dPool', k+1))
 	    else matchDProg (dPool', k+1)
 	  | matchDProg (I.Decl (dPool', NONE), k) =
@@ -422,7 +423,7 @@ bp Wed Feb 20 11:06:51 2002 *)
                   CSManager.trail
                     (fn () =>
                        case (solve (G, I.SClo (S, s), try))
-                         of SOME(U) => (sc [I.csolver]; true)
+                         of SOME(U) => (sc [C.Csolver]; true)
                           | NONE => false)
               in
                 if succeeded

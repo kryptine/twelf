@@ -92,6 +92,12 @@ struct
 	   clauseToString t (IntSyn.Decl(G, D'), r) 
 	 end
 *)
+
+
+    fun subgoalsToString t (G, True) = t ^ "True "
+      | subgoalsToString t (G, Conjunct(Goal, Sg)) = 
+        t  ^ goalToString t (G, Goal) ^ subgoalsToString t (G, Sg)
+
     (* conDecToString (c, clause) printed representation of static clause *)
     fun conDecToString (c, SClause(r)) = 
 	let
@@ -128,6 +134,7 @@ struct
 	 dProgToString (DProg (G, dPool))
 	 ^ "\nParameter " ^ x ^ ":\t"
 	 ^ Print.expToString (G, A)
+
 
   end  (* local open ... *)
 

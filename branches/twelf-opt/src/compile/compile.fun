@@ -1,4 +1,4 @@
-(* Compiler *)
+(* Compilation for indexing with substitution trees *)
 (* Author: Iliano Cervesato *)
 (* Modified: Jeff Polakow, Carsten Schuermann, Larry Greenfield, 
              Roberto Virga, Brigitte Pientka *)
@@ -10,6 +10,9 @@ functor Compile (structure IntSyn' : INTSYN
 		   sharing Whnf.IntSyn = IntSyn'
  		 structure TypeCheck : TYPECHECK
 		   sharing TypeCheck.IntSyn = IntSyn'
+		 structure SubTree : SUBTREE
+		   sharing SubTree.IntSyn = IntSyn'
+		   sharing SubTree.CompSyn = CompSyn'
 
 		    (* CPrint currently unused *)
 		 structure CPrint : CPRINT 
@@ -35,11 +38,14 @@ struct
     structure I = IntSyn
     structure C = CompSyn
   in
+    
+    datatype Duplicates = BVAR of int | FGN | DEF of int
+    
+    datatype opt = datatype C.opt
+    val optimize = C.optimize
 
-
-    datatype Duplicates = BVAR of int | FGN
-
-    val optimize = ref true  
+    fun cidFromHead (I.Const c) = c
+      | cidFromHead (I.Def c) = c
 
     (* isConstraint(H) = B
        where B iff H is a constant with constraint status
@@ -69,6 +75,15 @@ struct
          
    no permutations or eta-expansion of arguments are allowed
    *)
+
+(*
+  fun etaSpine' (I.Nil, n) = (n=0)
+    | etaSpine' (I.App(U, S), n) =
+        if Whnf.etaContract U = n then etaSpine' (S, n-1)
+	else false
+
+  fun etaSpine (S, n) = etaSpine' (S, n) handle Eta => false
+*)
 
   fun etaSpine (I.Nil, n) = (n=0)
     | etaSpine (I.App(I.Root(I.BVar k, I.Nil), S), n) = 
@@ -122,7 +137,9 @@ struct
 	   collectSpine (S, K', Vars', depth)
        end
 
-     (* h is either const, skonst or def *)
+     | collectExp (U as I.Root(I.Def k, S), K, Vars, depth) = 
+       ((depth, DEF k)::K, Vars)
+     (* h is either const or skonst *)
      | collectExp (I.Root(h, S), K, Vars, depth) =   
          collectSpine (S, K, Vars, depth)
 
@@ -157,7 +174,9 @@ struct
 	I.Root(shiftHead(h, depth, total), shiftSpine(S, depth, total))
     | shiftExp (I.Uni(L), _, _) = I.Uni(L)
     | shiftExp (I.Lam(D, U), depth, total) = 
-	I.Lam(D, shiftExp(U, depth+1, total))
+	I.Lam(shiftDec(D, depth, total), shiftExp(U, depth+1, total))
+    | shiftExp (I.Pi((D, P), U), depth, total) =
+	I.Pi((shiftDec(D, depth, total), P), shiftExp (U, depth+1, total))
     | shiftExp (I.FgnExp(cs, ops), depth, total) = 
 	(* calling normalize here because U may not be normal *)
 	(* this is overkill and could be very expensive for deeply nested foreign exps *)
@@ -166,7 +185,8 @@ struct
   and shiftSpine (I.Nil, _, _) = I.Nil
     | shiftSpine (I.App(U, S), depth, total) = 
         I.App(shiftExp(U, depth, total), shiftSpine(S, depth, total))
-	   
+  and shiftDec (I.Dec(x, V), depth, total) =
+        I.Dec(x, shiftExp (V, depth, total))	   	   
 
   (* linearHead (Gl, h, S, left, Vars, depth, total, eqns) = (left', Vars', N, Eqn)
 
@@ -196,8 +216,6 @@ struct
 	 (left, Vars, h, false)
      | linearHead(G, (h as I.Const k), S, left, Vars, depth, total) = 
 	 (left, Vars, h, false)
-     | linearHead(G, (h as I.Def k), S, left, Vars, depth, total) = 
-	 (left, Vars, h, false)
      (*
      | linearHead(G, (h as I.NSDef k), s, S, left, Vars, depth, total) = 
 	 (left, Vars, h, false)
@@ -219,7 +237,14 @@ struct
 
      "For any U', U = U' iff (N = U' and Eqn)"
   *)
-   fun linearExp (Gl, U as I.Root(h, S), left, Vars, depth, total, eqns) = 
+   fun linearExp (Gl, U as I.Root(h as I.Def k, S), left, Vars, depth, total, eqns) = 
+       let
+	 val N = I.Root(I.BVar(left + depth), I.Nil)
+	 val U' = shiftExp(U, depth, total)  
+       in
+	 (left-1, Vars, N, C.UnifyEq(Gl, U', N, eqns))
+       end 
+     | linearExp (Gl, U as I.Root(h, S), left, Vars, depth, total, eqns) = 
        let
 	 val (left', Vars', h', replaced) =  linearHead (Gl, h, S, left, Vars, depth, total)
        in 
@@ -243,10 +268,11 @@ struct
 
      | linearExp (Gl, I.Lam(D, U), left, Vars, depth, total, eqns) = 
        let
-	 val (left', Vars', U', eqns') = linearExp (I.Decl(Gl, D), U, left, Vars, 
+	 val D' = shiftDec(D, depth, total)
+	 val (left', Vars', U', eqns') = linearExp (I.Decl(Gl, D'), U, left, Vars, 
 						    depth+1, total, eqns)
        in 
-	 (left', Vars', I.Lam(D, U'), eqns')
+	 (left', Vars', I.Lam(D', U'), eqns')
        end
    | linearExp (Gl, U as I.FgnExp (cs, ops), left, Vars, depth, total, eqns) = 
        let
@@ -267,7 +293,7 @@ struct
      (* SClo(S, s') cannot occur *)
 
      
-  (*  compileHead (G, R as I.Root (h, S)) = r
+   (*  compileLinearHead (G, R as I.Root (h, S)) = r
 
        r is residual goal
        if G |- R and R might not be linear 
@@ -278,7 +304,7 @@ struct
        and of the form 
            (Axists(_ , Axists( _, ....., Axists( _, Assign (E, AuxG)))))
   *)
-    fun compileHead (G, R as I.Root (h, S)) = 
+    fun compileLinearHead (G, R as I.Root (h, S)) = 
         let
 	  val (K, _) =  collectExp (R, nil, nil, 0)
 	  val left = List.length K
@@ -286,18 +312,49 @@ struct
 
 	  fun convertKRes (ResG, nil, 0) = ResG
 	    | convertKRes (ResG, ((d,k)::K), i) = 
-	      (C.Axists(I.ADec (SOME("A"^Int.toString i), d), convertKRes (ResG, K, i-1)))
+	      (C.Axists(I.ADec (SOME("AVar "^Int.toString i), d), convertKRes (ResG, K, i-1)))
 
 	  val r = convertKRes(C.Assign(R', Eqs), List.rev K, left)
+	in 	 
+	  (if (!Global.chatter) >= 6 then
+	     (print ("\nClause Eqn" );
+	      print (CPrint.clauseToString "\t" (G, r)))
+	   else 
+	     ());
+	  r
+	end
+  
+  (*  compileSbtHead (G, R as I.Root (h, S)) = r
+
+       r is residual goal
+       if G |- R and R might not be linear 
+        
+       then 
+                      
+           G |- H ResGoal  and H is linear 
+          
+  *)
+    fun compileSbtHead (G, H as I.Root (h, S)) = 
+        let
+	  val (K, _) =  collectExp (H, nil, nil, 0)
+	  val left = List.length K
+	  val (left', _, H', Eqs) = linearExp(I.Null, H, left, nil, 0, left, C.Trivial)
+
+	  fun convertKRes (G, nil, 0) = G
+	    | convertKRes (G, ((d,k)::K), i) = 
+(*	      (C.Axists(I.ADec (SOME("AVar "^Int.toString i), d), convertKRes (ResG, K, i-1))) *)
+(*	      (I.Decl(convertKRes (G, K, i-1), I.ADec (SOME("AVar "^Int.toString i), d))) *)
+	    convertKRes (I.Decl(G, I.ADec (SOME("AVar "^Int.toString i), d)), K, i-1)
+
+	  val G' = convertKRes(G, List.rev K, left) 
 	in 
 	  (if (!Global.chatter) >= 6 then
 	     (print ("\nClause Eqn" );
-	      print (CPrint.clauseToString "\t" (G, r));	 
-	      print "\n";
-	      print ("Clause orig \t" ^ Print.expToString(G, R) ^ "\n"))
+	      print (CPrint.clauseToString "\t" (G', C.Assign(H', Eqs))))
 	   else 
 	     ());
-	     r
+	   (* insert R' together with Eqs and G and sc C.True *)
+           (G',  SOME(H', Eqs))
 	end
 
   (* compileGoalN  fromCS A => g
@@ -316,26 +373,30 @@ struct
   *)
   fun compileGoalN fromCS (G, R as I.Root _) =
       (* A = H @ S *)
-        C.Atom (R)
+       C.Atom (R)
     | compileGoalN fromCS (G, I.Pi((I.Dec(_,A1), I.No), A2)) =
       (* A = A1 -> A2 *)
       let
 	val Ha1 = I.targetHead A1
+        val R = compileDynamicClauseN fromCS false (G, A1)
+	val goal = compileGoalN fromCS (I.Decl(G, I.Dec(NONE, A1)), A2)
       in
 	(* A1 is used to build the proof term, Ha1 for indexing *)
 	(* never optimize when compiling local assumptions *)
-	C.Impl (compileClauseN fromCS false (G, A1), A1, Ha1, 
-		compileGoalN fromCS (I.Decl(G, I.Dec(NONE, A1)), A2))
+	C.Impl(R, A1, Ha1, goal)
+		 
       end
     | compileGoalN fromCS (G, I.Pi((D as I.Dec (_, A1), I.Maybe), A2)) =
       (* A = {x:A1} A2 *)
        if not fromCS andalso isConstraint (head (A1))
        then raise Error "Constraint appears in dynamic clause position"
-       else C.All (D, compileGoalN fromCS (I.Decl(G, D), A2))
+       else C.All(D, compileGoalN fromCS (I.Decl(G, D), A2))
+
   (*  compileGoalN _ should not arise by invariants *)
+  and compileGoal fromCS (G, (A, s)) = 
+       compileGoalN fromCS (G, Whnf.normalize (A, s))
 
-
-  (* compileClauseN A => G
+  (* compileDynamicClause A => G (top level)
      if A is a type interpreted as a clause and G is its compiled form.
 
      Some optimization is attempted if so flagged.
@@ -347,29 +408,84 @@ struct
      and  G |- r  resgoal
   *)
 
-  and compileClauseN fromCS opt (G, R as I.Root (h, S)) =      
-      if opt andalso !optimize then
-	compileHead(G, R) (* C.Eq(R) *)
+   and compileDynamicClauseN fromCS opt (G, R as I.Root (h, S)) =      
+      if opt  andalso (!optimize = C.linearHeads) then
+	compileLinearHead (G, R) 
       else    
         if not fromCS andalso isConstraint (h)
         then raise Error "Constraint appears in dynamic clause position"
         else C.Eq(R)
-    | compileClauseN fromCS opt (G, I.Pi((D as (I.Dec(_,A1)),I.No), A2)) =
+    | compileDynamicClauseN fromCS opt (G, I.Pi((D as (I.Dec(_,A1)),I.No), A2)) =
       (* A = A1 -> A2 *)
-	C.And (compileClauseN fromCS opt (I.Decl(G, D), A2), A1, 
-	       compileGoalN fromCS (G, A1))
-    | compileClauseN fromCS opt (G, I.Pi((D as (I.Dec(_,A1)),I.Meta), A2)) =
-      (* A = {x: A1} A2, x  meta variable occuring in A2 *)
-	C.In (compileClauseN fromCS opt (I.Decl(G, D), A2), A1, 
-		compileGoalN fromCS (G, A1))
-    | compileClauseN fromCS opt (G, I.Pi((D,I.Maybe), A2)) =
-      (* A = {x:A1} A2 *)
-        C.Exists (D, compileClauseN fromCS opt (I.Decl(G, D), A2))
-    (*  compileClauseN _ should not arise by invariants *)
+      C.And(compileDynamicClauseN fromCS opt (I.Decl(G, D), A2), A1,
+	    compileGoalN fromCS (G, A1))
 
-  fun compileClause opt (G, A) = 
-        compileClauseN false opt (G, Whnf.normalize (A, I.id))
-  fun compileGoal (G, A) = compileGoalN false (G, Whnf.normalize (A, I.id))
+    | compileDynamicClauseN fromCS opt (G, I.Pi((D as (I.Dec(_,A1)),I.Meta), A2)) =
+      (* A = {x: A1} A2, x  meta variable occuring in A2 *)
+      C.In(compileDynamicClauseN fromCS opt (I.Decl(G, D), A2), A1, 
+	   compileGoalN fromCS (G, A1))
+
+    | compileDynamicClauseN fromCS opt (G, I.Pi((D,I.Maybe), A2)) =
+      (* A = {x:A1} A2 *)
+      C.Exists (D, compileDynamicClauseN fromCS opt (I.Decl(G, D), A2))
+  (*  compileDynamicClauseN _ should not arise by invariants *)
+
+
+  (* Compilation of (static) program clauses *)
+
+  (* compileSubgoals (n, Stack, G) = Subgoals  (top level)
+
+     Invariants:
+     If G : Stack                 
+     then Stack ~> subgoals  (Stack compiles to subgoals)
+     and  G |- subgoals
+  *)
+  fun compileSubgoals fromCS (n, I.Decl(Stack, I.No), I.Decl(G, I.Dec(_, A1))) = 
+       C.Conjunct (compileGoal fromCS (G, (A1, I.Shift(n+1))),
+		   compileSubgoals fromCS (n+1, Stack, G))
+
+    | compileSubgoals fromCS (n, I.Decl(Stack, I.Maybe), I.Decl(G, I.Dec(_, A1))) = 
+       compileSubgoals fromCS (n+1, Stack, G)
+
+    | compileSubgoals fromCS (n, I.Null, I.Null) = C.True
+
+  (* compileStaticClause (Stack, G, A) => (Head, SubGoals) (top-level)
+     if A is a type interpreted as a clause and (Head, SubGoals)
+     is its compiled form.
+
+     Invariants:
+     If G |- A : type, A enf
+        A has no existential type variables
+     then G |- A ~> (Head, subgoals) ((A compiles to head and subgoals)
+
+  *)
+
+  fun compileStaticClauseN fromCS (Stack, G, R as I.Root (h, S)) = 
+      let 
+	 val (G', Head) = compileSbtHead (G, R)
+	 val d = I.ctxLength G' - I.ctxLength G
+	 val Sgoals = compileSubgoals fromCS (d, Stack, G)
+	 (* G' |- Sgoals[^d]  and G |- Sgoals and G' |- ^d : G *)
+       in 
+	 ((G', Head), Sgoals)
+       end 
+
+    | compileStaticClauseN fromCS (Stack, G, I.Pi((D as (I.Dec(_,A1)),I.No), A2)) =
+      compileStaticClauseN fromCS (I.Decl(Stack, I.No), I.Decl(G, D), A2)
+
+    | compileStaticClauseN fromCS (Stack, G, I.Pi((D as (I.Dec(_,A1)),I.Meta), A2)) =  
+      compileStaticClauseN fromCS (I.Decl(Stack, I.Meta), I.Decl(G, D), A2)
+
+    | compileStaticClauseN fromCS (Stack, G, I.Pi((D as (I.Dec(_,A1)),I.Maybe), A2)) = 
+      compileStaticClauseN fromCS (I.Decl(Stack, I.Maybe), I.Decl(G, D), A2)
+
+
+  fun compileDynamicClause opt (G, A) = 
+        compileDynamicClauseN false opt (G, Whnf.normalize (A, I.id))
+
+  fun compileGoal (G, A) = 
+    compileGoalN false (G, Whnf.normalize (A, I.id))
+
 
   (* compileCtx G = (G, dPool)
 
@@ -385,31 +501,10 @@ struct
 	    let 
 	      val Ha = I.targetHead A
 	    in
-	      I.Decl (compileCtx' (G), SOME (compileClause opt (G, A), I.id, Ha))
+	      I.Decl (compileCtx' (G), SOME (compileDynamicClause opt (G, A), I.id, Ha))
 	    end
       in
 	C.DProg (G, compileCtx' (G))
-      end
-
-  (* compileCtx' G = (G, dPool)
-
-     Invariants:
-     If |- G ctx,
-     then |- G ~> dPool  (context G compile to clause pool dPool)
-     and  |- dPool  dpool
-  *)
-  fun compileCtx' opt (G, B) =
-      let 
-	fun compileCtx'' (I.Null, I.Null) = I.Null
-	  | compileCtx'' (I.Decl (G, D as I.Dec (_, A)),
-			 I.Decl (B, T)) =
-	    let 
-	      val Ha = I.targetHead A
-	    in
-	      I.Decl (compileCtx'' (G, B), SOME (compileClause opt (G, A), I.id, Ha))
-	    end
-      in
-	C.DProg (G, compileCtx'' (G, B))
       end
 
   (* compileConDec (a, condec) = ()
@@ -417,14 +512,56 @@ struct
              No effect if condec has no operational meaning
   *)
   (* Defined constants are currently not compiled *)
+  (* Mon Apr  8 22:43:32 2002 -bp *)
+  (* where is the cid corresponding to clause name ? *)
+    (* is A really normalized? *)
   fun compileConDec fromCS (a, I.ConDec(_, _, _, _, A, I.Type)) =
-        C.sProgInstall (a, C.SClause (compileClauseN fromCS true (I.Null, A)))
+      (case (!C.optimize) 
+	 of C.no => C.sProgInstall (a, C.SClause (compileDynamicClause false (I.Null, A)))
+       | C.linearHeads => C.sProgInstall (a, C.SClause(compileDynamicClause true (I.Null, A)))
+       | C.indexing => 
+	   let
+	     val ((G, Head), R) = compileStaticClauseN fromCS (I.Null, I.Null, Whnf.normalize (A, I.id)) 
+(*	     val _ = case Head 
+	       of SOME(H, AuxG) => print ("Head " ^  Print.expToString (G, H) ^ "\n")
+		 | _ => () *)
+	   in 
+	     case Head 
+	       of NONE => raise Error "Install via normal index"
+	     | SOME (H, Eqs) => SubTree.sProgInstall (cidFromHead(I.targetHead A), 
+						      C.Head(H, G, Eqs, a), R)	   
+	   end)
+
     | compileConDec fromCS (a, I.SkoDec(_, _, _, A, I.Type)) =
-        C.sProgInstall (a, C.SClause (compileClauseN fromCS true (I.Null, A)))
+      (case (!C.optimize) 
+	 of C.no => C.sProgInstall (a, C.SClause (compileDynamicClauseN fromCS true (I.Null, Whnf.normalize (A, I.id))))
+       | C.linearHeads => C.sProgInstall (a, C.SClause (compileDynamicClauseN fromCS true (I.Null, Whnf.normalize (A, I.id))))
+       | C.indexing => 
+	   let
+	     val ((G, Head), R) = compileStaticClauseN fromCS (I.Null, I.Null, Whnf.normalize (A, I.id)) 
+	   in 
+	     case Head 
+	       of NONE => raise Error "Install via normal index"
+	     | SOME (H, Eqs) => SubTree.sProgInstall (cidFromHead(I.targetHead A), 
+						      C.Head(H, G, Eqs, a), R)
+	   end)
+
     | compileConDec _ _ = ()
 
   fun install fromCS (cid) = compileConDec fromCS (cid, I.sgnLookup cid)
+    (* ? Thu May 30 11:26:14 2002 -bp 
+     let
+      val cd = I.sgnLookup cid 
+    in
+      case cd
+	of I.ConDec (_, _, _, _, A, I.Type) => compileConDec fromCS (cidFromHead(I.targetHead A), cd, cid)
+	  | _ => ()
+    end
+   *) 
+
+  val sProgReset = SubTree.sProgReset
 
   end  (* local open ... *)
+
 end; (* functor Compile *)
 

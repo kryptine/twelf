@@ -15,6 +15,13 @@ struct
 
   structure IntSyn = IntSyn'
 
+  datatype opt = no | linearHeads | indexing
+
+
+  (* default *) 
+(*  val optimize = ref linearHeads  *)
+  val optimize = ref indexing 
+
   datatype Goal =                       (* Goals                      *)
     Atom of IntSyn.Exp                  (* g ::= p                    *)
   | Impl of ResGoal * IntSyn.Exp        (*     | (r,A,a) => g         *)
@@ -42,6 +49,21 @@ struct
   | UnifyEq of IntSyn.dctx * IntSyn.Exp   (* call unify *)
              * IntSyn.Exp * AuxGoal
 
+
+  (* Static programs -- compiled version for substitution trees *)
+  datatype Conjunction = True | Conjunct of Goal * Conjunction 
+
+  datatype CompHead = 
+     Head of (IntSyn.Exp * IntSyn.Dec IntSyn.Ctx * AuxGoal * IntSyn.cid)
+
+
+  (* proof skeletons instead of proof term *)
+  datatype Flatterm = 
+    Pc of IntSyn.cid | Dc of IntSyn.cid | Csolver
+
+  type pskeleton = Flatterm list  
+
+
   (* Representation invariants for compiled syntax:
      Judgments:
        G |- g goal   g is a valid goal in G
@@ -49,6 +71,7 @@ struct
 
        G |- A ~> g   A compiles to goal g
        G |- A ~> r   A compiles to residual goal r
+       G |- A ~> <head , subgoals>   
 
      G |- p  goal
      if  G |- p : type, p = H @ S	(* mod whnf *)
@@ -62,6 +85,8 @@ struct
      G |- all x:A. g  goal
      if G |- A : type
         G, x:A |- g  goal
+
+     For dynamic clauses: 
 
      G |- q  resgoal
      if G |- q : type, q = H @ S	(* mod whnf *)
@@ -79,6 +104,14 @@ struct
      G |- exists' x:A. r  resgoal     but exists' doesn't effect the proof-term
      if  G |- A : type
          G, x:A |- r  resgoal
+
+     For static clauses: 
+     G |- true subgoals
+
+     if G |- sg && g subgoals
+     if G |- g goal 
+        G |- sg subgoals 
+
   *)
 
   (* The dynamic clause pool --- compiled version of the context *)
@@ -90,6 +123,7 @@ struct
   datatype ConDec =			(* Compiled constant declaration *)
     SClause of ResGoal	                (* c : A                      *)
   | Void 		                (* Other declarations are ignored  *)
+
 
   local
     val maxCid = Global.maxCid
@@ -137,5 +171,14 @@ struct
         In (resGoalSub (r, IntSyn.dot1 s), IntSyn.EClo(A,s), goalSub (g, s))
     | resGoalSub (Exists(D, r), s) =
         Exists (IntSyn.decSub(D, s), resGoalSub (r, IntSyn.dot1 s))
+
+  fun pskeletonToString [] = " " 
+    | pskeletonToString ((Pc i)::O) = 
+        Names.qidToString (Names.constQid i) ^ " " ^ (pskeletonToString O)
+    | pskeletonToString ((Dc i)::O) = 
+        ("(Dc " ^ (Int.toString i) ^ ") ") ^ (pskeletonToString O)
+    | pskeletonToString (Csolver::O) = 
+        ("cs " ^ (pskeletonToString O))
+
 
 end;  (* functor CompSyn *)

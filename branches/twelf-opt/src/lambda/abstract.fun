@@ -28,7 +28,6 @@ struct
     | FV of string * I.Exp		(*     | (F, V)        if . |- F : V *)
     | LV of I.Block                     (*     | L             if . |- L in W *) 
 
-
     (*
        We write {{K}} for the context of K, where EVars, FVars, LVars have
        been translated to declarations and their occurrences to BVars.
@@ -45,7 +44,6 @@ struct
        Collection and abstraction raise Error if there are unresolved
        constraints after simplification.
     *)
-
 
     (* collectConstraints K = cnstrs
        where cnstrs collects all constraints attached to EVars in K
@@ -516,6 +514,7 @@ struct
 	  G'::Gs'
 	end
 
+    (* dead code under new reconstruction -kw
     (* getlevel (V) = L if G |- V : L
 
        Invariant: G |- V : L' for some L'
@@ -531,12 +530,11 @@ struct
 
        Invariant: G |- V : L' for some L'
     *)
-    (* this may no longer be possible because of two-phase reconstruction *)
-    (* Sun Apr  1 10:39:49 2001 -fp *)
     fun checkType V = 
         (case getLevel V
 	   of I.Type => ()
 	    | _ => raise Error "Typing ambiguous -- free type variable")
+    *)
 
     (* abstractKPi (K, V) = V'
        where V' = {{K}} V
@@ -554,14 +552,16 @@ struct
         let
           val V' = raiseType (GX, VX) 
 	  val V'' = abstractExp (K', 0, (V', I.id))
-	  val _ = checkType V''	
+          (* enforced by reconstruction -kw
+	  val _ = checkType V''	*)
 	in
 	  abstractKPi (K', I.Pi ((I.Dec(NONE, V''), I.Maybe), V))
 	end
       | abstractKPi (I.Decl (K', FV (name,V')), V) =
 	let
 	  val V'' = abstractExp (K', 0, (V', I.id))
-	  val _ = checkType V''
+          (* enforced by reconstruction -kw
+	  val _ = checkType V'' *)
 	in
 	  abstractKPi (K', I.Pi ((I.Dec(SOME(name), V''), I.Maybe), V))
 	end
@@ -599,12 +599,16 @@ struct
         let
 	  val V' = raiseType (GX, VX)
 	  val V'' = abstractExp (K', 0, (V', I.id))
+          (* enforced by reconstruction -kw
+	  val _ = checkType V''	*)
 	in
 	  I.Decl (abstractKCtx K', I.Dec (NONE, V''))
 	end
       | abstractKCtx (I.Decl (K', FV (name, V'))) =
 	let
 	  val V'' = abstractExp (K', 0, (V', I.id))
+          (* enforced by reconstruction -kw
+	  val _ = checkType V'' *)
 	in
 	  I.Decl (abstractKCtx K', I.Dec (SOME(name), V''))
 	end

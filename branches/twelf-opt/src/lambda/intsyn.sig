@@ -9,15 +9,6 @@ sig
   type mid = int                        (* Structure identifier       *)
   type csid = int                       (* CS module identifier       *)
 
-
- (* pskeleton instead of proof term *)
-  datatype flatterm = 
-    pc of int | dc of int | csolver
-
-  type pskeleton = flatterm list  
-
-  val pskeletonToString: pskeleton -> string
-
   (* Contexts *)
 
   datatype 'a Ctx =			(* Contexts                   *)
@@ -49,6 +40,7 @@ sig
                                         (*     | X<I> : G|-V, Cnstr   *)
   | EClo  of Exp * Sub			(*     | U[s]                 *)
   | AVar  of Exp option ref             (*     | A<I>                 *)
+  | NVar  of int			(*     | n (linear, (implicitely) fully applied variable -bp *)
 
   | FgnExp of csid *                    (*     | (foreign expression) *)
       {
@@ -82,6 +74,7 @@ sig
   and Front =				(* Fronts:                    *)
     Idx of int				(* Ft ::= k                   *)
   | Exp of Exp				(*     | U                    *)
+  | Axp of Exp				(*     | U                    *)
   | Block of Block			(*     | _x                   *)
   | Undef				(*     | _                    *)
 
@@ -158,7 +151,8 @@ sig
   val conDecImp    : ConDec -> int
   val conDecStatus : ConDec -> Status
   val conDecType   : ConDec -> Exp
-  val conDecBlock  : ConDec -> dctx * Dec list   
+  val conDecBlock  : ConDec -> dctx * Dec list
+  val conDecUni    : ConDec -> Uni
 
   val strDecName   : StrDec -> string
   val strDecParent : StrDec -> mid option

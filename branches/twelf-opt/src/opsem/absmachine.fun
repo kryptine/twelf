@@ -35,8 +35,6 @@ struct
     structure I = IntSyn
     structure C = CompSyn
 
-
-
   (* We write
        G |- M : g
      if M is a canonical proof term for goal g which could be found
@@ -53,8 +51,6 @@ struct
      return to indicate backtracking.
   *)
 
-  (* for deterministic execution *)
-  datatype Result = Succeed | Fail
 
   fun cidFromHead (I.Const a) = a
     | cidFromHead (I.Def a) = a
@@ -70,36 +66,37 @@ struct
 
   fun shift (IntSyn.Null, s) = s
     | shift (IntSyn.Decl(G, D), s) = I.dot1 (shift(G, s))
-
                               
-  (* solve' ((g, s), dp, sc) = res
+  (* solve' ((g, s), dp, sc, bt) = ()
      Invariants:
        dp = (G, dPool) where  G ~ dPool  (context G matches dPool)
        G |- s : G'
        G' |- g  goal
        if  G |- M : g[s]
-       then  sc M  is evaluated with return value res
-       else res = Fail
+       then  sc M  is evaluated
+     Note: backtracking is allowed iff bt () = true
      Effects: instantiation of EVars in g, s, and dp
               any effect  sc M  might have
   *)
-  fun solve' ((C.Atom(p), s), dp, sc) = matchAtom ((p,s), dp, sc)
-    | solve' ((C.Impl(r, A, Ha, g), s), C.DProg (G, dPool), sc) =
+  fun solve' ((C.Atom(p), s), dp as C.DProg (G, dPool), sc, bt) = 
+      matchAtom ((p,s), dp, sc, bt)
+
+    | solve' ((C.Impl(r, A, Ha, g), s), C.DProg (G, dPool), sc, bt) =
       let
 	val D' = I.Dec(NONE, I.EClo(A,s))
       in
 	solve' ((g, I.dot1 s), C.DProg (I.Decl(G, D'), I.Decl (dPool, SOME(r, s, Ha))),
-	        (fn M => sc (I.Lam (D', M))))
+	        (fn M => sc (I.Lam (D', M))), bt)
       end
-    | solve' ((C.All(D, g), s), C.DProg (G, dPool), sc) =
+    | solve' ((C.All(D, g), s), C.DProg (G, dPool), sc, bt) =
       let
 	val D' = I.decSub (D, s)
       in
 	solve' ((g, I.dot1 s), C.DProg (I.Decl(G, D'), I.Decl(dPool, NONE)),
-	        (fn M => sc (I.Lam (D', M))))
+	        (fn M => sc (I.Lam (D', M))), bt)
       end
 
-  (* rSolve ((p,s'), (r,s), dp, sc) = res
+  (* rSolve ((p,s'), (r,s), dp, sc, bt) = ()
      Invariants:
        dp = (G, dPool) where G ~ dPool
        G |- s : G'
@@ -107,107 +104,109 @@ struct
        G |- s' : G''
        G'' |- p : H @ S' (mod whnf)
        if G |- S : r[s]
-       then sc S is evaluated with return value res
-       else res = Fail
+       then sc S is evaluated
+     Note: backtracking is allowed iff bt () = true
      Effects: instantiation of EVars in p[s'], r[s], and dp
               any effect  sc S  might have
   *)
-  and rSolve (ps', (C.Eq(Q), s), C.DProg (G, dPool), sc) =     
+  and rSolve (ps', (C.Eq(Q), s), C.DProg (G, dPool), sc, bt) =     
       (if Unify.unifiable (G, ps', (Q, s)) (* effect: instantiate EVars *)
 	 then sc I.Nil			(* call success continuation *)
-       else Fail)			(* fail *)
+       else ())				(* fail *)
 
-    | rSolve (ps', (C.Assign(Q, eqns), s), dp as C.DProg(G, dPool), sc) = 
+    | rSolve (ps', (C.Assign(Q, eqns), s), dp as C.DProg(G, dPool), sc, bt) = 
 	(case Assign.assignable (G, ps', (Q, s))
-	   of SOME(cnstr) => aSolve((eqns, s), dp, cnstr, (fn () => sc I.Nil))
-	    | NONE => Fail)
+	   of SOME(cnstr) =>
+                aSolve((eqns, s), dp, cnstr, (fn () => sc I.Nil), bt)
+	    | NONE => ())
 
-    | rSolve (ps', (C.And(r, A, g), s), dp as C.DProg (G, dPool), sc) =
+    | rSolve (ps', (C.And(r, A, g), s), dp as C.DProg (G, dPool), sc, bt) =
+(*        rSolve (ps', (r, I.comp(I.invShift, s)), dp,
+		(fn S => solve' ((g, s), dp, (fn M => sc (I.App (M, S))), bt)), bt) 
+*)
       let
 	(* is this EVar redundant? -fp *)
 	val X = I.newEVar (G, I.EClo(A, s))
       in
         rSolve (ps', (r, I.Dot(I.Exp(X), s)), dp,
-		(fn S => solve' ((g, s), dp,
-				 (fn M => sc (I.App (M, S))))))
+		(fn S => solve' ((g, s), dp, (fn M => sc (I.App (M, S))), bt)), bt)
       end
-    | rSolve (ps', (C.Exists(I.Dec(_,A), r), s), dp as C.DProg (G, dPool), sc) =
+
+    | rSolve (ps', (C.Exists(I.Dec(_,A), r), s), dp as C.DProg (G, dPool), sc, bt) =
       let
 	val X = I.newEVar (G, I.EClo (A,s))
       in
-	rSolve (ps', (r, I.Dot(I.Exp(X), s)), dp,
-		(fn S => sc (I.App(X,S))))
+	rSolve (ps', (r, I.Dot(I.Exp(X), s)), dp, (fn S => sc (I.App(X,S))), bt)
       end
-    | rSolve (ps', (C.Axists(I.ADec(_, d), r), s), dp as C.DProg (G, dPool), sc) =
+    | rSolve (ps', (C.Axists(I.ADec(_, d), r), s), dp as C.DProg (G, dPool), sc, bt) =
       let
 	val X' = I.newAVar ()
       in
-	rSolve (ps', (r, I.Dot(I.Exp(I.EClo(X', I.Shift(~d))), s)), dp, sc)
+	rSolve (ps', (r, I.Dot(I.Exp(I.EClo(X', I.Shift(~d))), s)), dp, sc, bt)
    	(* we don't increase the proof term here! *)
       end
-     
 
-  (* aSolve ((ag, s), dp, sc) = res
+  (* aSolve ((ag, s), dp, sc, bt) = ()
      Invariants:
        dp = (G, dPool) where G ~ dPool
        G |- s : G'
        if G |- ag[s] auxgoal
-       then sc () is evaluated with return value res
-       else res = Fail
+       then sc () is evaluated
+     Note: backtracking is allowed iff bt () = true
      Effects: instantiation of EVars in ag[s], dp and sc () *)
 
-  and aSolve ((C.Trivial, s), dp, cnstr, sc) = 
-      (if Assign.solveCnstr cnstr
-	 then sc ()
-       else Fail)
-    | aSolve ((C.UnifyEq(G',e1, N, eqns), s), dp as C.DProg(G, dPool), cnstr, sc) =
+  and aSolve ((C.Trivial, s), dp, cnstr, sc, bt) = 
+      (if Assign.solveCnstr cnstr then sc () else ())
+    | aSolve ((C.UnifyEq(G',e1, N, eqns), s), dp as C.DProg(G, dPool), cnstr, sc, bt) =
       let
 	val G'' = compose' (G', G)
 	val s' = shift (G', s)
       in 
 	if Assign.unifiable (G'', (N, s'), (e1, s'))
-	  then aSolve ((eqns, s), dp, cnstr, sc)
-	else Fail
+	then aSolve ((eqns, s), dp, cnstr, sc, bt)
+	else ()
      end
-    
 
-  (* matchatom ((p, s), dp, sc) => res
+  (* matchatom ((p, s), dp, sc, bt) => ()
      Invariants:
        dp = (G, dPool) where G ~ dPool
        G |- s : G'
        G' |- p : type, p = H @ S mod whnf
        if G |- M :: p[s]
-       then sc M is evaluated with return value res
-       else res = Fail
+       then sc M is evaluated
+     Note: backtracking is allowed iff bt () = true
      Effects: instantiation of EVars in p[s] and dp
               any effect  sc M  might have
 
      This first tries the local assumptions in dp then
      the static signature.
   *)
-  and matchAtom (ps' as (I.Root(Ha,S),s), dp as C.DProg (G,dPool), sc) =
+  and matchAtom (ps' as (I.Root(Ha,S),s), dp as C.DProg (G,dPool), sc, bt) =
       let
         val deterministic = C.detTableCheck (cidFromHead Ha)
-        val resRef : Result ref = ref Fail 
         (* matchSig [c1,...,cn] = ()
 	   try each constant ci in turn for solving atomic goal ps', starting
            with c1.
         *)
-	fun matchSig nil = !resRef	(* return on failure *)
+	fun matchSig nil = ()	(* return unit on failure *)
 	  | matchSig (Hc::sgn') =
 	    let
 	      val C.SClause(r) = C.sProgLookup (cidFromHead Hc)
-	      val res =
+              val btRef = ref true : bool ref
+              val bt' = if deterministic
+                        then (fn () => !btRef andalso bt ())
+                        else bt
+	      val _ =
 	        (* trail to undo EVar instantiations *)
 	        CSManager.trail
                   (fn () =>
                      rSolve (ps', (r, I.id), dp,
-                             (fn S => (sc (I.Root(Hc, S)); Succeed))))
+                             (fn S => (btRef := (not deterministic);
+                                       sc (I.Root(Hc, S)))), bt'))
             in
-              (if (res = Succeed) then resRef := res else ());
-              if(res = Fail orelse not deterministic)
+	      if(bt' ())
               then matchSig sgn'
-              else res
+              else ()
 	    end
 
         (* matchDProg (dPool, k) = ()
@@ -222,15 +221,19 @@ struct
 	    if eqHead (Ha, Ha')
 	    then
               let
-                val res =
+                val btRef = ref true : bool ref
+                val bt' = if deterministic
+                          then (fn () => !btRef andalso bt ())
+                          else bt
+	        val _ =
                   CSManager.trail (* trail to undo EVar instantiations *)
                     (fn () => rSolve (ps', (r, I.comp(s, I.Shift(k))), dp,
-                                      (fn S => (sc (I.Root(I.BVar(k), S)); Succeed))))
+                                      (fn S => (btRef := (not deterministic);
+                                                sc (I.Root(I.BVar(k), S)))), bt'))
               in
-                (if(res = Succeed) then resRef := res else ());
-                if(res = Fail orelse not deterministic)
+                if(bt' ())
                 then matchDProg (dPool', k+1)
-                else res
+                else ()
               end
 	    else matchDProg (dPool', k+1)
 	  | matchDProg (I.Decl (dPool', NONE), k) =
@@ -245,12 +248,11 @@ struct
                           | NONE => NONE)
               in
                 case resOpt
-                  of SOME(res) =>
-                       ((if(res = Succeed) then resRef := res else ());
-                        if(res = Fail orelse not deterministic)
+                  of SOME _ =>
+                       (if (not deterministic andalso bt ())
                         then matchConstraint (solve, try+1)
-                        else res)
-                   | NONE => Fail
+                        else ())
+                   | NONE => ()
               end
       in
         case I.constStatus(cidFromHead Ha)
@@ -258,7 +260,7 @@ struct
            | _ => matchDProg (dPool, 1)
       end
   in
-    fun solve (gs, dp, sc) = (solve'(gs, dp, (fn (U) => (sc (U); Succeed))); ())
+    fun solve (gs, dp, sc) = solve'(gs, dp, (fn (U) => sc (U)), (fn () => true))
   end (* local ... *)
 
 end; (* functor AbsMachine *)

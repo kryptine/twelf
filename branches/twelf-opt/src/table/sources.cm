@@ -11,6 +11,8 @@ Group is
   sparse-array.sig
   sparse-array.fun
   sparse-array2.sig
-  sparse-array2.fun  
+  sparse-array2.fun 
+  red-black-set.sig
+  red-black-set.sml
   table.sml
 
