@@ -660,19 +660,32 @@ struct
 	  (* . |- t : Gsome *)
 	  (* Thu Dec  6 20:20:13 2001 -fp *)
 	  val lvar = I.newLVar (cid, t)
+	  val t' = I.comp (t, I.Shift (I.ctxLength (G)))
+	  (* G |- t' : Gsome *)
 	in
-	  blockCases' (G, Vs, (lvar, 1), (t, piDecs), sc)
+	  blockCases' (G, Vs, (lvar, 1), (t', piDecs), sc)
 	end
     and blockCases' (G, Vs, (lvar, i), (t, nil), sc) = ()
       | blockCases' (G, Vs, (lvar, i), (t, I.Dec (_, V')::piDecs), sc) =
         let
+	  (* . |- t : G' and G' |- V' : type *)
+          (* so  . |- V'[t] : type *)
+          (* and G |- V[s] : type *)
+	  (* Precompute and pass t' instead of t?? *)
+	  (* Sat Dec  8 11:24:58 2001 -fp !!!??? *)
+	  (* val t' = I.comp (t, I.Shift (I.ctxLength (G))) *)
+	  (* now done in blockCases *)
+          (* G |- t' : G' and G |- ^|G| : . *)
+          (* so G |- V'[t'] : type *)
 	  val (U, Vs') = createAtomProj (G, I.Proj (lvar, i), (V', t))
 	  (* debugging Fri Dec  7 20:36:12 2001 -fp !!!??? *)
+	  (*
 	  val G' = Names.ctxName G
 	  val _ = print ("G' = " ^ Print.ctxToString (I.Null, G') ^ " |-\n"
 			 ^ "U = " ^ Print.expToString (G', U) ^ ";\n"
 			 ^ "V'= " ^ Print.expToString (G', I.EClo Vs') ^ ";;\n"
 			 ^ "V = " ^ Print.expToString (G', I.EClo Vs) ^ ".\n")
+          *)
 	  val _ = CSManager.trail (fn () => if Unify.unifiable (G, Vs, Vs')
 					      then sc U
 					    else ())
@@ -722,9 +735,13 @@ struct
      *)
     fun abstract (V, s) = 
         let
+	  (*
 	  val _ = print ("%- " ^ Print.expToString (I.Null, I.EClo (V, s)) ^ "\n")
+	  *)
 	  val (i, V') = Abstract.abstractDecImp (I.EClo (V, s))
+	  (*
 	  val _ = print ("!- " ^ Print.expToString (I.Null, V') ^ "\n")
+	  *)
 	  val _ = if !Global.doubleCheck
 		    then TypeCheck.typeCheck (I.Null, (V', I.Uni(I.Type)))
 		  else ()
