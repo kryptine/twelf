@@ -59,8 +59,8 @@ struct
     *)
 
     fun normalizePrg (P as (T.Root (T.Const _,_)), t) = P
-      | normalizePrg ((P as (T.Root (T.Var n, _))), t) = 
-           normalizePrg (P, T.Dot (T.varSub (n, t), T.id))
+(*      | normalizePrg ((P as (T.Root (T.Var n, S))), t) = 
+           T.Root (T.varSub (n, t), normalizeSpine (S, t)) *)
       | normalizePrg (T.Lam (D, P'), t) = T.Lam (D, normalizePrg (P', T.dot1 t))
       | normalizePrg (T.PairExp (U, P'), t) = 
 	  T.PairExp (I.EClo (Whnf.whnf ((U, T.coerceSub t) : I.eclo)), normalizePrg (P', t))
@@ -73,7 +73,7 @@ struct
 	  T.Redex (normalizePrg (P, t), normalizeSpine S)  
 	  (* Clearly, the redex should be removed here *)
       | normalizePrg (T.Rec (D, P), t) = T.Rec (D, normalizePrg (P, t))
-      | normalizePrg (P as T.Case _, t) = P
+(*      | normalizePrg (P as T.Case _, t) = P *)
       | normalizePrg (P as T.EVar (Psi, ref (SOME P'), _), t) = normalizePrg (P', t)
 	 
     and normalizeSpine T.Nil = T.Nil
