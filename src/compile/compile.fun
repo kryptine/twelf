@@ -26,12 +26,14 @@ functor Compile ((*! structure IntSyn' : INTSYN !*)
   : COMPILE =
 struct
 
+  (*! structure IntSyn = IntSyn' !*)
+  (*! structure CompSyn = CompSyn' !*)
+
   (* FIX: need to associate errors with occurrences -kw *)
   exception Error of string
 
   local
     structure I = IntSyn
-    structure T = Tomega
     structure C = CompSyn
   in
 
@@ -132,7 +134,7 @@ struct
      | collectExp (I.Lam(D, U), K, Vars, depth) = 
 	 (* don't collect D, since it is ignored in unification *)
 	 collectExp (U, K, Vars, depth+1)
-     | collectExp (I.FgnExp (cs, fe), K, Vars, depth) = 
+     | collectExp (I.FgnExp (cs, ops), K, Vars, depth) = 
 	 ((depth, FGN)::K, Vars)
      (* no EVars, since U in NF *)
 
@@ -163,11 +165,11 @@ struct
 	I.Lam(shiftDec(D, depth, total), shiftExp(U, depth+1, total))
     | shiftExp (I.Pi((D, P), U), depth, total) =
 	I.Pi((shiftDec(D, depth, total), P), shiftExp (U, depth+1, total))
-    | shiftExp (I.FgnExp csfe, depth, total) = 
+    | shiftExp (I.FgnExp(cs, ops), depth, total) = 
 	(* calling normalize here because U may not be normal *)
 	(* this is overkill and could be very expensive for deeply nested foreign exps *)
 	(* Tue Apr  2 12:10:24 2002 -fp -bp *)
-	I.FgnExpStd.Map.apply csfe (fn U => shiftExp(Whnf.normalize (U, I.id), depth, total))
+	#map(ops) (fn U => shiftExp(Whnf.normalize (U, I.id), depth, total)) 
   and shiftSpine (I.Nil, _, _) = I.Nil
     | shiftSpine (I.App(U, S), depth, total) = 
         I.App(shiftExp(U, depth, total), shiftSpine(S, depth, total))
@@ -387,97 +389,19 @@ struct
      then |- G ~> dPool  (context G compile to clause pool dPool)
      and  |- dPool  dpool
   *)
-  fun compileCtx opt G =
-      let
-        fun compileBlock (nil, s, (n, i)) = nil
-	  | compileBlock (I.Dec (_, V) :: Vs, t, (n, i)) =  
-	    let 
-	      val Vt = I.EClo (V, t)
-	    in
-	      (compileClause opt (G, Vt), I.id, I.targetHead Vt)
-	      :: compileBlock (Vs, I.Dot (I.Exp (I.Root (I.Proj (I.Bidx n, i), I.Nil)), t), (n, i+1))
-	    end
+  fun compileCtx opt (G) =
+      let 
 	fun compileCtx' (I.Null) = I.Null
-	  | compileCtx' (I.Decl (G, I.Dec (_, A))) =
+	  | compileCtx' (I.Decl (G, D as I.Dec (_, A))) =
 	    let 
 	      val Ha = I.targetHead A
 	    in
-	      I.Decl (compileCtx' G, CompSyn.Dec (compileClause opt (G, A), I.id, Ha))
+	      I.Decl (compileCtx' (G), SOME (compileClause opt (G, A), I.id, Ha))
 	    end
-	  | compileCtx' (I.Decl (G, I.BDec (_, (c, s)))) =
-	    let
-	      val (G, L)= I.constBlock c
-	      val dpool = compileCtx' G
-	      val n = I.ctxLength dpool   (* this is inefficient! -cs *)
-	    in
-	      I.Decl (dpool, CompSyn.BDec (compileBlock (L, s, (n, 1))))
-	    end
-    
-	    
       in
-	C.DProg (G, compileCtx' G)
+	C.DProg (G, compileCtx' (G))
       end
 
-  (* compile G = (G, dPool)
-
-     Invariants:
-     If |- G ctx,
-     then |- G ~> dPool  (context G compile to clause pool dPool)
-     and  |- dPool  dpool
-  *)
-  fun compilePsi opt Psi =
-      let
-        fun compileBlock (nil, s, (n, i)) = nil
-	  | compileBlock (I.Dec (_, V) :: Vs, t, (n, i)) =  
-	    let 
-	      val Vt = I.EClo (V, t)
-	    in
-	      (compileClause opt (T.coerceCtx Psi, Vt), I.id, I.targetHead Vt)
-	      :: compileBlock (Vs, I.Dot (I.Exp (I.Root (I.Proj (I.Bidx n, i), I.Nil)), t), (n, i+1))
-	    end
-	fun compileCtx' (I.Null) = I.Null
-	  | compileCtx' (I.Decl (G, I.Dec (_, A))) =
-	    let 
-	      val Ha = I.targetHead A
-	    in
-	      I.Decl (compileCtx' G, CompSyn.Dec (compileClause opt (G, A), I.id, Ha))
-	    end
-	  | compileCtx' (I.Decl (G, I.BDec (_, (c, s)))) =
-	    let
-	      val (G, L)= I.constBlock c
-	      val dpool = compileCtx' G
-	      val n = I.ctxLength dpool   (* this is inefficient! -cs *)
-	    in
-	      I.Decl (dpool, CompSyn.BDec (compileBlock (L, s, (n, 1))))
-	    end
-    	fun compilePsi' (I.Null) = I.Null
-	  | compilePsi' (I.Decl (Psi, T.UDec (I.Dec (_, A)))) =
-	    let 
-	      val Ha = I.targetHead A
-	    in
-	      I.Decl (compilePsi' Psi, CompSyn.Dec (compileClause opt (T.coerceCtx Psi, A), I.id, Ha))
-	    end
-	  | compilePsi' (I.Decl (Psi, T.UDec (I.BDec (_, (c, s))))) =
-	    let
-	      val (G, L)= I.constBlock c
-	      val dpool = compileCtx' G
-	      val n = I.ctxLength dpool   (* this is inefficient! -cs *)
-	    in
-	      I.Decl (dpool, CompSyn.BDec (compileBlock (L, s, (n, 1))))
-	    end
-	  | compilePsi' (I.Decl (Psi, T.PDec _)) =
-	    I.Decl (compilePsi' Psi, CompSyn.PDec)
-	      
-    
-	    
-      in
-	C.DProg (T.coerceCtx Psi, compilePsi' Psi)
-      end
-
-
-
-
-(* dead code? -- cs 
   (* compileCtx' G = (G, dPool)
 
      Invariants:
@@ -493,13 +417,12 @@ struct
 	    let 
 	      val Ha = I.targetHead A
 	    in
-	      I.Decl (compileCtx'' (G, B), C.Dec (compileClause opt (G, A), I.id, Ha))
+	      I.Decl (compileCtx'' (G, B), SOME (compileClause opt (G, A), I.id, Ha))
 	    end
       in
 	C.DProg (G, compileCtx'' (G, B))
       end
 
-*)
   (* compileConDec (a, condec) = ()
      Effect: install compiled form of condec in program table.
              No effect if condec has no operational meaning
@@ -509,7 +432,7 @@ struct
         C.sProgInstall (a, C.SClause (compileClauseN fromCS true (I.Null, A)))
     | compileConDec fromCS (a, I.SkoDec(_, _, _, A, I.Type)) =
         C.sProgInstall (a, C.SClause (compileClauseN fromCS true (I.Null, A)))
-    | compileConDec I.Clause (a, I.ConDef(_, _, _, _, A, I.Type, _)) =
+    | compileConDec I.Clause (a, I.ConDef(_, _, _, _, A, I.Type)) =
 	C.sProgInstall (a, C.SClause (compileClauseN I.Clause true (I.Null, A)))
     | compileConDec _ _ = ()
 

@@ -5,7 +5,6 @@
 functor Thm (structure Global : GLOBAL
 	     structure ThmSyn': THMSYN
              structure TabledSyn : TABLEDSYN
-             structure ModeTable : MODETABLE
       	     structure Order : ORDER
 	     (*! sharing Order.IntSyn = ThmSyn'.ModeSyn.IntSyn !*)
 	     structure ThmPrint : THMPRINT
@@ -25,7 +24,7 @@ struct
 
   local
     structure L = ThmSyn
-    structure M = ModeSyn  (* L.ModeSyn *)
+    structure M = L.ModeSyn
     structure I = IntSyn
     structure P = ThmPrint
     structure O = Order
@@ -128,7 +127,7 @@ struct
 	    | skip (k, x, P, M.Mapp (_, mS)) = skip (k-1, x, P, mS)
 
 	  fun delete (x, (aP as (a, P)) :: C) = 
-	      if skip (I.constImp a, x, P, valOf (ModeTable.modeLookup a)) (* exists by invariant *)
+	      if skip (I.constImp a, x, P, valOf (M.modeLookup a)) (* exists by invariant *)
 		then C
 	      else aP :: delete (x, C)
 	    | delete (x, nil) = error (r, "Variable " ^ x ^ " does not occur as argument")
@@ -164,7 +163,7 @@ struct
 	    | wfOrders (O :: L) = (wfOrder O; wfOrders L)
 	  fun allModed (nil) = ()
 	    | allModed ((a, P) :: Cs) =
-	      (case ModeTable.modeLookup a 
+	      (case M.modeLookup a 
 		 of NONE => error (r, "Expected " ^ Names.qidToString (Names.constQid a)
 				      ^ " to be moded")
 	          | SOME mS => ();

@@ -6,12 +6,12 @@ functor CSManager (structure Global : GLOBAL
                    structure Unify : UNIFY
 		   (*! sharing Unify.IntSyn = IntSyn !*)
                    structure Fixity : FIXITY
-                   (*! structure ModeSyn : MODESYN !*))
+                   structure ModeSyn : MODESYN)
   : CS_MANAGER =
 struct
   structure IntSyn  = IntSyn
   structure Fixity  = Fixity
-  (* structure ModeSyn = ModeSyn *)
+  structure ModeSyn = ModeSyn
 
   type sigEntry = (* global signature entry *)
     (* constant declaration plus optional precedence and mode information *)
@@ -113,14 +113,14 @@ struct
     (* make all the solvers inactive *)
     fun resetSolvers () =
           (
-            ArraySlice.appi (fn (cs, Solver (solver, active)) =>
-				if !active then
-				    (
-                                     active := false;
-				     #reset(solver) ()
-                                    )
-				else ())
-			    (ArraySlice.slice (csArray, 0, SOME(!nextCS)));
+            Array.appi (fn (cs, Solver (solver, active)) =>
+                             if !active then
+                               (
+                                 active := false;				 
+                                  #reset(solver) ()
+                                )
+                              else ())
+                       (csArray, 0, SOME(!nextCS));
             activeKeywords := nil;
             useSolver "Unify"
           )
@@ -131,11 +131,11 @@ struct
             exception Found of IntSyn.csid
             fun findSolver name =
                   (
-                    ArraySlice.appi (fn (cs, Solver (solver, _)) =>
-					if (#name(solver) = name)
-					then raise Found cs
-					else ())
-				    (ArraySlice.slice (csArray, 0, SOME(!nextCS)));
+                    Array.appi (fn (cs, Solver (solver, _)) =>
+                                    if (#name(solver) = name)
+                                    then raise Found cs
+                                    else ())
+                               (csArray, 0, SOME(!nextCS));
                     NONE
                   ) handle Found cs => SOME(cs)
           in
@@ -173,9 +173,9 @@ struct
                                     | SOME conDec => raise Parsed (cs, conDec)))
         in
           (
-            ArraySlice.appi (fn (cs, Solver (solver, active)) =>
-				if !active then parse' (cs, solver) else ())
-			    (ArraySlice.slice (csArray, 0, SOME(!nextCS)));
+            Array.appi (fn (cs, Solver (solver, active)) =>
+                          if !active then parse' (cs, solver) else ())
+                       (csArray, 0, SOME(!nextCS));
             NONE
           ) handle Parsed info => SOME(info)
         end
@@ -185,27 +185,27 @@ struct
 
   (* reset the internal status of all the active solvers *)
   fun reset () =
-        ArraySlice.appi (fn (_, Solver (solver, active)) =>
-                            if !active then (markCount := 0; #reset(solver) ())
-                            else ())
-			(ArraySlice.slice (csArray, 0, SOME(!nextCS)));
+        Array.appi (fn (_, Solver (solver, active)) =>
+                          if !active then (markCount := 0; #reset(solver) ())
+                          else ())
+                   (csArray, 0, SOME(!nextCS));
           
 
   (* mark all active solvers *)
   fun mark () =
         (markCount := !markCount + 1;
-	  ArraySlice.appi (fn (_, Solver (solver, active)) =>
-			      if !active then #mark(solver) () else ())
-			  (ArraySlice.slice (csArray, 0, SOME(!nextCS))))
+	  Array.appi (fn (_, Solver (solver, active)) =>
+                      if !active then #mark(solver) () else ())
+			(csArray, 0, SOME(!nextCS)))
 
   (* unwind all active solvers *)
   fun unwind targetCount =
     let
       fun unwind' 0 = (markCount := targetCount)
 	| unwind' k = 
-          (ArraySlice.appi (fn (_, Solver (solver, active)) =>
-			       if !active then #unwind(solver) () else ())
-	   (ArraySlice.slice (csArray, 0, SOME(!nextCS)));
+          (Array.appi (fn (_, Solver (solver, active)) =>
+		       if !active then #unwind(solver) () else ())
+	   (csArray, 0, SOME(!nextCS));	  
 	   unwind' (k-1))
     in 
       unwind' (!markCount - targetCount)
@@ -240,4 +240,4 @@ structure CSManager = CSManager (structure Global = Global
                                  (*! structure IntSyn = IntSyn !*)
                                  structure Unify = UnifyTrail
                                  structure Fixity = Names.Fixity
-                                 (*! structure ModeSyn = ModeSyn !*));
+                                 structure ModeSyn = ModeSyn);

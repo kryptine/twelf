@@ -38,11 +38,8 @@ struct
     | DEFINE				(* `%define' *) (* -rv 8/27/01 *)
     | SOLVE				(* `%solve' *)
     | QUERY	  			(* `%query' *)
-    | FQUERY	  			(* `%fquery' *)
-    | COMPILE                           (* '%compile' *) (* -ABP 4/4/03 *)
     | QUERYTABLED  			(* `%querytabled *)
     | MODE				(* `%mode' *)
-    | UNIQUE				(* `%unique' *) (* -fp 8/17/03 *)
     | COVERS				(* `%covers' *) (* -fp 3/7/01 *)
     | TOTAL				(* `%total' *) (* -fp 3/18/01 *)
     | TERMINATES			(* `%terminates' *)
@@ -75,19 +72,13 @@ struct
   (* Char.contains stages its computation *)
   val isSym : char -> bool = Char.contains "_!&$^+/<=>?@~|#*`;,-\\"
 
-  (* isUFT8 (c) = assume that if a character is not ASCII it must be
-     part of a UTF8 Unicode encoding.  Treat these as lowercase
-     identifiers.  Somewhat of a hack until there is native Unicode
-     string support. *)
-  fun isUTF8 (c) = not (Char.isAscii c)
-
   (* isQuote (c) = B iff c is the quote character *)
   fun isQuote (c) = (c = #"'")
 
   (* isIdChar (c) = B iff c is legal identifier constituent *)
   fun isIdChar (c) = Char.isLower(c) orelse Char.isUpper (c)
                      orelse Char.isDigit (c) orelse isSym(c)
-		     orelse isQuote (c) orelse isUTF8(c)
+		     orelse isQuote (c)
 
   (* stringToToken (idCase, string, region) = (token, region)
      converts special identifiers into tokens, returns ID token otherwise
@@ -192,7 +183,6 @@ struct
 	else if Char.isDigit(c) then lexID (Lower, P.Reg (i-1,i))
 	else if Char.isLower(c) then lexID (Lower, P.Reg (i-1,i))
 	else if isSym(c) then lexID (Lower, P.Reg (i-1,i))
-	else if isUTF8(c) then lexID (Lower, P.Reg (i-1,i))
         else error (P.Reg (i-1,i), "Illegal character " ^ Char.toString (c))
         (* recover by ignoring: lexInitial (char(i), i+1) *)
 
@@ -226,7 +216,6 @@ struct
       | lexPragmaKey (ID(_, "prefix"), r) = (PREFIX, r)
       | lexPragmaKey (ID(_, "postfix"), r) = (POSTFIX, r)
       | lexPragmaKey (ID(_, "mode"), r) = (MODE, r)
-      | lexPragmaKey (ID(_, "unique"), r) = (UNIQUE, r) (* -fp 8/17/03 *)
       | lexPragmaKey (ID(_, "terminates"), r) = (TERMINATES, r)
       | lexPragmaKey (ID(_, "block"), r) = (BLOCK, r) (* -cs 6/3/01 *)
       | lexPragmaKey (ID(_, "worlds"), r) = (WORLDS, r)
@@ -243,8 +232,6 @@ struct
       | lexPragmaKey (ID(_, "define"), r) = (DEFINE, r) (* -rv 8/27/01 *)
       | lexPragmaKey (ID(_, "solve"), r) = (SOLVE, r)
       | lexPragmaKey (ID(_, "query"), r) = (QUERY, r)
-      | lexPragmaKey (ID(_, "fquery"), r) = (FQUERY, r)
-      | lexPragmaKey (ID(_, "compile"), r) = (COMPILE, r) (* -ABP 4/4/03 *)
       | lexPragmaKey (ID(_, "querytabled"), r) = (QUERYTABLED, r)
       | lexPragmaKey (ID(_, "freeze"), r) = (FREEZE, r)
       | lexPragmaKey (ID(_, "deterministic"), r) = (DETERMINISTIC, r) (* -rv 11/27/01 *)
@@ -354,11 +341,8 @@ struct
     | toString' (DEFINE) = "%define"    (* -rv 8/27/01 *)
     | toString' (SOLVE) = "%solve"
     | toString' (QUERY) = "%query"
-    | toString' (FQUERY) = "%fquery"
-    | toString' (COMPILE) = "%compile"  (* -ABP 4/4/03 *)
     | toString' (QUERYTABLED) = "%querytabled"
     | toString' (MODE) = "%mode"
-    | toString' (UNIQUE) = "%unique"
     | toString' (COVERS) = "%covers"
     | toString' (TOTAL) = "%total"
     | toString' (TERMINATES) = "%terminates"

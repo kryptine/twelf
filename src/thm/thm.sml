@@ -1,6 +1,6 @@
 structure ThmSyn = 
   ThmSyn ((*! structure IntSyn = IntSyn !*)
-	  (*! structure ModeSyn' = ModeSyn !*)
+	  structure ModeSyn' = ModeSyn
 	  structure Abstract = Abstract
 	  structure Whnf = Whnf
 	  structure Paths' = Paths
@@ -16,6 +16,6 @@ structure Thm =
        structure TabledSyn = TabledSyn
 (*       structure RedOrder = RedOrder *) (* -bp *)
        structure Order = Order
-       structure ModeTable = ModeTable
+       structure ModeSyn' = ModeSyn
        structure ThmPrint = ThmPrint
        structure Paths' = Paths);

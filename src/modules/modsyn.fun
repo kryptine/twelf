@@ -57,7 +57,7 @@ struct
           | trExp (Pi ((D, P), V)) = Pi ((trDec D, P), trExp V)
           | trExp (Root (H, S)) = Root (trHead H, trSpine S)
           | trExp (Lam (D, U)) = Lam (trDec D, trExp U)
-          | trExp (U as FgnExp csfe) = FgnExpStd.Map.apply csfe trExp
+          | trExp (U as FgnExp (csid, ops)) = #map ops trExp
 
         and trDec (Dec (name, V)) = Dec (name, trExp V)
 
@@ -88,9 +88,9 @@ struct
 
   and mapConDecConsts f (IntSyn.ConDec (name, parent, i, status, V, L)) =
         IntSyn.ConDec (name, parent, i, status, mapExpConsts f V, L)
-    | mapConDecConsts f (IntSyn.ConDef (name, parent, i, U, V, L, Anc)) =
+    | mapConDecConsts f (IntSyn.ConDef (name, parent, i, U, V, L)) =
         IntSyn.ConDef (name, parent, i, mapExpConsts f U,
-                       mapExpConsts f V, L, Anc) (* reconstruct Anc?? -fp *)
+                       mapExpConsts f V, L)
     | mapConDecConsts f (IntSyn.AbbrevDef (name, parent, i, U, V, L)) =
         IntSyn.AbbrevDef (name, parent, i, mapExpConsts f U,
                           mapExpConsts f V, L)
@@ -102,8 +102,8 @@ struct
 
   fun mapConDecParent f (IntSyn.ConDec (name, parent, i, status, V, L)) =
         IntSyn.ConDec (name, f parent, i, status, V, L)
-    | mapConDecParent f (IntSyn.ConDef (name, parent, i, U, V, L, Anc)) =
-        IntSyn.ConDef (name, f parent, i, U, V, L, Anc) (* reconstruct Anc?? -fp *)
+    | mapConDecParent f (IntSyn.ConDef (name, parent, i, U, V, L)) =
+        IntSyn.ConDef (name, f parent, i, U, V, L)
     | mapConDecParent f (IntSyn.AbbrevDef (name, parent, i, U, V, L)) =
         IntSyn.AbbrevDef (name, f parent, i, U, V, L)
     | mapConDecParent f (IntSyn.SkoDec (name, parent, i, V, L)) =
@@ -111,7 +111,7 @@ struct
 
   fun strictify (condec as IntSyn.AbbrevDef (name, parent, i, U, V, IntSyn.Type)) =
       ((Strict.check ((U, V), NONE);
-        IntSyn.ConDef (name, parent, i, U, V, IntSyn.Type, IntSyn.ancestor(U)))
+        IntSyn.ConDef (name, parent, i, U, V, IntSyn.Type))
        handle Strict.Error _ => condec)
     | strictify (condec as IntSyn.AbbrevDef _) = condec
 
@@ -129,8 +129,7 @@ struct
             in
               I.AbbrevDef (name, parent, i, U, V, L)
             end
-          | I.ConDef (name, parent, i, U, V, L, Anc) =>
-	      I.AbbrevDef (name, parent, i, U, V, L)
+          | I.ConDef data => I.AbbrevDef data
           | I.AbbrevDef data => I.AbbrevDef data)
 
   (* In order to install a module, we walk through the mids in preorder,

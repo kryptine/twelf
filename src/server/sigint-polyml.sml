@@ -3,17 +3,20 @@ struct
 
   fun interruptLoop (loop:unit -> unit) =
       let
+	(*
+	val polymlIntHandler = ref Signal.SIG_DFL
+	fun invoke (Signal.SIG_HANDLE (h)) n = h n
 	val origIntHandler =
 	    Signal.signal (Posix.Signal.int,
 			   Signal.SIG_HANDLE (fn n => (print "\ninterrupt\n";
-						       Process.interruptConsoleProcesses ())))
-	(*
+						       invoke (!polymlIntHandler) n)))
+	val _ = (polymlIntHandler := origIntHandler)
+	*)
 	val _ = print
 "Upon interrupt at prompt => type\n\
 \f to return to top-level of Twelf server\n\
 \c to continue Twelf execution\n\
 \q to quit the Twelf server\n"
-        *)
       in
 	loop ()
       end

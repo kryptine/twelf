@@ -16,7 +16,6 @@ functor CSIneqIntegers (structure Integers : INTEGERS
                           sharing CSEqIntegers.Integers = Integers
                           (*! sharing CSEqIntegers.IntSyn = IntSyn !*)
                           (*! sharing CSEqIntegers.CSManager = CSManager !*)
-			structure Compat : COMPAT
 			    )
   =
 struct
@@ -29,7 +28,7 @@ struct
 
     structure CSM = CSManager
     structure FX = CSM.Fixity
-    structure MS = ModeSyn (* CSM.ModeSyn *)
+    structure MS = CSM.ModeSyn
 
     structure Array  = SparseArray
     structure Array2 = SparseArray2
@@ -117,8 +116,6 @@ struct
             coeffs : number Array2.array,             (* variables coefficients            *)
             nrows : int ref, ncols : int ref,         (* dimensions                        *)
             trail : Operation Trail.trail}            (* undo mechanism                    *)
-
-    exception MyFgnCnstrRep of int ref                (* FgnCnstr representation *)
 
     exception Error
 
@@ -221,27 +218,27 @@ struct
 
     (* increase by f(j') all the elements (i, j'), with j <= j' < j+len *)
     fun incrArray2Row (array, i, (j, len), f) =
-          Compat.Vector.mapi
+          Vector.mapi
             (fn (j, value) => Array2.update (array, i, j, value + f(j)))
-            (Array2.row (array, i, (j, len)))
+            (Array2.row (array, i, (j, len)), 0, NONE)
 
     (* increase by f(i') all the elements (i', j), with i <= i' < i+len *)
     fun incrArray2Col (array, j, (i, len), f) =
-          Compat.Vector.mapi
+          Vector.mapi
             (fn (i, value) => Array2.update (array, i, j, value + f(i)))
-            (Array2.column (array, j, (i, len)))
+            (Array2.column (array, j, (i, len)), 0, NONE)
 
     (* set the given row to zero *)
     fun clearArray2Row (array, i, (j, len)) =
-          Compat.Vector.mapi
+          Vector.mapi
             (fn (j, value) => Array2.update (array, i, j, zero))
-            (Array2.row (array, i, (j, len)))
+            (Array2.row (array, i, (j, len)), 0, NONE)
 
     (* set the given column to zero *)
     fun clearArray2Col (array, j, (i, len)) =
-          Compat.Vector.mapi
+          Vector.mapi
             (fn (i, value) => Array2.update (array, i, j, zero))
-            (Array2.column (array, j, (i, len)))
+            (Array2.column (array, j, (i, len)), 0, NONE)
 
     (* return the label at the given position (row or column) *)
     fun label (Row(i)) = rlabel (i)
@@ -326,7 +323,7 @@ struct
                       if restricted (l) then print ">" else print "*";
                       if dead (l) then print "#" else print "";
                       print "\t";
-                      Compat.Vector.mapi printCol vec;
+                      Vector.mapi printCol (vec, 0, NONE);
                       print "\t";
                       print (toString (const (row)));
                       print "\n"
@@ -988,8 +985,14 @@ struct
 
     (* create a foreign constraint for the given tag *)
     and makeCnstr (tag) =
-          FgnCnstr (!myID, MyFgnCnstrRep (tag))
-
+          FgnCnstr (!myID,
+                    {
+                      toInternal = toInternal (tag),
+                      awake = awake (tag),
+                      simplify = simplify (tag)
+                    }
+                   )
+  
     (* checks if the (primally and dually) feasible solution is an integral solution;
        returns NONE if it is, otherwise the coordinate of a non-integral component *)
     and isIntegral () =
@@ -1300,21 +1303,6 @@ struct
     fun pi (name, U, V) = Pi ((Dec (SOME(name), U), Maybe), V)
     fun arrow (U, V) = Pi ((Dec (NONE, U), No), V)
 
-    fun installFgnCnstrOps () = let
-	val csid = !myID
-	val _ = FgnCnstrStd.ToInternal.install (csid,
-						(fn (MyFgnCnstrRep tag) => toInternal (tag)
-						  | fc => raise UnexpectedFgnCnstr fc))
-	val _ = FgnCnstrStd.Awake.install (csid,
-					   (fn (MyFgnCnstrRep tag) => awake (tag)
-					     | fc => raise UnexpectedFgnCnstr fc))
-	val _ = FgnCnstrStd.Simplify.install (csid,
-					      (fn (MyFgnCnstrRep tag) => simplify (tag)
-						| fc => raise UnexpectedFgnCnstr fc))
-    in
-	()
-    end
-
     (* install the signature *)
     fun init (cs, installF) =
           (
@@ -1342,7 +1330,6 @@ struct
                                 Type),
                         NONE, nil);
 
-	    installFgnCnstrOps ();
             ()
           )
   in

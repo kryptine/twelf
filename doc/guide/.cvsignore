@@ -2,7 +2,7 @@ twelf.dvi
 twelf.ps
 twelf.ps.gz
 twelf.pdf
-twelf*.html
+twelf_*.html
 twelf.info*
 twelf.aux
 twelf.log

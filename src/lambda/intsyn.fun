@@ -37,17 +37,6 @@ struct
 	ctxLength' (G, 0)
       end
     
-  type FgnExp = exn                     (* foreign expression representation *)
-  exception UnexpectedFgnExp of FgnExp
-                                        (* raised by a constraint solver
-					   if passed an incorrect arg *)
-
-  type FgnCnstr = exn                   (* foreign unification constraint
-                                           representation *)
-  exception UnexpectedFgnCnstr of FgnCnstr
-                                        (* raised by a constraint solver
-                                           if passed an incorrect arg *)
-
   datatype Depend =                     (* Dependency information     *)
     No                                  (* P ::= No                   *)
   | Maybe                               (*     | Maybe                *)
@@ -71,8 +60,15 @@ struct
   | EClo  of Exp * Sub			(*     | U[s]                 *)
   | AVar  of Exp option ref             (*     | A<I>                 *)
 
-  | FgnExp of csid * FgnExp
-                                        (*     | (foreign expression) *)
+  | FgnExp of csid *                    (*     | (foreign expression) *)
+      {
+        toInternal : unit -> Exp,       (* convert to internal syntax *)
+        map : (Exp -> Exp) -> Exp,      (* apply to subterms          *)
+        equalTo : Exp -> bool,
+                                        (* test for equality          *)
+        unifyWith : Dec Ctx * Exp -> FgnUnify
+                                        (* unify with another term    *)
+      }
     
   and Head =				(* Heads:                     *)
     BVar  of int			(* H ::= k                    *)
@@ -103,21 +99,24 @@ struct
     Dec of name option * Exp		(* D ::= x:V                  *)
   | BDec of name option * (cid * Sub)	(*     | v:l[s]               *)
   | ADec of name option * int   	(*     | v[^-d]               *)
-  | NDec
 
   and Block =				(* Blocks:                    *)
     Bidx of int 			(* b ::= v                    *)
-  | LVar of Block option ref * Sub * (cid * Sub)
-                                        (*     | L(l[^k],t)           *)
-  | Inst of Exp list			(*     | u1, ..., Un          *)
-
+  | LVar of Block option ref * (cid * Sub) 
+                                        (*     | L(l,s)               *)
 
   (* Constraints *)
 
   and Cnstr =				(* Constraint:                *)
     Solved                      	(* Cnstr ::= solved           *)
   | Eqn      of Dec Ctx * Exp * Exp     (*         | G|-(U1 == U2)    *)
-  | FgnCnstr of csid * FgnCnstr         (*         | (foreign)        *)
+  | FgnCnstr of csid *                  (*         | (foreign)        *)
+      {
+        toInternal : unit -> (Dec Ctx * Exp) list,
+                                        (* convert to internal syntax *)
+        awake : unit -> bool,           (* awake                      *)
+        simplify : unit -> bool         (* simplify                   *)
+      }
 
   and Status =                          (* Status of a constant:      *)
     Normal                              (*   inert                    *)
@@ -144,7 +143,6 @@ struct
               * Exp * Uni	        (* c : A : type               *)
   | ConDef of string * mid option * int	(* a = A : K : kind  or       *)
               * Exp * Exp * Uni		(* d = M : A : type           *)
-              * Ancestor                (* Ancestor info for d or a   *)
   | AbbrevDef of string * mid option * int
                                         (* a = A : K : kind  or       *)
               * Exp * Exp * Uni		(* d = M : A : type           *)
@@ -152,10 +150,6 @@ struct
               * Dec Ctx * Dec list
   | SkoDec of string * mid option * int	(* sa: K : kind  or           *)
               * Exp * Uni	        (* sc: A : type               *)
-
-  and Ancestor =			(* Ancestor of d or a         *)
-    Anc of cid option * int * cid option (* head(expand(d)), height, head(expand[height](d)) *)
-                                        (* NONE means expands to {x:A}B *)
 
   datatype StrDec =                     (* Structure declaration      *)
       StrDec of string * mid option
@@ -174,56 +168,14 @@ struct
 
   exception Error of string             (* raised if out of space     *)
 
-
-  structure FgnExpStd = struct
-
-    structure ToInternal = FgnOpnTable (type arg = unit
-					type result = Exp)
-
-    structure Map = FgnOpnTable (type arg = Exp -> Exp
-				 type result = Exp)
-
-    structure App = FgnOpnTable (type arg = Exp -> unit
-				 type result = unit)
-
-    structure EqualTo = FgnOpnTable (type arg = Exp
-				     type result = bool)
-
-    structure UnifyWith = FgnOpnTable (type arg = Dec Ctx * Exp
-				       type result = FgnUnify)
-
-			  
-
-    fun fold csfe f b = let
-	val r = ref b
-	fun g U = r := f (U,!r)
-    in
-	App.apply csfe g ; !r
-    end
-
-  end
-
-  structure FgnCnstrStd = struct
-
-    structure ToInternal = FgnOpnTable (type arg = unit
-					type result = (Dec Ctx * Exp) list)
-
-    structure Awake = FgnOpnTable (type arg = unit
-				   type result = bool)
-
-    structure Simplify = FgnOpnTable (type arg = unit
-				      type result = bool)
-
-  end
-
   fun conDecName (ConDec (name, _, _, _, _, _)) = name
-    | conDecName (ConDef (name, _, _, _, _, _, _)) = name
+    | conDecName (ConDef (name, _, _, _, _, _)) = name
     | conDecName (AbbrevDef (name, _, _, _, _, _)) = name
     | conDecName (SkoDec (name, _, _, _, _)) = name
     | conDecName (BlockDec (name, _, _, _)) = name
 
   fun conDecParent (ConDec (_, parent, _, _, _, _)) = parent
-    | conDecParent (ConDef (_, parent, _, _, _, _, _)) = parent
+    | conDecParent (ConDef (_, parent, _, _, _, _)) = parent
     | conDecParent (AbbrevDef (_, parent, _, _, _, _)) = parent
     | conDecParent (SkoDec (_, parent, _, _, _)) = parent
     | conDecParent (BlockDec (_, parent, _, _)) = parent
@@ -236,10 +188,9 @@ struct
      then k stands for the number of implicit elements.
   *)
   fun conDecImp (ConDec (_, _, i, _, _, _)) = i
-    | conDecImp (ConDef (_, _, i, _, _, _, _)) = i
+    | conDecImp (ConDef (_, _, i, _, _, _)) = i
     | conDecImp (AbbrevDef (_, _, i, _, _, _)) = i
     | conDecImp (SkoDec (_, _, i, _, _)) = i
-    | conDecImp (BlockDec (_, _,  _, _)) = 0   (* watch out -- carsten *)
 
   fun conDecStatus (ConDec (_, _, _, status, _, _)) = status
     | conDecStatus _ = Normal
@@ -252,7 +203,7 @@ struct
      then V is the respective type
   *)
   fun conDecType (ConDec (_, _, _, _, V, _)) = V
-    | conDecType (ConDef (_, _, _, _, V, _, _)) = V
+    | conDecType (ConDef (_, _, _, _, V, _)) = V
     | conDecType (AbbrevDef (_, _, _, _, V, _)) = V
     | conDecType (SkoDec (_, _, _, V, _)) = V
 
@@ -274,7 +225,7 @@ struct
      then L is the respective universe
   *)
   fun conDecUni (ConDec (_, _, _, _, _, L)) = L
-    | conDecUni (ConDef (_, _, _, _, _, L, _)) = L
+    | conDecUni (ConDef (_, _, _, _, _, L)) = L
     | conDecUni (AbbrevDef (_, _, _, _, _, L)) = L
     | conDecUni (SkoDec (_, _, _, _, L)) = L
 
@@ -353,7 +304,7 @@ struct
 
   fun constDef (d) =
       (case sgnLookup (d)
-	 of ConDef(_, _, _, U,_, _, _) => U
+	 of ConDef(_, _, _, U,_, _) => U
 	  | AbbrevDef (_, _, _, U,_, _) => U)
 
   fun constType (c) = conDecType (sgnLookup c)
@@ -437,18 +388,12 @@ struct
       (case bvarSub (k, s)
 	 of Idx k' => Bidx k'
           | Block B => B)
-    | blockSub (LVar (ref (SOME B), sk, _), s) =
-        blockSub (B, comp (sk, s))
-    (* -fp Sun Dec  1 21:18:30 2002 *)
-    (* --cs Sun Dec  1 11:25:41 2002 *)
+    | blockSub (LVar (ref (SOME B), _), s) =
+        blockSub (B, s)
     (* Since always . |- t : Gsome, discard s *)
     (* where is this needed? *)
     (* Thu Dec  6 20:30:26 2001 -fp !!! *)
-    | blockSub (LVar (r as ref NONE, sk, (l, t)), s) = 
-	LVar (r, comp(sk, s), (l, comp (t, s)))
-	(* comp(^k, s) = ^k' for some k' by invariant *)
-    | blockSub (L as Inst ULs, s') = Inst (map (fn U => EClo (U, s')) ULs)
-    (* this should be right but somebody should verify *) 
+    | blockSub (L as LVar (ref NONE, (l, t)), s) = L
 
   (* frontSub (Ft, s) = Ft'
 
@@ -542,7 +487,7 @@ struct
 
   fun blockDec (G, v as (Bidx k), i) =
     let 
-      val BDec (_, (l, s)) = ctxDec (G, k)  
+      val BDec (_, (l, s)) = ctxDec (G, k)   
       (* G |- s : Gsome *)
       val (Gsome, Lblock) = conDecBlock (sgnLookup l)
       fun blockDec' (t, D :: L, 1, j) = decSub (D, t)
@@ -569,29 +514,7 @@ struct
   fun newTypeVar (G) = EVar(ref NONE, G, Uni(Type), ref nil)
 
   (* newLVar (l, s) = (l[s]) *)
-  fun newLVar (sk, (cid, t)) = LVar (ref NONE, sk, (cid, t))
-
-  (* Definition related functions *)
-  (* headOpt (U) = SOME(H) or NONE, U should be strict, normal *)
-  fun headOpt (Root (H, _)) = SOME(H)
-    | headOpt (Lam (_, U)) = headOpt U
-    | headOpt _ = NONE
-
-  fun ancestor' (NONE) = Anc(NONE, 0, NONE)
-    | ancestor' (SOME(Const(c))) = Anc(SOME(c), 1, SOME(c))
-    | ancestor' (SOME(Def(d))) =
-      (case sgnLookup(d)
-	 of ConDef(_, _, _, _, _, _, Anc(_, height, cOpt))
-            => Anc(SOME(d), height+1, cOpt))
-    | ancestor' (SOME _) = (* FgnConst possible, BVar impossible by strictness *)
-      Anc(NONE, 0, NONE)
-  (* ancestor(U) = ancestor info for d = U *)
-  fun ancestor (U) = ancestor' (headOpt U)
-
-  (* defAncestor(d) = ancestor of d, d must be defined *)
-  fun defAncestor (d) =
-      (case sgnLookup(d)
-	 of ConDef(_, _, _, _, _, _, anc) => anc)
+  fun newLVar (cid, s) = LVar (ref NONE, (cid, s))
 
   (* Type related functions *)
 

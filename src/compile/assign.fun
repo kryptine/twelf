@@ -73,15 +73,15 @@ struct
                if (cs1 = cs2) andalso (n1 = n2) then cnstr
                else raise Assignment "Foreign Constant clash"
 
-	  | (FgnConst (cs1, ConDef (n1, _, _, W1, _, _, _)), 
-		  FgnConst (cs2, ConDef (n2, _, _, V, W2, _, _))) =>	       
+	  | (FgnConst (cs1, ConDef (n1, _, _, W1, _, _)), 
+		  FgnConst (cs2, ConDef (n2, _, _, V, W2, _))) =>	       
                (if (cs1 = cs2) andalso (n1 = n2) then cnstr
                else assignExp (G, (W1, s1), (W2, s2), cnstr))
 
-           | (FgnConst (_, ConDef (_, _, _, W1, _, _, _)), _) =>
+           | (FgnConst (_, ConDef (_, _, _, W1, _, _)), _) =>
                assignExp (G, (W1, s1), Us2, cnstr)
 
-           | (_, FgnConst (_, ConDef (_, _, _, W2, _, _, _))) =>
+           | (_, FgnConst (_, ConDef (_, _, _, W2, _, _))) =>
                assignExp (G, Us1, (W2, s2), cnstr)               
 
 	  | _ => (raise Assignment ("Head mismatch ")))
@@ -128,11 +128,11 @@ struct
       | assignExpW (G, Us1 as (EClo(U,s'), s), Us2, cnstr) = 
 	  assignExp(G, (U, comp(s', s)), Us2, cnstr)
 
-      | assignExpW (G, Us1 as (FgnExp (_, fe), _), Us2, cnstr) =
+      | assignExpW (G, Us1 as (FgnExp (_, ops), _), Us2, cnstr) =
 	  (* by invariant Us2 cannot contain any FgnExp *)
 	    (Eqn(G, EClo(Us1), EClo(Us2))::cnstr)
 
-      | assignExpW (G, Us1, Us2 as (FgnExp (_, fe), _), cnstr) =
+      | assignExpW (G, Us1, Us2 as (FgnExp (_, ops), _), cnstr) =
 	    (Eqn(G, EClo(Us1), EClo(Us2))::cnstr)
 	  
     and assignSpine (G, (Nil, _), (Nil, _), cnstr) = cnstr

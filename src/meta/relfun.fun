@@ -4,7 +4,7 @@
 
 functor RelFun (structure Global : GLOBAL
                 (*! structure FunSyn' : FUNSYN !*)
-		structure ModeTable : MODETABLE
+		structure ModeSyn : MODESYN
 		(*! sharing ModeSyn.IntSyn = FunSyn'.IntSyn !*)
 		structure Names : NAMES
 		(*! sharing Names.IntSyn = FunSyn'.IntSyn !*)
@@ -55,7 +55,7 @@ struct
 	val V  = case I.sgnLookup cid 
 	           of I.ConDec (name, _, _, _, V, I.Kind) => V
 	            | _ => raise Error "Type Constant declaration expected"
-	val mS = case ModeTable.modeLookup cid
+	val mS = case M.modeLookup cid
 	           of NONE => raise Error "Mode declaration expected"
 	            | SOME mS => mS
 
@@ -135,8 +135,7 @@ struct
       | occursInExpN (k, I.Pi (DP, V)) = occursInDecP (k, DP) orelse occursInExpN (k+1, V)
       | occursInExpN (k, I.Root (H, S)) = occursInHead (k, H) orelse occursInSpine (k, S)
       | occursInExpN (k, I.Lam (D, V)) = occursInDec (k, D) orelse occursInExpN (k+1, V)
-      | occursInExpN (k, I.FgnExp csfe) =
-	I.FgnExpStd.fold csfe (fn (U,B) => B orelse occursInExpN (k, Whnf.normalize (U, I.id))) false
+      | occursInExpN (k, I.FgnExp (cs, ops)) = occursInExpN (k, Whnf.normalize (#toInternal(ops) (), I.id))
     (* no case for Redex, EVar, EClo *)
 
 
@@ -213,7 +212,7 @@ struct
 
     fun strengthen (Psi, (a, S), w, m) =
       let 
-	val mS = case ModeTable.modeLookup a
+	val mS = case M.modeLookup a
 	           of NONE => raise Error "Mode declaration expected"
 		    | SOME mS => mS
 
@@ -376,7 +375,7 @@ struct
     fun abstract (a) = 
 
       let 
-	val mS = case ModeTable.modeLookup a
+	val mS = case M.modeLookup a
 	           of NONE => raise Error "Mode declaration expected"
 		    | SOME mS => mS
 	val V = case I.sgnLookup a 
@@ -421,7 +420,7 @@ struct
     *)
     fun transformInit (Psi, (a, S), w1) = 
       let
-	val mS = case ModeTable.modeLookup a
+	val mS = case M.modeLookup a
 	           of NONE => raise Error "Mode declaration expected"
 		    | SOME mS => mS
 	val V = case I.sgnLookup a 
@@ -485,7 +484,7 @@ struct
 
     fun transformDec (Ts, (Psi, G0), d, (a, S), w1, w2, t0) = 
       let
-	val mS = case ModeTable.modeLookup a
+	val mS = case M.modeLookup a
 	           of NONE => raise Error "Mode declaration expected"
 		    | SOME mS => mS
 	val V = case I.sgnLookup a 
@@ -712,7 +711,7 @@ struct
     *)
     fun transformConc ((a, S), w) = 
       let
-	val mS = case ModeTable.modeLookup a
+	val mS = case M.modeLookup a
 	           of NONE => raise Error "Mode declaration expected"
 		    | SOME mS => mS
 
@@ -891,7 +890,7 @@ struct
 	    val V = case I.sgnLookup a 
 	              of I.ConDec (name, _, _, _, V, I.Kind) => V
 		       | _ => raise Error "Type Constant declaration expected"
-	    val mS = case ModeTable.modeLookup a
+	    val mS = case M.modeLookup a
 	               of NONE => raise Error "Mode declaration expected"
 		        | SOME mS => mS
 	

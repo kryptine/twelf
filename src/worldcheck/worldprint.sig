@@ -4,11 +4,11 @@
 signature WORLDPRINT =
 sig
   structure Formatter : FORMATTER
-  (*! structure Tomega : TOMEGA !*)
+  structure WorldSyn : WORLDSYN
 
   exception Error of string 
 
-  val formatWorlds : Tomega.Worlds -> Formatter.format 
-  val worldsToString : Tomega.Worlds -> string
+  val formatWorlds : WorldSyn.Worlds -> Formatter.format 
+  val worldsToString : WorldSyn.Worlds -> string
 
 end;  (* signature WORLDPRINT *)

@@ -6,7 +6,7 @@ functor MetaAbstract (structure Global : GLOBAL
 		      structure MetaGlobal : METAGLOBAL
 		      structure Abstract : ABSTRACT
 		      (*! sharing Abstract.IntSyn = MetaSyn'.IntSyn !*)
-		      structure ModeTable : MODETABLE
+		      structure ModeSyn : MODESYN
 		      (*! sharing ModeSyn.IntSyn = MetaSyn'.IntSyn !*)
 		      structure Whnf : WHNF
 		      (*! sharing Whnf.IntSyn = MetaSyn'.IntSyn !*)
@@ -234,8 +234,8 @@ struct
 	      in
 		collectSub (lG0, G, lGp', s, mode, Adepth)
 	      end)
-       | collectExpW (lGO, G, (I.FgnExp csfe, s), mode, Adepth) =
-	 I.FgnExpStd.fold csfe (fn (U,Adepth') => collectExp (lGO, G, (U,s), mode, Adepth')) Adepth
+       | collectExpW (lGO, G, (I.FgnExp (cs, ops), s), mode, Adepth) =
+           collectExp (lGO, G, (#toInternal(ops)(), s), mode, Adepth)
            (* hack - should discuss with cs    -rv *)
       
 	  
@@ -359,7 +359,7 @@ struct
 				 if modeEq (m, modeIn) then 
 				   collectExp (lG0, G, (U, s), modeRec, Adepth)
 				 else Adepth)
-	    val mS = valOf (ModeTable.modeLookup (cid))
+	    val mS = valOf (ModeSyn.modeLookup (cid))
 	  in
 	    collectModeW' (((S, s), mS), Adepth)
 	  end
@@ -575,8 +575,8 @@ struct
 		    abstractSub (A, G, depth, (Vraised, I.id), 
 				 s, I.targetFam V, I.Nil))
 	  end
-      | abstractExpW (A, G, depth, (I.FgnExp csfe, s)) =
-          I.FgnExpStd.Map.apply csfe (fn U => abstractExp (A, G, depth, (U, s)))
+      | abstractExpW (A, G, depth, (I.FgnExp (cs, ops), s)) =
+          #map(ops)(fn U => abstractExp (A, G, depth, (U, s)))
         (* hack - should discuss with cs     -rv *)
 
     (* abstractExp, same as abstractExpW, but (V, s) need not be in whnf *)

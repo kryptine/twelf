@@ -7,7 +7,7 @@ functor Splitting (structure Global : GLOBAL
 		   structure MetaPrint : METAPRINT
 		   sharing MetaPrint.MetaSyn = MetaSyn'
 		   sharing MetaAbstract.MetaSyn = MetaSyn'
-		   structure ModeTable : MODETABLE
+		   structure ModeSyn : MODESYN
 		   (*! sharing ModeSyn.IntSyn = MetaSyn'.IntSyn !*)
                    structure Whnf : WHNF
 		   (*! sharing Whnf.IntSyn = MetaSyn'.IntSyn !*)
@@ -142,8 +142,7 @@ struct
       | occursInExp (k, I.Pi (DP, V)) = occursInDecP (k, DP) orelse occursInExp (k+1, V)
       | occursInExp (k, I.Root (C, S)) = occursInCon (k, C) orelse occursInSpine (k, S)
       | occursInExp (k, I.Lam (D,V)) = occursInDec (k, D) orelse occursInExp (k+1, V)
-      | occursInExp (k, I.FgnExp csfe) =
-	I.FgnExpStd.fold csfe (fn (U,B) => B orelse occursInExp (k, Whnf.normalize (U, I.id))) false
+      | occursInExp (k, I.FgnExp (cs, ops)) = occursInExp (k, Whnf.normalize (#toInternal(ops) (), I.id))
       (* no case for Redex, EVar, EClo *)
 
     and occursInCon (k, I.BVar (k')) = (k = k')
@@ -311,7 +310,7 @@ struct
 		     k', V' as I.Root (I.Const(cid'), S'), Bdd') =
 	(* cid = cid' *)
 	let
-	  val mS = valOf (ModeTable.modeLookup (cid))
+	  val mS = valOf (ModeSyn.modeLookup (cid))
 	in
 	  inheritSpineMode (M.Top, mS, B, k, S, k', S', Bdd')
 	end
@@ -324,7 +323,7 @@ struct
 		     k', I.Root (I.Const (cid'), S'), Bdd') =
 	  (* cid = cid' *)
 	  let
-	    val mS = valOf (ModeTable.modeLookup (cid))
+	    val mS = valOf (ModeSyn.modeLookup (cid))
 	  in
 	    inheritSpineMode (M.Bot, mS, B, k, S, k', S', Bdd')
 	  end
@@ -332,7 +331,7 @@ struct
     and inheritG (B, k, I.Root (I.Const (cid), S),
 		  k', V' as I.Root (I.Const (cid'), S'), Bdd') =
         let
-	  val mS = valOf (ModeTable.modeLookup (cid))
+	  val mS = valOf (ModeSyn.modeLookup (cid))
 	in
 	  (* mode dependency in Goal: first M.Top, then M.Bot *)
 	  inheritSpineMode (M.Bot, mS, B, k, S, k', S', 

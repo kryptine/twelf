@@ -11,7 +11,6 @@ sig
   val plus  : Paths.region -> mode
   val star  : Paths.region -> mode
   val minus : Paths.region -> mode
-  val minus1 : Paths.region -> mode
 
   type modedec 
 
@@ -42,7 +41,7 @@ end;  (* signature EXTMODES *)
 
 signature RECON_MODE =
 sig
-  (*! structure ModeSyn : MODESYN !*)
+  structure ModeSyn : MODESYN
   include EXTMODES
 
   exception Error of string

@@ -57,7 +57,7 @@ structure ReconQuery =
 
 structure ReconMode =
   ReconMode (structure Global = Global
-	     (*! structure ModeSyn' = ModeSyn !*)
+	     structure ModeSyn' = ModeSyn
 	     structure Whnf = Whnf
 	     (*! structure Paths' = Paths !*)
              structure Names = Names
@@ -70,7 +70,7 @@ structure ReconThm =
 	    structure IntSyn = IntSyn
 	    structure Abstract = Abstract
 	    structure Constraints = Constraints
-	    (*! structure ModeSyn = ModeSyn !*)
+	    structure ModeSyn = ModeSyn
 	    structure Names = Names
 	    (*! structure Paths' = Paths !*)
 	    structure ThmSyn' = ThmSyn
@@ -160,13 +160,6 @@ structure Solve =
 	 structure TableIndex = TableIndex
 	 structure Print = Print);
 
-structure Fquery =
-  Fquery (structure Global = Global
-	  structure Names = Names
-	  structure ReconQuery = ReconQuery
-	  structure Timers = Timers
-	  structure Print = Print);
-
 structure Twelf =
   Twelf (structure Global = Global
 	 structure Timers = Timers
@@ -188,20 +181,13 @@ structure Twelf =
          structure ReconConDec = ReconConDec
          structure ReconQuery = ReconQuery
 
-	 structure ModeTable = ModeTable
+	 structure ModeSyn = ModeSyn
 	 structure ModeCheck = ModeCheck
 	 structure ModeDec = ModeDec
 	 structure ReconMode = ReconMode
 	 structure ModePrint = ModePrint
 
-         structure Unique = Unique
-         structure UniqueTable = UniqueTable
-
          structure Cover = Cover
-	 structure Converter = Converter
-	 structure TomegaPrint = TomegaPrint
-	 structure TomegaCoverage = TomegaCoverage
-	 structure TomegaTypeCheck = TomegaTypeCheck
          structure Total = Total
 
 	 structure Reduces = Reduces
@@ -217,9 +203,6 @@ structure Twelf =
 	 structure Tabled = Tabled
 	 structure TableIndex = TableIndex
 	 structure Solve = Solve
-	 structure Fquery = Fquery
-
-	 structure StyleCheck = StyleCheck
 
 	 structure ThmSyn = ThmSyn
 	 structure Thm = Thm
@@ -248,6 +231,5 @@ structure Twelf =
          structure CSManager = CSManager
          structure CSInstaller = CSInstaller (* unused -- creates necessary CM dependency *)
 
-         structure Compat = Compat
-	 structure UnknownExn = UnknownExn
+         structure MkAbsolute = MkAbsolute
 	   );

@@ -207,7 +207,6 @@ struct
 \  decl <id>                   - Show constant declaration for <id>\n\
 \  top                         - Enter interactive query loop\n\
 \  Table.top                   - Enter interactive loop for tables queries\n\
-\  version                     - Print Twelf server's version\n\
 \  help                        - Print this help message\n\
 \\n\
 \Parameters:\n\
@@ -254,8 +253,7 @@ struct
     | serve' ("get", args) =
       (print (getParm (tokenize args) ^ "\n");
        serve (Twelf.OK))
-    | serve' ("Style.check", args) = 
-      (checkEmpty args; StyleCheck.check (); serve (Twelf.OK))
+
     | serve' ("Print.sgn", args) =
       (checkEmpty args; Twelf.Print.sgn (); serve (Twelf.OK))
     | serve' ("Print.prog", args) =
@@ -361,10 +359,6 @@ struct
     | serve' ("Table.top", args) =
       (checkEmpty args;
        Twelf.Table.top ();
-       serve (Twelf.OK))
-
-    | serve' ("version", args) =
-      (print (Twelf.version ^ "\n");
        serve (Twelf.OK))
 
     | serve' ("help", args) =

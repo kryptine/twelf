@@ -4,20 +4,12 @@ structure IntSyn =
   IntSyn (structure Global = Global);
 *)
 
-(* Now in tomega.sml *)
-(*
 structure Whnf =
   Whnf ((*! structure IntSyn' = IntSyn !*));
 
 structure Conv =
   Conv ((*! structure IntSyn' = IntSyn !*)
 	structure Whnf = Whnf);
-
-structure Tomega : TOMEGA =
-   Tomega (structure IntSyn' = IntSyn
-	   structure Whnf = Whnf
-	   structure Conv = Conv)
-*)
 
 structure Constraints =
   Constraints ((*! structure IntSyn' = IntSyn !*)
@@ -33,13 +25,9 @@ structure UnifyTrail =
 	 structure Whnf = Whnf
 	 structure Trail = Trail);
 
-(* structure Normalize : NORMALIZE =  
-  Normalize ((*! structure IntSyn' = IntSyn !*)
-             (*! structure Tomega' = Tomega !*)
-             structure Whnf = Whnf)
- *)
 structure Abstract =
-  Abstract (structure Whnf = Whnf
+  Abstract ((*! structure IntSyn' = IntSyn !*)
+	    structure Whnf = Whnf
 	    structure Constraints = Constraints
 	    structure Unify = UnifyNoTrail);
 

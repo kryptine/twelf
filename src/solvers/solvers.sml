@@ -21,8 +21,7 @@ structure CSIneqQ = CSIneqField (structure OrderedField = Rationals
                                   structure SparseArray = SparseArray
                                   structure SparseArray2 = SparseArray2
 				  (*! structure CSManager = CSManager !*)
-                                  structure CSEqField = CSEqQ
-				  structure Compat = Compat);
+                                  structure CSEqField = CSEqQ);
 
 structure CSEqStrings = CSEqStrings ((*! structure IntSyn = IntSyn !*)
                                      structure Whnf = Whnf
@@ -51,8 +50,7 @@ structure CSIneqZ = CSIneqIntegers (structure Integers = Integers
                                     structure SparseArray = SparseArray
                                     structure SparseArray2 = SparseArray2
                                     (*! structure CSManager = CSManager !*)
-                                    structure CSEqIntegers = CSEqZ
-				    structure Compat = Compat);
+                                    structure CSEqIntegers = CSEqZ);
 
 structure CSIntWord32 = CSIntWord ((*! structure IntSyn = IntSyn !*)
                                    structure Whnf = Whnf

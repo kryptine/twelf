@@ -19,12 +19,7 @@ struct
     structure W = LargeWord;
 
     structure FX = CSManager.Fixity
-    structure MS = ModeSyn (* CSManager.ModeSyn *)
-
-    exception MyFgnCnstrRepPlus of dctx * Exp * Exp * Exp * Exp
-                                        (* FgnCnstr Representation: (G, proof, U1, U2, U3) *)
-    exception MyFgnCnstrRepTimes of dctx * Exp * Exp * Exp * Exp
-    exception MyFgnCnstrRepQuot of dctx * Exp * Exp * Exp * Exp
+    structure MS = CSManager.ModeSyn
 
     val wordSize' = Int.min (wordSize, W.wordSize);
 
@@ -302,7 +297,12 @@ struct
 
     (* constraint constructor *)
     and makeCnstrPlus (G, proof, U1, U2, U3) =
-          FgnCnstr (!myID, MyFgnCnstrRepPlus (G, proof, U1, U2, U3))
+          FgnCnstr (!myID,
+             {
+               toInternal = toInternalPlus (G, U1, U2, U3),
+               awake = awakePlus (G, proof, U1, U2, U3),
+               simplify = (fn () => false)
+             })
 
     (* solvePlus (G, S, n) tries to find the n-th solution to
           G |- '+' @ S : type
@@ -353,7 +353,12 @@ struct
 	     | NONE => false
 
     and makeCnstrTimes (G, proof, U1, U2, U3) =
-          FgnCnstr (!myID, MyFgnCnstrRepTimes (G, proof, U1, U2, U3))
+          FgnCnstr (!myID,
+             {
+               toInternal = toInternalTimes (G, U1, U2, U3),
+               awake = awakeTimes (G, proof, U1, U2, U3),
+               simplify = (fn () => false)
+             })
 
     (* solveTimes (G, S, n) tries to find the n-th solution to
          G |- '*' @ S : type
@@ -418,7 +423,13 @@ struct
 
     (* constraint constructor *)
     and makeCnstrQuot (G, proof, U1, U2, U3) =
-          FgnCnstr (!myID, MyFgnCnstrRepQuot (G, proof, U1, U2, U3))
+          FgnCnstr (!myID,
+             {
+               toInternal = toInternalQuot (G, U1, U2, U3),
+               awake = awakeQuot (G, proof, U1, U2, U3),
+               simplify = (fn () => false)
+             }
+            )
 
     (* solveQuot (G, S, n) tries to find the n-th solution to
          G |- '/' @ S : type
@@ -508,27 +519,6 @@ struct
     fun pi (name, U, V) = Pi ((Dec (SOME(name), U), Maybe), V)
     fun bvar n = Root (BVar n, Nil)
 
-    fun installFgnCnstrOps () = let
-	val csid = !myID
-	val _ = FgnCnstrStd.ToInternal.install (csid,
-						(fn (MyFgnCnstrRepPlus (G, _, U1, U2, U3)) => toInternalPlus (G, U1, U2, U3)
-						  | (MyFgnCnstrRepTimes (G, _, U1, U2, U3)) => toInternalTimes (G, U1, U2, U3)
-						  | (MyFgnCnstrRepQuot (G, _, U1, U2, U3)) => toInternalQuot (G, U1, U2, U3)
-						  | fc => raise (UnexpectedFgnCnstr fc)))
-	val _ = FgnCnstrStd.Awake.install (csid,
-					   (fn (MyFgnCnstrRepPlus (G, proof, U1, U2, U3)) => awakePlus (G, proof, U1, U2, U3)
-					     | (MyFgnCnstrRepTimes (G, proof, U1, U2, U3)) => awakeTimes (G, proof, U1, U2, U3)
-					     | (MyFgnCnstrRepQuot (G, proof, U1, U2, U3)) => awakeQuot (G, proof, U1, U2, U3)
-					     | fc => raise (UnexpectedFgnCnstr fc)))
-	val _ = FgnCnstrStd.Simplify.install (csid,
-					      (fn (MyFgnCnstrRepPlus _) => (fn () => false)
-						| (MyFgnCnstrRepTimes _) => (fn () => false)
-						| (MyFgnCnstrRepQuot _) => (fn () => false)
-						| fc => raise (UnexpectedFgnCnstr fc)))
-    in
-	()
-    end
-
     (* init (cs, installFunction) = ()
        Initialize the constraint solver.
        installFunction is used to add its signature symbols.
@@ -538,7 +528,7 @@ struct
             myID := cs;
 
             wordID := 
-              installF (ConDec ("word" ^ Int.toString(wordSize'), NONE, 0,
+              installF (ConDec ("word" ^ Int.toString(W.wordSize), NONE, 0,
                                 Constraint (!myID, solveNumber),
                                 Uni (Type), Kind),
                         NONE : FX.fixity option, [MS.Mnil]);
@@ -668,7 +658,6 @@ struct
                                 Type),
                         NONE, nil);
             
-	    installFgnCnstrOps ();
             ()
           )
   in

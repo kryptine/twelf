@@ -3,7 +3,7 @@
 (* Modified: Frank Pfenning, Roberto Virga *)
 
 functor ModeCheck ((*! structure IntSyn : INTSYN !*)
-		   structure ModeTable : MODETABLE
+		   structure ModeSyn : MODESYN
 		   (*! sharing ModeSyn.IntSyn = IntSyn !*)
                    structure Whnf : WHNF
 		   (*! sharing Whnf.IntSyn = IntSyn !*)
@@ -17,7 +17,7 @@ functor ModeCheck ((*! structure IntSyn : INTSYN !*)
   : MODECHECK =
 struct
   (*! structure IntSyn = IntSyn !*)
-  (*! structure ModeSyn = ModeSyn !*)
+  structure ModeSyn = ModeSyn
   (*! structure Paths = Paths !*)
 
   exception Error of string
@@ -26,15 +26,11 @@ struct
     structure I = IntSyn
     structure M = ModeSyn
     structure P = Paths
-
-    datatype Uniqueness =		(* Uniqueness information *)
-        Unique				(* u ::= Unique           *)
-      | Ambig				(*     | Ambig            *)
-
+      
     datatype Info =                     (* Groundedness information   *)
         Free				(* I ::= Free                 *)
       | Unknown				(*     | Unknown              *)
-      | Ground of Uniqueness		(*     | Ground               *)
+      | Ground                          (*     | Ground               *)
 
     datatype Status =                   (* Variable status             *)
         Existential of			(* S ::= Existential (I, xOpt) *)
@@ -67,9 +63,9 @@ struct
         (case Origins.originLookup c
 	   of (fileName, NONE) => (fileName ^ ":" ^ msg)
             | (fileName, SOME occDec) => 
-	        (P.wrapLoc' (P.Loc (fileName, P.occToRegionClause occDec occ),
-                             Origins.linesInfoLookup (fileName),
-                             "Constant " ^ Names.qidToString (Names.constQid c) ^ "\n" ^ msg)))
+		  (P.wrapLoc' (P.Loc (fileName, P.occToRegionDec occDec occ),
+                              Origins.linesInfoLookup (fileName),
+                              "Constant " ^ Names.qidToString (Names.constQid c) ^ "\n" ^ msg)))
 
     fun wrapMsg' (fileName, r, msg) =
           P.wrapLoc (P.Loc (fileName, r), msg)
@@ -84,7 +80,7 @@ struct
        (occ is used in error message)
     *)
     fun lookup (a, occ) =  
-        case ModeTable.mmodeLookup a
+        case M.mmodeLookup a
 	  of nil => raise Error' (occ, "No mode declaration for " ^ I.conDecName (I.sgnLookup a))
            | sMs => sMs 
 
@@ -115,27 +111,8 @@ struct
        Invariant:
        B iff S = Ex (T x)
     *)
-    fun isGround (Existential (Ground _, _)) = true
+    fun isGround (Existential (Ground, _)) = true
       | isGround _ = false
-
-    (* uniqueness S = u
-       where u is the uniqueness property of status S
-    *)
-    fun uniqueness (Existential (Ground (u), _)) = u
-      | uniqueness (Universal) = Unique
-
-    (* ambiguate (mode) = mode'
-       where mode' forgets uniqueness properties
-    *)
-    fun ambiguate (M.Plus) = M.Plus
-      | ambiguate (M.Minus) = M.Minus
-      | ambiguate (M.Minus1) = M.Minus
-
-    (* andUnique (u1, u2) = Unique if u1 = u2 = Unique
-       = Ambig otherwise
-    *)
-    fun andUnique (Unique, Unique) = Unique
-      | andUnique _ = Ambig
 
     (* isFree S = b
        
@@ -247,7 +224,6 @@ struct
     and strictDecN (D, p, I.Dec (_, V)) =
           strictExpN (D, p, V)
 
-    (*
     fun strictAtom (D, p, mode, I.Nil, (V, s), M.Mnil) = false
       | strictAtom (D, p, M.Minus, I.App (U, S), (I.Pi ((I.Dec (_, V1), _), V2), s),
 		     M.Mapp (M.Marg (M.Minus, _), mS)) =
@@ -255,7 +231,6 @@ struct
 	  orelse strictAtom (D, p, M.Minus, S, Whnf.whnfExpandDef (V2, I.Dot (I.Exp U, s)), mS)
       | strictAtom (D, p, mode, I.App (U, S), (I.Pi (_, V2), s), M.Mapp(_, mS)) =
 	  strictAtom (D, p, mode, S, Whnf.whnfExpandDef (V2, I.Dot (I.Exp U, s)), mS)
-    *)
 
     (* ------------------------------------------- freeness check *)
     (* freeExpN (D, mode, U, occ = ()
@@ -278,9 +253,8 @@ struct
 	  freeSpineN (D, d, mode, S, (1, occ), strictFun)
       | freeExpN (D, d, mode, I.Lam (_, U), occ, strictFun) =
 	  freeExpN (I.Decl (D, Universal), d+1, mode, U, P.body occ, strictFun)
-      | freeExpN (D, d, mode, I.FgnExp csfe, occ, strictFun) =
-	I.FgnExpStd.App.apply csfe (fn U => freeExpN (D, d, mode, Whnf.normalize (U, I.id), occ, strictFun))
-        (* punting on the occ here  - ak *)
+      | freeExpN (D, d, mode, I.FgnExp (cs, ops), occ, strictFun) =
+          freeExpN (D, d, mode, Whnf.normalize (#toInternal(ops)(), I.id), occ, strictFun)
 
     (* freeSpineN (D, mode, S, occ, strictFun)  = () 
 
@@ -365,7 +339,7 @@ struct
 
     (* ------------------------------------------- mode context update *)
 
-    (* updateExpN (D, U, u) = D'
+    (* updateExpN (D, U) = D'
      
        If   G |- U : V     (U in nf)
        and  D ~ G
@@ -374,51 +348,49 @@ struct
             and D'(k) Unkown for all existential variable k
 	    with a non-strict occurrence, but no strict occurrence in U
             (if !checkFree is true)
-
-       u is the uniqueness property for the new ground assumptions
     *)
-    fun updateExpN (D, I.Root (I.BVar (k), S), u) =
+    fun updateExpN (D, I.Root (I.BVar (k), S)) =
           if isUniversal (I.ctxLookup (D, k)) 
-	    then updateSpineN (D, S, u)              
+	    then updateSpineN (D, S)              
 	  else 
 	    if isPattern (D, k, S)
-	      then updateVarD (D, k, u)
+	      then updateVarD (D, k)
 	    else if !checkFree
 		   then nonStrictSpineN (nonStrictVarD (D, k), S)
 		 else D
-      | updateExpN (D, I.Root (I.Const c, S), u) =
-	  updateSpineN (D, S, u)
-      | updateExpN (D, I.Root (I.Def d, S), u) =
-	  updateSpineN (D, S, u)
-      | updateExpN (D, I.Root (I.FgnConst (cs, conDec), S), u) =
-          updateSpineN (D, S, u)
-      | updateExpN (D, I.Lam (_, U), u) =
-	  I.ctxPop (updateExpN (I.Decl (D, Universal), U, u))
+      | updateExpN (D, I.Root (I.Const c, S)) =
+	  updateSpineN (D, S)
+      | updateExpN (D, I.Root (I.Def d, S)) =
+	  updateSpineN (D, S)
+      | updateExpN (D, I.Root (I.FgnConst (cs, conDec), S)) =
+          updateSpineN (D, S)
+      | updateExpN (D, I.Lam (_, U)) =
+	  I.ctxPop (updateExpN (I.Decl (D, Universal), U))
       (* no occurrence inside a FgnExp is considered strict *)
-      | updateExpN (D, I.FgnExp _, u) = D
+      | updateExpN (D, I.FgnExp _) = D
 
-    (* updateSpineN (D, S, u) = D'    
+    (* updateSpineN (D, S) = D'    
      
        If   G |- S : V1 > V2      (S in nf)
        and  D ~ G
        then D' >= D' where D'(k) Ground for all existential variables k
 	    with a strict occurrence in S
     *)
-    and updateSpineN (D, I.Nil, u) = D
-      | updateSpineN (D, I.App (U, S), u) = 
-          updateSpineN (updateExpN (D, U, u), S, u)
+    and updateSpineN (D, I.Nil) = D
+      | updateSpineN (D, I.App (U, S)) = 
+          updateSpineN (updateExpN (D, U), S)
 
-    (* updateVarD (D, k, u) = D'
+    (* updateVarD (D, k) = D'
 
        If   G |- k : V
        and  D ~ G
        and  k is an existential variable
        then D' >= D where k is updated as described in  updateExpN
     *)
-    and updateVarD (I.Decl (D, Existential (_, name)), 1, u) =
-          I.Decl (D, Existential (Ground (u), name))
-      | updateVarD (I.Decl (D, status), k, u) =
-	  I.Decl (updateVarD (D, k-1, u), status)
+    and updateVarD (I.Decl (D, Existential (_, name)), 1) =
+          I.Decl (D, Existential (Ground, name))
+      | updateVarD (I.Decl (D, status), k) =
+	  I.Decl (updateVarD (D, k-1), status)
 
     (* ----------------------- mode context update by argument modes *)
 
@@ -429,54 +401,32 @@ struct
        and  S ~ mS            (mS = m1 , .. , mn)
        and  m mode
        then D' >= D where 
-            all Ui are updated if mi = m (mod uniqueness)
-
-       The new ground variables are marked Unique
-         if m = (-1) and mi = (-1) (when updating from subgoals with unique inputs)
-         or m = mi = (+) (when updating from the clause head)
-       Otherwise they are marked Ambig.
+            all Ui are updated if mi = m
 
        (p,occ) is used in error message if freeness is to be checked
     *)
     fun updateAtom' (D, mode, I.Nil, M.Mnil, _) = D
       | updateAtom' (D, M.Plus, I.App (U, S), M.Mapp (M.Marg (M.Plus, _), mS), (p, occ)) =
-          updateAtom' (updateExpN (D, U, Unique), M.Plus, S, mS, (p+1, occ)) 
+          updateAtom' (updateExpN (D, U), M.Plus, S, mS, (p+1, occ)) 
       | updateAtom' (D, M.Minus, I.App (U, S), M.Mapp (M.Marg (M.Minus, _), mS), (p, occ)) =
-	  updateAtom' (updateExpN (D, U, Ambig), M.Minus, S, mS, (p+1, occ)) 
-      | updateAtom' (D, M.Minus, I.App (U, S), M.Mapp (M.Marg (M.Minus1, _), mS), (p, occ)) =
-	  updateAtom' (updateExpN (D, U, Ambig), M.Minus, S, mS, (p+1, occ))
-      | updateAtom' (D, M.Minus1, I.App (U, S), M.Mapp (M.Marg (M.Minus, _), mS), (p, occ)) =
-	  updateAtom' (updateExpN (D, U, Ambig), M.Minus1, S, mS, (p+1, occ))
-      | updateAtom' (D, M.Minus1, I.App (U, S), M.Mapp (M.Marg (M.Minus1, _), mS), (p, occ)) =
-	  updateAtom' (updateExpN (D, U, Unique), M.Minus1, S, mS, (p+1, occ))
+	  updateAtom' (updateExpN (D, U), M.Minus, S, mS, (p+1, occ)) 
       (* when checking freeness, all arguments must be input (+) or output (-) *)
       (* therefore, no case for M.Mapp (M.Marg (M.Minus, _), mS) is provided here *)
       | updateAtom' (D, mode, I.App (U, S), M.Mapp (_, mS), (p, occ)) =
           updateAtom' (D, mode, S, mS, (p+1, occ)) 
 
-    (* freeAtom (D, m, S, (V,s), mS, (p, occ)) = ()
+    fun freeAtom (D, mode, I.Nil, M.Mnil, _, strictFun) = ()
+      | freeAtom (D, M.Minus, I.App (U, S), M.Mapp (M.Marg (M.Minus, _), mS), (p, occ), strictFun) =
+          (freeExpN (D, 0, M.Minus, U, P.arg(p, occ), strictFun);
+	   freeAtom (D, M.Minus, S, mS, (p+1, occ), strictFun))
+      | freeAtom (D, mode, I.App (U, S), M.Mapp (_, mS), (p, occ), strictFun) =
+	  freeAtom (D, mode, S, mS, (p+1, occ), strictFun)
 
-       checks if all output arguments in S according to mS are free.
-       Invariant: G |- S : V[s] >> P for some G and P  (S in nf)
-                  G ~ D
-                  mode = (-) or (+); ( * ) or (-1) are excluded
-    *)
-    fun freeAtom (D, mode, I.Nil, Vs, M.Mnil, _) = ()
-      | freeAtom (D, M.Minus, I.App (U, S), (I.Pi ((I.Dec (_, V1), _), V2), s),
-		  M.Mapp (M.Marg (M.Minus, _), mS), (p, occ)) =
-          (freeExpN (D, 0, M.Minus, U, P.arg(p, occ),
-		     (fn q => strictExpN (D, q, Whnf.normalize (V1, s))));
-	   freeAtom (D, M.Minus, S, Whnf.whnfExpandDef (V2, I.Dot (I.Exp U, s)), mS, (p+1, occ)))
-      | freeAtom (D, mode, I.App (U, S), (I.Pi (_, V2), s), M.Mapp (_, mS), (p, occ)) =
-	  freeAtom (D, mode, S, Whnf.whnfExpandDef (V2, I.Dot (I.Exp U, s)), mS, (p+1, occ))
-
-    (* updateAtom (D, m, S, a, mS, (p, occ))
-       see updateAtom', and performs additional freeness check if required
-    *)
     fun updateAtom (D, mode, S, a, mS, (p, occ)) =
         let
 	  val _ = if !checkFree
-		    then freeAtom (D, ambiguate mode, S, (I.constType a, I.id), mS, (p, occ))
+		    then freeAtom (D, mode, S, mS, (p, occ),
+				   fn p => strictAtom (D, p, mode, S, (I.constType a, I.id), mS))
 		  else ()
 	in
 	  updateAtom' (D, mode, S, mS, (p, occ))
@@ -484,24 +434,19 @@ struct
 
     (* ------------------------------------------- groundness check *)
 
-    (* groundExpN (D, mode, U, occ)  = u
+    (* groundExpN (D, mode, U, occ)  = () 
 
        If   G |- U : V    (U in nf)
        and  G ~ D
-       then if mode = (+) or (-)
-	    then groundExpN terminates with u if  D |- U ground 
-                 else exception ModeError is raised
-            if mode = (-1) then D |- U ground and U unique
-	                   else exception ModeError is raised
-
-       u = Unique if all known variables in U are Unique
-       u = Ambig otherwise
+       then groundExpN terminates with () if  D |- U ground 
+       else exception ModeError is raised
 
        (occ and mode are used in error messages)
     *)
+
     fun groundExpN (D, mode, I.Root (I.BVar k, S), occ) =
-          andUnique (groundVar (D, mode, k, P.head occ),
-		     groundSpineN (D, mode, S, (1, occ)))
+          (groundVar (D, mode, k, P.head occ);
+	   groundSpineN (D, mode, S, (1, occ)))
       | groundExpN (D, mode, I.Root (I.Const c, S), occ) =
 	  groundSpineN (D, mode, S, (1, occ))
       | groundExpN (D, mode, I.Root (I.Def d, S), occ) =
@@ -510,95 +455,64 @@ struct
 	  groundSpineN (D, mode, S, (1, occ))
       | groundExpN (D, mode, I.Lam (_, U), occ) =
 	  groundExpN (I.Decl (D, Universal), mode, U, P.body occ)
-      | groundExpN (D, mode, I.FgnExp csfe, occ) =
-	I.FgnExpStd.fold csfe (fn (U,u) => andUnique (groundExpN (D, mode, Whnf.normalize (U, I.id), occ), u)) Unique
-        (* punting on occ here  - ak *)
+      | groundExpN (D, mode, I.FgnExp (cs, ops), occ) =
+          groundExpN (D, mode, Whnf.normalize (#toInternal(ops)(), I.id), occ)
 
-    (* groundSpineN (D, mode, S, occ)  = u
+    (* groundSpineN (D, mode, S, occ)  = () 
 
        If   G |- S : V1  > V2   (S in nf)
        and  G ~ D
-       then if mode = (+) or (-)
-	    then groundSpineN terminates with u if  D |- S ground 
-                 else exception ModeError is raised
-            if mode = (-1) then D |- S ground and S unique
-	                   else exception ModeError is raised
-
-       u = Unique if all known variables in S are Unique
-       u = Ambig otherwise
+       then groundSpineN terminates with () if  D |- S ground 
+       else exception ModeError is raised
 
        (occ and mode are used in error messages)
     *)
-    and groundSpineN (D, mode, I.Nil, _) = Unique
+    and groundSpineN (D, mode, I.Nil, _) = ()
       | groundSpineN (D, mode, I.App (U, S), (p, occ)) =
-          andUnique (groundExpN (D, mode, U, P.arg (p, occ)),
-		     groundSpineN (D, mode, S, (p+1, occ)))
+          (groundExpN (D, mode, U, P.arg (p, occ));
+	   groundSpineN (D, mode, S, (p+1, occ)))
 
-    (* groundVar (D, mode, k, occ)  = u
+    (* groundVar (D, mode, k, occ)  = () 
 
        If   G |- k : V1  
        and  G ~ D
-       then if mode = (+) or (-)
-	    then groundVar terminates with u if  D |- k ground 
-                 else exception ModeError is raised
-            if mode = (-1) then D |- k ground and k unique
-	                   else exception ModeError is raised
-
-       u = Unique if k is known to be unique, Ambig otherwise
+       then groundVar terminates with () if  D |- S ground 
+       else exception ModeError is raised
 
        (occ and mode are used in error messages)
     *)
-    and groundVar (D, M.Minus1, k, occ) =
-        (case I.ctxLookup (D, k)
-	   of Existential (Ground (Unique), _) => Unique
-	    | Universal => Unique
-	    | s as Existential (Ground (Ambig), x) =>
-	      raise ModeError (occ, "Occurrence of variable " ^ nameOf s
-			       ^ " in " ^ M.modeToString M.Minus1
-			       ^ " argument not necessarily unique")
-	    | s => (* Existential (Free, _) or Existential (Unknown, _) *)
-		raise ModeError (occ, "Occurrence of variable " ^ (nameOf s)
-				 ^ " in " ^ (M.modeToString M.Minus1)
-				 ^ " argument not necessarily ground"))
-      | groundVar (D, mode, k, occ) =
+
+    and groundVar (D, mode, k, occ) =
         let
 	  val status = I.ctxLookup (D, k) 
 	in 
 	  if isGround status orelse isUniversal status
-	    then uniqueness status
+	    then ()
 	  else raise ModeError (occ, "Occurrence of variable " ^ (nameOf status) ^ 
-			        " in " ^ (M.modeToString mode)
-				^ " argument not necessarily ground")
+			        " in " ^ (M.modeToString mode) ^ " argument not necessarily ground")
 	end
 
     (* ------------------------------------------- groundness check by polarity *)
 
-    (* groundAtom (D, m, S, mS, (p,occ))  = u
+    (* groundAtom (D, m, S, mS, (p,occ))  = () 
 
        If   G |- S : V > V'   ( S = U1 ; .. ; Un)
        and  D ~ G 
        and  S ~ mS            (mS = m1 , .. , mn)
-       and  m mode = (+) or (-1)
-       then groundAtom returns u if  D |- Ui ground 
-            for all i s.t. mi = m (mod uniqueness)
-	    and checks that D |- Ui unique if mi = (-1) and m = (-)
-       otherwise exception ModeError is raised
-
-       u = Unique if all mi = m (mod uniqueness) are unique,
-       u = Ambig otherwise
+       and  m mode
+       then groundAtom terminates with () if 
+	    if all Ui are ground for all i, s.t. mi = m
+       else exception ModeError is raised
 
        ((p,occ) used in error messages)
     *)
-    fun groundAtom (D, _, I.Nil, M.Mnil, _) = Unique
+    fun groundAtom (D, _, I.Nil, M.Mnil, _) = ()
       | groundAtom (D, M.Plus, I.App (U, S), M.Mapp (M.Marg (M.Plus, _), mS), (p, occ)) =
-          andUnique (groundExpN (D, M.Plus, U, P.arg (p, occ)),
-		     groundAtom (D, M.Plus, S, mS, (p+1, occ)))
+          (groundExpN (D, M.Plus, U, P.arg (p, occ));
+	   groundAtom (D, M.Plus, S, mS, (p+1, occ)))
       | groundAtom (D, M.Minus, I.App (U, S), M.Mapp (M.Marg (M.Minus, _), mS), (p, occ)) =
-          (groundExpN (D, M.Minus, U, P.arg (p, occ)); (* ignore uniqueness result here *)
+          (groundExpN (D, M.Minus, U, P.arg (p, occ));
 	   groundAtom (D, M.Minus, S, mS, (p+1, occ)))
-      | groundAtom (D, M.Minus, I.App (U, S), M.Mapp (M.Marg (M.Minus1, _), mS), (p, occ)) =
-	  (groundExpN (D, M.Minus1, U, P.arg (p, occ));	(* ignore uniqueness result here *)
-           groundAtom (D, M.Minus, S, mS, (p+1, occ)))
       | groundAtom (D, mode, I.App (U, S), M.Mapp (_, mS), (p, occ)) =
           groundAtom (D, mode, S, mS, (p+1, occ))
 
@@ -648,13 +562,13 @@ struct
                     fun checkSome [D'] =
                           (* D' is the only (last) possibility; on failure, we raise ModeError *)
                           (
-                            groundAtom (D', M.Minus, S, mS, (1, occ)); (* ignore return *)
+                            groundAtom (D', M.Minus, S, mS, (1, occ));
                             checkAll mSs
                           )
                       | checkSome (D' :: Ds) =
                           (* try D', if it doesn't work, try another context in the Ds *)
                           (
-                            ((groundAtom (D', M.Minus, S, mS, (1, occ));()) (* ignore return *)
+                            (groundAtom (D', M.Minus, S, mS, (1, occ))
                              handle ModeError _ => checkSome Ds);
                             checkAll mSs
                           )
@@ -673,13 +587,13 @@ struct
                     fun checkSome [D'] =
                           (* D' is the only (last) possibility; on failure, we raise ModeError *)
                           (
-                            groundAtom (D', M.Minus, S, mS, (1, occ)); (* ignore return *)
+                            groundAtom (D', M.Minus, S, mS, (1, occ));
                             checkAll mSs
                           )
                       | checkSome (D' :: Ds) =
                           (* try D', if it doesn't work, try another context in the Ds *)
                           (
-                            ((groundAtom (D', M.Minus, S, mS, (1, occ)); ()) (* ignore return *)
+                            (groundAtom (D', M.Minus, S, mS, (1, occ))
                              handle ModeError _ => checkSome Ds);
                             checkAll mSs
                           )
@@ -719,16 +633,13 @@ struct
                   (* mS is the last possible mode to check;
                     if the check fails, we don't catch ModeError *) 
                   (
-                    case groundAtom (D, M.Plus, S, mS, (1, occ))
-		      of Unique => k (updateAtom (D, M.Minus1, S, a, mS, (1, occ)))
-		       | Ambig => k (updateAtom (D, M.Minus, S, a, mS, (1, occ)))
+                    groundAtom (D, M.Plus, S, mS, (1, occ));
+                    k (updateAtom (D, M.Minus, S, a, mS, (1, occ)))
                   )
               | checkList found (mS :: mSs) =
-		  (* uniqueness not permitted on multiple modes right now *)
-		  (* Wed Aug 20 21:52:31 2003 -fp *)
                   let
                     (* found' is true iff D satisfies mS *)
-                    val found' = ((groundAtom (D, M.Plus, S, mS, (1, occ)); true) (* handler scope??? -fp *)
+                    val found' = (groundAtom (D, M.Plus, S, mS, (1, occ)); true
                                   handle ModeError _ => false)
                     (* compute all other mode contexts *)
                     val Ds' = checkList (found orelse found') mSs                                  
@@ -748,16 +659,13 @@ struct
                   (* mS is the last possible mode to check;
                     if the check fails, we don't catch ModeError *) 
                   (
-                    case groundAtom (D, M.Plus, S, mS, (1, occ))
-		      of Unique => k (updateAtom (D, M.Minus1, S, d, mS, (1, occ)))
-                       | Ambig => k (updateAtom (D, M.Minus, S, d, mS, (1, occ)))
+                    groundAtom (D, M.Plus, S, mS, (1, occ));
+                    k (updateAtom (D, M.Minus, S, d, mS, (1, occ)))
                   )
               | checkList found (mS :: mSs) =
-		  (* uniqueness not permitted on multiple modes right now *)
-		  (* Wed Aug 20 21:52:31 2003 -fp *)
                   let
                     (* found' is true iff D satisfies mS *)
-                    val found' = ((groundAtom (D, M.Plus, S, mS, (1, occ)); true)
+                    val found' = (groundAtom (D, M.Plus, S, mS, (1, occ)); true
                                   handle ModeError _ => false)
                     (* compute all other mode contexts *)
                     val Ds' = checkList (found orelse found') mSs                                  
@@ -800,7 +708,7 @@ struct
         let 
 	  val _ = (checkFree := false)
 	  fun checkable (I.Root (Ha, _)) = 
-	      (case (ModeTable.mmodeLookup (cidFromHead Ha)) 
+	      (case (M.mmodeLookup (cidFromHead Ha)) 
 		 of nil => false
 	          | _ => true)
 	    | checkable (I.Uni _) = false
@@ -813,7 +721,7 @@ struct
 		   (case occOpt 
 		      of NONE => raise Error (msg)
 		       | SOME occTree =>
-			   raise Error (wrapMsg' (fileName, P.occToRegionClause occTree occ, msg)))
+			   raise Error (wrapMsg' (fileName, P.occToRegionDec occTree occ, msg)))
 	  else ()
 	end
 

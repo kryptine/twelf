@@ -19,7 +19,6 @@ sig
     | FixDec of (Names.Qid * Paths.region) * Names.Fixity.fixity
     | NamePref of (Names.Qid * Paths.region) * (string * string option)
     | ModeDec of ExtModes.modedec list
-    | UniqueDec of ExtModes.modedec list (* -fp 8/17/03 *)
     | CoversDec of ExtModes.modedec list
     | TotalDec of ThmExtSyn.tdecl
     | TerminatesDec of ThmExtSyn.tdecl
@@ -31,8 +30,6 @@ sig
     | EstablishDec of ThmExtSyn.establish
     | AssertDec of ThmExtSyn.assert
     | Query of int option * int option * ExtQuery.query (* expected, try, A *)
-    | FQuery of ExtQuery.query (* A *)
-    | Compile of Names.Qid list (* -ABP 4/4/03 *)
     | Querytabled of int option * int option * ExtQuery.query        (* expected, try, A *)
     | Solve of ExtQuery.define list * ExtQuery.solve
     | AbbrevDec of ExtConDec.condec

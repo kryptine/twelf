@@ -36,11 +36,9 @@ struct
     fun splitModeId (r, id) =
         case String.sub (id, 0)
 	  of #"*" => (E.star r, extract (id, 1))
-	   | #"-" => (if (String.size id > 1 andalso String.sub (id, 1) = #"1")
-			then (E.minus1 r, extract (id, 2))
-		      else (E.minus r, extract (id, 1)))
+	   | #"-" => (E.minus r, extract (id, 1))
 	   | #"+" => (E.plus r,  extract (id, 1))
-	   | _ => Parsing.error (r, "Expected mode `+', `-', `*', or `-1'  found " ^ id)
+	   | _ => Parsing.error (r, "Expected mode `+', `-', or `*', found " ^ id)
 
     fun validateMArg (r, mId as (mode, SOME (id))) =
         if L.isUpper id
@@ -158,7 +156,6 @@ struct
        Invariant: exposed input stream starts with MODE
     *)
     fun parseMode' (LS.Cons ((L.MODE, r), s')) = parseMode1 (LS.expose s')
-      | parseMode' (LS.Cons ((L.UNIQUE, r), s')) = parseMode1 (LS.expose s')
       | parseMode' (LS.Cons ((L.COVERS, r), s')) = parseMode1 (LS.expose s')
   in
     val parseMode' = parseMode'

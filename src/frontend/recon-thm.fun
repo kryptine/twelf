@@ -7,10 +7,15 @@ functor ReconThm (structure Global : GLOBAL
                   structure Abstract : ABSTRACT
 		  (*! sharing Abstract.IntSyn = IntSyn !*)
 		  structure Constraints : CONSTRAINTS
+		  (*! sharing Constraints.IntSyn = IntSyn !*)
+		  structure ModeSyn : MODESYN
+		  (*! sharing ModeSyn.IntSyn = IntSyn !*)
 		  structure Names : NAMES
 		  (*! sharing Names.IntSyn = IntSyn !*)
 		  (*! structure Paths' : PATHS !*)
 		  structure ThmSyn': THMSYN
+		    sharing ThmSyn'.ModeSyn = ModeSyn
+		    (*! sharing ThmSyn'.Paths = Paths' !*)
 		    sharing ThmSyn'.Names = Names
 		  structure ReconTerm': RECON_TERM
 		  (*! sharing ReconTerm'.IntSyn = IntSyn !*)
@@ -88,7 +93,7 @@ struct
           error (r, "Illegal foreign constant " ^ a ^ " in call pattern")
       | checkCallPat (I.ConDec (a, _, _, _, _, I.Type), P, r) =
 	  error (r, "Constant " ^ a ^ " in call pattern not a type family")
-      | checkCallPat (I.ConDef (a, _, _, _, _, _, _), P, r) =
+      | checkCallPat (I.ConDef (a, _, _, _, _, _), P, r) =
           error (r, "Illegal defined constant " ^ a ^ " in call pattern")
       | checkCallPat (I.AbbrevDef (a, _, _, _, _, _), P, r) =
 	  error (r, "Illegal abbreviation " ^ a ^ " in call pattern")

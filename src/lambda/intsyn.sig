@@ -9,15 +9,6 @@ sig
   type mid = int                        (* Structure identifier       *)
   type csid = int                       (* CS module identifier       *)
 
-  type FgnExp = exn                     (* foreign expression representation *)
-  exception UnexpectedFgnExp of FgnExp
-                                        (* raised by a constraint solver
-					   if passed an incorrect arg *)
-  type FgnCnstr = exn                   (* foreign constraint representation *)
-  exception UnexpectedFgnCnstr of FgnCnstr
-                                        (* raised by a constraint solver
-                                           if passed an incorrect arg *)
-
   (* Contexts *)
 
   datatype 'a Ctx =			(* Contexts                   *)
@@ -49,7 +40,16 @@ sig
                                         (*     | X<I> : G|-V, Cnstr   *)
   | EClo  of Exp * Sub			(*     | U[s]                 *)
   | AVar  of Exp option ref             (*     | A<I>                 *)
-  | FgnExp of csid * FgnExp             (*     | (foreign expression) *)
+
+  | FgnExp of csid *                    (*     | (foreign expression) *)
+      {
+        toInternal : unit -> Exp,       (* convert to internal syntax *)
+        map : (Exp -> Exp) -> Exp,      (* apply to subterms          *)
+        equalTo : Exp -> bool,
+                                        (* test for equality          *)
+        unifyWith : Dec Ctx * Exp -> FgnUnify
+                                        (* unify with another term    *)
+      }
 
   and Head =				(* Head:                      *)
     BVar  of int			(* H ::= k                    *)
@@ -80,21 +80,11 @@ sig
     Dec of string option * Exp		(* D ::= x:V                  *)
   | BDec of string option * (cid * Sub)	(*     | v:l[s]               *)
   | ADec of string option * int	        (*     | v[^-d]               *)
-  | NDec 
 
   and Block =				(* Blocks:                    *)
     Bidx of int				(* b ::= v                    *)
-  | LVar of Block option ref * Sub * (cid * Sub)
-                                        (*     | L(l[^k],t)           *)
-  | Inst of Exp list                    (*     | U1, ..., Un          *)
-  (* It would be better to consider having projections count
-     like substitutions, then we could have Inst of Sub here, 
-     which would simplify a lot of things.  
-
-     I suggest however to wait until the next big overhaul 
-     of the system -- cs *)
-
-
+  | LVar of Block option ref * (cid * Sub) 
+                                        (*     | L(l,s)               *)
 (*  | BClo of Block * Sub                 (*     | b[s]                 *) *)
 
   (* constraints *)
@@ -102,7 +92,13 @@ sig
   and Cnstr =				(* Constraint:                *)
     Solved                      	(* Cnstr ::= solved           *)
   | Eqn      of Dec Ctx * Exp * Exp     (*         | G|-(U1 == U2)    *)
-  | FgnCnstr of csid * FgnCnstr         (*         | (foreign)        *)
+  | FgnCnstr of csid *                  (*         | (foreign)        *)
+      {
+        toInternal : unit -> (Dec Ctx * Exp) list,
+                                        (* convert to internal syntax *)
+        awake : unit -> bool,           (* awake                      *)
+        simplify : unit -> bool         (* simplify                   *)
+      }
 
   and Status =                          (* Status of a constant:      *)
     Normal                              (*   inert                    *)
@@ -129,7 +125,6 @@ sig
               * Exp * Uni	        (* c : A : type               *)
   | ConDef of string * mid option * int	(* a = A : K : kind  or       *)
               * Exp * Exp * Uni		(* d = M : A : type           *)
-              * Ancestor                (* Ancestor info for d or a   *)
   | AbbrevDef of string * mid option * int
                                         (* a = A : K : kind  or       *)
               * Exp * Exp * Uni		(* d = M : A : type           *)
@@ -137,10 +132,6 @@ sig
               * Dec Ctx * Dec list
   | SkoDec of string * mid option * int	(* sa: K : kind  or           *)
               * Exp * Uni	        (* sc: A : type               *)
-
-  and Ancestor =			(* Ancestor of d or a         *)
-    Anc of cid option * int * cid option (* head(expand(d)), height, head(expand[height](d)) *)
-                                        (* NONE means expands to {x:A}B *)
 
   datatype StrDec =                     (* Structure declaration      *)
       StrDec of string * mid option
@@ -158,47 +149,6 @@ sig
   type cnstr = Cnstr ref
 
   exception Error of string		(* raised if out of space     *)
-
-  (* standard operations on foreign expressions *)
-  structure FgnExpStd : sig
-    (* convert to internal syntax *)
-    structure ToInternal : FGN_OPN where type arg = unit
-                                   where type result = Exp
-
-    (* apply function to subterms *)
-    structure Map : FGN_OPN where type arg = Exp -> Exp
-			    where type result = Exp
-
-    (* apply function to subterms, for effect *)
-    structure App : FGN_OPN where type arg = Exp -> unit
-			    where type result = unit
-
-    (* test for equality *)
-    structure EqualTo : FGN_OPN where type arg = Exp
-                                where type result = bool
-
-    (* unify with another term *)
-    structure UnifyWith : FGN_OPN where type arg = Dec Ctx * Exp
-                                  where type result = FgnUnify
-
-    (* fold a function over the subterms *)
-    val fold : (csid * FgnExp) -> (Exp * 'a -> 'a) -> 'a -> 'a
-  end
-
-  (* standard operations on foreign constraints *)
-  structure FgnCnstrStd : sig
-    (* convert to internal syntax *)
-    structure ToInternal : FGN_OPN where type arg = unit
-                                   where type result = (Dec Ctx * Exp) list
-
-    (* awake *)
-    structure Awake : FGN_OPN where type arg = unit
-                              where type result = bool
-
-    (* simplify *)
-    structure Simplify : FGN_OPN where type arg = unit
-                                 where type result = bool
-  end
   
   val conDecName   : ConDec -> string
   val conDecParent : ConDec -> mid option
@@ -253,13 +203,7 @@ sig
   val newEVar    : dctx * Exp -> Exp	(* creates X:G|-V, []         *) 
   val newAVar    : unit ->  Exp	        (* creates A (bare)           *) 
   val newTypeVar : dctx -> Exp		(* creates X:G|-type, []      *)
-  val newLVar    : Sub * (cid * Sub) -> Block	
-					(* creates B:(l[^k],t)        *) 
-
-  (* Definition related functions *)
-  val headOpt : Exp -> Head option
-  val ancestor : Exp -> Ancestor
-  val defAncestor : cid -> Ancestor
+  val newLVar    : cid * Sub -> Block	(* creates B:(l,s)            *) 
 
   (* Type related functions *)
 

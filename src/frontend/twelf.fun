@@ -6,6 +6,7 @@
 functor Twelf
   (structure Global : GLOBAL
    structure Timers : TIMERS
+   (*! structure IntSyn' : INTSYN !*)
    structure Whnf : WHNF
    (*! sharing Whnf.IntSyn = IntSyn' !*)
    structure Print : PRINT
@@ -41,44 +42,26 @@ functor Twelf
    (*! sharing ReconConDec.Paths = Paths !*)
      sharing type ReconConDec.condec = Parser.ExtConDec.condec
    structure ReconQuery : RECON_QUERY
-   structure ModeTable : MODETABLE
+
+   structure ModeSyn : MODESYN
    (*! sharing ModeSyn.IntSyn = IntSyn' !*)
    structure ModeCheck : MODECHECK
    (*! sharing ModeCheck.IntSyn = IntSyn' !*)
-   (*! sharing ModeCheck.ModeSyn = ModeSyn !*)
-   (*! sharing ModeCheck.Paths = Paths !*)
+     sharing ModeCheck.ModeSyn = ModeSyn
+     (*! sharing ModeCheck.Paths = Paths !*)
    structure ReconMode : RECON_MODE
-   (*! sharing ReconMode.ModeSyn = ModeSyn !*)
+     sharing ReconMode.ModeSyn = ModeSyn
      (*! sharing ReconMode.Paths = Paths !*)
      sharing type ReconMode.modedec = Parser.ExtModes.modedec
    structure ModePrint : MODEPRINT
-   (*! sharing ModePrint.ModeSyn = ModeSyn !*)
+     sharing ModePrint.ModeSyn = ModeSyn
    structure ModeDec : MODEDEC
-   (*! sharing ModeDec.ModeSyn = ModeSyn !*)
+     sharing ModeDec.ModeSyn = ModeSyn
      (*! sharing ModeDec.Paths = Paths !*)
-
-   structure StyleCheck : STYLECHECK
-
-   structure Unique : UNIQUE
-   (*! sharing Unique.ModeSyn = ModeSyn !*)
-   structure UniqueTable : MODETABLE
 
    structure Cover : COVER
    (*! sharing Cover.IntSyn = IntSyn' !*)
-   (*! sharing Cover.ModeSyn = ModeSyn !*)
-
-   structure Converter : CONVERTER
-   (*! sharing Converter.IntSyn = IntSyn' !*)
-   (*! sharing Converter.Tomega = Tomega !*)
-   structure TomegaPrint : TOMEGAPRINT
-   (*! sharing TomegaPrint.IntSyn = IntSyn' !*)
-   (*! sharing TomegaPrint.Tomega = Tomega !*)
-   structure TomegaCoverage : TOMEGACOVERAGE
-   (*! sharing TomegaCoverage.IntSyn = IntSyn' !*)
-   (*! sharing TomegaCoverage.Tomega = Tomega !*)
-   structure TomegaTypeCheck : TOMEGATYPECHECK
-   (*! sharing TomegaTypeCheck.IntSyn = IntSyn' !*)
-   (*! sharing TomegaTypeCheck.Tomega = Tomega !*)
+     sharing Cover.ModeSyn = ModeSyn
 
    structure Total : TOTAL
    (*! sharing Total.IntSyn = IntSyn' !*)
@@ -111,11 +94,6 @@ functor Twelf
      sharing type Solve.ExtQuery.query = Parser.ExtQuery.query
      sharing type Solve.ExtQuery.define = Parser.ExtQuery.define
      sharing type Solve.ExtQuery.solve = Parser.ExtQuery.solve
-   structure Fquery : FQUERY
-   (*! sharing Fquery.IntSyn = IntSyn' !*)
-     sharing type Fquery.ExtQuery.query = Parser.ExtQuery.query
-     sharing type Fquery.ExtQuery.define = Parser.ExtQuery.define
-     sharing type Fquery.ExtQuery.solve = Parser.ExtQuery.solve
 	     (*! sharing Solve.Paths = Paths !*)
 
    structure ThmSyn : THMSYN
@@ -127,7 +105,7 @@ functor Twelf
    structure ReconThm : RECON_THM
      sharing ReconThm.ThmSyn = ThmSyn
      (*! sharing ReconThm.Paths = Paths !*)
-     (*! sharing ReconThm.ThmSyn.ModeSyn = ModeSyn !*)
+     sharing ReconThm.ThmSyn.ModeSyn = ModeSyn
      sharing type ReconThm.tdecl = Parser.ThmExtSyn.tdecl
      sharing type ReconThm.rdecl = Parser.ThmExtSyn.rdecl (* -bp *)
      sharing type ReconThm.tableddecl = Parser.ThmExtSyn.tableddecl (* -bp *)
@@ -146,7 +124,7 @@ functor Twelf
    structure WorldSyn : WORLDSYN
    (*! sharing WorldSyn.IntSyn = IntSyn' !*)
    structure WorldPrint : WORLDPRINT
-   (*! sharing WorldPrint.Tomega = Tomega !*)
+     sharing WorldPrint.WorldSyn = WorldSyn
 
    structure ModSyn : MODSYN
    (*! sharing ModSyn.IntSyn = IntSyn' !*)
@@ -179,11 +157,10 @@ functor Twelf
    structure CSManager : CS_MANAGER
    (*! sharing CSManager.IntSyn = IntSyn' !*)
      sharing CSManager.Fixity = Names.Fixity
-   (*! sharing CSManager.ModeSyn = ModeSyn !*)
+     sharing CSManager.ModeSyn = ModeSyn
     
    structure CSInstaller : CS_INSTALLER
-   structure Compat : COMPAT
-   structure UnknownExn : UNKNOWN_EXN
+   structure MkAbsolute : MK_ABSOLUTE
      )
  :> TWELF =
 struct
@@ -299,18 +276,15 @@ struct
 	      | Reduces.Error (msg) => abort (msg ^ "\n") (* Reduces includes filename *)
               | Compile.Error (msg) => abortFileMsg (fileName, msg)
 	      | Thm.Error (msg) => abortFileMsg (fileName, msg)
-	      | ModeTable.Error (msg) => abortFileMsg (fileName, msg)
+	      | ModeSyn.Error (msg) => abortFileMsg (fileName, msg)
 	      | ModeCheck.Error (msg) => abort (msg ^ "\n") (* ModeCheck includes filename *)
 	      | ModeDec.Error (msg) => abortFileMsg (fileName, msg)
-              | Unique.Error (msg) => abortFileMsg (fileName, msg)
               | Cover.Error (msg) => abortFileMsg (fileName, msg)
 	      | Parsing.Error (msg) => abortFileMsg (fileName, msg)
 	      | Lexer.Error (msg) => abortFileMsg (fileName, msg)
 	      | IntSyn.Error (msg) => abort ("Signature error: " ^ msg ^ "\n")
 	      | Names.Error (msg) => abortFileMsg (fileName, msg)
-	      (* - Not supported in polyML ABP - 4/20/03 
- 	      * | IO.Io (ioError) => abortIO (fileName, ioError)
-	      *)
+	      | IO.Io (ioError) => abortIO (fileName, ioError)
 	      | Solve.AbortQuery (msg) => abortFileMsg (fileName, msg)
 	      | ThmSyn.Error (msg) => abortFileMsg (fileName, msg)
 	      | Prover.Error (msg) => abortFileMsg (fileName, msg)
@@ -318,9 +292,8 @@ struct
               | Subordinate.Error (msg) => abortFileMsg (fileName, msg)
 	      | WorldSyn.Error (msg) => abort (msg ^ "\n") (* includes filename *)
               | ModSyn.Error (msg) => abortFileMsg (fileName, msg)
-	      | Converter.Error (msg) => abortFileMsg (fileName, msg)
               | CSManager.Error (msg) => abort ("Constraint Solver Manager error: " ^ msg ^ "\n")
-	      | exn => (abort (UnknownExn.unknownExn exn); raise exn))
+	      | exn => (abort ("Unrecognized exception\n"); raise exn))
 
     (* During elaboration of a signature expression, each constant
        that that the user declares is added to this table.  At top level,
@@ -516,13 +489,6 @@ struct
 	(Solve.query ((expected, try, query), Paths.Loc (fileName, r))
 	 handle Solve.AbortQuery (msg)
 	        => raise Solve.AbortQuery (Paths.wrap (r, msg)))
-      (* %fquery <expected> <try> A or %fquery <expected> <try> X : A *)
-      | install1 (fileName, (Parser.FQuery (query), r)) =
-        (* Solve.query might raise Fquery.AbortQuery (msg) *)
-	(Fquery.run (query, Paths.Loc (fileName, r))
-	 handle Fquery.AbortQuery (msg)
-	        => raise Fquery.AbortQuery (Paths.wrap (r, msg)))
-
       (* %queryTabled <expected> <try> A or %query <expected> <try> X : A *)
       | install1 (fileName, (Parser.Querytabled(numSol, try,query), r)) =
         (* Solve.query might raise Solve.AbortQuery (msg) *)
@@ -574,54 +540,6 @@ struct
           else ()
         end
 
-      (* %compile <qids> *) (* -ABP 4/4/03 *)
-      | install1 (fileName, (Parser.Compile (qids), r)) = 
-        let
-          fun toCid qid =
-              case Names.constLookup qid
-                of NONE => raise Names.Error ("Undeclared identifier "
-                                              ^ Names.qidToString (valOf (Names.constUndef qid))
-                                              ^ " in compile assertion")
-                 | SOME cid => cid
-          val cids = List.map toCid qids
-                     handle Names.Error (msg) => raise Names.Error (Paths.wrap (r, msg))
-
-	  (* MOVED -- ABP 4/4/03 *)
-	  (* ******************************************* *)
-	  fun checkFreeOut nil = ()
-	    | checkFreeOut (a :: La) =
-	      let 
-		val SOME ms = ModeTable.modeLookup a
-	        val _ = ModeCheck.checkFreeOut (a, ms)
-	      in
-		checkFreeOut La 
-	      end
-
-	  val _ = checkFreeOut cids
-	  (* ******************************************* *)
-
-	  val (lemma, projs, sels) = Converter.installPrg cids
-	  val P = Tomega.lemmaDef lemma
-	  val F = Converter.convertFor cids
-	  val _ = TomegaTypeCheck.checkPrg (IntSyn.Null, (P, F))
-
-	  fun f cid = IntSyn.conDecName (IntSyn.sgnLookup cid)
-
-	  val _ = if !Global.chatter >= 2 
-		    then print ("\n" ^ 
-				TomegaPrint.funToString ((map f cids, projs), P)
-				^ "\n")
-		  else ()
-
-          val _ = if !Global.chatter >= 3
-		    then print ((if !Global.chatter >= 4 then "%" else "")
-				^ "%compile"
-				^ List.foldr (fn (a, s) => " " ^ Names.qidToString (Names.constQid a) ^ s) ".\n" cids)
-		  else ()
-        in
-	  ()
-        end
-
       (* Fixity declaration for operator precedence parsing *)
       | install1 (fileName, (Parser.FixDec ((qid,r),fixity), _)) =
         (case Names.constLookup qid
@@ -652,41 +570,15 @@ struct
           val _ = ReconTerm.checkErrors (r)
 	  val _ = List.app (fn (mdec as (a, _), r) => 
 	                    (case (IntSyn.conDecStatus (IntSyn.sgnLookup a))
-			       of IntSyn.Normal => ModeTable.installMode mdec
-			        | _ => raise ModeTable.Error "Cannot declare modes for foreign constants")
-			    handle ModeTable.Error (msg) => raise ModeTable.Error (Paths.wrap (r, msg)))
+			       of IntSyn.Normal => ModeSyn.installMode mdec
+			        | _ => raise ModeSyn.Error "Cannot declare modes for foreign constants")
+			    handle ModeSyn.Error (msg) => raise ModeSyn.Error (Paths.wrap (r, msg)))
 	          mdecs
-          val _ = List.app (fn mdec => ModeDec.checkPure mdec) mdecs
 	  val _ = List.app (fn (mdec, r) => ModeCheck.checkMode mdec (* exception comes with location *)
 			    handle ModeCheck.Error (msg) => raise ModeCheck.Error (msg))
 	          mdecs
 	  val _ = if !Global.chatter >= 3 
 		    then print ("%mode " ^ ModePrint.modesToString
-				           (List.map (fn (mdec, r) => mdec) mdecs)
-					 ^ ".\n")
-		  else ()		   
-	in
-	  ()
-	end
-
-      (* Unique declaration *)
-      | install1 (fileName, (Parser.UniqueDec mterms, r)) =
-	let
-	  val mdecs = List.map ReconMode.modeToMode mterms
-	  val _ = ReconTerm.checkErrors (r)
-          (* convert all UniqueTable.Error to Unique.Error *)
-	  val _ = List.app (fn (mdec as (a, _), r) => 
-	                    (case (IntSyn.conDecStatus (IntSyn.sgnLookup a))
-			       of IntSyn.Normal => UniqueTable.installMode mdec
-			        | _ => raise UniqueTable.Error "Cannot declare modes for foreign constants")
-			    handle UniqueTable.Error (msg) => raise Unique.Error (Paths.wrap (r, msg)))
-	          mdecs
-          (* Timing added to coverage --- fix !!! -fp Sun Aug 17 12:17:51 2003 *)
-          val _ = List.app (fn (mdec, r) => (Timers.time Timers.coverage Unique.checkUnique) mdec
-                                handle Unique.Error (msg) => raise Unique.Error (Paths.wrap (r, msg)))
-	          mdecs
-	  val _ = if !Global.chatter >= 3 
-		    then print ("%unique " ^ ModePrint.modesToString
 				           (List.map (fn (mdec, r) => mdec) mdecs)
 					 ^ ".\n")
 		  else ()
@@ -699,7 +591,6 @@ struct
 	let
 	  val mdecs = List.map ReconMode.modeToMode mterms
           val _ = ReconTerm.checkErrors (r)
-          val _ = List.app (fn mdec => ModeDec.checkPure mdec) mdecs   (* MERGE Fri Aug 22 13:43:12 2003 -cs *)
 	  val _ = List.app (fn (mdec, r) => (Timers.time Timers.coverage Cover.checkCovers) mdec
 			    handle Cover.Error (msg) => raise Cover.Error (Paths.wrap (r, msg)))
 	          mdecs
@@ -725,58 +616,12 @@ struct
           *)
 	  val (T, rrs as (r,rs)) = ReconThm.tdeclTotDecl lterm
 	  val La = Thm.installTotal (T, rrs)
-
-(* ******************************************* *)
-(*  Temporarily disabled -- cs Thu Oct 30 12:46:44 2003 
-	  fun checkFreeOut nil = ()
-	    | checkFreeOut (a :: La) =
-	      let 
-		val SOME ms = ModeTable.modeLookup a
-	        val _ = ModeCheck.checkFreeOut (a, ms)
-	      in
-		checkFreeOut La 
-	      end
-	  val _ = checkFreeOut La
-	  val (lemma, projs, sels) = Converter.installPrg La
-
-
-	  (* ABP 2/28/03 -- factoring *)
-	  val _ = if (!Global.chatter >= 4) then print ("[Factoring ...") else ()
-	  val P = Redundant.convert (Tomega.lemmaDef lemma)
-	  val _ = if (!Global.chatter >= 4) then print ("]\n") else ()
-
-	  val F = Converter.convertFor La
-
-	  val _ = if !Global.chatter >= 2
-		    then print (TomegaPrint.funToString ((map (fn (cid) => IntSyn.conDecName (IntSyn.sgnLookup cid)) La,
-							  projs), P) ^ "\n")
-		  else ()
-
-	  val _ = TomegaTypeCheck.checkPrg (IntSyn.Null, (P, F))
-	      
-	  val result1 = (TomegaCoverage.coverageCheckPrg (WorldSyn.lookup (hd La), IntSyn.Null, P); NONE) 
-	                handle TomegaCoverage.Error msg => SOME msg
-
-
-(*	val result1 = NONE *)
-
- 	  fun covererror (SOME msg1, msg2) = raise Cover.Error (Paths.wrap (r, "Functional and relational coverage checker report coverage error:\n[Functional] " 
-									    ^ msg1 ^ "\n[Relational] " ^ msg2))
-	    | covererror (NONE, msg2)      = raise Cover.Error (Paths.wrap (r, "Functional coverage succeeds, relationals fails:\n[Relational] " ^ msg2))
-
-7 ******************************************* *)
-
 	  val _ = map Total.install La	(* pre-install for recursive checking *)
 	  val _ = map Total.checkFam La
 	          handle Total.Error (msg) => raise Total.Error (msg) (* include region and file *)
 		       | Cover.Error (msg) => raise Cover.Error (Paths.wrap (r, msg))
-(*		       | Cover.Error (msg) => covererror (result1, msg)  disabled -cs Thu Jan 29 16:35:13 2004 *)
 		       | Reduces.Error (msg) => raise Reduces.Error (msg) (* includes filename *)
 		       | Subordinate.Error (msg) => raise Subordinate.Error (Paths.wrap (r, msg))
-(*	  val _ = case (result1) 
-	            of NONE => ()
-		     | SOME msg => raise Cover.Error (Paths.wrap (r, "Relational coverage succeeds, funcational fails:\n This indicates a bug in the functional checker.\n[Functional] " ^ msg))
-*)
 	  val _ = if !Global.chatter >= 3
 		    then print ("%total " ^ ThmPrint.tDeclToString T ^ ".\n")
 		  else ()
@@ -838,7 +683,7 @@ struct
 								       
 	  val cid = installConDec IntSyn.Ordinary (E, (fileName, NONE), r)
 	  val MS = ThmSyn.theoremDecToModeSpine (Tdec, r)
-	  val _ = ModeTable.installMode (cid, MS)
+	  val _ = ModeSyn.installMode (cid, MS)
 	  val _ = if !Global.chatter >= 3
 		    then print ("%theorem " ^ Print.conDecToString E ^ "\n")
 		  else ()
@@ -858,7 +703,7 @@ struct
 	  val _ = Prover.init (depth, La)
 	  val _ = if !Global.chatter >= 3 
 		    then map (fn a => print ("%mode " ^ 
-					     (ModePrint.modeToString (a, valOf (ModeTable.modeLookup a)))
+					     (ModePrint.modeToString (a, valOf (ModeSyn.modeLookup a)))
 					     ^ ".\n")) La   (* mode must be declared!*)
 		  else [()]
 
@@ -886,7 +731,7 @@ struct
 	  val _ = Prover.init (depth, La)
 	  val _ = if !Global.chatter >= 3 
 		    then map (fn a => print ("%mode " ^ 
-					     (ModePrint.modeToString (a, valOf (ModeTable.modeLookup a)))
+					     (ModePrint.modeToString (a, valOf (ModeSyn.modeLookup a)))
 					     ^ ".\n")) La   (* mode must be declared!*)
 		  else [()]
 
@@ -909,7 +754,7 @@ struct
 		  else ()
 	  val _ = if !Global.chatter >= 3 
 		    then map (fn a => print ("%mode " ^ 
-					     (ModePrint.modeToString (a, valOf (ModeTable.modeLookup a)))
+					     (ModePrint.modeToString (a, valOf (ModeSyn.modeLookup a)))
 					     ^ ".\n")) La   (* mode must be declared!*)
 		  else [()]
 	in
@@ -920,7 +765,7 @@ struct
 	let
 	  val (ThmSyn.WDecl (qids, cp as ThmSyn.Callpats cpa), rs) =
 	         ReconThm.wdeclTowDecl wdecl
-	  val W = Tomega.Worlds
+	  val W = WorldSyn.Worlds
 	      (List.map (fn qid => case Names.constLookup qid
 			            of NONE => raise Names.Error ("Undeclared label "
                                          ^ Names.qidToString (valOf (Names.constUndef qid))
@@ -1066,7 +911,7 @@ struct
           val _ = Index.resetFrom mark
           val _ = IndexSkolem.resetFrom mark
           val _ = ModSyn.resetFrom markSigDef
-          (* val _ = ModeTable.resetFrom mark *)
+          (* val _ = ModeSyn.resetFrom mark *)
           (* val _ = Total.resetFrom mark *)
           (* val _ = Subordinate.resetFrom mark (* ouch! *) *)
           (* val _ = Reduces.resetFrom mark *)
@@ -1137,7 +982,7 @@ struct
                                          ^ Names.qidToString (Names.constQid cid) ^ ".\n")
                            else ())
 		      | NONE => ())
-	  val _ = List.app (fn mdec => ModeTable.installMmode (cid, mdec)) mdecL
+	  val _ = List.app (fn mdec => ModeSyn.installMmode (cid, mdec)) mdecL
 	in
 	  cid
 	end
@@ -1146,7 +991,7 @@ struct
  
     (* reset () = () clears all global tables, including the signature *)
     fun reset () = (IntSyn.sgnReset (); Names.reset (); Origins.reset ();
-		    ModeTable.reset ();
+		    ModeSyn.reset ();
 		    Index.reset (); 
 		    IndexSkolem.reset ();
 		    Subordinate.reset ();
@@ -1189,62 +1034,27 @@ struct
 	  val conDec = IntSyn.sgnLookup (cid)
 	  (* val fixity = Names.getFixity (cid) *)
 	  (* can't get name preference right now *)
-	  (* val mode = ModeTable.modeLookup (cid) *)
+	  (* val mode = ModeSyn.modeLookup (cid) *)
 	  (* can't get termination declaration *)
 	in
 	  print (Print.conDecToString conDec ^ "\n");
 	  OK
 	end
 
-    (* Support tracking file modification times for smart re-appending. *)
-    structure ModFile :
-    sig
-      type mfile
-      val create : string -> mfile
-      val fileName : mfile -> string
-      val editName : (string -> string) -> mfile -> mfile
-      val modified : mfile -> bool
-      val makeModified : mfile -> unit
-      val makeUnmodified : mfile -> unit
-    end
-    =
-    struct
-      type mfile = string * Time.time option ref
-                   
-      fun create file = (file, ref NONE)
-                   
-      fun fileName (file, _) = file
-
-      fun editName edit (file, mtime) = (edit file, mtime)
-
-      fun modified (_, ref NONE) = true
-        | modified (file, ref (SOME time)) =
-          (case Time.compare (time, OS.FileSys.modTime file)
-             of EQUAL => false
-              | _     => true)
-        
-      fun makeModified (_, mtime) =
-          mtime := NONE
-
-      fun makeUnmodified (file, mtime) =
-          mtime := SOME (OS.FileSys.modTime file)
-    end
-
     (* config = ["fileName1",...,"fileName<n>"] *)
     (* Files will be read in the order given! *)
     structure Config =
     struct
       (* A configuration (pwdir, sources) consists of an absolute directory
-         pwdir and a list of source file names (which are interpreted
-         relative to pwdir) along with their modification times.
-         pwdir will be the current working directory
+         pwdir and a list of source file names which are interpreted
+         relative to pwdir.  pwdir will be the current working directory
          when a configuration is loaded, which may not be same as the
          directory in which the configuration file is located.
 
 	 This representation allows shorter file names in chatter and
 	 error messages.
       *)
-      type config = string * ModFile.mfile list
+      type config = string * string list
 
       (* suffix of configuration files: "cfg" by default *)
       val suffix = ref "cfg"
@@ -1344,65 +1154,38 @@ struct
                       end)
             val pwdir = OS.FileSys.getDir ()
           in
-            (pwdir, List.map ModFile.create (#1(read' (nil, [config]) config)))
+            (pwdir, #1(read' (nil, [config]) config))
           (*
             handle IO.Io (ioError) => (abortIO (configFile, ioError); raise IO.io (ioError))
           *)
           end
 
-      fun loadAbort (mfile, OK) =
-	  let
-	    val status = loadFile (ModFile.fileName mfile)
-	  in
-	    case status
-	      of OK => ModFile.makeUnmodified mfile
-	       | _  => ();
-	    status
-	  end
+      fun loadAbort (filename, OK) = loadFile (filename)
 	| loadAbort (_, ABORT) = ABORT
 
       (* load (config) = Status
          resets the global signature and then reads the files in config
          in order, stopping at the first error.
       *)
-      fun load (config as (_, sources)) =
-          (reset (); List.app ModFile.makeModified sources; append (config))
+      fun load (config) =
+          (reset (); append (config))
       (* append (config) = Status
-         reads the files in config in order, beginning at the first
-         modified file, stopping at the first error.
+         reads the files in config in order, stopping at the first error.
       *)
       and append (pwdir, sources) =
-          let
-            fun fromFirstModified nil = nil
-              | fromFirstModified (sources as x::xs) =
-                if ModFile.modified x
-                  then sources
-                  else fromFirstModified xs
+	  (if pwdir = OS.FileSys.getDir () (* allow shorter messages if safe *)
+	     then List.foldl loadAbort OK sources
+	   else List.foldl loadAbort OK
+	        (List.map (fn p => MkAbsolute.mkAbsolute {path=p, relativeTo=pwdir}) sources))
 
-            fun mkAbsolute p =
-                Compat.OS.Path.mkAbsolute {path=p, relativeTo=pwdir}
-
-            val sources' = 
-                (* allow shorter messages if safe *)
-                if pwdir = OS.FileSys.getDir ()
-                  then sources
-                else List.map (ModFile.editName mkAbsolute) sources
-
-            val sources'' = fromFirstModified sources'
-          in
-            List.foldl loadAbort OK sources''
-          end
-
-      fun define (sources) = (OS.FileSys.getDir (),
-                              List.map ModFile.create sources)
+      fun define (sources) = (OS.FileSys.getDir (), sources)
 
     end  (* structure Config *)
 
     (* make (configFile)
        read and then load configuration from configFile
     *)
-    fun make (fileName) = 
-          Config.load (Config.read fileName)
+    fun make (fileName) = Config.load (Config.read fileName)
   in
 
     (* re-exporting environment parameters and utilities defined elsewhere *)
@@ -1416,7 +1199,6 @@ struct
         val sgn : unit -> unit		(* print signature *)
         val prog : unit -> unit		(* print signature as program *)
 	val subord : unit -> unit       (* print subordination relation *)
-	val def : unit -> unit          (* print information about definitions *)
         val domains : unit -> unit	(* print available constraint domains *)
         structure TeX :			(* print in TeX format *)
 	sig
@@ -1434,7 +1216,6 @@ struct
       fun sgn () = Print.printSgn ()
       fun prog () = ClausePrint.printSgn ()
       fun subord () = Subordinate.show ()
-      fun def () = Subordinate.showDef ()
       fun domains () = print (CSInstaller.version)
       structure TeX =
       struct
@@ -1576,7 +1357,7 @@ struct
     = Config
     val make = make
 
-    val version = "Twelf 1.5, Aug 2003 (Tomega, Cover, Unique)"
+    val version = "Twelf 1.4, Dec 27 2002"
 
   end  (* local *)
 end; (* functor Twelf *)

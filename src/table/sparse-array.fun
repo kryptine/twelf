@@ -38,8 +38,8 @@ struct
   fun copyVec {src, si, len, dst, di} =
         if (di >= 0)
         then
-          VectorSlice.appi (fn (i, v) => unsafeUpdate (dst, i, v))
-			   (VectorSlice.slice (src, si, len))
+          Vector.appi (fn (i, v) => unsafeUpdate (dst, i, v))
+                      (src, si, len)
         else raise General.Subscript
         
   fun app f (array, i, len) =

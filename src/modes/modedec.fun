@@ -2,12 +2,12 @@
 (* Author: Carsten Schuermann *)
 (* Modified: Frank Pfenning *)
 
-functor ModeDec ((*! structure ModeSyn' : MODESYN !*)
+functor ModeDec (structure ModeSyn' : MODESYN
 		 (*! structure Paths' : PATHS !*)
 		   )
   : MODEDEC =
 struct
-  (*! structure ModeSyn = ModeSyn' !*)
+  structure ModeSyn = ModeSyn'
   (*! structure Paths = Paths' !*)
 
   exception Error of string
@@ -28,31 +28,14 @@ struct
        G corresponds to a context. We say M is a mode list for U, if
        G |- U : V and M assigns modes to parameters in G
          (and similarly for all other syntactic categories)
-
-       The main function of this module is to
-        (a) assign modes to implicit arguments in a type family
-        (b) check the mode specification for consistency
-
-       Example:
-
-         a : type.
-         b : a -> a -> type.
-         c : b X X -> b X Y -> type.
-
-       Then
-
-         %mode c +M -N.
-
-       will infer X to be input and Y to be output
-
-         %mode +{X:a} -{Y:a} +{M:b X Y} -{N:b X Y} (c M N).
-
-       Generally, it is inconsistent
-       for an unspecified ( * ) or output (-) argument to occur
-       in the type of an input (+) argument
     *)
       
     fun error (r, msg) = raise Error (P.wrap (r, msg))
+
+    fun lookup a =
+        case M.modeLookup a
+	  of NONE => raise Error ("No mode declaration for " ^ I.conDecName (I.sgnLookup a))
+	   | SOME sM => sM 
 
     (* checkname mS = ()
        
@@ -73,26 +56,25 @@ struct
 	  checkName' mS
 	end
 
-    (* modeConsistent (m1, m2) = true
-       iff it is consistent for a variable x with mode m1
-           to occur as an index object in the type of a variable y:V(x) with mode m2
+    (* modeConsistent (m1, m2) = B
 
-       m1\m2 + * - -1
-        +    Y Y Y Y
-        *    N y n n
-        -    N y Y n
-        -1   N Y Y Y
+       Invariant:
+       
+       If   mode (x) = m1
+       and  G (x) defined
+       and  G |- V : L
+       and  mode (V) = m2
+       then B = true iff   m1 consistent with m2
 
-       The entries y,n constitute a bug fix, Wed Aug 20 11:50:27 2003 -fp
-       The entry n specifies that the type
+       m1\m2 + * -
+
+        +    Y Y Y
+        *    N N Y
+        -    N N Y
     *)
-    fun modeConsistent (M.Star, M.Plus) = false	   (* m1 should be M.Plus *)
-      | modeConsistent (M.Star, M.Minus) = false   (* m1 should be M.Minus *)
-      | modeConsistent (M.Star, M.Minus1) = false  (* m1 should be M.Minus1 *)
-      | modeConsistent (M.Minus, M.Plus) = false   (* m1 should be M.Plus *)
-      | modeConsistent (M.Minus, M.Minus1) = false (* m1 should be M.Minus1 *)
-      | modeConsistent (M.Minus1, M.Plus) = false  (* m1 should be M.Plus *)
-      | modeConsistent _ = true
+    fun modeConsistent (M.Plus, _) = true
+      | modeConsistent (_, M.Minus) = true
+      | modeConsistent _ = false
 
     (* empty (k, ms, V) = (ms', V') 
       
@@ -110,36 +92,32 @@ struct
 
        Invariant:
        If  ms is a mode list, 
-       and k is declared with mode mk in ms
-       and m is the mode for a variable y in whose type k occurs
-       then ms' is the same as ms replacing only mk by
-       mk' = m o mk
+       and k a variable pointing into ms    (call it mode mk)
+       and m is a mode
+       then ms' is the same as ms            (call the value of k in ms'  mk')   
+       where mk' = m o mk
     
-        m o mk  + * - -1
-        ----------------
-	+       + + + +
-        *       + * - -1
-	-       + - - -1  
-        -1      + -1-1-1
-
-        Effect: if the mode mk for k was explicitly declared and inconsistent
-	        with m o mk, an error is raised
+        m o mk  + * -
+        -------------
+	+       + + +
+        *       + * -
+	-       + - -   
     *)
     fun inferVar (I.Decl (ms, (M.Marg (M.Star, nameOpt), Implicit)), mode, 1) = 
           I.Decl (ms, (M.Marg (mode, nameOpt), Implicit))
       | inferVar (I.Decl (ms, (M.Marg (_, nameOpt), Implicit)), M.Plus, 1) = 
           I.Decl (ms, (M.Marg (M.Plus, nameOpt), Implicit))
-      | inferVar (I.Decl (ms, (M.Marg (M.Minus, nameOpt), Implicit)), M.Minus1, 1) =
-	  I.Decl (ms, (M.Marg (M.Minus1, nameOpt), Implicit))
-      | inferVar (ms as I.Decl (_, (_, Implicit)), _, 1) = ms
-      | inferVar (ms as I.Decl (_, (_, Local)), _, 1) = ms
+      | inferVar (ms as I.Decl (_, (_, Implicit)), _, 1) = 
+	  ms
+      | inferVar (ms as I.Decl (_, (_, Local)), _, 1) =
+          ms
       | inferVar (ms as I.Decl (_, (M.Marg (mode', SOME name), Explicit)), mode, 1) =  
 	if modeConsistent (mode', mode)
-	  then ms
+	  then ms 
 	else raise Error ("Mode declaration for " ^ name ^ " expected to be "
 			  ^ M.modeToString mode)
-      | inferVar (I.Decl (ms, md), mode, k) = 
-	  I.Decl (inferVar (ms, mode, k-1), md)
+      | inferVar (I.Decl (ms, (marg as M.Marg (mode', _), arg)), mode, k) = 
+	  I.Decl (inferVar (ms, mode, k-1), (marg, arg))
 
     (* inferExp (ms, m, U) = ms'
 
@@ -201,7 +179,7 @@ struct
       | inferMode ((ms, I.Pi ((I.Dec (name, V1), _), V2)), M.Mapp (M.Marg (mode, _), mS)) =
           I.ctxPop (inferMode ((I.Decl (inferExp (ms, mode, V1), 
 					(M.Marg (mode, name), Explicit)), V2), mS))
-      | inferMode ((ms, I.Root _), _) = 
+      | inferMode ((M, I.Root _), _) = 
           raise Error "Expected type family, found object constant"
       | inferMode _ = raise Error "Not enough modes specified"
 
@@ -236,7 +214,7 @@ struct
       let 
 	fun calcImplicit' (I.ConDec (_, _, k, _, V, _))  =
 	      abstractMode (inferMode (empty (k, I.Null, V), mS), mS)
-	  | calcImplicit' (I.ConDef (_, _, k, _, V, _, _)) =
+	  | calcImplicit' (I.ConDef (_, _, k, _, V, _)) =
 	    (* ignore definition for defined type family since they are opaque *)
 	      abstractMode (inferMode (empty (k, I.Null, V), mS), mS)
       in 
@@ -260,21 +238,12 @@ struct
               (* defined type families treated as separate types for
                  purposes of mode checking (as the operational
                  semantics doesn't expand type definitions) *)
-            | I.ConDef (_, _, _, _, V, _, _) =>
+            | I.ConDef (_, _, _, _, V, _) =>
                (inferMode ((I.Null, V), mS); ()))
 	handle Error (msg) => error (r, msg)  (* re-raise error with location *)
-
-    (* checkPure (a, mS, r) = ()
-       Effect: raises Error(msg) if the modes in mS mention (-1)
-    *)
-    fun checkPure ((a, M.Mnil), r) = ()
-      | checkPure ((a, M.Mapp (M.Marg (M.Minus1, _), mS)), r) =
-        error (r, "Uniqueness modes (-1) not permitted in `%mode' declarations (use `%unique')")
-      | checkPure ((a, M.Mapp (_, mS)), r) = checkPure ((a, mS), r)
 
   in
     val shortToFull = shortToFull
     val checkFull = checkFull
-    val checkPure = checkPure
   end
 end;  (* functor ModeDec *)

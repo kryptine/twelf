@@ -63,7 +63,6 @@
 ;;;
 ;;; --- Type Checking ---
 ;;; C-c C-c      twelf-save-check-config
-;;; C-c C-a      twelf-save-append-config
 ;;; C-c C-s      twelf-save-check-file
 ;;; C-c C-d      twelf-check-declaration
 ;;; C-c c        twelf-type-const
@@ -272,11 +271,6 @@ This is unsupported in some versions of Emacs.")
 (defvar twelf-config-mode nil
   "Non-NIL means the Twelf Config minor mode is in effect.")
 
-(defvar twelf-check-config-clears-server-buffer nil
-  "If non-NIL, twelf-check-config clears the server buffer before any
-new output is written.  This improves memory usage when repeatedly
-checking large systems of files.")
-
 ;;;----------------------------------------------------------------------
 ;;; Internal variables
 ;;;----------------------------------------------------------------------
@@ -348,13 +342,6 @@ This is used by the error message parser.")
 (defvar twelf-chatter "3"
   "Chatter level in current Twelf server.
 Maintained to present reasonable menus.")
-
-(defvar twelf-batch-chatter "3"
-  "Chatter level in current Twelf server while running batch commands.
-Applies when checking or appending a config, or loading a file.  May
-be reduced relative to \\[twelf-chatter] to load large configs faster
-while remaining verbose enough during interactive commands,
-e.g. \\[twelf-check-declaration].")
 
 (defvar twelf-double-check "false"
   "Current value of doubleCheck Twelf parameter.")
@@ -435,7 +422,6 @@ Maintained to present reasonable menus.")
   (define-key map "\C-c\C-d" 'twelf-check-declaration)
   (define-key map "\C-c\C-s" 'twelf-save-check-file)
   (define-key map "\C-c\C-c" 'twelf-save-check-config)
-  (define-key map "\C-c\C-a" 'twelf-save-append-config)
   )
 
 (defvar twelf-mode-map nil
@@ -798,8 +784,7 @@ A new file is switched to Twelf mode if a file has extension `.elf',
 init.el).
 
 The files in the current configuration can be checked in sequence with
-\\[twelf-save-check-config] or
-\\[twelf-save-append-config], the current file with
+\\[twelf-save-check-config], the current file with
 \\[twelf-save-check-file], individual declarations with
 \\[twelf-check-declaration].  These, like many other commands, take an
 optional prefix arguments which means to display the Twelf server buffer
@@ -811,7 +796,6 @@ separate buffer.
 
 Summary of most common commands:
  M-x twelf-save-check-config \\[twelf-save-check-config]  save, check & load configuration
- M-x twelf-save-append-config \\[twelf-save-append-config]  save, check & load configuration without resetting or reloading unmodified files
  M-x twelf-save-check-file   \\[twelf-save-check-file]  save, check & load current file
  M-x twelf-check-declaration \\[twelf-check-declaration]  type-check declaration at point
  M-x twelf-server-display    \\[twelf-server-display]  display Twelf server buffer
@@ -828,12 +812,6 @@ Configurations, Files and Declarations
 
   twelf-save-check-config                   \\[twelf-save-check-config]
    Save its modified buffers and then check the current Twelf configuration.
-   With prefix argument also displays Twelf server buffer.
-   If necessary, this will start up an Twelf server process.
-
-  twelf-save-append-config                  \\[twelf-save-append-config]
-   Save its modified buffers and then check the current Twelf configuration
-   without resetting or reloading files unmodified since the last check.
    With prefix argument also displays Twelf server buffer.
    If necessary, this will start up an Twelf server process.
 
@@ -1240,20 +1218,6 @@ Always save if the variable `twelf-save-silently' is non-nil."
 With prefix argument also displays Twelf server buffer.
 If necessary, this will start up an Twelf server process."
   (interactive "P")
-  (twelf-save-op-config 'twelf-check-config displayp))
-
-(defun twelf-save-append-config (&optional displayp)
-  "Save its modified buffers and then check the current Twelf configuration
-without resetting or reloading files unmodified since the last check.
-With prefix argument also displays Twelf server buffer.
-If necessary, this will start up an Twelf server process."
-  (interactive "P")
-  (twelf-save-op-config 'twelf-append-config displayp))
-
-(defun twelf-save-op-config (twelf-op-config &optional displayp)
-  "Save its modified buffers and then `twelf-op-config' the current
-Twelf configuration.  With prefix argument also displays Twelf server
-buffer.  If necessary, this will start up an Twelf server process."
   (let ((current-file-name (buffer-file-name)))
     (cond ((and current-file-name
 		(not buffer-read-only)
@@ -1262,17 +1226,7 @@ buffer.  If necessary, this will start up an Twelf server process."
 	   (save-buffer)))
     (save-excursion
       (twelf-config-save-some-buffers))
-    (funcall twelf-op-config displayp)))
-
-(defun twelf-with-batch-chatter (batch-op)
-  "Run batch-op with the chatter level set to \\[twelf-batch-chatter].
-Restores the chatter level to \\[twelf-chatter] upon completion."
-  (twelf-server-send-command (concat "set chatter " twelf-batch-chatter) t)
-  (twelf-server-wait nil 'silent)
-  (unwind-protect
-      (funcall batch-op)
-    (twelf-server-send-command (concat "set chatter " twelf-chatter) t)
-    (twelf-server-wait nil 'silent)))
+    (twelf-check-config displayp)))
 
 (defun twelf-check-config (&optional displayp)
   "Check the current Twelf configuration.
@@ -1281,20 +1235,13 @@ If necessary, this will start up an Twelf server process."
   (interactive "P")
   (if (not *twelf-config-buffer*)
       (call-interactively 'twelf-server-configure))
-  (when twelf-check-config-clears-server-buffer
-    (twelf-clear-server-buffer)
-    (twelf-server-send-command "version")
-    (twelf-server-wait nil ""))
   (twelf-server-sync-config)
   (twelf-focus nil nil)
-  (twelf-with-batch-chatter
-   (lambda ()
-     (twelf-server-send-command "Config.load")
-     (twelf-server-wait displayp))))
+  (twelf-server-send-command "Config.load")
+  (twelf-server-wait displayp))
 
 (defun twelf-append-config (&optional displayp)
-  "Check the current Twelf configuration without resetting
-or reloading files unmodified since the last check.
+  "Check the current Twelf configuration without reset.
 With prefix argument also displays Twelf server buffer.
 If necessary, this will start up an Twelf server process."
   (interactive "P")
@@ -1302,10 +1249,8 @@ If necessary, this will start up an Twelf server process."
       (call-interactively 'twelf-server-configure))
   (twelf-server-sync-config)
   (twelf-focus nil nil)
-  (twelf-with-batch-chatter
-   (lambda ()
-     (twelf-server-send-command "Config.append")
-     (twelf-server-wait displayp))))
+  (twelf-server-send-command "Config.append")
+  (twelf-server-wait displayp))
 
 (defun twelf-save-check-file (&optional displayp)
   "Save buffer and then check it by giving a command to the Twelf server.
@@ -1320,10 +1265,8 @@ With prefix argument also displays Twelf server buffer."
 	   (check-file-os (twelf-convert-standard-filename check-file)))
       (twelf-server-sync-config)
       (twelf-focus nil nil)
-      (twelf-with-batch-chatter
-       (lambda ()
-	 (twelf-server-send-command (concat "loadFile " check-file-os))
-	 (twelf-server-wait displayp))))))
+      (twelf-server-send-command (concat "loadFile " check-file-os))
+      (twelf-server-wait displayp))))
 
 (defun twelf-buffer-substring (start end)
   "The substring of the current buffer between START and END.
@@ -1721,18 +1664,10 @@ created if it doesn't exist."
                (get-buffer-create *twelf-server-buffer-name*)))
           (save-window-excursion
             (set-buffer twelf-server-buffer)
-	    (buffer-disable-undo)
             (twelf-server-mode)
             (setq *twelf-server-buffer* twelf-server-buffer))
           twelf-server-buffer)
       (error "No Twelf server buffer"))))
-
-(defun twelf-clear-server-buffer ()
-  "Clear the server buffer."
-  (let ((twelf-server-buffer (twelf-get-server-buffer)))
-    (save-window-excursion
-      (set-buffer twelf-server-buffer)
-      (erase-buffer))))
 
 (defun twelf-init-variables ()
   "Initialize variables that track Twelf server state."
@@ -1816,10 +1751,8 @@ With prefix argument also selects the Twelf server buffer."
           (set-window-point twelf-server-window proc-mark)))
     (sit-for 0)))
 
-(defun twelf-server-send-command (command &optional cantfail)
-  "Send a string COMMAND to the Twelf server.
-If optional argument cantfail is non-nil, suppress the usual behavior of
-resetting `*twelf-error-pos*'."
+(defun twelf-server-send-command (command)
+  "Send a string COMMAND to the Twelf server."
   (interactive "sCommand: ")
   (let* ((input (concat command "\n"))
          (twelf-server-buffer (twelf-get-server-buffer))
@@ -1832,8 +1765,7 @@ resetting `*twelf-error-pos*'."
           (goto-char (point-max))
           (insert input)
           (set-marker (process-mark twelf-server-process) (point-max))
-          (when (not cantfail)
-            (setq *twelf-error-pos* (point-max)))
+          (setq *twelf-error-pos* (point-max))
           (set-buffer previous-buffer)))
     (setq *twelf-last-input-buffer* twelf-server-buffer)
     (setq *twelf-server-last-process-mark*
@@ -1856,8 +1788,7 @@ Twelf server buffer is displayed.  If DISPLAYP is neither NIL nor T
 the Twelf server buffer is selected.  Optional second and third arguments
 OK-MESSAGE and ABORT-MESSAGE are the strings to show upon successful
 completion or abort of the server which default to \"Server OK\" and
-\"Server ABORT\".  If OK-MESSAGE is the symbol `silent', the minibuffer
-is unaltered on successful completion."
+\"Server ABORT\"."
   (if (or (eq displayp 'nil) (eq displayp 't))
       (let* ((chunk-count 0)
 	     (last-point *twelf-server-last-process-mark*)
@@ -1876,8 +1807,7 @@ is unaltered on successful completion."
 		    (cond ((match-beginning 1)
 			   (if displayp
 			       (display-server-buffer twelf-server-buffer))
-			   (when (not (eq ok-message 'silent))
-			     (message (or ok-message "Server OK")))
+			   (message (or ok-message "Server OK"))
 			   (throw 'done nil))
 			  ((match-beginning 2)
 			   (display-server-buffer twelf-server-buffer)
@@ -2350,7 +2280,7 @@ optional argument ERROR-BUFFER specifies alternative buffer for error message
       (goto-char (point-max)))))
 
 (defvar twelf-decl-pattern-noident
-  "\\(%infix\\|%prefix\\|%postfix\\|%name\\|%freeze\\|%query\\|%querytabled\\|%tabled\\|%deterministic\\|%mode\\|%unique\\|%worlds\\|%covers\\|%total\\|%terminates\\|%reduces\\|%prove\\|%assert\\|%establish\\|%use\\|%where\\|%include\\|%open\\)\\>"
+  "\\(%infix\\|%prefix\\|%postfix\\|%name\\|%freeze\\|%query\\|%querytabled\\|%tabled\\|%deterministic\\|%mode\\|%worlds\\|%covers\\|%total\\|%terminates\\|%reduces\\|%prove\\|%assert\\|%establish\\|%use\\|%where\\|%include\\|%open\\)\\>"
   "Pattern used to match declarations which do not declare a new identifier.")
 
 (defvar twelf-decl-pattern-ident

@@ -3168,9 +3168,9 @@ call patterns.  If we analyze call patterns
 @end example
 
 @noindent
-then termination arguments must decrease when @code{ai} calls @code{aj}
-for @math{i < j}, but calls of @code{ai} from @code{aj} may keep the
-termination arguments equal.
+then @code{ai} may call @code{aj} for @math{i < j} with equal
+termination arguments, but calls of @code{ai} from @code{aj}
+must decrease the termination order.
 
 Mutual arguments are used, for example, in the proofs of soundness (file
 @*@file{examples/lp-horn/uni-sound.thm}) and completeness (file
@@ -4615,29 +4615,6 @@ sig
 end
 @end group
 
-  val show : unit -> unit           (* show trace, break, and detail *)
-  val reset : unit -> unit          (* reset trace, break, and detail *)
-end
-@end group
-
-@group
-structure Timers :
-sig
-  val show : unit -> unit           (* show and reset timers *)
-  val reset : unit -> unit          (* reset timers *)
-  val check : unit -> unit          (* display, but not no reset *)
-end
-@end group
-
-@group
-structure OS :
-sig
-  val chDir : string -> unit        (* change working directory *)
-  val getDir : unit -> string       (* get working directory *)
-  val exit : unit -> unit           (* exit Twelf and ML *)
-end
-@end group
-
 @group
 structure Compile :
 sig
@@ -4940,10 +4917,6 @@ one of the following (explained in @ref{Environment Parameters}).
 @findex Table.top
  Enter interactive loop for tables queries (@pxref{Tabled Logic Programming}).
 
-@item version
-@findex version
- Show server version.
-
 @item help
 @findex help
  Show available server commands, parameters, and server types.
@@ -5070,14 +5043,6 @@ C-u} Emacs command.
 @itemx M-x twelf-save-check-config
 @findex M-x twelf-save-check-config
  Save its modified buffers and then check the current Twelf configuration.
- With prefix argument also displays Twelf server buffer.
- If necessary, this will start up an Twelf server process.
-
-@item C-c C-a
-@itemx M-x twelf-save-append-config
-@findex M-x twelf-save-append-config
- Save its modified buffers and then check the current Twelf configuration
- without resetting or reloading files unmodified since the last check.
  With prefix argument also displays Twelf server buffer.
  If necessary, this will start up an Twelf server process.
 
@@ -5548,7 +5513,6 @@ M-C-q        twelf-indent-decl
 @group
 --- Type Checking ---
 C-c C-c      twelf-save-check-config
-C-c C-a      twelf-save-append-config
 C-c C-s      twelf-save-check-file
 C-c C-d      twelf-check-declaration
 C-c c        twelf-type-const

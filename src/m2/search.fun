@@ -1,7 +1,7 @@
 (* Search (based on abstract machine ) *)
 (* Author: Carsten Schuermann *)
 
-functor OLDSearch ((*! structure IntSyn' : INTSYN !*)
+functor Search ((*! structure IntSyn' : INTSYN !*)
 		structure MetaGlobal : METAGLOBAL
 		structure MetaSyn' : METASYN
 		(*! sharing MetaSyn'.IntSyn = IntSyn' !*)
@@ -30,7 +30,7 @@ functor OLDSearch ((*! structure IntSyn' : INTSYN !*)
 		(*! structure CSManager : CS_MANAGER !*)
 		(*! sharing CSManager.IntSyn = IntSyn' !*)
 )
-  : OLDSEARCH =
+  : SEARCH =
 struct
 
   (*! structure IntSyn = IntSyn' !*)
@@ -71,7 +71,7 @@ struct
 	 val D' = I.Dec (NONE, I.EClo (A, s))
        in
 	 solve ((g, I.dot1 s), 
-		C.DProg (I.Decl(G, D'), I.Decl (dPool, C.Dec (r, s, H))),
+		C.DProg (I.Decl(G, D'), I.Decl (dPool, SOME(r, s, H))),
 		(fn (M, acck') => sc (I.Lam (D', M), acck')), acck)
        end
     | solve ((C.All (D, g), s), C.DProg (G, dPool), sc, acck) =
@@ -79,7 +79,7 @@ struct
 	 val D' = I.decSub (D, s)
        in
 	 solve ((g, I.dot1 s), 
-		C.DProg (I.Decl (G, D'), I.Decl (dPool, C.Parameter)),
+		C.DProg (I.Decl (G, D'), I.Decl (dPool, NONE)),
 		(fn (M, acck') => sc (I.Lam (D', M), acck')), acck)
        end
 
@@ -178,7 +178,7 @@ struct
 	    end
 
 	fun matchDProg (I.Null, _, acc') = matchSig acc'
-	  | matchDProg (I.Decl (dPool', C.Dec (r, s, Ha')), n, acc') =
+	  | matchDProg (I.Decl (dPool', SOME (r, s, Ha')), n, acc') =
 	    if eqHead (Ha, Ha') then
 	      let
 		val acc'' = CSManager.trail (fn () =>
@@ -189,7 +189,7 @@ struct
 		matchDProg (dPool', n+1, acc'')
 	      end
 	    else matchDProg (dPool', n+1, acc')
-	  | matchDProg (I.Decl (dPool', C.Parameter), n, acc') =
+	  | matchDProg (I.Decl (dPool', NONE), n, acc') =
 	      matchDProg (dPool', n+1, acc')
       in
 	if k < 0 then acc else matchDProg (dPool, 1, acc)
@@ -212,8 +212,8 @@ struct
 	  occursInDec (r, (D, s)) orelse occursInExp (r, (V, I.dot1 s))
       | occursInExpW (r, (I.EVar (r' , _, V', _), s)) = 
           (r = r') orelse occursInExp (r, (V', s))
-      | occursInExpW (r, (I.FgnExp csfe, s)) =
-	I.FgnExpStd.fold csfe (fn (U,B) => B orelse occursInExp (r, (U,s))) false
+      | occursInExpW (r, (I.FgnExp (cs, ops), s)) =
+          occursInExp (r, (#toInternal(ops)(), s))
 
     and occursInSpine (_, (I.Nil, _)) = false
       | occursInSpine (r, (I.SClo (S, s'), s)) = 
