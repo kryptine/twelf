@@ -301,6 +301,9 @@ struct
       | comp (Shift (n), Shift (m)) = Shift (n+m)
       | comp (Dot (Ft, t), t') = Dot (frontSub (Ft, t'), comp (t, t'))
    
+
+
+
     (* dot1 (t) = t'
 
        Invariant:
@@ -655,6 +658,57 @@ struct
       | append (G', (D :: L, s)) = 
           append (I.Decl (G', I.decSub (D, s)), (L, I.dot1 s))
 
+
+    (* forSub (F, t) = F'
+     
+       Invariant:
+       If    Psi |- F for
+       and   Psi' |- t : Psi
+       then  Psi' |- F' = F[t] for
+    *)
+    fun forSub (All ((D, Q), F), t) = 
+          All ((decSub (D, t), Q),  
+		 forSub (F, dot1 t)) 
+      | forSub (Ex ((D, Q), F), t) = 
+	  Ex ((I.decSub (D, coerceSub t), Q),
+		 forSub (F, dot1 t))
+      | forSub (And (F1, F2), t) =
+	  And (forSub (F1, t), 
+		 forSub (F2, t))
+      | forSub (FClo (F, t1), t2) = 
+	  forSub (F, comp (t1, t2))
+      | forSub (World (W, F), t) =
+	  World (W, forSub (F, t))
+      | forSub (True, _) = True
+
+
+    (* valSub (P, t) = (P', t')
+     
+       Invariant:
+       If   Psi' |- V :: F
+       and  Psi' |- V value
+       and  Psi  |- t :: Psi'
+       and  P doesn't contain free EVars
+       then there exists a Psi'', F' 
+       s.t. Psi'' |- F' for
+       and  Psi'' |- P' :: F'
+       and  Psi |- t' : Psi''
+       and  Psi |- F [t] == F' [t']
+       and  Psi |- P [t] == P' [t'] : F [t]
+       and  Psi |- P' [t'] :nf: F [t]
+    *)
+
+    fun valSub (PairExp (U, P'), t) = 
+	  PairExp (Whnf.normalize (U, coerceSub t), valSub (P', t))
+      | valSub (PairBlock (B, P'), t) = 
+	  PairBlock (I.blockSub (B, coerceSub t), valSub (P', t))
+      | valSub (PairPrg (P1, P2), t) =
+          PairPrg (valSub (P1, t), valSub (P2, t))
+      | valSub (Unit, _) = Unit
+      | valSub (PClo (P, t), t') = valSub (P, comp (t, t'))
+
+
+
   in 
     val lemmaLookup = lemmaLookup 
     val lemmaAdd = lemmaAdd
@@ -676,7 +730,9 @@ struct
     val weakenSub = weakenSub
     val invertSub = invertSub
     val ctxDec = ctxDec
-
+    val forSub = forSub
+    val valSub = valSub
+      
 (*    val mdecSub = mdecSub
     val makectx = makectx
     val lfctxLength = lfctxLength

@@ -112,8 +112,8 @@ struct
 
   in
     val normalizeFor = normalizeFor
-    val normalizePrg = normalizePrg 
-    val normalizeSub = normalizeSub 
-    val whnfFor = whnfFor
+    val normalizePrg = normalizePrg
+    val normalizeSub = normalizeSub  
+    val whnfFor = whnfFor 
   end
 end
