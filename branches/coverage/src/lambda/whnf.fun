@@ -235,7 +235,11 @@ struct
       | whnfRoot ((Proj (B as Bidx _, i), S), s) = 
 	 (* could blockSub (B, s) return instantiated LVar ? *)
 	 (* Sat Dec  8 13:43:17 2001 -fp !!! *)
-	 (Root (Proj (blockSub (B, s), i), SClo (S, s)), id)
+	 (* yes Thu Dec 13 21:48:10 2001 -fp !!! *)
+	 (* was: (Root (Proj (blockSub (B, s), i), SClo (S, s)), id) *)
+	(case blockSub (B, s)
+	   of B' as Bidx (k) => (Root (Proj (B', i), SClo (S, s)), id)
+            | B' as LVar _ => whnfRoot ((Proj (B', i), SClo (S, s)), id))
       | whnfRoot ((Proj (LVar (ref (SOME L), (l, t)), i), S), s) =
 	 whnfRoot ((Proj (L, i), S), s) 
       | whnfRoot ((Proj (L as LVar (r, (l, t)), i), S), s) = (* r = ref NONE *)
