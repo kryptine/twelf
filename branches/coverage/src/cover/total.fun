@@ -103,10 +103,14 @@ struct
 		    then raise Error' (occ, "Subgoal " ^ Names.qidToString (Names.constQid a)
 				       ^ " not declared to be total")
 		  else ()
+	  (* need to implement recursive output coverage checking here *)
+	  (* Tue Dec 18 20:44:48 2001 -fp !!! *)
+          (*
 	  val _ = case V
 	            of I.Pi _ => print ("Warning: " ^ Names.qidToString (Names.constQid a)
 					^ " not checked recursively.\n")
 		     | _ => ()
+          *)
 	in
 	  Cover.checkOut (G, (V, s))
 	  handle Cover.Error (msg)

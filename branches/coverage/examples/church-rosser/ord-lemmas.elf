@@ -18,6 +18,7 @@ appd_step : appd (step1 R1 R2*) S* (step1 R1 S2*')
 %worlds (ltm) (appd R* S* S*').
 %covers appd +R* +S* -S*'.
 %terminates R* (appd R* S* _).
+%total R* (appd R* S* _).
 
 % Multi-step reduction is a congruence
 
@@ -34,6 +35,7 @@ lm1*_step : lm1* ([x:term] step1 (R1 x) (R2* x)) (step1 (lm1 R1) S2*)
 %worlds (ltm) (lm1* R* S*).
 %covers lm1* +R* -S*.
 %terminates R* (lm1* R* _).
+%total R* (lm1* R* _).
 
 apl1* :            M1 -->* M1'
       ->  (app M1 M2) -->* (app M1' M2)
@@ -51,6 +53,7 @@ apl1*_step : apl1* (step1 R1 R2*) (step1 (apl1 R1) S2*)
 %covers +{M1} +{M1'} +{M2} +{R*:M1 -->* M1'}
         -{S*:app M1 M2 -->* app M1' M2} apl1* R* S*.
 %terminates R* (apl1* R* _).
+%total R* (apl1* R* _).
 
 apr1* :            M2 -->* M2'
       ->  (app M1 M2) -->* (app M1 M2')
@@ -66,3 +69,4 @@ apr1*_step : apr1* (step1 R1 R2*) (step1 (apr1 R1) S2*)
 %covers +{M2} +{M2'} +{M1} +{R*:M2 -->* M2'}
         -{S*:app M1 M2 -->* app M1 M2'} apr1* R* S*.
 %terminates R* (apr1* R* _).
+%total R* (apr1* R* _).

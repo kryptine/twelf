@@ -63,3 +63,4 @@ ce_existsl': ce' (existsl^ D1 N) (existsl' D1' N)
 %worlds (lp | ln | li | lo) (ce' D D').
 %covers ce' +D *D'.
 %terminates D (ce' D _).
+%total D (ce' D _).

@@ -127,7 +127,7 @@ hnd_ug : hilnd (ug H1) (foralli D1)
 %worlds (li) (hilnd H D).
 %terminates H (hilnd H _).
 %covers hilnd +H -D.
-% %total H (hilnd H _)
+%total H (hilnd H _).
 
 %solve id' : 
 hilnd (mp (mp s k) k) (D:nd (A imp A)).
@@ -172,7 +172,7 @@ ded_ug : ded ([u:hil A] ug (H1 u)) (mp f2 (ug H1'))
 %worlds (li | lo | lded) (ded H H').
 %terminates H (ded H _).
 %covers ded +H -H'.
-% %total H (ded H _).
+%total H (ded H _).
 
 %%% Mapping natural deductions to Hilbert derivations.
 
@@ -214,4 +214,4 @@ ndh_foralle : ndhil (foralle D1 T) (mp (f1 T) H1)
 %worlds (li | lo | lndhil) (ndhil D H).
 %terminates D (ndhil D _).
 %covers ndhil +D -H.
-% %total D (ndhil D _).
+%total D (ndhil D _).
