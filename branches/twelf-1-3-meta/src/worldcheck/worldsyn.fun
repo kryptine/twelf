@@ -495,12 +495,32 @@ struct
 	end
 
 
+
+    (* isSubsumed (W, b) = ()
+       holds if the worlds associated with b are subsumed by W
+       Effect: raises Error'(occ, msg) otherwise
+  
+       Invariants: G |- V : type, V nf
+    *)
+    fun isSubsumed (T.Worlds cids) b = 
+        let
+	  val Wb = getWorlds b
+	  val Rb = worldsToReg Wb
+	in
+	  if subsumedLookup b
+	    then ()
+	  else ( checkSubsumedWorlds (cids, Rb, b) ;
+		subsumedInsert (b) )
+	end
+
   in
     val reset = reset
     val install = install
     val lookup = lookup
     val worldcheck = worldcheck
     val ctxToList = ctxToList
+    val isSubsumed = isSubsumed
+    val getWorlds = getWorlds
   end
 
 end;  (* functor WorldSyn *)
