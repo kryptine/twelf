@@ -103,6 +103,87 @@ struct
 	    inferSpine (Psi, S, (F2, T.dot1 t))
 	end
       | inferSpineW (Psi, _, _) = raise Error "applied, but not of function type."
+
+
+    and inferPrg (Psi, T.Lam (D, P)) = 
+        let 
+	  val F = inferPrg (I.Decl (Psi, D), P)
+	in
+	  T.All (D, F)
+	end
+      | inferPrg (Psi, T.New P) =
+	let
+	  val T.All (T.UDec (D as (I.BDec _)), F) = inferPrg (Psi, P)
+	in
+	  F (* raise (D, F) *)
+	end
+      | inferPrg (Psi, T.PairExp (U, P)) =
+	let 
+	  val V = TypeCheck.infer' (T.coerceCtx Psi, U)
+	  val F = inferPrg (Psi, P)
+	in
+	  T.Ex (I.Dec (NONE, V), F)
+	end
+      | inferPrg (Psi, T.PairBlock (I.Bidx k, P)) =
+        (* Blocks T.Inst, and T.LVar excluded for now *)
+	let 
+	  val D = I.ctxLookup (T.coerceCtx Psi, k)
+	  val F = inferPrg (Psi, P)
+	in
+	  T.Ex (D, F)
+	end
+      | inferPrg (Psi, T.PairPrg (P1, P2)) = 
+	let 
+	  val F1 = inferPrg (Psi, P1)
+	  val F2 = inferPrg (Psi, P2)
+	in
+	  T.And (F1, F2)
+	end
+      | inferPrg (Psi, T.Unit) = T.True
+      | inferPrg (Psi, T.Root (H, S)) = 
+	let
+	  val F1 = inferCon (Psi, H)
+	  val F2 = inferSpine (Psi, S, (F1, T.id))
+	in 
+	  Normalize.normalizeFor F2
+	end
+      | inferPrg (Psi, T.Redex (P, S)) = 
+	let
+	  val F1 = inferPrg (Psi, P)
+	  val F2 = inferSpine (Psi, S, (F1, T.id))
+	in 
+	  Normalize.normalizeFor F2
+	end
+      | inferPrg (Psi, T.Rec (D as T.PDec (_, F), P)) = 
+	let
+	  val _ = checkPrg (I.Decl (Psi, D), (P, (F, T.id)))
+	in
+	  F
+	end
+(*      | inferPrg (Psi, T.Case (F, Omega)) = 
+	let 
+	  val  _ = checkCases (Omega, F)
+	in
+	  F
+	end 
+      | inferPrg (Psi, T.PClo (P, t)) =
+	let 
+	  val Psi' = inferCtx (Psi, t)
+	  val F = inferPrg (Psi', P)
+	in
+	  F
+	end
+
+            Problem: inferCtx cannot work because of dependencies -- cs
+*)
+      | inferPrg (Psi, T.Let (D as T.PDec (_, F1), P1, P2)) =
+	let 
+	  val _ = checkPrg (Psi, (P1, (F1, T.id)))
+	  val F2 = inferPrg (I.Decl (Psi, D), P2)
+	in 
+	  F2
+	end
+
 	
 (*
 
