@@ -20,6 +20,8 @@ twelfdir = `pwd`
 
 # Name of twelf-server program
 twelfserver = twelf-server
+# Name of logosphere program
+logosphere = logosphere
 # Name of twelf-sml program
 twelfsml = twelf-sml
 # Name of delphin program
@@ -42,6 +44,13 @@ twelf-server: ;
 	@echo "*************************************************"	 
 	$(sml) < smlnj/twelf-server.sml ;
 	bin/.mkexec "$(sml)" "$(twelfdir)" twelf-server "$(twelfserver)" ;
+
+logosphere: ; 
+	@echo "*************************************************"
+	@echo "Twelf $(version): Logosphere wrapper"
+	@echo "*************************************************"	 
+	$(sml) < smlnj/logosphere.sml ;
+	bin/.mkexec "$(sml)" "$(twelfdir)" logosphere "$(logosphere)" ;
 
 twelf-sml: ; 
 	@echo "*************************************************"
