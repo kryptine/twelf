@@ -8,6 +8,7 @@ structure Converter = Converter
    structure Trail = Trail
    structure Unify = UnifyTrail
    structure Whnf = Whnf
+   structure Worldify = Worldify
    structure Print = Print
    structure Weaken = Weaken);
 
