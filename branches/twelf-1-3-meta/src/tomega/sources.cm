@@ -4,6 +4,8 @@ Group is
   ../worldcheck/sources.cm
   converter.sig
   converter.fun 
+  typecheck.sig
+  typecheck.fun
   tomegaprint.sig
   tomegaprint.fun 
   tomega.sml 
