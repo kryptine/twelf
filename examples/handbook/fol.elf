@@ -44,13 +44,6 @@ foralle : nd (forall A) -> {T:i} nd (A T).
 
 %worlds (l1 | l2 | l3) (nd A).
 
-%{
-%worlds ( some {A:o} pi {u:nd A}
-        | pi {p:o}
-        | pi {a:i} )
-(nd A).
-}%
-
 % Example
 
 _ : nd (A imp (B imp A))
@@ -178,7 +171,7 @@ ded_ug : ded ([u:hil A] ug (H1 u)) (mp f2 (ug H1'))
 %mode ded +H -H'.
 %worlds (l3 | l2 | l4) (ded H H').
 %terminates H (ded H _).
-% %covers ded +H -H'.
+%covers ded +H -H'.
 % %total H (ded H _).
 
 %%% Mapping natural deductions to Hilbert derivations.
