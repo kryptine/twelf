@@ -521,11 +521,31 @@ struct
 	      Fmt.HVbox [Fmt.String "<", Print.formatExp (T.coerceCtx Psi, U), 
 			 Fmt.String ",", Fmt.Break, formatPrg3 (Psi, P), Fmt.String ">"]
 (* formatTuple (Psi, P) *)
-	  | formatPrg3 (Psi, P as T.Let _) = formatLet (Psi, P, nil) 
+	  | formatPrg3 (Psi, P as T.Let _) = formatLet (Psi, P, nil)
 	  | formatPrg3 (Psi, P as T.Root (H, S)) =  formatRoot (Psi, H, S)
-	  | formatPrg3 (Psi, P as T.New _) = Fmt.String "..."
+	  | formatPrg3 (Psi, P as T.New (T.Lam (T.UDec (I.BDec (l, (c, s))), _))) = 
+	      formatNew (Psi, P, nil)
 	  | formatPrg3 _ = Fmt.String "missing case"
 
+
+        and formatNew (Psi, T.New (T.Lam (T.UDec (D as I.BDec (l, (c, s))), P)), fmts) = 
+	    let
+	      val G = T.coerceCtx Psi
+	      val D' = Names.decName (G, D)
+	    in
+	      formatNew (I.Decl (Psi, T.UDec D'), P, 
+			 Fmt.Break :: Fmt.HVbox [Fmt.String "struct", Fmt.Space,
+				    Print.formatDec (G, D')]
+			 ::  fmts)
+	    end
+	  | formatNew (Psi, P, fmts) =
+	      Fmt.Vbox0 0 1 ([Fmt.String "new", 
+			      Fmt.Vbox0 0 1 (fmts),
+			      Fmt.Break,
+			      Fmt.String "in", Fmt.Break,
+			      Fmt.Spaces 2, formatPrg3 (Psi, P),
+			      Fmt.Break,
+			      Fmt.String "end"])
 
 
 	(* formatLet (Psi, P, fmts) = fmts'
@@ -548,7 +568,7 @@ struct
 	      val Fspine = fmtSpine (Psi1, S)
 
 	      val Fpattern =  Fmt.HVbox [Fmt.Hbox (Fspine), Fmt.Space, Fmt.String "=" ]
-	      val Fbody = Fmt.Hbox [F1]
+	      val Fbody = Fmt.HVbox [F1]
 	      val fmt = Fmt.HVbox  [Fmt.String "val", Fmt.Space, Fpattern, Fbody]
 	    in
 	      formatLet (Psi1', P2, fmts @ [Fmt.Break, fmt])
@@ -564,7 +584,7 @@ struct
 	      val Fspine = fmtSpine (Psi1, S)
 
 	      val Fpattern =  Fmt.HVbox [Fmt.Hbox (Fspine), Fmt.Space, Fmt.String "=" ]
-	      val Fbody = Fmt.Hbox [F1]
+	      val Fbody = Fmt.HVbox [F1]
 	      val fmt = Fmt.HVbox  [Fmt.String "val", Fmt.Space, Fpattern, Fbody]
 
 (*	      val fmt = (* formatDecs (0, Psi, Ds, (Psi1', s1)) *)
