@@ -50,7 +50,6 @@ struct
     structure S = Subordinate    
     structure A = Abstract
 
-
     fun modeSpine a =
         case M.modeLookup a
 	  of NONE => raise Error "Mode declaration expected"
@@ -311,6 +310,7 @@ struct
       | occursInHead (k, I.Const _) = false
       | occursInHead (k, I.Def _) = false
       | occursInHead (k, I.FgnConst _) = false
+      | occursInHead (k, I.Proj _) = false
       (* no case for FVar *)
 
     and occursInSpine (_, I.Nil) = false
@@ -321,6 +321,7 @@ struct
     and occursInDecP (k, (D, _)) = occursInDec (k, D)
 
     and occursInExp (k, U) = occursInExpN (k, Whnf.normalize (U, I.id))
+
 
     (* dot1inv w = w'
 
@@ -407,6 +408,25 @@ struct
 	      occursInArgs (n, L)
 	  | occursInPsi (n, (T.UDec (I.Dec (_, V)) :: Psi1, L)) = 
               occursInExp (n, V) orelse occursInPsi (n+1, (Psi1, L))
+	  | occursInPsi (n, (T.UDec (I.BDec (_, (cid, s))) :: Psi1, L)) =
+	      let
+		val I.BlockDec (_, _, G, _) = I.sgnLookup cid
+	      in
+		occursInSub (n, s, G) orelse occursInPsi (n+1, (Psi1, L))
+	      end
+	and occursInSub (_, _, I.Null) = false
+	  | occursInSub (n, I.Shift k, G) = 
+	      occursInSub (n, I.Dot (I.Idx (k+1), I.Shift (k+1)), G)
+	  | occursInSub (n, I.Dot (I.Idx k, s), I.Decl (G, _)) =
+	      (n = k) orelse occursInSub (n, s, G)
+	  | occursInSub (n, I.Dot (I.Exp U, s), I.Decl (G, _)) =
+	      occursInExp (n, U) orelse occursInSub (n, s, G)
+	  | occursInSub (n, I.Dot (I.Block _, s), I.Decl (G, _)) =
+	      occursInSub (n, s, G)   (* is this ok? -- cs *)
+	  (* no other cases *)
+			 
+
+
 (*	  | occursInPsi (n, (F.Block (F.CtxBlock (l, G)) :: Psi1, L)) =
 	      occursInG (n, G, fn n' => occursInPsi (n', (Psi1, L)))
 *)	  
@@ -502,7 +522,14 @@ struct
 	    in
 	      (I.Decl (Psi1', T.PDec (name, F')), I.dot1 w', I.dot1 z')
 	    end	    
-	  
+	  | strengthen' (I.Decl (Psi1, LD as T.UDec (I.BDec (name, (cid, s)))), Psi2, L, w1) =
+	    let  (* blocks are always used! *)
+	      val w1' = dot1inv w1
+	      val (Psi1', w', z') = strengthen' (Psi1, LD :: Psi2, L, w1')
+	      val s' = strengthenSub (s, w')
+	    in
+	      (I.Decl (Psi1', T.UDec (I.BDec (name, (cid, s')))), I.dot1 w', I.dot1 z')
+	    end
 
 (*	  | strengthen' (I.Decl (Psi1, LD as F.Block (F.CtxBlock (name, G))), Psi2, L, w1) =
 	    let 
@@ -746,6 +773,7 @@ struct
 					(* Psi0, G, B |- w1 : Psi0, G', B *)
 	    let
 
+val  _ = print "["
 	      val G'' = append (G, B)	(* G'' = G, B *)
 	      val Psi1 = append (Psi0, G'')
 					(* Psi1 = Psi0, G, B *)
@@ -845,6 +873,8 @@ struct
 (*	      val s3 = Whnf.invert w3	(* Psi0, G3 |- s3 :  Psi0, G'*) *)
 	      val t = T.Dot (T.Prg Pat, T.embedSub z3)
                                         (* Psi0, G3 |- t :: Psi0, G', x :: F4  *)
+val  _ = print "]"
+
 		
 	    in     
 	      (SOME (w3, 
@@ -861,27 +891,48 @@ struct
       end
 
 
-    fun convertWorlds (a, T.Worlds cids) = 
-          (fn (cids', wmap) => (T.Worlds cids', wmap)) (convertWorlds' (a, cids))
-    and convertWorlds' (a, nil) = (nil, fn c => raise Error "World not found")
-      | convertWorlds' (a, cid :: cids) = 
-        let 
-	  val I.BlockDec (s, m, G, L) = I.sgnLookup cid
-	  (* Design decision: Let's keep all of G *)
-	  val L' = convertList (a, (L, I.id))
-	  val (cids', wmap) = convertWorlds' (a, cids)
-	  val cid' = I.sgnAdd (I.BlockDec (s, m, G, L'))
-	in
-	  (cid' :: cids', fn c => if c = cid then cid' else wmap c)
-	end
-    and convertList (a, (nil, s)) = nil
-      | convertList (a, (I.Dec (x, V) :: L, w)) = 
-        if I.targetFam V = a then 
-	  I.Dec (x, strengthenExp (V, w)) :: convertList (a, (L, I.dot1 w))
-	else 
-	  (* here we need to generate a case *)
-	  convertList (a, (L, I.comp (w, I.shift)))
+
+    fun blockCases (Psi0, a, L, Sig, wmap) = nil
+
+
+    
+
+    fun transformWorlds (fams, T.Worlds cids) = 
+        let
+
+          (* convertList (a, L, w) = L'
         
+	     Invariant:
+	     If   |- G, L : ctx
+	     and  G |- w: G'
+	     then |- G', L' ctx
+	  *)
+	  fun transformList (nil, w) = nil
+	    | transformList ((D as I.Dec (x, V)) :: L, w) = 
+	      if List.exists (fn a => Subordinate.below (I.targetFam V, a)) fams then
+		let 
+		  val  L' = transformList (L, I.dot1 w)
+		in
+		  (I.Dec (x, strengthenExp (V, w))) :: L'
+		end
+	      else transformList (L,  I.comp (w, I.shift))
+	      
+	  fun transformWorlds' (nil) = (nil, fn c => raise Error "World not found")
+	    | transformWorlds' (cid :: cids') = 
+	      let 
+		val I.BlockDec (s, m, G, L) = I.sgnLookup cid
+	        (* Design decision: Let's keep all of G *)
+		val L' = transformList (L, I.id) 
+		val (cids'', wmap) = transformWorlds' (cids')
+		val cid' = I.sgnAdd (I.BlockDec (s, m, G, L'))
+	      in
+		(cid' :: cids'', fn c => if c = cid then cid' else wmap c)
+	      end
+	  val (cids', wmap) = transformWorlds' (cids)
+	in
+          (T.Worlds cids', wmap)
+	end
+
         
     (* convertPrg L = P'
 
@@ -909,16 +960,32 @@ struct
 
 	val (Psi0, Prec, F0) = recursion ()
 
+	fun convertWorlds [a] = 
+	    let
+	      val W = WorldSyn.lookup a	(* W describes the world of a *)
+	    in
+	      W
+	    end
+	  | convertWorlds (a :: L') = 
+	    let
+	      val W = WorldSyn.lookup a	(* W describes the world of a *)
+	      val W' = convertWorlds L' 
+	    in
+	      if T.eqWorlds (W, W') then W' else raise Error "Type families different in different worlds"
+	    end
+	    
+	val W = convertWorlds L
+	val (W', wmap) = transformWorlds (L, W)
+
 	fun convertOnePrg (a, F) =
 	  let 
 	    val name = nameOf a
 	    val V = typeOf a		(* Psi0 |- {x1:V1} ... {xn:Vn} type *)
 	    val mS = modeSpine a	(* |- mS : {x1:V1} ... {xn:Vn} > type  *)
-	    val W = WorldSyn.lookup a	(* W describes the world of a *)
 	    val Sig = Worldify.worldify a
 					(* Sig in LF(reg)   *)
-	    val (W', wmap) = convertWorlds (a, W)
 
+	    val C0 = blockCases (Psi0, a, L, Sig, wmap)
   	    (* init' F = P'
 
 	       Invariant:
@@ -939,7 +1006,7 @@ struct
 	    val C = traverse (Psi0, L, Sig, wmap)
 					(* Psi0, x1:V1, ..., xn:Vn |- C :: F *)
 	  in
-	    Pinit (T.Case (T.Cases C))
+	    Pinit (T.Case (T.Cases (C0 @ C)))
 	  end
 
 	fun convertPrg' (nil, _) = raise Error "Cannot convert Empty program"

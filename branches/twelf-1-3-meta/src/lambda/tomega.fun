@@ -417,7 +417,14 @@ struct
   (* newEVar (G, V) = newEVarCnstr (G, V, nil) *)
   fun newEVar (Psi, F) = EVar(Psi, ref NONE, F)
 
+  fun exists (x, []) = false 
+    | exists (x, y :: W2) = (x = y) orelse exists (x, W2)
 
+  fun subset ([], _) = true
+    | subset (x :: W1, W2) = exists (x, W2) andalso subset (W1, W2)
+
+  fun eqWorlds (Worlds W1, Worlds W2) = 
+      subset (W1, W2) andalso subset (W2, W1)
 
 (*
 (* hack!!! improve !!!! *)
@@ -599,6 +606,7 @@ struct
     val newEVar = newEVar
 (* Below are added by Yu Liao *)
     val embedSub = embedSub
+    val eqWorlds = eqWorlds
     val ctxDec = ctxDec 
     val revCoerceSub = revCoerceSub
     val revCoerceCtx = revCoerceCtx

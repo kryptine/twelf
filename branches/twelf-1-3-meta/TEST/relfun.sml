@@ -43,6 +43,7 @@ in
   val _ = Twelf.chatter := 1
 (*  val _ = FunNames.reset(); --cs *)
 
+
   (* Regression test for Mini-ML *)
   val _ = load "examples/mini-ml/sources.cfg"
   val _ = Twelf.loadFile "examples/mini-ml/reduce.elf"
@@ -58,12 +59,9 @@ in
   val _ = load "examples/prop-calc/sources.cfg"
   val _ = test ["combdefn"]
 
-
-
   (* Regression test for ccc *)
   val _ = load "examples/ccc/sources.cfg"
   val _ = test ["conc"]
-
 
   (* Regression test for compile *)
   val _ = load "examples/compile/cpm/sources.cfg"
@@ -71,11 +69,13 @@ in
   val _ = test ["peq"]
 
 
-
-(*
   (* Regression test for copy *)
   val _ = Twelf.loadFile "TEST/cp.elf"
-  val _ = test ["cpt"]
+
+(*  val _ = test ["cpt"] *)
+
+
+(*
 
   (* Regression test for compile *)
   val _ = load "examples/compile/cls/sources.cfg"

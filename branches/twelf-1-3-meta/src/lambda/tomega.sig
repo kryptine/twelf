@@ -94,6 +94,8 @@ sig
   val lemmaDef    : lemma -> Prg
   val lemmaFor    : lemma -> For
 
+  val eqWorlds    : Worlds * Worlds -> bool
+
   val convFor     : (For * Sub) * (For * Sub) -> bool
   val newEVar     : Dec IntSyn.Ctx * For -> Prg
 
