@@ -5,6 +5,7 @@ signature COVER =
 sig
 
   structure IntSyn : INTSYN
+  structure Tomega : TOMEGA
   structure ModeSyn : MODESYN
     sharing ModeSyn.IntSyn = IntSyn
 
@@ -14,6 +15,6 @@ sig
 
   val checkCovers : (IntSyn.cid * ModeSyn.ModeSpine) -> unit
 
-  val coverageCheckCases : (IntSyn.dctx * IntSyn.Sub) list  * IntSyn.dctx -> unit
+  val coverageCheckCases : Tomega.Worlds * (IntSyn.dctx * IntSyn.Sub) list  * IntSyn.dctx -> unit
 
 end;  (* signature COVER *)
