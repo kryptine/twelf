@@ -405,7 +405,6 @@ struct
 	  matchCtx' (G, s'', G'', V, k+1, ms, addKs (cands, klist))
 	end
       | matchCtx (G, s', I.Decl(G'', I.BDec(cid, s)), V, k, ms, klist) =
-        (* will always fail for input coverage *)
         let
 	  val (Gsome, piDecs) = I.constBlock cid	
 	  val s'' = I.comp (I.shift, s')
@@ -495,14 +494,13 @@ struct
         let
 	  val X1 = I.newEVar (I.Null, I.EClo (V1, s)) (* all EVars are global *)
 	in
-	  instEVars ((V2, I.Dot (I.Exp (X1), s)), X1::XsRev)
+	  instEVars ((V2, I.Dot (I.Exp (X1), s)), SOME(X1)::XsRev)
 	end
       | instEVarsW ((I.Pi ((I.BDec (l, t), _), V2), s), XsRev) =
 	let
 	  val L1 = I.newLVar (l, I.comp(t, s))
-	  val dummy = I.Uni (I.Type)
 	in
-	  instEVars ((V2, I.Dot (I.Block (L1), s)), dummy::XsRev) (* add L1 to XsRev ??? *)
+	  instEVars ((V2, I.Dot (I.Block (L1), s)), NONE::XsRev)
 	end
       | instEVarsW (Vs as (I.Root _, s), XsRev) = (Vs, XsRev)
 
@@ -688,8 +686,9 @@ struct
 		      fn U => if Unify.unifiable (I.Null, (X, I.id), (U, I.id)) (* always succeeds? *)
 				then sc ()
 			      else ())
-      | splitEVar (I.Uni I.Type, _, _) = ()
-    (* forgotton case added.  Please verify  -- cs !!! *)
+      (* | splitEVar (I.Uni I.Type, _, _) = () *)
+      (* forgotton case added.  Please verify  -- cs *)
+      (* should no longer be possible -fp *)
 
 
     (* abstract (a @ S, s) = V'
@@ -719,18 +718,19 @@ struct
         let
 	  val ((V1, s), XsRev) = instEVars ((V, I.id), nil)
           (* split on k'th variable, counting from innermost *)
-	  val X = List.nth (XsRev, k-1)
+	  val SOME(X) = List.nth (XsRev, k-1)
 	  val _ = if !Global.chatter >= 6
-		    then print ("Splitting on " ^ Print.expToString (I.Null, X) ^ " in\n"
+		    then print ("Split " ^ Print.expToString (I.Null, X) ^ " in "
 				^ Print.expToString (I.Null, I.EClo(V1, s)) ^ ".\n")
 		  else ()
 	  val _ = resetCases ()
-	  val _ = splitEVar (X, W, fn () => 
-			     (if !Global.chatter >= 6
-				then print ("Case: " ^ Print.expToString (I.Null, X) ^ " where\n"
-				     ^ Print.expToString (I.Null, I.EClo(V1,s)) ^ ".\n")
-			      else () ;
-			      addCase (abstract (V1, s))))
+	  val _ = splitEVar (X, W, fn () => addCase (abstract (V1, s)))
+          (*
+	   if !Global.chatter >= 6
+           then print ("Case: " ^ Print.expToString (I.Null, X) ^ " where\n"
+		        ^ Print.expToString (I.Null, I.EClo(V1,s)) ^ ".\n")
+           else ()
+	   *)
 	in
 	  SOME (getCases ())
 	end
@@ -754,14 +754,21 @@ struct
         (* raised exception bypasses trail manager *)
         (* trail here explicitly because of dependencies *)
         CSManager.trail
-	(fn () => (splitEVar (X, W, fn () => raise Possible); true) (* impossible, if returns *)
+	(fn () => (splitEVar (X, W, fn () => raise Possible);
+		   if !Global.chatter >= 6
+		     then print ("Impossible: " ^ Print.expToString (I.Null, X) ^ "\n")
+		   else ();
+		   true) (* impossible, if returns *)
 	          handle Possible => false)
 
     (* impossibleCase (Xs) = true
        iff there is no constructor for one of the variables among EVars Xs
     *)
     fun impossibleCase (nil, W) = false	(* no impossible coverage variable found *)
-      | impossibleCase (X::Xs, W) =
+      | impossibleCase (NONE::Xs, W) =
+        (* parameter blocks are always possible *)
+          impossibleCase (Xs, W)
+      | impossibleCase (SOME(X)::Xs, W) =
           impossible1 (X, W) orelse impossibleCase (Xs, W)
 
     (* impossible {{G}} a @ S = true
@@ -821,6 +828,7 @@ struct
        to missing to yield missing'.
        ms is mode spine designating input arguments (+)
     *)
+    (*
     fun cover (V, wms as (W, ms), ccs, missing) =
           split (V, selectCand (match (I.Null, V, ms, ccs)), wms, ccs, missing) 
     and split (V, NONE, wms, ccs, missing) = 
@@ -833,6 +841,44 @@ struct
 	else V::missing
       | split (V, SOME((k,_)::ksn), wms as (W, ms), ccs, missing) =
 	(* some candidates: split first, ignoring multiplicities *)
+	(case splitVar (V, k, W)
+	   of SOME(cases) => covers (cases, wms, ccs, missing)
+	    | NONE => (* splitting variable k generated constraints *)
+	      split (V, SOME (ksn), wms, ccs, missing)) (* try other candidates *)
+
+    and covers (nil, wms, ccs, missing) = missing
+      | covers (V::cases', wms, ccs, missing) =
+          covers (cases', wms, ccs, cover (V, wms, ccs, missing))
+    *)
+    fun cover (V, wms as (W, ms), ccs, missing) =
+        ( if !Global.chatter >= 6
+	    then print (F.makestring_fmt (F.Hbox [F.String "?- ", formatCGoal (V, ms),
+						  F.String "."]) ^ "\n")
+	  else () ;
+	  cover' (V, wms, ccs, missing) )
+    and cover' (V, wms as (W, ms), ccs, missing) =
+          split (V, selectCand (match (I.Null, V, ms, ccs)), wms, ccs, missing) 
+    and split (V, NONE, wms, ccs, missing) = 
+        (* V is covered: return missing patterns from other cases *)
+        ( if !Global.chatter >= 6
+	    then print ("Covered\n")
+	  else ();
+          missing )
+      | split (V, SOME(nil), wms as (W, ms), ccs, missing) =
+        (* no candidates: check if coverage goal is impossible *)
+	( if !Global.chatter >= 6
+	    then print ("No candidates---check if impossible\n")
+	  else ();
+	  (* impossible (V, W) shows impossible hypothesis if found *)
+	  if impossible(V, W)		
+	    then missing
+	  else (if !Global.chatter >= 6
+		  then print ("All hypotheses possible---case not covered\n")
+		else ();
+		V::missing ))
+      | split (V, SOME((k,_)::ksn), wms as (W, ms), ccs, missing) =
+	(* some candidates: split first, ignoring multiplicities *)
+	(* splitVar shows splitting as it happens *)
 	(case splitVar (V, k, W)
 	   of SOME(cases) => covers (cases, wms, ccs, missing)
 	    | NONE => (* splitting variable k generated constraints *)
