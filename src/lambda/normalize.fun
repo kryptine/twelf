@@ -60,9 +60,9 @@ struct
 
     fun normalizePrg (P as (T.Root (T.Const _, _)), t) = P
       | normalizePrg ((P as (T.Root (T.Var n, T.Nil))), t) = 
+	   (* ABP -- 1/20/03 *)
         (case T.varSub (n, t) 
 	   of (T.Prg P) => P
-	   (* ABP -- 1/20/03 *)
 	   | (T.Idx _) => raise Domain
 	   | (T.Exp _) => raise Domain
 	   | (T.Block _) => raise Domain
@@ -75,8 +75,13 @@ struct
       | normalizePrg (T.PairPrg (P1, P2), t) =
           T.PairPrg (normalizePrg (P1, t), normalizePrg (P2, t))
       | normalizePrg (T.Unit, _) = T.Unit
-      | normalizePrg (T.EVar (_, ref (SOME P), _), _ (* must be id by invariant *)) = P
-      | normalizePrg (P as T.EVar _, _ (* must be id by invariant *)) = P
+
+
+      | normalizePrg (T.EVar (_, ref (SOME P), _), t) = T.PClo(P, t)
+
+      (* ABP *)
+      | normalizePrg (P as T.EVar _, t) = T.PClo(P,t) 
+
       | normalizePrg (T.PClo (P, t), t') = normalizePrg (P, T.comp (t, t'))
 
     and normalizeSpine (T.Nil, t) = T.Nil
@@ -97,7 +102,8 @@ struct
 
     fun normalizeSub (s as T.Shift n) = s
       | normalizeSub (T.Dot (T.Prg P, s)) =
-          T.Dot (T.Prg (normalizePrg (P, normalizeSub s)), T.id)
+          T.Dot (T.Prg (normalizePrg (P, T.id)), normalizeSub s)
+	  (* cs 2/3/2003 *)
       | normalizeSub (T.Dot (T.Exp E, s)) =
 	  T.Dot (T.Exp (Whnf.normalize (E, I.id)), normalizeSub s)
       | normalizeSub (T.Dot (T.Block k, s)) = T.Dot (T.Block k, normalizeSub(s))

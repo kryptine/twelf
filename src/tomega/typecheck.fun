@@ -772,6 +772,10 @@ struct
 
       | isValue (T.Root ((T.Var k), T.Nil)) = ()
       | isValue (T.Rec _) = ()
+
+      (* ABP 1/23/03 *)
+      | isValue (T.EVar _) = raise Error "It is an EVar"
+
       | isValue _ = raise Error "P isn't Value!"
 
 

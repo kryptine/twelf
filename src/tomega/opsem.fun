@@ -2,37 +2,16 @@
 (* Author: Carsten Schuermann *)
 
 
-functor Opsem ((*! structure IntSyn' : INTSYN !*)
-               (*! structure Tomega' : TOMEGA !*)
-               (*! sharing Tomega'.IntSyn = IntSyn' !*)
-	       structure Whnf : WHNF
-	       (*! sharing Whnf.IntSyn = IntSyn' !*)
+functor Opsem ( structure Whnf : WHNF
 	       structure Abstract : ABSTRACT
-               (*! sharing Abstract.IntSyn = IntSyn'!*)
 	       structure Subordinate : SUBORDINATE
-	       (*! sharing Subordinate.IntSyn = IntSyn'!*)
 	       structure Normalize : NORMALIZE
-	       (*! sharing Normalize.Tomega = Tomega' !*)
-	       structure TypeCheck : TYPECHECK
-	       (*! sharing TypeCheck.IntSyn = IntSyn' !*)
 	       structure TomegaTypeCheck : TOMEGATYPECHECK
-	       (*! sharing TomegaTypeCheck.IntSyn = IntSyn' !*)
-	       (*! sharing TomegaTypeCheck.Tomega = Tomega' !*)
-	       structure TomegaPrint : TOMEGAPRINT
-	       (*! sharing TomegaPrint.IntSyn = IntSyn' !*)
-	       (*! sharing TomegaPrint.Tomega = Tomega' !*)
 	       structure Converter : CONVERTER
-	       (*! sharing Converter.IntSyn = IntSyn' !*)
-	       (*! sharing Converter.Tomega = Tomega' !*)
-	       structure Print : PRINT
-	       (*! sharing Print.IntSyn = IntSyn' !*)
 	       structure Unify : UNIFY
-	       (*! sharing Tomega'.IntSyn = Unify.IntSyn !*)
 		   ) : OPSEM = 
 
 struct
-  (*! structure Tomega = Tomega' !*)
-  (*! structure IntSyn = IntSyn' !*)
   structure T = Tomega
   structure I = IntSyn
   structure S = Subordinate    
@@ -44,95 +23,80 @@ struct
     
     exception NoMatch
 
+(* 
+ matchPrg is used to see if two values can be 'unified' for
+   purpose of matching case
 
-   fun matchPrg (Psi, P1, P2) = 
-(*       let 
-	 val V = evalPrg (Psi, (P1, T.id))
-       in *)
+ matchPrg (Psi, P1, P2) = ()
 
-         matchVal (Psi, (P1, T.id), 
-		   Normalize.normalizePrg (P2, T.id))
-
-(*       end *)
-    (* matchVal (Psi, V1, V2) = ()
-  
-       Invariant:
-       If   Psi |- V1 :: F
-       and  Psi |- V1 value
-       and  Psi |- V2 :: F
-       and  Psi |- V2 value
-       then if  Psi |- P1 == P2 matchPrg terminates
-	    otherwise exception NoMatch is raised
-    *)
+    Invariant:
+    If P1 has no EVARs and P2 possibly does.
+    and Psi  |- P1 :: F
+    and Psi |- P1 value
+    and Psi |- P2 :: F
+    and Psi |- P2 value
+     then if Psi |- P1 == P2 matchPrg terminates
+       otherwise exception NoMatch is raised
+*)
+    fun matchPrg (Psi, P1, P2) = 
+      matchVal (Psi, (P1, T.id), Normalize.normalizePrg (P2, T.id))
+      (* ABP -- normalizePrg invariant does not state what happens to non-free EVArs,
+       and there are some embedded under PClo... *)
 	 
-   and matchVal (Psi, (T.Unit, _), T.Unit) = ()
-     | matchVal (Psi, (T.PairPrg (P1, P1'), t1), T.PairPrg (P2, P2')) =
+    and matchVal (Psi, (T.Unit, _), T.Unit) = ()
+
+      | matchVal (Psi, (T.PairPrg (P1, P1'), t1), T.PairPrg (P2, P2')) =
          (matchVal (Psi, (P1, t1), P2);
 	  matchVal (Psi, (P1', t1), P2'))
-     | matchVal (Psi, (T.PairBlock (B1, P1), t1), T.PairBlock (B2, P2)) =
+
+      | matchVal (Psi, (T.PairBlock (B1, P1), t1), T.PairBlock (B2, P2)) =
 	 (matchVal (Psi, (P1, t1), P2);
 	  Unify.unifyBlock (T.coerceCtx Psi, I.blockSub (B1, T.coerceSub t1), B2)
 	  handle Unify.Unify _ => raise NoMatch)
-     | matchVal (Psi, (T.PairExp (U1, P1), t1), T.PairExp (U2, P2)) =
+
+      | matchVal (Psi, (T.PairExp (U1, P1), t1), T.PairExp (U2, P2)) =
 	 (matchVal (Psi, (P1, t1), P2);
 	  Unify.unify (T.coerceCtx Psi, (U1, T.coerceSub t1), (U2, I.id))
 	  handle Unify.Unify _ => raise NoMatch)
-     | matchVal (Psi, (T.PClo (P, t1'), t1), Pt) = 
-	 matchVal (Psi, (P, T.comp (t1', t1)), Pt) 
-     | matchVal (Psi, (P', t1), T.EVar (_, r as ref NONE, _)) = 
-	 (print "INST"; r := SOME (T.PClo (P', t1)))
-     | matchVal (Psi, (T.Rec _, _), T.PairPrg _) = raise Domain
-	
 
-(*
-     | matchVal (Psi, (T.EVar (_, r as ref (SOME (T.PClo _)), _), t1), P2) = raise Domain
+      | matchVal (Psi, (T.PClo (P, t1'), t1), Pt) = 
+	  matchVal (Psi, (P, T.comp (t1', t1)), Pt)
 
-*)
-     | matchVal (Psi, (T.EVar (_, r as ref (SOME P1), _), t1), P2) = raise Domain
-	 (* abp  
-	 (matchVal (Psi, (P1,t1), P2)) *)
+      (* Added by ABP *)
+   
+      | matchVal (Psi, (P',t1), T.PClo(T.PClo (P, t2), t3)) =
+	 (* ABP -- Do we need this? I added it *)
+	 matchVal (Psi, (P',t1), T.PClo(P, T.comp (t2, t3)))
 
-     | matchVal (Psi, (T.Rec (_, P1) ,t1), T.PairExp (U2, P2)) = raise Domain
+      | matchVal (Psi, (P',t1), T.PClo(T.EVar (_, r as ref NONE, _), t2)) =
+	 let
+	   val iw = T.invertSub t2
+	 in
+	   (* ABP -- just make sure this is right *)
+	   r := SOME (T.PClo (P', T.comp(t1, iw)))
+	 end
 
+      | matchVal (Psi, (P', t1), T.EVar (_, r as ref NONE, _)) = 
+	 r := SOME (T.PClo (P', t1))
 
-     (* ABP -- 1/18/02 Bad Case *)
+      | matchVal (Psi, (V,t), T.EVar ((D, r as ref (SOME P), F))) =
+	 (* ABP -- this should never occurr, since we normalized it to start *)
+	 matchVal (Psi, (V,t), P) 
 
-     | matchVal (Psi, (V,t), T.EVar ((D, r as ref (SOME P), F))) = matchVal (Psi, (V,t), P)
-
-     | matchVal (Psi, (V1 as T.Lam _, t), V2 as T.Lam _) = raise Domain
-
-     | matchVal (Psi, (T.Lam _, t), T.New _) = raise Domain
-     | matchVal (Psi, (T.Lam _, t), T.PairExp _) = raise Domain
-     | matchVal (Psi, (T.Lam _, t), T.PairBlock _) = raise Domain
-     | matchVal (Psi, (T.Lam _, t), T.PairPrg _) = raise Domain
-     | matchVal (Psi, (T.Lam _, t), T.Root _) = raise Domain
-     | matchVal (Psi, (T.Lam _, t), T.Redex _) = raise Domain
-     | matchVal (Psi, (T.Lam _, t), T.Rec _) = raise Domain
-     | matchVal (Psi, (T.Lam _, t), T.Case _) = raise Domain
-
-	 (* adam *)
-     | matchVal (Psi, (V,t), T.PClo (P, t')) = 
-	 matchVal (Psi, (V,t),  Normalize.normalizePrg (P, t'))
-	 
-
-     | matchVal (Psi, (T.Lam _, t), T.Let _) = raise Domain
-	 
-     (*    | matchVal (Psi, (T.Lam _, t), T.EVar _) = raise Domain *)
-    
      | matchVal _ = raise NoMatch
 
 
+(* raisePrg is used in handling of NEW construct 
+   raisePrg (G, P, F) = (P', F'))  
 
-    (* raisePrg (G, P, F) = (P', F')) 
- 
        Invariant:
        If   Psi, G |- P in F
        and  Psi |- G : blockctx
        then Psi |- P' in F'
        and  P = raise (G, P')   (using subordination)
        and  F = raise (G, F')   (using subordination)
-    *)
-    and raisePrg (G, T.Unit) = T.Unit
+*)
+and raisePrg (G, T.Unit) = T.Unit
       | raisePrg (G, T.PairPrg (P1, P2)) =
         let 
 	  val P1' = raisePrg (G, P1)
@@ -148,12 +112,13 @@ struct
 	  val iw = Whnf.invert w 	            (* G' |- iw : G     *)
 	  val G' = Whnf.strengthen (iw, G)        (* Psi0, G' |- B'' ctx *)
 
-	  val _ = print "*"
 	  val U' = A.raiseTerm (G', I.EClo (U, iw))
 	  val P' = raisePrg (G, P)
 	in
 	  T.PairExp (U', P')
 	end
+
+
 
    (* evalPrg (Psi, (P, t)) = V
      
@@ -166,59 +131,50 @@ struct
        and  Psi |- F[t] == F'
     *)
     and evalPrg (Psi, (T.Unit, t)) = T.Unit
+
       | evalPrg (Psi, (T.PairExp (M, P), t)) = 
 	  T.PairExp (I.EClo (M, T.coerceSub t), evalPrg (Psi, (P, t)))
-      | evalPrg (Psi, (T.PairBlock (B, P), t)) =
+
+      | evalPrg (Psi, (T.PairBlock (B, P), t)) = 
           T.PairBlock (I.blockSub (B, T.coerceSub t), evalPrg (Psi, (P, t)))
-      | evalPrg (Psi, (T.PairPrg (P1, P2), t)) =
+
+      | evalPrg (Psi, (T.PairPrg (P1, P2), t)) = 
 	  T.PairPrg (evalPrg (Psi, (P1, t)), evalPrg (Psi, (P2, t)))
+
       | evalPrg (Psi, (T.Redex (P, S), t)) =
-	  (print "last"; evalRedex (Psi, evalPrg (Psi, (P, t)), (S, t)))
+	  evalRedex (Psi, evalPrg (Psi, (P, t)), (S, t))
+
       | evalPrg (Psi, (T.Root (T.Var k, S), t)) =
-          (print "root"; case T.varSub (k, t) 
-             of T.Prg V =>  evalRedex (Psi, evalPrg (Psi, (V, T.id)), (S, t)))
-      | evalPrg (Psi, (T.Root (T.Const lemma, S), t)) =
-           evalPrg (Psi, (T.Redex(T.lemmaDef lemma, S), t))
+          (case T.varSub (k, t) 
+	    of T.Prg V =>  evalRedex (Psi, evalPrg (Psi, (V, T.id)), (S, t))
+	      )
+
+      | evalPrg (Psi, (T.Root (T.Const lemma, S), t)) = 
+	    evalPrg (Psi, (T.Redex(T.lemmaDef lemma, S), t))
+
       | evalPrg (Psi, (T.Lam (D, P), t)) =
 	  T.Lam (T.decSub (D, t), T.PClo (P, T.dot1 t))
-	  (* Need to add support for the NEW construct *)
 
-      | evalPrg (Psi, (P' as T.Rec (D, P), t)) = 
+      | evalPrg (Psi, (P' as T.Rec (D, P), t)) =  
 	  evalPrg (Psi, (P, T.Dot (T.Prg (T.PClo (P', t)), t)))
 
-      | evalPrg (Psi, (T.PClo (P, t'), t)) =
+      | evalPrg (Psi, (T.PClo (P, t'), t)) = 
 	  evalPrg (Psi, (P, T.comp (t', t)))
-      | evalPrg (Psi, (T.Case O, t')) =
-	  let 
-	    val _ = print "<"
-	    val r = match (Psi, t', O)
-	    val _ = print ">"
-	  in 
-	    r
-	  end
 
-      | evalPrg (Psi, (T.EVar ((D, r as ref (SOME P), F)), t)) =
+      | evalPrg (Psi, (T.Case O, t')) = 
+	  match (Psi, t', O)
+
+      | evalPrg (Psi, (T.EVar ((D, r as ref (SOME P), F)), t)) =  
 	  evalPrg (Psi, (P, t))
 
-      | evalPrg (Psi,(T.EVar ((D, ref NONE, F)), t)) = 
-	  raise Domain
-
-   (* Let case *)
-      | evalPrg (Psi, (T.Let (D, P1, P2), t)) =
+      | evalPrg (Psi, (T.Let (D, P1, P2), t)) = 
 	  let
-	    val _ = print "Let ["
-	    val V = evalPrg (Psi, (P1, t))
-	    val _ = print "... {" 
-	    val _ = print (TomegaPrint.prgToString (Psi, V))
-	    val P' =evalPrg (Psi, (P2, T.Dot (T.Prg V, t)))
-	    val _ = print "}]"
+	    val V = evalPrg (Psi, (P1, t)) 
 	  in 
-	    P'
+	    evalPrg (Psi, (P2, T.Dot (T.Prg V, t)))
 	  end
 
       | evalPrg (Psi, (T.New (T.Lam (D, P)), t)) = 
-	  (* abp 	  raise Domain    *)
-	  ( print "\nNew [" ; 
 	   let 
 	     val D' = T.decSub (D, t)
 	     val T.UDec (I.BDec _) = D'
@@ -226,25 +182,16 @@ struct
 	     val B = T.coerceCtx (I.Decl (I.Null, D'))
 	     val (G, t) = Converter.deblockify B
 	     val newP = raisePrg (G, Normalize.normalizePrg (V, t))
-	     val _ = print "]"
 	   in 
 	     newP
-	   end )
+	   end
 
 
    (* other cases should not occur -cs *)
-   (* | evalPrg (Psi, (T.EVar ((D, r as ref NONE, F)), t))
-	 let 
-	    X = T.EVar (Psi, ref NONE, T. FClo (F, t))
-	 in
-	    r := T.PClo (X, t
-	    
-	 evalPrg (Psi, (P, t))
-   *)	  
 
 
-
- (* match (Psi, t, O) = V
+ (* match is used to handle Case statements
+  match (Psi, t1, O) = V
      
        Invariant:
        If   Psi |- t1 :: Psi''
@@ -255,20 +202,20 @@ struct
     *)
     and match (Psi, t1, T.Cases ((Psi', t2, P) :: C)) =
         let 
+	  (* val I.Null = Psi *)
 	  val t = createVarSub (Psi, Psi') (* Psi |- t : Psi' *)
 					(* Psi' |- t2 : Psi'' *)
 
 	  val t' = T.comp (t2, t)
-(*	  val  _ = TomegaTypeCheck.checkSub (Psi, t, Psi') *)
 	in
-	  (print "\n["; matchSub (Psi, t1, t'); print "\n]";
+	  ( matchSub (Psi, t1, t');
 	   evalPrg (Psi, (P, Normalize.normalizeSub t)))
-(*abp	  handle NoMatch => (print "\n}";match (Psi, t, T.Cases C)) *)
-	  handle NoMatch => (print "\n]";match (Psi, t1, T.Cases C))
+	  handle NoMatch => match (Psi, t1, T.Cases C)
 	  
 	end
 
-      | match (Psi, t1, T.Cases Nil) = raise Domain
+      (* What do you want to do if it doesn't match anything *)
+      (* | match (Psi, t1, T.Cases Nil) = raise Domain *)
 
 
 
@@ -281,12 +228,12 @@ struct
     *)
     and createVarSub (Psi, I.Null) = T.Shift(I.ctxLength(Psi))
 
-      | createVarSub (Psi, I.Decl (Psi', T.PDec (name, F))) =
+      | createVarSub (Psi, Psi'' as I.Decl (Psi', T.PDec (name, F))) =
         let 
 	  val t = createVarSub (Psi, Psi')
-	  val _ = print "GEN "
+	  val t' = T.Dot (T.Prg (T.newEVar (Psi, Normalize.normalizeFor(F,t))), t)
 	in
-          T.Dot (T.Prg (T.EVar (Psi, ref NONE, Normalize.normalizeFor (F, t))), t)
+	  t'
 	end
 
       | createVarSub (Psi, I.Decl (Psi', T.UDec (I.Dec (name, V)))) =
@@ -315,32 +262,36 @@ struct
        then function returns ()
 	    otherwise exception NoMatch is raised
     *)
-    and matchSub (Psi, T.Shift _, T.Shift _) = ()
+    and matchSub (Psi, T.Shift a, T.Shift b) = ()
       | matchSub (Psi, T.Shift n, t as T.Dot _) =
-          (print "\nX"; matchSub (Psi, T.Dot (T.Idx (n+1), T.Shift (n+1)), t))
+          matchSub (Psi, T.Dot (T.Idx (n+1), T.Shift (n+1)), t)
+
+      | matchSub (Psi, t as T.Dot _, T.Shift 0) = (print "got here\n" ; ()) (* Just because ABP 2/5/03 *)
+
       | matchSub (Psi, t as T.Dot _, T.Shift n) =
           matchSub (Psi, t, T.Dot (T.Idx (n+1), T.Shift (n+1)))
+
       | matchSub (Psi, T.Dot (T.Exp U1, t1), T.Dot (T.Exp U2, t2)) =
-	  ((matchSub (Psi, t1, t2); (* print "\nE:"; print (Print.expToString (T.coerceCtx Psi, U1) ^ " =?= " ^ Print.expToString (T.coerceCtx Psi, U2) ^ "\n"); *)
-	    
-	   Unify.unify (T.coerceCtx Psi, (U1, I.id), (U2, I.id)); print "\nU") handle Unify.Unify s => (print s; raise NoMatch))
-      | matchSub (Psi, T.Dot (T.Exp U1, t1), T.Dot (T.Idx k, t2)) =
 	  (matchSub (Psi, t1, t2);
+	   Unify.unify (T.coerceCtx Psi, (U1, I.id), (U2, I.id)) handle Unify.Unify s => raise NoMatch)
+
+      | matchSub (Psi, T.Dot (T.Exp U1, t1), T.Dot (T.Idx k, t2)) =
+	  ( matchSub (Psi, t1, t2);
 	   Unify.unify (T.coerceCtx Psi, (U1, I.id), (I.Root (I.BVar k, I.Nil), I.id)) handle Unify.Unify _ => raise NoMatch)
       | matchSub (Psi, T.Dot (T.Idx k, t1), T.Dot (T.Exp U2, t2)) =
-	  (matchSub (Psi, t1, t2);
+	  ( matchSub (Psi, t1, t2);
 	   Unify.unify (T.coerceCtx Psi, (I.Root (I.BVar k, I.Nil), I.id), (U2, I.id)) handle Unify.Unify _ => raise NoMatch)
       | matchSub (Psi, T.Dot (T.Prg P1, t1), T.Dot (T.Prg P2, t2)) =
-	  (matchSub (Psi, t1, t2); print "\nP" ;
+	  ( matchSub (Psi, t1, t2);
 	   matchPrg (Psi, P1, P2))
       | matchSub (Psi, T.Dot (T.Prg P1, t1), T.Dot (T.Idx k, t2)) =
-	  (matchSub (Psi, t1, t2); print "\n1";
+	  (matchSub (Psi, t1, t2);
 	   matchPrg (Psi, P1, T.Root (T.Var k, T.Nil)))
       | matchSub (Psi, T.Dot (T.Idx k, t1), T.Dot (T.Prg P2, t2)) =
-	  (matchSub (Psi, t1, t2); print "\n2";
+	  (matchSub (Psi, t1, t2);
 	   matchPrg (Psi, T.Root (T.Var k, T.Nil), P2))
       | matchSub (Psi, T.Dot (T.Idx k1, t1), T.Dot (T.Idx k2, t2)) =
-	  if k1 = k2 then matchSub (Psi, t1, t2) else raise NoMatch
+	  (if k1 = k2 then matchSub (Psi, t1, t2) else raise NoMatch)
 
     (* evalRedex (Psi, V, (S, t)) = V'
      
@@ -356,25 +307,20 @@ struct
     *)
 
   and evalRedex (Psi, V, (T.Nil, _)) = V
-    | evalRedex (Psi, V, (T.SClo (S, t1), t2)) = 
+    | evalRedex (Psi, V, (T.SClo (S, t1), t2)) =
           evalRedex (Psi, V, (S, T.comp (t1, t2)))
-    | evalRedex (Psi, T.Lam (T.UDec (I.Dec (_, A)), P'), (T.AppExp (U, S), t)) = (print "\n*"; TypeCheck.typeCheck (T.coerceCtx Psi, (I.EClo(U, T.coerceSub t), A));
-	  evalRedex (Psi, evalPrg (Psi, (P', T.Dot (T.Exp (I.EClo (U, T.coerceSub t)), T.id))), (S, t)))
-    | evalRedex (Psi, T.Lam (T.UDec _, P'), (T.AppBlock (B, S), t)) =
+    | evalRedex (Psi, T.Lam (T.UDec (I.Dec (_, A)), P'), (T.AppExp (U, S), t)) =   evalRedex (Psi, evalPrg (Psi, (P', T.Dot (T.Exp (I.EClo (U, T.coerceSub t)), T.id))), (S, t))
+    | evalRedex (Psi, T.Lam (T.UDec _, P'), (T.AppBlock (B, S), t)) = 
           evalRedex (Psi, evalPrg (Psi, (P', T.Dot (T.Block (I.blockSub (B, T.coerceSub t)), T.id))), (S, t))
-    | evalRedex (Psi, T.Lam (T.PDec _, P'), (T.AppPrg (P, S), t)) =
+
+    | evalRedex (Psi, T.Lam (T.PDec _, P'), (T.AppPrg (P, S), t)) = 
 	  let
 	    val V = evalPrg (Psi, (P, t))
 	    val V' = evalPrg (Psi, (P', T.Dot (T.Prg V, T.id)))
 	  in
 	    evalRedex (Psi, V', (S, t))
 	  end
-
-  (* ABP -- 1/17/02 *)
-    | evalRedex (Psi, T.Lam (T.PDec _, _), R as (T.AppExp _,t)) = raise Domain
-    | evalRedex (Psi, V, _) = raise Domain 
-
-
+	
   in
     val evalPrg = fn P => evalPrg (I.Null, (P, T.id))  
   

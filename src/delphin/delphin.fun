@@ -81,15 +81,17 @@ struct
 
 	val x = valOf (Names.constLookup (valOf (Names.stringToQid arg)))
 
-	val P' = if isDef then (T.Redex(P, T.AppExp (I.Root (I.Def x, I.Nil), T.Nil))) else (T.Redex(P, T.AppExp (I.Root (I.Const x, I.Nil), T.Nil)))
+	val P' = if isDef then (T.Redex(P, T.AppExp (I.Root (I.Def x, I.Nil), T.Nil))) else (T.Redex(P, T.AppExp (I.Root (I.Const x, I.Nil), T.Nil))) 
 
 	val result = Opsem.evalPrg P'
-	val _ = TextIO.print "\n"
+	val _ = TextIO.print "\n\nEOC\n\n"
 	val _ = TextIO.print (TomegaPrint.prgToString (I.Null, result))
 	val _ = TextIO.print "\n"
       in
 	()
       end
+
+    fun eval P = Opsem.evalPrg P
 
 
     (* **************************************** *)
@@ -101,6 +103,7 @@ struct
     val top = top
 
     val runSimpleTest = runSimpleTest
+    val eval = eval
 
   end
 end  (* functor Delphin *)
