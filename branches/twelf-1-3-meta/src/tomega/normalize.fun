@@ -84,7 +84,7 @@ struct
 
     fun normalizeSub (s as T.Shift n) = s
       | normalizeSub (T.Dot (T.Prg P, s)) =
-          T.Dot (T.Prg (normalizePrg (P, normalizeSub s)), T.id)
+          T.Dot (T.Prg (normalizePrg (P, T.id)), normalizeSub s)
       | normalizeSub (T.Dot (F, s)) =
 	  T.Dot (F, normalizeSub s)
   in

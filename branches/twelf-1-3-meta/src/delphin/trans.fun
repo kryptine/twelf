@@ -684,9 +684,9 @@ struct
 	  val G = Names.ctxName (T.coerceCtx Psi)
 	  val F = transFor (G, eF)   
 	  val (F'' as T.World (W, F')) = Normalize.normalizeFor (F, T.id)
-	  val _ = print s
+(*	  val _ = print s
 	  val _ = print " :: "
-	  val _ = print (TomegaPrint.forToString (T.embedCtx G, F'') ^ "\n") 
+	  val _ = print (TomegaPrint.forToString (T.embedCtx G, F'') ^ "\n") *)
 	  val _ = TomegaTypeCheck.checkFor (Psi, F'')
 	  val (P, Ds') = transFun1 (Psi, (s, F'), Ds, sc, W)
 	  val D = T.PDec (SOME s, F'')
@@ -1023,7 +1023,7 @@ struct
        the translated program, that does not do anything
     *)
     fun transProgram Ds =
-	  transDecs (I.Null, Ds, fn (Psi, W) => (print (Int.toString (I.ctxLength Psi)); T.Unit), T.Worlds [])
+	  transDecs (I.Null, Ds, fn (Psi, W) => (T.Unit), T.Worlds [])
 
 
 

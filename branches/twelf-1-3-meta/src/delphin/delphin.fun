@@ -28,21 +28,20 @@ struct
 	val _ = Twelf.loadFile s1
 	val _ = Trans.internalizeSig ()
 	val (DextSyn.Ast EDs) = Parse.gparse s2
-	val _ = print "* Parsing done\n"
+(*	val _ = print "* Parsing done\n" *)
 	val P = Trans.transDecs EDs
-	val _ = print "* Type reconstruction done\n"
+(*	val _ = print "* Type reconstruction done\n" *)
 	val P' = Trans.externalizePrg P 
-(*	val _ = raise What P' *)
-	val _ = print "* Externalization done\n"
+(*	val _ = raise What P' 
+	val _ = print "* Externalization done\n" *)
 (*	val _  = TomegaTypeCheck.checkPrg (IntSyn.Null, (P', Tomega.True))
 	val _ = print "* Typechecking done\n"
 *)	val V  = Opsem.topLevel P'  (* was evalPrg --cs Mon Jun 30 12:09:21 2003*)
-	val _ = print "* Operational semantics done\n"
+(*	val _ = print "* Operational semantics done\n" *)
       in 
 	V
       end
 
-    fun test (s1, s2) = (loadFile (s1, s2); (I.Null, Tomega.Unit)) handle Opsem.What P => P
     fun top () = loop ()
 
     and loop () = 
@@ -160,7 +159,6 @@ Nil))) else (T.Redex(P, T.AppExp (I.Root (I.Const x, I.Nil), T.Nil)))
   in
     val version = version
     val loadFile = loadFile
-    val test = test
     val top = top
 
     val runSimpleTest = runSimpleTest

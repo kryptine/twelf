@@ -23,9 +23,7 @@ struct
 (*  local -- removed ABP 1/19/03 *)
 
   exception NoMatch
-
-  exception What of Tomega.Dec IntSyn.Ctx * Tomega.Prg
-    
+   
 (* 
  matchPrg is used to see if two values can be 'unified' for
    purpose of matching case
@@ -282,7 +280,7 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
 	  (* Note that since we are missing the shift(k), it is possible
 	   * that t' has extra DOTs in there that weren't removed *)
 	  ( matchSub (Psi, t1, t'); 
-	   evalPrg (Psi, (P, Normalize.normalizeSub t)))
+	   evalPrg (Psi, (P, (*Normalize.normalizeSub*) t)))
 	  handle NoMatch => match (Psi, t1, T.Cases C)	  
 	end
       | match (Psi, t1, T.Cases (nil)) = raise Abort
@@ -432,11 +430,9 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
 	  fun printLF (_, _, _) 0 = ()
 	    | printLF (G, I.Dot (I.Exp U, s'), I.Decl (G', I.Dec (SOME name, V))) k = 
 	      let
-		val _ = print (Int.toString (I.ctxLength G))
-		val _ = print (Int.toString (1+ I.ctxLength G'))
 		val _ = printLF (G, s', G') (k-1)
 	      in
-		print ("def " ^ name ^ " = "  ^ (Print.expToString (G', U)) 
+		print ("def " ^ name ^ " = "  ^ (Print.expToString (G, U))
 		       ^ " : " ^ (Print.expToString (G, I.EClo (V, s'))) ^ "\n") 
 	      end
 
@@ -447,15 +443,12 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
 		val t' = T.comp (t2, t)
 		val m = I.ctxLength Psi'
 		val _ = matchSub (Psi, t1, t'); 
-		val t'' =  Normalize.normalizeSub t  (* Psi |- t'' : Psi' *)
-		val _ = printLF (T.coerceCtx Psi, T.coerceSub t'', T.coerceCtx Psi') (m-d) 
+		val t'' = (* Normalize.normalizeSub *) t  (* Psi |- t'' : Psi' *)
+		val _ = printLF (T.coerceCtx Psi, T.coerceSub t'', T.coerceCtx Psi') (m-d)
 	      in
 		topLevel (Psi, m, (P, t''))
 	      end
 	  val V = evalPrg (Psi, (P1, t)) 
-(*	  val _ = raise What (Psi, V) *)
-	  val _ = print (Int.toString (I.ctxLength Psi))
-	  val _ = print (TomegaPrint.prgToString (Psi, V) ^ "\n")
 	  val V' = match (Psi, T.Dot (T.Prg V, t), Cs)
 	in 
 	  V'
@@ -487,6 +480,7 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
   (* end -- removed local *)
 
 end
+
 
 
 
