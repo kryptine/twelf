@@ -388,7 +388,7 @@ struct
 
   fun server (name, _) =
       (* ignore server name and arguments *)
-      (print (Twelf.version ^ "\n");
+      (print ("Logosphere" ^ Twelf.version ^ "\n");
        Timing.init ();			(* initialize timers *)
        SigINT.interruptLoop (fn () => serveTop (Twelf.OK));
        OS.Process.success)
