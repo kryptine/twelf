@@ -228,14 +228,20 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
        then if t1 matches O then Psi |- t ~ O evalPrgs to W
 	    otherwise exception NoMatch is raised.
     *)
+
+(*
     and match (Psi, t1, T.Cases ((Psi', t2, P) :: C)) =
         let 
 	  (* val I.Null = Psi *)
 	  val t = createVarSub (Psi, Psi') (* Psi |- t : Psi' *)
-					(* Psi' |- t2 : Psi'' *)
+		  			  (* Psi' |- t2 : Psi'' *)
 
-	  
 	  val t' = T.comp (t2, t)
+
+	  val _ = print ("t1 = " ^ printSub(t))
+	  val _ = print ("t2 = " ^ printSub(t2))
+	  val _ = print ("t = " ^ printSub(t))
+	  val _ = print ("t' = " ^ printSub(t'))
 	in
 	  ( matchSub (Psi, t1, t'); print "\nFOUND CASE\n" ;
 	   evalPrg (Psi, (P, Normalize.normalizeSub t)))
@@ -245,6 +251,26 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
       (* What do you want to do if it doesn't match anything *)
       (* can't happen when total function - ABP *)
       (* | match (Psi, t1, T.Cases Nil) = raise Domain  *)
+*)
+
+    and match (Psi, t1, T.Cases ((Psi', t2, P) :: C)) =
+        let 
+	  (* val I.Null = Psi *)
+	  val t = createVarSub (Psi, Psi') (* Psi |- t : Psi' *)
+		  			  (* Psi' |- t2 : Psi'' *)
+
+	  val t' = T.comp (t2, t)
+
+	  val _ = if (Psi = I.Null) then print "IT IS NULL\n" else ()
+	  val _ = print ("t1 = " ^ printSub(t))
+	  val _ = print ("t2 = " ^ printSub(t2))
+	  val _ = print ("t = " ^ printSub(t))
+	  val _ = print ("t' = " ^ printSub(t'))
+	in
+	  ( matchSub (Psi, t1, t'); print "\nFOUND CASE\n" ;
+	   evalPrg (Psi, (P, Normalize.normalizeSub t)))
+	  handle NoMatch => match (Psi, t1, T.Cases C)	  
+	end
 
 
 
@@ -259,32 +285,26 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
 
       | createVarSub (Psi, Psi'' as I.Decl (Psi', T.PDec (name, F))) =  
         let 
-	  val _ = print "\nHELLO 1"
 	  val t = createVarSub (Psi, Psi')
 	  val t' = T.Dot (T.Prg (T.newEVar (Psi, Normalize.normalizeFor(F,t))), t) 
-(*	  val t' = T.Dot (T.Prg (T.newEVar (Psi, F)), t) *)
 	in
 	  t'
 	end
 
       | createVarSub (Psi, I.Decl (Psi', T.UDec (I.Dec (name, V)))) =  
         let 
-	  val _ = print "\nHELLO 2"
 	  val t = createVarSub (Psi, Psi')
 	in
 
 	  T.Dot (T.Exp (I.EVar (ref NONE, T.coerceCtx Psi, I.EClo (V, T.coerceSub t), ref [])), t)  
-(*	  T.Dot (T.Exp (I.EVar (ref NONE, T.coerceCtx Psi, V, ref [])), t)   *)
 	end 
 
-      (* abp *)
       | createVarSub (Psi, I.Decl (Psi', T.UDec (I.BDec (name, (cid, s))))) =	
 	let
 	  val _  = print "\nHELLO 3"
 	  val t = createVarSub (Psi, Psi')
 	in
           T.Dot (T.Block (I.LVar (ref NONE, I.id, (cid, I.comp (s,  T.coerceSub t)))), t)
-(*          T.Dot (T.Block (I.LVar (ref NONE, I.id, (cid, s))), t) *)
 	end 
 
 
@@ -298,16 +318,19 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
        then function returns ()
 	    otherwise exception NoMatch is raised
     *)
+
+    and printSub (T.Dot (_, s)) = ("(DOT) " ^ printSub(s))
+      | printSub (T.Shift n) = ("Shift ^" ^ Int.toString(n) ^ "\n")
+
     and matchSub (Psi, T.Shift a, T.Shift b) =  if (a=b) then () else raise NoMatch
                                            (* previously just () -- ABP *)
       | matchSub (Psi, T.Shift n, t as T.Dot _) =  
           matchSub (Psi, T.Dot (T.Idx (n+1), T.Shift (n+1)), t)
-
+(*
       | matchSub (Psi, t as T.Dot _, T.Shift 0) =  (print "\nBecause of what" ; ()) (* Just because ABP 2/5/03 *)
-
-
-      | matchSub (Psi, t as T.Dot _, T.Shift n) =   (print "\nBecause of who?" ; 
-          matchSub (Psi, t, T.Dot (T.Idx (n+1), T.Shift (n+1))))
+*)
+      | matchSub (Psi, t as T.Dot _, T.Shift n) =   (print ("\nBecause of who? -- n = " ^ Int.toString(n) ^ ", |t| = " ^ printSub(t)) ; ()) (* Just because #2 *)
+(*          matchSub (Psi, t, T.Dot (T.Idx (n+1), T.Shift (n+1)))) *)
 
       | matchSub (Psi, T.Dot (T.Exp U1, t1), T.Dot (T.Exp U2, t2)) = 
 	  (matchSub (Psi, t1, t2);
