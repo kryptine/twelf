@@ -3,6 +3,8 @@
 (* Modified: Roberto Virga *)
 
 functor Abstract (structure IntSyn' : INTSYN
+		  structure Tomega'  : TOMEGA
+		    sharing Tomega'.IntSyn = IntSyn'
 		  structure Whnf    : WHNF
 		    sharing Whnf.IntSyn = IntSyn'
 		  structure Unify   : UNIFY
@@ -13,12 +15,14 @@ functor Abstract (structure IntSyn' : INTSYN
 struct
 
   structure IntSyn = IntSyn'
+  structure Tomega = Tomega'
     
   exception Error of string
     
   local
 
     structure I = IntSyn
+    structure T = Tomega'
     structure C = Constraints
       
     (* Intermediate Data Structure *)
@@ -614,6 +618,12 @@ struct
 	in
 	  I.Decl (abstractKCtx K', I.Dec (SOME(name), V''))
 	end
+      | abstractKCtx (I.Decl (K', LV (I.LVar (r, (l, t))))) =
+	let
+	  val t' = abstractSOME (K', t)	  
+	in
+	  I.Decl (abstractKCtx K', I.BDec (NONE, (l, t')))
+	end
 
     (* abstractDecImp V = (k', V')   (* rename --cs  (see above) *)
 
@@ -713,8 +723,54 @@ struct
     fun collectEVars (G, Us, Xs) =
           KToEVars (collectExp (G, Us, evarsToK (Xs)))
 
-  in
 
+    (* for the theorem prover: 
+       collect and abstract in subsitutions  including residual lemmas       
+       pending approval of Frank.
+    *)
+	  
+
+
+    fun collectTomegaSub (T.Shift 0) = I.Null
+      | collectTomegaSub (T.Dot (T.Exp U, t)) =
+          collectExp (I.Null, (U, I.id), collectTomegaSub t)
+      | collectTomegaSub (T.Dot (T.Block B, t)) =
+          collectBlock (B, collectTomegaSub t)
+      | collectTomegaSub (T.Dot (T.Prg P, t)) = 
+	  raise Error "not yet implemented"
+
+    fun abstractTomegaSub t =
+      let 
+	val K = collectTomegaSub t
+	val t' = abstractTomegaSub' (K, 0, t)
+	val G = abstractKCtx K
+	val Psi = T.embedCtx G 
+	val _ = () (* don't forget to collect all other meta assumptions from t *)
+      in
+	(Psi, t')
+      end
+      
+    and abstractTomegaSub' (K, depth, T.Shift 0) = T.Shift depth
+      | abstractTomegaSub' (K, depth, T.Dot (T.Exp U, t)) =
+          (T.Dot (T.Exp (abstractExp (K, depth, (U, I.id))),
+		  abstractTomegaSub' (K, depth, t)))
+      | abstractTomegaSub' (K, depth, T.Dot (T.Block B, t)) =
+          (T.Dot (T.Block (abstractLVar (K, depth, B)),
+		  abstractTomegaSub' (K, depth, t)))
+      | abstractTomegaSub' (K, depth, T.Dot (T.Prg P, t)) =
+	  raise Error "residual lemmas not yet abstracted"
+        
+        (* let
+	  val (t', K') = abstractTomegaSub' (t, K)  
+	    (* by invariant: Programs cannot mention new variables, hence nothing is added to K *)
+	  (* follows closely the other two cases, implement abstactPrg *)
+	   (* val P' = abstractPrg (K, P) *)
+	in
+	  (t', K') (* (T.Dot (T.Prg P', t'), K') *)
+	end *)
+      
+				
+  in
     val raiseType = raiseType
     val raiseTerm = raiseTerm
 
@@ -726,6 +782,7 @@ struct
     val abstractDecImp = abstractDecImp
     val abstractDef = abstractDef
     val abstractCtxs = abstractCtxs
+    val abstractTomegaSub = abstractTomegaSub
 
     val collectEVars = collectEVars
 

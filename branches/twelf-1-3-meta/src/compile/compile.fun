@@ -393,19 +393,38 @@ struct
      then |- G ~> dPool  (context G compile to clause pool dPool)
      and  |- dPool  dpool
   *)
-  fun compileCtx opt (G) =
-      let 
+  fun compileCtx opt G =
+      let
+        fun compileBlock (nil, s, (n, i)) = nil
+	  | compileBlock (I.Dec (_, V) :: Vs, t, (n, i)) =  
+	    let 
+	      val Vt = I.EClo (V, t)
+	    in
+	      (compileClause opt (G, Vt), I.id, I.targetHead Vt)
+	      :: compileBlock (Vs, I.Dot (I.Exp (I.Root (I.Proj (I.Bidx n, i), I.Nil)), t), (n, i+1))
+	    end
 	fun compileCtx' (I.Null) = I.Null
-	  | compileCtx' (I.Decl (G, D as I.Dec (_, A))) =
+	  | compileCtx' (I.Decl (G, I.Dec (_, A))) =
 	    let 
 	      val Ha = I.targetHead A
 	    in
-	      I.Decl (compileCtx' (G), SOME (compileClause opt (G, A), I.id, Ha))
+	      I.Decl (compileCtx' G, CompSyn.Dec (compileClause opt (G, A), I.id, Ha))
 	    end
+	  | compileCtx' (I.Decl (G, I.BDec (_, (c, s)))) =
+	    let
+	      val (G, L)= I.constBlock c
+	      val dpool = compileCtx' G
+	      val n = I.ctxLength dpool   (* this is inefficient! -cs *)
+	    in
+	      I.Decl (dpool, CompSyn.BDec (compileBlock (L, s, (n, 1))))
+	    end
+    
+	    
       in
-	C.DProg (G, compileCtx' (G))
+	C.DProg (G, compileCtx' G)
       end
 
+(* dead code? -- cs 
   (* compileCtx' G = (G, dPool)
 
      Invariants:
@@ -421,11 +440,13 @@ struct
 	    let 
 	      val Ha = I.targetHead A
 	    in
-	      I.Decl (compileCtx'' (G, B), SOME (compileClause opt (G, A), I.id, Ha))
+	      I.Decl (compileCtx'' (G, B), C.Dec (compileClause opt (G, A), I.id, Ha))
 	    end
       in
 	C.DProg (G, compileCtx'' (G, B))
       end
+*)
+
 
   (* compileConDec (a, condec) = ()
      Effect: install compiled form of condec in program table.

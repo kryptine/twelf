@@ -156,6 +156,7 @@ structure Twelf =
   Twelf (structure Global = Global
 	 structure Timers = Timers
 	 structure IntSyn' = IntSyn
+	 structure Tomega = Tomega
 	 structure Whnf = Whnf
 	 structure Print = Print
 

@@ -7,6 +7,8 @@ functor Twelf
   (structure Global : GLOBAL
    structure Timers : TIMERS
    structure IntSyn' : INTSYN
+   structure Tomega : TOMEGA
+     sharing Tomega.IntSyn = IntSyn'
    structure Whnf : WHNF
      sharing Whnf.IntSyn = IntSyn'
    structure Print : PRINT
@@ -123,8 +125,9 @@ functor Twelf
 
    structure WorldSyn : WORLDSYN
      sharing WorldSyn.IntSyn = IntSyn'
+     sharing WorldSyn.Tomega = Tomega
    structure WorldPrint : WORLDPRINT
-     sharing WorldPrint.WorldSyn = WorldSyn
+     sharing WorldPrint.Tomega = Tomega
 
    structure ModSyn : MODSYN
      sharing ModSyn.IntSyn = IntSyn'
@@ -730,7 +733,7 @@ struct
 	let
 	  val (ThmSyn.WDecl (qids, cp as ThmSyn.Callpats cpa), rs) =
 	         ReconThm.wdeclTowDecl wdecl
-	  val W = WorldSyn.Worlds
+	  val W = Tomega.Worlds
 	      (List.map (fn qid => case Names.constLookup qid
 			            of NONE => raise Names.Error ("Undeclared label "
                                          ^ Names.qidToString (valOf (Names.constUndef qid))

@@ -3,8 +3,11 @@
 
 functor WorldPrint (structure Global : GLOBAL
 		    structure IntSyn : INTSYN
-		    structure WorldSyn' : WORLDSYN
-		      sharing WorldSyn'.IntSyn = IntSyn
+		    structure Tomega' : TOMEGA
+		      sharing Tomega'.IntSyn = IntSyn
+		    structure WorldSyn : WORLDSYN
+		      sharing WorldSyn.IntSyn = IntSyn
+		      sharing WorldSyn.Tomega = Tomega'
 		    structure Names : NAMES
 		      sharing Names.IntSyn = IntSyn
 		    structure Formatter' : FORMATTER
@@ -15,12 +18,13 @@ functor WorldPrint (structure Global : GLOBAL
 
 struct
   structure Formatter = Formatter'
-  structure WorldSyn = WorldSyn'
+  structure Tomega = Tomega
 
   exception Error of string 
 
   local
     structure I = IntSyn
+    structure T = Tomega
     structure N = Names
     structure W = WorldSyn 
     structure Fmt = Formatter
@@ -63,7 +67,7 @@ struct
                                  :: Fmt.Break :: Fmt.String "|" :: Fmt.Space
                                  :: formatCids cids
 
-    fun formatWorlds (W.Worlds cids) =
+    fun formatWorlds (T.Worlds cids) =
         Fmt.Hbox [Fmt.String "(", Fmt.HVbox (formatCids cids), Fmt.String ")"]
     
 

@@ -8,6 +8,11 @@ structure Conv =
   Conv (structure IntSyn' = IntSyn
 	structure Whnf = Whnf);
 
+structure Tomega : TOMEGA =
+   Tomega (structure IntSyn' = IntSyn
+	   structure Whnf = Whnf
+	   structure Conv = Conv)
+
 structure Constraints =
   Constraints (structure IntSyn' = IntSyn
 	       structure Conv = Conv);
@@ -24,6 +29,7 @@ structure UnifyTrail =
 
 structure Abstract =
   Abstract (structure IntSyn' = IntSyn
+	    structure Tomega' = Tomega
 	    structure Whnf = Whnf
 	    structure Constraints = Constraints
 	    structure Unify = UnifyNoTrail);

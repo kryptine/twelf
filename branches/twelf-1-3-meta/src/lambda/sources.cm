@@ -1,8 +1,11 @@
 Group is
   ../global/sources.cm
   ../trail/sources.cm
+  ../table/sources.cm
   intsyn.sig
   intsyn.fun
+  tomega.sig
+  tomega.fun
   whnf.sig
   whnf.fun
   conv.sig
