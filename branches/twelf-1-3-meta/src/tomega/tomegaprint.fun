@@ -90,7 +90,7 @@ struct
        and  Psi' |- F formula
        then fmts' is a list of formats for F
     *)
-    fun formatFor' (Psi, T.All (D, F)) = 
+    fun formatFor' (Psi, T.All ((D, T.Explicit), F)) = 
         (case D 
 	   of T.UDec D => 
 	     let 
@@ -101,12 +101,31 @@ struct
 		Fmt.String "}", Fmt.Break] @
 	       formatFor' (I.Decl (Psi, T.UDec D'), F)
 	     end)
-      | formatFor' (Psi, T.Ex (D, F)) =
+      | formatFor' (Psi, T.All ((D, T.Implicit), F)) = 
+        (case D 
+	   of T.UDec D => 
+	     let 
+	       val G = T.coerceCtx Psi
+	       val D' = Names.decName (G, D)
+	     in
+	       [Fmt.String "All^ {", P.formatDec (G, D'), 
+		Fmt.String "}", Fmt.Break] @
+	       formatFor' (I.Decl (Psi, T.UDec D'), F)
+	     end)
+      | formatFor' (Psi, T.Ex ((D, T.Explicit), F)) =
 	let
 	  val G = T.coerceCtx Psi
 	  val D' = Names.decName (G, D)
 	in
 	  [Fmt.String "Ex {", P.formatDec (G,  D'), Fmt.String "}", Fmt.Break] @
+	  formatFor' (I.Decl (Psi, T.UDec D'), F)
+	end
+      | formatFor' (Psi, T.Ex ((D, T.Implicit), F)) =
+	let
+	  val G = T.coerceCtx Psi
+	  val D' = Names.decName (G, D)
+	in
+	  [Fmt.String "Ex^ {", P.formatDec (G,  D'), Fmt.String "}", Fmt.Break] @
 	  formatFor' (I.Decl (Psi, T.UDec D'), F)
 	end
       | formatFor' (Psi, T.And (F1, F2)) = 

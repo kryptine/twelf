@@ -76,7 +76,7 @@ struct
     *)
     and inferSpine (Psi, S, Ft) = inferSpineW (Psi, S, Normalize.whnfFor Ft)
     and inferSpineW (Psi, T.Nil, (F, t)) = (F, t)
-      | inferSpineW (Psi, T.AppExp (M, S), (T.All (T.UDec (I.Dec (_, A)), F), t)) =
+      | inferSpineW (Psi, T.AppExp (M, S), (T.All ((T.UDec (I.Dec (_, A)), _), F), t)) =
 	let 
 	  val _ = chatter 4 (fn () => "[appExp")
 	  val G = T.coerceCtx (Psi)
@@ -86,7 +86,7 @@ struct
 	  inferSpine (Psi, S, (F, T.Dot(T.Exp(M), t)))
 	end
       | inferSpineW (Psi, T.AppBlock (I.Bidx k, S),
-		     (T.All (T.UDec (I.BDec (_, (cid, s))), F2), t2)) =
+		     (T.All ((T.UDec (I.BDec (_, (cid, s))), _), F2), t2)) =
 	let 
 	  val T.UDec (I.BDec(_, (cid', s')))= T.ctxDec(Psi, k)
 	  val (G', _) = I.conDecBlock (I.sgnLookup cid')
@@ -96,7 +96,7 @@ struct
 	in 
 	    inferSpine (Psi, S, (F2, T.Dot(T.Block(I.Bidx k), t2)))
 	end
-      | inferSpineW (Psi, T.AppPrg (P, S), (T.All (T.PDec (_, F1), F2), t)) =
+      | inferSpineW (Psi, T.AppPrg (P, S), (T.All ((T.PDec (_, F1), _), F2), t)) =
 	let 
 	    val _ = checkPrg (Psi, (P, (F1, t)))
 	in 
@@ -109,11 +109,11 @@ struct
         let 
 	  val F = inferPrg (I.Decl (Psi, D), P)
 	in
-	  T.All (D, F)
+	  T.All ((D, T.Explicit), F)
 	end
       | inferPrg (Psi, T.New P) =
 	let
-	  val T.All (T.UDec (D as (I.BDec _)), F) = inferPrg (Psi, P)
+	  val T.All ((T.UDec (D as (I.BDec _)), _), F) = inferPrg (Psi, P)
 	in
 	  F (* raise (D, F) *)
 	end
@@ -122,7 +122,7 @@ struct
 	  val V = TypeCheck.infer' (T.coerceCtx Psi, U)
 	  val F = inferPrg (Psi, P)
 	in
-	  T.Ex (I.Dec (NONE, V), F)
+	  T.Ex ((I.Dec (NONE, V), T.Explicit), F)
 	end
       | inferPrg (Psi, T.PairBlock (I.Bidx k, P)) =
         (* Blocks T.Inst, and T.LVar excluded for now *)
@@ -130,7 +130,7 @@ struct
 	  val D = I.ctxLookup (T.coerceCtx Psi, k)
 	  val F = inferPrg (Psi, P)
 	in
-	  T.Ex (D, F)
+	  T.Ex ((D, T.Explicit), F)
 	end
       | inferPrg (Psi, T.PairPrg (P1, P2)) = 
 	let 
@@ -238,7 +238,7 @@ struct
 	  ()
 	end
 
-      | checkPrgW (Psi, (T.Lam (D as T.PDec (x, F1), P), (T.All (T.PDec (x', F1'), F2), t))) = 
+      | checkPrgW (Psi, (T.Lam (D as T.PDec (x, F1), P), (T.All ((T.PDec (x', F1'), _), F2), t))) = 
 	let 
 	  val _ = chatter 4 (fn () => "[lam[p]")
 	    val _ = convFor (Psi, (F1, T.id), (F1', t))
@@ -246,7 +246,7 @@ struct
 	in 
 	    checkPrg (I.Decl (Psi, D), (P, (F2, T.dot1 t)))
 	end
-      | checkPrgW (Psi, (T.Lam (T.UDec D, P), (T.All (T.UDec D', F), t2))) =
+      | checkPrgW (Psi, (T.Lam (T.UDec D, P), (T.All ((T.UDec D', _), F), t2))) =
 	let 
 	  val _ = chatter 4 (fn () => "[lam[u]")
 	  val _ = Conv.convDec ((D, I.id), (D', T.coerceSub t2))
@@ -254,7 +254,7 @@ struct
 	in  
 	    checkPrg (I.Decl (Psi , T.UDec D), (P, (F, T.dot1 t2)))
 	end
-      | checkPrgW (Psi, (T.PairExp (M, P), (T.Ex(I.Dec(x, A), F2), t))) =
+      | checkPrgW (Psi, (T.PairExp (M, P), (T.Ex((I.Dec(x, A), _), F2), t))) =
 	let 
 	  val _ = chatter 4 (fn () => "[pair [e]")
 	  val G = T.coerceCtx Psi
@@ -263,7 +263,7 @@ struct
 	in 
 	    checkPrg(Psi, (P, (F2, T.Dot (T.Exp M, t))))
 	end
-      | checkPrgW (Psi, (T.PairBlock (I.Bidx k, P), (T.Ex (I.BDec (_, (cid, s)), F2), t))) =
+      | checkPrgW (Psi, (T.PairBlock (I.Bidx k, P), (T.Ex ((I.BDec (_, (cid, s)), _), F2), t))) =
 	let
 	  val T.UDec (I.BDec(_, (cid', s'))) = T.ctxDec (Psi, k)
 	  val (G', _) = I.conDecBlock (I.sgnLookup cid)
@@ -464,8 +464,8 @@ struct
     and convFor (Psi, Ft1, Ft2) = convForW (Psi, Normalize.whnfFor Ft1, Normalize.whnfFor Ft2)
     and convForW (_, (T.True, _), (T.True, _)) = ()
       | convForW (Psi, 
-		  (T.All (D as T.UDec( I.Dec (_, A1)), F1), t1), 
-		  (T.All (     T.UDec( I.Dec (_, A2)), F2), t2)) =
+		  (T.All ((D as T.UDec( I.Dec (_, A1)), _), F1), t1), 
+		  (T.All ((     T.UDec( I.Dec (_, A2)), _), F2), t2)) =
 	let
 	  val G = T.coerceCtx (Psi)
 	  val s1 = T.coerceSub t1
@@ -479,8 +479,8 @@ struct
 	  ()
 	end
       | convForW (Psi, 
-		  (T.All (D as T.UDec (I.BDec(_, (l1, s1))), F1), t1), 
-		  (T.All(T.UDec (I.BDec(_, (l2, s2))), F2), t2)) =
+		  (T.All ((D as T.UDec (I.BDec(_, (l1, s1))), _), F1), t1), 
+		  (T.All((T.UDec (I.BDec(_, (l2, s2))), _), F2), t2)) =
 	let 
 	  val _ = if l1 <> l2 then raise Error "Contextblock clash" else ()
 	  val (G', _) = I.conDecBlock (I.sgnLookup l1)
@@ -493,8 +493,8 @@ struct
 	  ()
 	end
       | convForW (Psi, 
-		  (T.Ex (D as I.Dec (_, A1), F1), t1), 
-		  (T.Ex (     I.Dec (_, A2), F2), t2)) =
+		  (T.Ex ((D as I.Dec (_, A1), _), F1), t1), 
+		  (T.Ex ((     I.Dec (_, A2), _), F2), t2)) =
 	let
 	  val G = T.coerceCtx (Psi)
 	  val s1 = T.coerceSub t1
@@ -508,8 +508,8 @@ struct
 	  ()
 	end
       | convForW (Psi, 
-		  (T.Ex (D as I.BDec(name, (l1, s1)), F1), t1), 
-		  (T.Ex (     I.BDec(_,    (l2, s2)), F2), t2)) =
+		  (T.Ex ((D as I.BDec(name, (l1, s1)), _), F1), t1), 
+		  (T.Ex ((     I.BDec(_,    (l2, s2)), _), F2), t2)) =
 	let 
 	  val _ = if l1 <> l2 then raise Error "Contextblock clash" else ()
 	  val (G', _) = I.conDecBlock (I.sgnLookup l1)
@@ -532,8 +532,8 @@ struct
 	  ()
 	end
       | convForW (Psi, 
-		  (T.All(D as T.PDec(_, F1), F1'), t1), 
-		  (T.All(     T.PDec(_, F2), F2'), t2)) =
+		  (T.All((D as T.PDec(_, F1), _), F1'), t1), 
+		  (T.All((     T.PDec(_, F2), _), F2'), t2)) =
 	let 
 	  val _ = convFor (Psi, (F1, t1), (F2, t2))
 	  val D' = T.decSub (D, t1)
@@ -621,12 +621,12 @@ struct
       
     and convValue (G, P1, P2, F) = ()
     and checkFor (Psi, (T.True, _)) = ()
-      | checkFor (Psi, (T.All (D as T.PDec (_ ,F1), F2), t)) = 
+      | checkFor (Psi, (T.All ((D as T.PDec (_ ,F1), _), F2), t)) = 
           (checkFor (Psi, (F1, t)); checkFor (I.Decl (Psi, D), (F2, T.dot1 t)))
-      | checkFor (Psi, (T.All (D' as T.UDec D, F), t)) =
+      | checkFor (Psi, (T.All ((D' as T.UDec D, _), F), t)) =
 	  (TypeCheck.checkDec (T.coerceCtx Psi, (D, T.coerceSub t));
 	   checkFor (I.Decl (Psi, D'), (F, T.dot1 t)))
-      | checkFor (Psi, (T.Ex  (D, F), t)) =
+      | checkFor (Psi, (T.Ex  ((D, _), F), t)) =
 	  (TypeCheck.checkDec (T.coerceCtx Psi, (D, T.coerceSub t));
 	   checkFor (I.Decl (Psi, T.UDec D), (F, T.dot1 t)))
       | checkFor (Psi, (T.And (F1, F2), t)) = 

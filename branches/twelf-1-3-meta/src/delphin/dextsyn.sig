@@ -24,12 +24,20 @@ and FunDecl
 and ValDecl
   = Val of Pat * Prog * Form option
 
+and World = 
+    WorldIdent of string
+  | Plus of World * World
+  | Concat of World * World
+  | Times of World
+
 and Form 
   = True
-  | Forall of string * Form
-  | Exists of string * Form
+  | Forall of Dec * Form
+  | ForallOmitted of Dec * Form
+  | Exists of Dec * Form
+  | ExistsOmitted of Dec * Form
   | And of Form * Form
-  | World of string * Form
+  | World of World * Form
 (* | Arrow of Form * Form *)
 (* | WldDef of (string list) * Form *)
 
@@ -37,13 +45,14 @@ and Prog
   = Unit 
   | Pair of Prog * Prog
   | AppProg of Prog * Prog
-  | AppTerm of Prog * string
-  | Inx of string * Prog 
-  | Lam of string * Prog
+  | AppTerm of Prog * Term
+  | Inx of Term * Prog 
+  | Lam of Dec * Prog
   | Const of string
   | Case of  (Pat list * Prog) list
   | Let of Decs * Prog 
-  | New of string * Prog 
+  | New of Dec * Prog 
+  | Choose of Dec * Prog 
 (* | Rec of MDec * Prog *)
 
 and Cases 
@@ -68,9 +77,24 @@ and MDec
 and Block 
   = Block of string list
 
-and Term 
+(* and Term 
   = Term of string
+*)
+and Term 
+  = Rtarrow of Term * Term
+  | Ltarrow of Term * Term
+  | Type
+  | Id of string
+  | Pi of Dec * Term
+  | Fn of Dec * Term
+  | App of Term * Term
+  | Dot of Term * Term
+  | Paren of Term
+  | Omit
+  | Of of Term * Term
 
+and Dec 
+  = Dec of string * Term
 end
 
 

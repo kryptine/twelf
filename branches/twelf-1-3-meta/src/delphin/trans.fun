@@ -16,7 +16,7 @@ struct
   
 
   exception Error of string
-(*  local *)
+  local 
 
    (* checkEOF f = r 
        
@@ -86,6 +86,31 @@ struct
 	  t
         end
 
+
+
+    fun transTerm (D.Rtarrow (t1, t2)) = 
+          transTerm (t1) ^ " -> " ^ transTerm (t2) 
+      | transTerm (D.Ltarrow (t1, t2)) = 
+	  transTerm (t1) ^ " <- " ^ transTerm (t2)
+      | transTerm (D.Type) = "type"
+      | transTerm (D.Id s) = s
+      | transTerm (D.Pi (D, t)) = 
+	  "{" ^ transDec D ^ "}" ^ transTerm (t) 
+      | transTerm (D.Fn (D, t)) =
+	  "[" ^ transDec D ^ "]" ^ transTerm (t)
+      | transTerm (D.App (t1, t2)) =
+	  transTerm t1 ^ " " ^ transTerm t2
+      | transTerm (D.Omit) = "_"
+      | transTerm (D.Paren (t)) = 
+	  "(" ^ transTerm t ^ ")"
+	  
+    and transDec (D.Dec (s, t)) = s ^ ":" ^ (transTerm t)
+      
+
+
+
+
+
     (* transFor (ExtDctx, ExtF) = (Psi, F)
      
        Invariant:
@@ -94,7 +119,6 @@ struct
        then |- Psi <= ExtDPsi
        and  Psi |- F <= ExtF
     *)  
-
     fun transFor (ExtDPsi, D.True) = 
         let
 	  val ReconTerm.JWithCtx (G, ReconTerm.JNothing) = 
@@ -110,21 +134,39 @@ struct
 	in 
 	   (Psi1, Tomega.And (F1, F2))
 	end
-      | transFor (ExtDPsi, D.Forall (lfstring, EF)) =
+      | transFor (ExtDPsi, D.Forall (dec, EF)) =
         let 
-	  val dec = stringTodec lfstring
+	  val dec = stringTodec (transDec dec)
           val (I.Decl (Psi, D), F) = transFor (I.Decl (ExtDPsi, dec), EF)
         in 
-	  (Psi, Tomega.All (T.UDec D, F))
+	  (Psi, Tomega.All ((T.UDec D, T.Explicit), F))
         end
-      | transFor (ExtDPsi, D.Exists (lfstring, EF)) =  
+      | transFor (ExtDPsi, D.Exists (dec, EF)) =  
         let 
-	  val dec = stringTodec lfstring
+	  val dec = stringTodec (transDec dec)
           val (I.Decl (Psi, D), F) = transFor (I.Decl (ExtDPsi, dec), EF)
         in 
-	  (Psi, Tomega.Ex (D, F))
+	  (Psi, Tomega.Ex ((D, T.Explicit), F))
         end
-      | transFor (ExtDPsi, D.World (lfstring, EF)) =  
+      | transFor (ExtDPsi, D.ForallOmitted (dec, EF)) =
+        let 
+	  val dec = stringTodec (transDec dec)
+          val (I.Decl (Psi, D), F) = transFor (I.Decl (ExtDPsi, dec), EF)
+        in 
+	  (Psi, Tomega.All ((T.UDec D, T.Implicit), F))
+        end
+      | transFor (ExtDPsi, D.ExistsOmitted (dec, EF)) =  
+        let 
+	  val dec = stringTodec (transDec dec)
+          val (I.Decl (Psi, D), F) = transFor (I.Decl (ExtDPsi, dec), EF)
+        in 
+	  (Psi, Tomega.Ex ((D, T.Implicit), F))
+        end
+      | transFor (ExtDPsi, D.World (_, EF)) =  transFor (ExtDPsi, EF)
+	
+
+
+(*      | transFor (ExtDPsi, D.World (lfstring, EF)) =  
         let 
           val qids = List.map Names.Qid (stringToWorlds lfstring)
 	  val W = T.Worlds
@@ -138,6 +180,10 @@ struct
 	in
 	  (Psi, T.World (W, F))
         end
+
+*)
+
+
 
 (*
 
@@ -651,6 +697,7 @@ val _ = print "!";
 	    as output: anything. 
        then eventually x = ().     --cs
     *)
+
     fun transDecs ((Psi, env), D.Empty, sc, W) = (sc (Psi, env, W))
   (*    | transDecs ((Psi, env), D as D.FunDecl (FunD, Ds), sc, W) =  (transFun1 ((Psi, env), D, sc, W)) *)
       | transDecs ((Psi, env), D.FormDecl (FormD, Ds), sc, W) = (transForDec ((Psi, env), FormD, Ds, sc, W))
@@ -1137,15 +1184,16 @@ val _ = print "!";
         in
           (P'', (F'', T.id))
         end
-
-(*  in *)
-    val makePattern = makePattern
-    val transFor = fn F => let val (_, F') = transFor (I.Null, F) in F' end
-    val transPro = fn P => let val (P', _) = transProgS ((I.Null, []), P, T.Worlds []) in P' end
 *)
-    val transDecs = fn Ds => transDecs ((I.Null, []), Ds, fn (Psi, env, W) => T.Unit, T.Worlds [])
+  in 
+    val transFor = fn F => let val (_, F') = transFor (I.Null, F) in F' end
 
-(*  end *)
+(*    val makePattern = makePattern *)
+(*    val transPro = fn P => let val (P', _) = transProgS ((I.Null, []), P, T.Worlds []) in P' end *)
+
+    val transDecs = fn Ds => transDecs ((I.Null, []), Ds, fn (Psi, env, W) => T.Unit, T.Worlds []) 
+
+  end 
 end (* functor Trans *)
 
 

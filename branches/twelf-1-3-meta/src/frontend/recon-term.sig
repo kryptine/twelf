@@ -76,6 +76,7 @@ sig
 
   val recon : job -> Job
   val reconQuery : job -> Job
+  val reconWithCtx : IntSyn.dctx * job -> Job
 
   val termRegion : term -> Paths.region
   val decRegion : dec -> Paths.region

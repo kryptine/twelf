@@ -55,7 +55,7 @@ struct
        and   Psi' |- s' : Psi1
     *)
     fun purifyFor ((T.Unit, t), (Psi, T.True), s) = (t, Psi, s)
-      | purifyFor ((T.PairExp (U, P), t), (Psi, T.Ex (D, F)), s) =
+      | purifyFor ((T.PairExp (U, P), t), (Psi, T.Ex ((D, _), F)), s) =
 	  purifyFor ((P, T.Dot (T.Exp U, t)), (I.Decl (Psi, T.UDec D), F), T.comp (s, T.shift))
 (*      | purifyFor ((T.Lam _, _), (_, _), _) = raise Domain
       | purifyFor ((T.New _, _), (_,  _), _) = raise Domain

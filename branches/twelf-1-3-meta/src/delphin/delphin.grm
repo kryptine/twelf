@@ -45,10 +45,13 @@ structure L = Lexer
        | LET 
        | IN 
        | END 
-       | NEW 
+       | NEW
+       | CHOOSE 
        | SOME of string 
        | ALL 
        | EXISTS
+       | ALLOMITTED
+       | EXISTSOMITTED
        | TYPE  
        | RTARROW  
        | LTARROW 
@@ -68,7 +71,9 @@ structure L = Lexer
        | UNIT 
        | LLAM 
        | RLAM 
-       | AT 
+       | AT
+       | TIMES   
+       | PLUS   
        | UNDERSCORE
        | WORLD
        | PREC1 
@@ -80,18 +85,16 @@ structure L = Lexer
           | formdecl of D.FormDecl
 	  | fundecl of D.FunDecl
           | valdecl of D.ValDecl
-          | block of string 
-          | term of string 
+          | term of D.Term 
           | cases of D.Cases 
-          | dec of string 
+          | dec of D.Dec
           | worlds of string list
           | form of D.Form
           | head of D.Head
           | mdec of D.MDec 
           | pat of D.Pat  
           | prog of D.Prog
-	  | world of string
-	  | world' of string
+	  | world of D.World
           | id of string
 
 
@@ -104,7 +107,7 @@ structure L = Lexer
 %left AND
 
 %right DBLCOLON
-%right ID TRUE ALL EXISTS VAL FUN CASE OF BAR LET IN END NEW
+%right ID TRUE ALL EXISTS ALLOMITTED EXISTSOMITTED VAL FUN CASE OF BAR LET IN END NEW CHOOSE
 %right RTARROW DBLARROW 
 
 %nonassoc LTBRACE RTBRACE LTBRACKET RTBRACKET LLAM RLAM
@@ -128,84 +131,94 @@ fundecl   : FUN head EQUAL prog %prec PREC1            (D.Fun (head, prog))
 valdecl   : VAL pat DBLCOLON form EQUAL prog %prec ID  (D.Val (pat, prog, SOME form))
 	  | VAL pat EQUAL prog %prec ID                (D.Val (pat, prog, NONE))
 
-block     : LTBRACE dec RTBRACE                        ("{" ^ dec ^ "} ")
-          | block LTBRACE dec RTBRACE                  (block ^ " " ^ "{" ^ dec ^ "}")
+term      : TYPE                                       (D.Type)
+          | ID                 	            	       (D.Id ID)   
+          | TRUE                                       (D.Id "true")
+          | AND                                        (D.Id "and")
+          | ALL                                        (D.Id "all")
+          | ALLOMITTED                                 (D.Id "all^")
+          | EXISTS                                     (D.Id "exists")
+          | EXISTSOMITTED                              (D.Id "exists^")
+          | VAL                                        (D.Id "val") 
+          | FUN                                        (D.Id "fun")
+          | CASE                                       (D.Id "case")
+          | OF                                         (D.Id "of")
+          | BAR                                        (D.Id "|")
+          | LET                                        (D.Id "let") 
+          | TIMES  				       (D.Id "*")
+          | PLUS                                       (D.Id "+")
+          | IN                                         (D.Id "in")
+          | END                                        (D.Id "end")
+          | NEW                                        (D.Id "new")
+          | CHOOSE                                     (D.Id "choose")
+          | term RTARROW term                 	       (D.Rtarrow (term1, term2))
+          | term LTARROW term                 	       (D.Ltarrow (term1, term2))
+          | LTBRACE dec RTBRACE term          	       (D.Pi (dec, term)) 
+          | LTBRACKET dec RTBRACKET term      	       (D.Fn (dec, term))
+          | LTPAREN term RTPAREN              	       (D.Paren term)
+          | ID term                           	       (D.App (D.Id ID, term))
+          | TRUE term                                  (D.App (D.Id "true", term))
+          | AND term                                   (D.App (D.Id "and", term))
+          | ALL term                                   (D.App (D.Id "all", term))
+          | ALLOMITTED term                            (D.App (D.Id "all^", term)) 
+          | EXISTS term                                (D.App (D.Id "exists", term))
+          | EXISTSOMITTED term                         (D.App (D.Id "exists^", term))
+          | VAL term                                   (D.App (D.Id "val", term))
+          | FUN term                                   (D.App (D.Id "fun", term))
+          | CASE term                                  (D.App (D.Id "case", term))
+          | OF term                                    (D.App (D.Id "of", term))
+          | BAR term                                   (D.App (D.Id "|", term))
+          | LET term                                   (D.App (D.Id "let", term))
+          | IN term                                    (D.App (D.Id "in", term))
+          | END term                                   (D.App (D.Id "end", term))
+          | NEW term                                   (D.App (D.Id "new", term))  
+          | CHOOSE term                                (D.App (D.Id "choose", term))  
+          | UNDERSCORE term                   	       (D.Omit)
+          | LTPAREN term RTPAREN term         	       (D.App (D.Paren term1, term2))
+          | term COLON term                   	       (D.Of (term1, term2))
+          | UNDERSCORE                        	       (D.Omit)  
+          | term DOT term 			       (D.Dot (term1, term2))
 
-term      : TYPE                                       ("type ")
-          | ID                 	            	       (ID ^ " ")   
-          | TRUE                                       ("true ")
-          | AND                                        ("and ")
-          | ALL                                        ("all ")
-          | EXISTS                                     ("exists ")
-          | VAL                                        ("val ") 
-          | FUN                                        ("fun ")
-          | CASE                                       ("case ")
-          | OF                                         ("of ")
-          | BAR                                        ("bar ")
-          | LET                                        ("let ") 
-          | IN                                         ("in ")
-          | END                                        ("end ")
-          | NEW                                        ("new ")
-          | term RTARROW term                 	       (term1 ^ " -> " ^ term2) 
-          | term LTARROW term                 	       (term1 ^ " <- " ^ term2)  
-          | LTBRACE dec RTBRACE term          	       ("{" ^ dec ^ "} " ^ term) 
-          | LTBRACKET dec RTBRACKET term      	       ("[" ^ dec ^ "] " ^ term) 
-          | LTPAREN term RTPAREN              	       ("(" ^ term ^ ") ")  
-          | ID term                           	       (ID ^ " " ^ term)   
-          | TRUE term                                  ("true " ^ term)
-          | AND term                                   ("and " ^ term)
-          | ALL term                                   ("all " ^ term)
-          | EXISTS term                                ("exists " ^ term)
-          | VAL term                                   ("val " ^ term)
-          | FUN term                                   ("fun " ^ term)
-          | CASE term                                  ("case " ^ term)
-          | OF term                                    ("of " ^ term)
-          | BAR term                                   ("bar " ^ term)
-          | LET term                                   ("let " ^ term)
-          | IN term                                    ("in " ^ term)
-          | END term                                   ("end " ^ term)
-          | NEW term                                   ("new " ^ term)  
-          | UNDERSCORE term                   	       ("_ " ^ term)
-          | LTPAREN term RTPAREN term         	       ("(" ^ term1 ^ ") " ^ term2)
-          | term COLON term                   	       (term1 ^ " : " ^ term2)  
-          | UNDERSCORE                        	       ("_ ")  
+world     : LTPAREN world RTPAREN                      (world)
+          | ID                                         (D.WorldIdent ID)
+	  | world world                                (D.Concat (world, world))
+	  | world PLUS world                           (D.Plus (world, world))
+	  | world TIMES                                (D.Times world)
 
-world     : LTPAREN world'                             ("(" ^ world')
-
-world'    : ID BAR world'                              (ID ^ " | " ^ world')
-	  | ID RTPAREN                                 (ID ^ ")")
-
-dec       : ID COLON term                              (ID ^ " : " ^ term)
-          | ID                               	       (ID)  
+dec       : ID COLON term                              (D.Dec (ID, term))
+          | ID                               	       (D.Dec (ID, D.Omit))
 
 form      : WORLD world form  %prec UNDERSCORE         (D.World (world, form))
 	  | ALL LTBRACE dec RTBRACE form   	       (D.Forall (dec, form))
+	  | ALLOMITTED LTBRACE dec RTBRACE form        (D.ForallOmitted (dec, form))
           | EXISTS LTBRACE dec RTBRACE form   	       (D.Exists (dec, form))
+          | EXISTSOMITTED LTBRACE dec RTBRACE form     (D.ExistsOmitted (dec, form))
           | form AND form  (*%prec AND*)               (D.And (form1, form2))
           | LTPAREN form RTPAREN              	       (form)
           | TRUE                                       (D.True)
 
 prog      : ID                                         (D.Const (ID))
-          | prog ID              	               (D.AppTerm (prog, ID)) 
-          | prog UNDERSCORE                   	       (D.AppTerm (prog, "_"))
-          | prog LTPAREN term RTPAREN         	       (D.AppTerm (prog, term))   
+          | prog ID              	               (D.AppTerm (prog, D.Id ID)) 
+          | prog UNDERSCORE                   	       (D.AppTerm (prog, D.Id "_"))
+          | prog LTPAREN term RTPAREN         	       (D.AppTerm (prog, term))
           | LTPAREN prog RTPAREN              	       (prog)
           | UNIT                              	       (D.Unit)
 	  | CASE prog OF cases                         (D.Unit)
           | LTPAREN prog COMMA prog RTPAREN   	       (D.Pair (prog1, prog2))   
           | prog AT prog                      	       (D.AppProg (prog1, prog2))
           | LTANGLE term COMMA prog RTANGLE   	       (D.Inx (term, prog))  
-          | LLAM term RLAM prog               	       (D.Lam (term, prog))   
+          | LLAM dec RLAM prog               	       (D.Lam (dec, prog))   
           | LET decs IN prog END              	       (D.Let (decs, prog)) 
-	  | NEW block IN prog END	               (D.New (block, prog))
+	  | NEW LTPAREN dec RTPAREN IN prog END	               (D.New (dec, prog))
+	  | CHOOSE LTPAREN dec RTPAREN  IN prog END	               (D.Choose (dec, prog))
 
-cases     : pat DBLARROW prog  %prec PREC0                        (D.First (pat, prog))
+cases     : pat DBLARROW prog  %prec PREC0             (D.First (pat, prog))
           | cases BAR pat DBLARROW prog %prec PREC1    (D.Alt  (cases, pat, prog)) 
 
 head      : ID                       		       (D.Head (ID))
-          | head ID                           	       (D.AppLF (head, D.Term ID))     
-          | head UNDERSCORE                   	       (D.AppLF (head, D.Term "_"))
-          | head LTPAREN term RTPAREN         	       (D.AppLF (head, D.Term term))
+          | head ID                           	       (D.AppLF (head, D.Id ID))     
+          | head UNDERSCORE                   	       (D.AppLF (head, D.Omit))
+          | head LTPAREN term RTPAREN         	       (D.AppLF (head, term))
           | head AT pat                       	       (D.AppMeta (head, pat))
 
 mdec      : ID                                         (D.MDec (ID, NONE))
@@ -213,7 +226,7 @@ mdec      : ID                                         (D.MDec (ID, NONE))
          
 pat       : mdec                                       (D.PatVar (mdec))
           | LTPAREN pat COMMA pat RTPAREN     	       (D.PatPair (pat1, pat2))
-          | LTANGLE term COMMA pat RTANGLE    	       (D.PatInx (D.Term term, pat))
+          | LTANGLE term COMMA pat RTANGLE    	       (D.PatInx (term, pat))
           | UNIT                              	       (D.PatUnit)
           | UNDERSCORE                        	       (D.PatUnderscore)
 

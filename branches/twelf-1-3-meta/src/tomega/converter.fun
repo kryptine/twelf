@@ -131,10 +131,10 @@ exception Error' of Tomega.Sub
     fun strengthenFor (T.True, s) = T.True
       | strengthenFor (T.And (F1, F2), s) = 
           T.And (strengthenFor (F1, s), strengthenFor (F2, s))
-      | strengthenFor (T.All (T.UDec D, F), s) =
-	  T.All (T.UDec (strengthenDec (D, s)), strengthenFor (F, I.dot1 s))
-      | strengthenFor (T.Ex (D, F), s) =
-	  T.Ex (strengthenDec (D, s), strengthenFor (F, I.dot1 s))
+      | strengthenFor (T.All ((T.UDec D, Q), F), s) =
+	  T.All ((T.UDec (strengthenDec (D, s)), Q), strengthenFor (F, I.dot1 s))
+      | strengthenFor (T.Ex ((D, Q), F), s) =
+	  T.Ex ((strengthenDec (D, s), Q), strengthenFor (F, I.dot1 s))
 
 
     fun strengthenSpine (I.Nil, t) = I.Nil
@@ -255,13 +255,13 @@ exception Error' of Tomega.Sub
             let
 	      val (F', F'') = convertFor' (V, mS, I.dot1 w1, I.Dot (I.Idx n, w2), n-1)
 	    in
-	      (fn F => T.All (T.UDec (strengthenDec (D, w1)), F' F), F'')
+	      (fn F => T.All ((T.UDec (strengthenDec (D, w1)), T.Explicit), F' F), F'')
 	    end
 	  | convertFor' (I.Pi ((D, _), V), M.Mapp (M.Marg (M.Minus, _), mS), w1, w2, n) =
             let
 	      val (F', F'') = convertFor' (V, mS, I.comp (w1, I.shift), I.dot1 w2, n+1)
 	    in
-	      (F', T.Ex (I.decSub (D, w2), F''))
+	      (F', T.Ex ((I.decSub (D, w2), T.Explicit), F''))
 	    end
 	  | convertFor' (I.Uni I.Type, M.Mnil, _, _, _) = 
               (fn F => F, T.True)
@@ -841,7 +841,7 @@ exception Error' of Tomega.Sub
 	in
 	  T.And (F1', F2')
 	end
-      | raiseFor (B', (T.Ex (I.Dec (x, V), F), t)) =
+      | raiseFor (B', (T.Ex ((I.Dec (x, V), Q), F), t)) =
 					            (* Psi, G', B' |- V[t] : type *)
 				   	            (* Psi, B, G, x:V |- F for *)
 					            (* Psi, G' |- B' ctx  *)
@@ -873,7 +873,7 @@ exception Error' of Tomega.Sub
           val t''' = Whnf.dotEta (I.Exp U, t')            (* Psi, G', x:V', B''' |- t''' :  Psi, B, G, x:V *)
 	  val F' = raiseFor (B''', (F, t'''))       (* Psi, G', x:V' |- F' for*)
 	in
-	  T.Ex (I.Dec (x, V'), F')(* Psi, G', x:V', B''' |- t''' :  Psi, B, G, x:V *)
+	  T.Ex ((I.Dec (x, V'), Q), F')(* Psi, G', x:V', B''' |- t''' :  Psi, B, G, x:V *)
 	end
 
 
@@ -894,7 +894,7 @@ exception Error' of Tomega.Sub
 	in
 	  T.PairPrg (P1', P2')
 	end
-      | raisePrg (G, T.PairExp (U, P), T.Ex (I.Dec (_, V), F)) =
+      | raisePrg (G, T.PairExp (U, P), T.Ex ((I.Dec (_, V), _), F)) =
 	let 
 	  val w = S.weaken (G, I.targetFam V)
                                                    (* G  |- w  : G'    *)
@@ -1436,7 +1436,7 @@ exception Error' of Tomega.Sub
 	       then P' P'' = Lam x1:A1. ... Lam xn:An P''
 		    for any P''
 	    *)
-	    fun init (T.All (D, F')) =
+	    fun init (T.All ((D, _), F')) =
 	        let 
 		  val (F'', P') = init F'
 		in
@@ -1514,7 +1514,7 @@ exception Error' of Tomega.Sub
         let
 	  val (P', F') = Proj n
 	  val P = T.Lam (T.PDec (NONE, F), P')
-	  val F'' = T.All (T.PDec (NONE, F), F')
+	  val F'' = T.All ((T.PDec (NONE, F), T.Explicit), F')
 	  val name = I.conDecName (I.sgnLookup cid)
 (*	  val _ = TomegaTypeCheck.checkPrg (I.Null, (P, F'')) 
           this has to be carefully examined 
