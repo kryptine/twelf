@@ -1,5 +1,6 @@
 structure Cover =
   Cover (structure Global = Global
+	 (*! structure IntSyn' = IntSyn !*)
 	 structure Whnf = Whnf
 	 structure Abstract = Abstract
 	 structure Unify = UnifyTrail

@@ -2,8 +2,7 @@
 # Copyright (C) 1997-2000, Frank Pfenning and Carsten Schuermann
 
 # Makefile for Twelf with SML/NJ versions >= 110.20
-#
-# Invoke in Twelf root directory with
+# Invoke in $twelf with
 #
 # make -f smlnj/Makefile
 #
@@ -22,15 +21,12 @@ twelfdir = `pwd`
 twelfserver = twelf-server
 # Name of twelf-sml program
 twelfsml = twelf-sml
-# Name of delphin program
-delphin = delphin
 
 # ---------------------------------------------------------------
 # Do not edit the following lines
 # ---------------------------------------------------------------
 
-version = "1.5"
-delphinversion = "0.1"
+version = "1.4"
 
 default : twelf-server twelf-emacs
 
@@ -49,13 +45,6 @@ twelf-sml: ;
 	@echo "*************************************************"	 
 	$(sml) < smlnj/twelf-sml.sml ;
 	bin/.mkexec "$(sml)" "$(twelfdir)" twelf-sml "$(twelfsml)" ;
-
-delphin: ; 
-	@echo "*************************************************"
-	@echo "Delphin $(delphinversion): SML"
-	@echo "*************************************************"	 
-	$(sml) < smlnj/delphin.sml ;
-	bin/.mkexec "$(sml)" "$(twelfdir)" delphin "$(delphin)" ;
 
 twelf-emacs: ; 
 	@echo "*************************************************"

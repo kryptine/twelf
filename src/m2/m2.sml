@@ -29,8 +29,9 @@ structure Init =
   Init (structure MetaSyn' = MetaSyn
 	structure MetaAbstract = MetaAbstract);
 
-structure OLDSearch = 
-  OLDSearch (structure MetaGlobal = MetaGlobal
+structure Search = 
+  Search (structure MetaGlobal = MetaGlobal
+	  (*! structure IntSyn' = IntSyn !*)
 	  structure Conv = Conv
 	  structure MetaSyn' = MetaSyn
 	  (*! structure CompSyn' = CompSyn !*)
@@ -67,7 +68,7 @@ structure Filling =
 	   structure MetaSyn' = MetaSyn
 	   structure MetaAbstract = MetaAbstract
 	   structure Print = Print
-	   structure Search = OLDSearch
+	   structure Search = Search
 	   structure Whnf = Whnf);
 
 structure Recursion =

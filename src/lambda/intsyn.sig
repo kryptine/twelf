@@ -80,21 +80,11 @@ sig
     Dec of string option * Exp		(* D ::= x:V                  *)
   | BDec of string option * (cid * Sub)	(*     | v:l[s]               *)
   | ADec of string option * int	        (*     | v[^-d]               *)
-  | NDec 
 
   and Block =				(* Blocks:                    *)
     Bidx of int				(* b ::= v                    *)
-  | LVar of Block option ref * Sub * (cid * Sub)
-                                        (*     | L(l[^k],t)           *)
-  | Inst of Exp list                    (*     | U1, ..., Un          *)
-  (* It would be better to consider having projections count
-     like substitutions, then we could have Inst of Sub here, 
-     which would simplify a lot of things.  
-
-     I suggest however to wait until the next big overhaul 
-     of the system -- cs *)
-
-
+  | LVar of Block option ref * (cid * Sub) 
+                                        (*     | L(l,s)               *)
 (*  | BClo of Block * Sub                 (*     | b[s]                 *) *)
 
   (* constraints *)
@@ -129,7 +119,6 @@ sig
               * Exp * Uni	        (* c : A : type               *)
   | ConDef of string * mid option * int	(* a = A : K : kind  or       *)
               * Exp * Exp * Uni		(* d = M : A : type           *)
-              * Ancestor                (* Ancestor info for d or a   *)
   | AbbrevDef of string * mid option * int
                                         (* a = A : K : kind  or       *)
               * Exp * Exp * Uni		(* d = M : A : type           *)
@@ -137,10 +126,6 @@ sig
               * Dec Ctx * Dec list
   | SkoDec of string * mid option * int	(* sa: K : kind  or           *)
               * Exp * Uni	        (* sc: A : type               *)
-
-  and Ancestor =			(* Ancestor of d or a         *)
-    Anc of cid option * int * cid option (* head(expand(d)), height, head(expand[height](d)) *)
-                                        (* NONE means expands to {x:A}B *)
 
   datatype StrDec =                     (* Structure declaration      *)
       StrDec of string * mid option
@@ -253,13 +238,7 @@ sig
   val newEVar    : dctx * Exp -> Exp	(* creates X:G|-V, []         *) 
   val newAVar    : unit ->  Exp	        (* creates A (bare)           *) 
   val newTypeVar : dctx -> Exp		(* creates X:G|-type, []      *)
-  val newLVar    : Sub * (cid * Sub) -> Block	
-					(* creates B:(l[^k],t)        *) 
-
-  (* Definition related functions *)
-  val headOpt : Exp -> Head option
-  val ancestor : Exp -> Ancestor
-  val defAncestor : cid -> Ancestor
+  val newLVar    : cid * Sub -> Block	(* creates B:(l,s)            *) 
 
   (* Type related functions *)
 

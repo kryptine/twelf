@@ -4,7 +4,7 @@
 functor Filling (structure MetaSyn' : METASYN
 		 structure MetaAbstract : METAABSTRACT
 		 sharing MetaAbstract.MetaSyn = MetaSyn'
-		 structure Search   : OLDSEARCH
+		 structure Search   : SEARCH
 		 sharing Search.MetaSyn = MetaSyn'
  		 structure Whnf : WHNF
 		 (*! sharing Whnf.IntSyn = MetaSyn'.IntSyn !*)

@@ -101,7 +101,7 @@ struct
 	checkAtomic (name, V, i+n)
     | checkArgNumber (IntSyn.SkoDec (name, _, i, V, L), n) =
 	checkAtomic (name, V, i+n)
-    | checkArgNumber (IntSyn.ConDef (name, _, i, _, V, L, _), n) =
+    | checkArgNumber (IntSyn.ConDef (name, _, i, _, V, L), n) =
 	checkAtomic (name, V, i+n)
     | checkArgNumber (IntSyn.AbbrevDef (name, _, i, _, V, L), n) =
 	checkAtomic (name, V, i+n)
@@ -791,10 +791,7 @@ struct
         (case IntSyn.ctxLookup (G, k)
 	   of IntSyn.Dec(SOME(name), _) => name
 	    | IntSyn.ADec(SOME(name), _) =>  name
-	    | IntSyn.NDec => "<_>" (* should be impossible *)
-	    | _ => "?" (* should be impossible *)
-	    (* | _ => raise Unprintable *)
-	     )
+	    | _ => raise Unprintable)
               (* NONE should not happen *)
 
     (* decName' role (G, D) = G,D'
@@ -838,7 +835,6 @@ struct
 	  orelse ctxDefined (G, name)
 	  then IntSyn.ADec (SOME (tryNextName (G, baseOf name)), d)
 	else D
-      | decName' role (G, D as IntSyn.NDec) = D
 
     val decName = decName' Exist
     val decEName = decName' Exist
@@ -908,11 +904,11 @@ struct
 
     fun nameConDec' (IntSyn.ConDec (name, parent, imp, status, V, L)) =
           IntSyn.ConDec (name, parent, imp, status, pisEName (imp, V), L)
-      | nameConDec' (IntSyn.ConDef (name, parent, imp, U, V, L, Anc)) =
+      | nameConDec' (IntSyn.ConDef (name, parent, imp, U, V, L)) =
 	let 
 	  val (U', V') = defEName (imp, (U, V))
 	in
-	  IntSyn.ConDef (name, parent, imp, U', V', L, Anc)
+	  IntSyn.ConDef (name, parent, imp, U', V', L)
 	end
       | nameConDec' (IntSyn.AbbrevDef (name, parent, imp, U, V, L)) =
 	let 

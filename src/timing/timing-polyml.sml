@@ -78,6 +78,7 @@ struct
 	    val CPUTimer = Timer.startCPUTimer ()
 	    val result = Value (f x) handle exn => Exception (exn)
 	    val evalCPUTime = Timer.checkCPUTimer (CPUTimer)
+	    val evalCPUTime = {usr=(#usr evalCPUTime), sys=(#sys evalCPUTime), gc=Time.zeroTime}
 	    val evalRealTime = Timer.checkRealTimer (realTimer)
 	    val (CPUTime, realTime) = !counters
 	    val _ = counters := (plus (CPUTime, evalCPUTime),

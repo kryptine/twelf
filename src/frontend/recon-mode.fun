@@ -11,7 +11,8 @@ functor ReconMode (structure Global : GLOBAL
 		   structure ModePrint : MODEPRINT
 		   (*! sharing ModePrint.ModeSyn = ModeSyn' !*)
 		   structure ModeDec : MODEDEC
-
+		   (*! sharing ModeDec.ModeSyn = ModeSyn' !*)
+		   (*! sharing ModeDec.Paths = Paths' !*)
 		   structure ReconTerm' : RECON_TERM
 		   (*! sharing ReconTerm'.IntSyn = ModeSyn'.IntSyn !*)
 		   (*! sharing ReconTerm'.Paths = Paths' !*)

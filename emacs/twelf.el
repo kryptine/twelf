@@ -349,13 +349,6 @@ This is used by the error message parser.")
   "Chatter level in current Twelf server.
 Maintained to present reasonable menus.")
 
-(defvar twelf-batch-chatter "3"
-  "Chatter level in current Twelf server while running batch commands.
-Applies when checking or appending a config, or loading a file.  May
-be reduced relative to \\[twelf-chatter] to load large configs faster
-while remaining verbose enough during interactive commands,
-e.g. \\[twelf-check-declaration].")
-
 (defvar twelf-double-check "false"
   "Current value of doubleCheck Twelf parameter.")
 
@@ -1251,7 +1244,7 @@ If necessary, this will start up an Twelf server process."
   (twelf-save-op-config 'twelf-append-config displayp))
 
 (defun twelf-save-op-config (twelf-op-config &optional displayp)
-  "Save its modified buffers and then `twelf-op-config' the current
+  "Save its modified buffers and then "twelf-op-config" the current
 Twelf configuration.  With prefix argument also displays Twelf server
 buffer.  If necessary, this will start up an Twelf server process."
   (let ((current-file-name (buffer-file-name)))
@@ -1263,16 +1256,6 @@ buffer.  If necessary, this will start up an Twelf server process."
     (save-excursion
       (twelf-config-save-some-buffers))
     (funcall twelf-op-config displayp)))
-
-(defun twelf-with-batch-chatter (batch-op)
-  "Run batch-op with the chatter level set to \\[twelf-batch-chatter].
-Restores the chatter level to \\[twelf-chatter] upon completion."
-  (twelf-server-send-command (concat "set chatter " twelf-batch-chatter) t)
-  (twelf-server-wait nil 'silent)
-  (unwind-protect
-      (funcall batch-op)
-    (twelf-server-send-command (concat "set chatter " twelf-chatter) t)
-    (twelf-server-wait nil 'silent)))
 
 (defun twelf-check-config (&optional displayp)
   "Check the current Twelf configuration.
@@ -1287,10 +1270,8 @@ If necessary, this will start up an Twelf server process."
     (twelf-server-wait nil ""))
   (twelf-server-sync-config)
   (twelf-focus nil nil)
-  (twelf-with-batch-chatter
-   (lambda ()
-     (twelf-server-send-command "Config.load")
-     (twelf-server-wait displayp))))
+  (twelf-server-send-command "Config.load")
+  (twelf-server-wait displayp))
 
 (defun twelf-append-config (&optional displayp)
   "Check the current Twelf configuration without resetting
@@ -1302,10 +1283,8 @@ If necessary, this will start up an Twelf server process."
       (call-interactively 'twelf-server-configure))
   (twelf-server-sync-config)
   (twelf-focus nil nil)
-  (twelf-with-batch-chatter
-   (lambda ()
-     (twelf-server-send-command "Config.append")
-     (twelf-server-wait displayp))))
+  (twelf-server-send-command "Config.append")
+  (twelf-server-wait displayp))
 
 (defun twelf-save-check-file (&optional displayp)
   "Save buffer and then check it by giving a command to the Twelf server.
@@ -1320,10 +1299,8 @@ With prefix argument also displays Twelf server buffer."
 	   (check-file-os (twelf-convert-standard-filename check-file)))
       (twelf-server-sync-config)
       (twelf-focus nil nil)
-      (twelf-with-batch-chatter
-       (lambda ()
-	 (twelf-server-send-command (concat "loadFile " check-file-os))
-	 (twelf-server-wait displayp))))))
+      (twelf-server-send-command (concat "loadFile " check-file-os))
+      (twelf-server-wait displayp))))
 
 (defun twelf-buffer-substring (start end)
   "The substring of the current buffer between START and END.
@@ -1816,10 +1793,8 @@ With prefix argument also selects the Twelf server buffer."
           (set-window-point twelf-server-window proc-mark)))
     (sit-for 0)))
 
-(defun twelf-server-send-command (command &optional cantfail)
-  "Send a string COMMAND to the Twelf server.
-If optional argument cantfail is non-nil, suppress the usual behavior of
-resetting `*twelf-error-pos*'."
+(defun twelf-server-send-command (command)
+  "Send a string COMMAND to the Twelf server."
   (interactive "sCommand: ")
   (let* ((input (concat command "\n"))
          (twelf-server-buffer (twelf-get-server-buffer))
@@ -1832,8 +1807,7 @@ resetting `*twelf-error-pos*'."
           (goto-char (point-max))
           (insert input)
           (set-marker (process-mark twelf-server-process) (point-max))
-          (when (not cantfail)
-            (setq *twelf-error-pos* (point-max)))
+          (setq *twelf-error-pos* (point-max))
           (set-buffer previous-buffer)))
     (setq *twelf-last-input-buffer* twelf-server-buffer)
     (setq *twelf-server-last-process-mark*
@@ -1856,8 +1830,7 @@ Twelf server buffer is displayed.  If DISPLAYP is neither NIL nor T
 the Twelf server buffer is selected.  Optional second and third arguments
 OK-MESSAGE and ABORT-MESSAGE are the strings to show upon successful
 completion or abort of the server which default to \"Server OK\" and
-\"Server ABORT\".  If OK-MESSAGE is the symbol `silent', the minibuffer
-is unaltered on successful completion."
+\"Server ABORT\"."
   (if (or (eq displayp 'nil) (eq displayp 't))
       (let* ((chunk-count 0)
 	     (last-point *twelf-server-last-process-mark*)
@@ -1876,8 +1849,7 @@ is unaltered on successful completion."
 		    (cond ((match-beginning 1)
 			   (if displayp
 			       (display-server-buffer twelf-server-buffer))
-			   (when (not (eq ok-message 'silent))
-			     (message (or ok-message "Server OK")))
+			   (message (or ok-message "Server OK"))
 			   (throw 'done nil))
 			  ((match-beginning 2)
 			   (display-server-buffer twelf-server-buffer)

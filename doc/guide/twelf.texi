@@ -3168,9 +3168,9 @@ call patterns.  If we analyze call patterns
 @end example
 
 @noindent
-then termination arguments must decrease when @code{ai} calls @code{aj}
-for @math{i < j}, but calls of @code{ai} from @code{aj} may keep the
-termination arguments equal.
+then @code{ai} may call @code{aj} for @math{i < j} with equal
+termination arguments, but calls of @code{ai} from @code{aj}
+must decrease the termination order.
 
 Mutual arguments are used, for example, in the proofs of soundness (file
 @*@file{examples/lp-horn/uni-sound.thm}) and completeness (file
@@ -4591,29 +4591,6 @@ sig
   val trace : string Spec -> unit   (* trace clauses and families *)
   val break : string Spec -> unit   (* break at clauses and families *)
   val detail : int ref              (* 0=none, 1=default, 2=unify *)
-
-  val show : unit -> unit           (* show trace, break, and detail *)
-  val reset : unit -> unit          (* reset trace, break, and detail *)
-end
-@end group
-
-@group
-structure Timers :
-sig
-  val show : unit -> unit           (* show and reset timers *)
-  val reset : unit -> unit          (* reset timers *)
-  val check : unit -> unit          (* display, but not no reset *)
-end
-@end group
-
-@group
-structure OS :
-sig
-  val chDir : string -> unit        (* change working directory *)
-  val getDir : unit -> string       (* get working directory *)
-  val exit : unit -> unit           (* exit Twelf and ML *)
-end
-@end group
 
   val show : unit -> unit           (* show trace, break, and detail *)
   val reset : unit -> unit          (* reset trace, break, and detail *)

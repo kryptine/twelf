@@ -254,8 +254,7 @@ struct
     | serve' ("get", args) =
       (print (getParm (tokenize args) ^ "\n");
        serve (Twelf.OK))
-    | serve' ("Style.check", args) = 
-      (checkEmpty args; StyleCheck.check (); serve (Twelf.OK))
+
     | serve' ("Print.sgn", args) =
       (checkEmpty args; Twelf.Print.sgn (); serve (Twelf.OK))
     | serve' ("Print.prog", args) =

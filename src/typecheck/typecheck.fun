@@ -28,12 +28,11 @@ struct
 	  LVarToString (G, L) ^ "." ^ subToString (G, s)
       | subToString (G, I.Shift(n)) = "^" ^ Int.toString (n)
 
-    and LVarToString (G, I.LVar (ref (SOME B), sk, (l, t))) =
-          LVarToString (G, I.blockSub (B, sk))
-					(* whnf for Blocks ? Sun Dec  1 11:38:17 2002 -cs *)
-      | LVarToString (G, I.LVar (ref NONE, sk, (cid, t))) =
+    and LVarToString (G, I.LVar (ref (SOME B), _)) =
+          LVarToString (G, B)
+      | LVarToString (G, I.LVar (ref NONE, (cid, s))) =
 	  "#" ^ I.conDecName (I.sgnLookup cid) ^ "["
-	  ^ subToString (G, t) ^ "]"
+	  ^ subToString (G, s) ^ "]"
 	  
     (* some well-formedness conditions are assumed for input expressions *)
     (* e.g. don't contain "Kind", Evar's are consistently instantiated, ... *)
@@ -202,14 +201,6 @@ struct
 	      then ()
 	    else raise Error "Substitution in block declaration not well-typed"
 	end
-      | checkSub (G', I.Dot (I.Block (I.Inst I), t), I.Decl (G, (I.BDec (_, (l, s))))) =
-	let
-	  val _ = checkSub (G', t, G)
-	  val (G, L) = I.constBlock l
-	  val _ = checkBlock (G', I, (I.comp (s, t), L))
-	in
-	  ()
-	end
       | checkSub (G', s as I.Dot (_, _), I.Null) =
 	raise Error ("Long substitution" ^ "\n" ^ subToString (G', s)) 
       (*
@@ -218,10 +209,6 @@ struct
       | checkSub (G', I.Dot (I.Block (I.LVar _), t), G) =
 	raise Error "Unexpected LVar in substitution after abstraction"
       *)
-
-    and checkBlock (G, nil, (_, nil)) = ()
-      | checkBlock (G, U :: I, (t, I.Dec (_, V) :: L)) =
-        (checkExp (G, (U, I.id), (V, t)); checkBlock (G, I, (I.Dot (I.Exp U, t), L)))
 
     (* checkDec (G, (x:V, s)) = B
 
@@ -239,7 +226,6 @@ struct
 	  in
 	    checkSub (G, I.comp (t, s), Gsome)
 	  end
-      | checkDec (G, (NDec, _)) = () 
 
     and checkCtx (I.Null) =  ()
       | checkCtx (I.Decl (G, D)) = 

@@ -4,6 +4,10 @@
 
 signature THMSYN =
 sig
+  (*! structure IntSyn : INTSYN !*)
+  (*! structure ModeSyn : MODESYN !*)
+  (*! sharing ModeSyn.IntSyn = IntSyn !*)
+  (*! structure Paths : PATHS !*)
   structure Names : NAMES
 
   exception Error of string

@@ -212,11 +212,9 @@ local
        in
 	 bname ^ "_" ^ parmName (cid, i)
        end
-    | projName (G, I.Proj (I.LVar(_, _, (cid, t)), i)) =
+    | projName (G, I.Proj (I.LVar(_, (cid, t)), i)) =
       (* note: this obscures LVar identity! *)
        "_" ^ parmName (cid, i)
-    | projName (G, I.Proj (I.Inst iota, i)) =
-       "*"    (* to be fixed --cs *)
 
 
   (* fmtCon (c) = "c" where the name is assigned according the the Name table
@@ -231,9 +229,8 @@ local
     | fmtCon (G, I.FVar (name, _, _)) = Str0 (Symbol.fvar (name))
     | fmtCon (G, H as I.Proj (I.Bidx(k), i)) =
         Str0 (Symbol.const (projName (G, H)))
-    | fmtCon (G, H as I.Proj (I.LVar(_, sk, (cid, t)), i)) =
+    | fmtCon (G, H as I.Proj (I.LVar(_, (cid, t)), i)) =
       (* identity of LVars is obscured! *)
-					(* LVar fixed Sun Dec  1 11:36:55 2002 -cs *)
       fmtConstPath (fn l0 => Symbol.const ("#[" ^ l0 ^ "]" ^ projName (G, H)), (* fix !!! *)
 		    Names.constQid (cid))
     | fmtCon (G, I.FgnConst (cs, conDec)) =
@@ -665,9 +662,7 @@ local
       end
     | fmtDec (G, d, (I.ADec (x, _), s)) =
       F.HVbox [Str0 (Symbol.bvar (nameOf (x))), sym ":_"]
-     | fmtDec (G, d, (I.NDec, s)) =
-      F.HVbox [ sym "XXX"]
-     (* alternative with more whitespace *)
+      (* alternative with more whitespace *)
       (* F.HVbox [Str0 (Symbol.bvar (nameOf (x))), F.Space, sym ":", F.Break,
                   fmtExp (G, d+1, noCtxt, (V,s))]
       *)
@@ -738,7 +733,7 @@ local
 	F.HVbox ([sym "%block", F.Break, fmtConstPath (Symbol.label, qid), F.Space,
 		 sym ":", F.Break] @ (fmtBlock (Gsome, Lblock))  @ [sym "."])
       end
-    | fmtConDec (hide, condec as I.ConDef (_, _, imp, U, V, L, _)) =
+    | fmtConDec (hide, condec as I.ConDef (_, _, imp, U, V, L)) =
       (* reset variable names in between to align names of type V and definition U *)
       let
         val qid = Names.conDecQid condec
