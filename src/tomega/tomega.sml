@@ -1,4 +1,4 @@
-structure Converter = Converter
+(* structure Converter = Converter
   (structure Global = Global
    structure IntSyn' = IntSyn
    structure Tomega' = Tomega
@@ -12,7 +12,7 @@ structure Converter = Converter
    structure Print = Print
    structure Weaken = Weaken);
 
-
+*)
 
 
 structure TomegaPrint = TomegaPrint
@@ -27,3 +27,4 @@ structure TomegaPrint = TomegaPrint
      
 
 
+ 
