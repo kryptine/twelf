@@ -111,6 +111,8 @@ sig
 (* Added references by ABP *)
   val coerceFront : Front -> IntSyn.Front
   val revCoerceFront : IntSyn.Front -> Front
+  val deblockify : IntSyn.Dec IntSyn.Ctx -> IntSyn.Dec IntSyn.Ctx * Sub
+
 end (* Signature TOMEGA *)
 
 

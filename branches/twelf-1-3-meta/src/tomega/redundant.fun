@@ -1,7 +1,7 @@
 (* Redundancy remover (factoring) *)
 (* Author: Adam Poswolsky (ABP) *)
 
-structure Redundant : REDUNDANT  =
+functor Redundant (structure Opsem : OPSEM) : REDUNDANT  =
   struct
     exception Error of string
 

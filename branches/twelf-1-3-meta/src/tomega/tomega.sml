@@ -35,6 +35,27 @@ structure TomegaUnify = TomegaUnify
    structure Weaken = Weaken);
 
 
+
+structure Opsem = Opsem
+  (structure Global = Global
+   structure IntSyn' = IntSyn
+   structure Abstract = Abstract
+   structure Tomega' = Tomega
+   structure TypeCheck = TypeCheck
+   structure Normalize = Normalize
+   structure Unify = UnifyTrail
+   structure Conv = Conv
+   structure Whnf = Whnf
+   structure Print = Print
+   structure Subordinate = Subordinate
+   structure TomegaPrint = TomegaPrint
+   structure TomegaTypeCheck = TomegaTypeCheck
+   structure Weaken = Weaken);
+
+structure Redundant = Redundant
+  (structure Opsem = Opsem)
+
+
 structure Converter = Converter
   (structure Global = Global
    structure IntSyn' = IntSyn
@@ -53,26 +74,9 @@ structure Converter = Converter
    structure Worldify = Worldify
    structure Subordinate = Subordinate
    structure Print = Print
+   structure Redundant = Redundant
    structure Weaken = Weaken);
 
-
-
-structure Opsem = Opsem
-  (structure Global = Global
-   structure IntSyn' = IntSyn
-   structure Abstract = Abstract
-   structure Tomega' = Tomega
-   structure TypeCheck = TypeCheck
-   structure Normalize = Normalize
-   structure Unify = UnifyTrail
-   structure Conv = Conv
-   structure Whnf = Whnf
-   structure Print = Print
-   structure Subordinate = Subordinate
-   structure TomegaPrint = TomegaPrint
-   structure TomegaTypeCheck = TomegaTypeCheck
-   structure Converter = Converter
-   structure Weaken = Weaken);
 
 structure TomegaCoverage = TomegaCoverage
   (structure Global = Global

@@ -616,6 +616,44 @@ struct
 	ctxDec' (G, k)
       end
 
+
+     (* mkInst (n) = iota
+
+        Invariant:
+        iota = n.n-1....1
+     *)
+    fun mkInst (0) = nil
+      | mkInst (n) = I.Root (I.BVar (n), I.Nil) :: mkInst (n-1)
+
+    
+    (* deblockify G = (G', t')
+     
+       Invariant:
+       If   |- G ctx
+       then G' |- t' : G 
+    *)
+    fun deblockify  (I.Null) = (I.Null, id)
+      | deblockify  (I.Decl (G, I.BDec (x, (c, s)))) = 
+        let
+	  val (G', t') = deblockify  G
+					(* G' |- t' : G *)
+          val (_, L) = I.constBlock c
+	  val n = List.length L
+	  val G'' = append (G', (L, I.comp (s, coerceSub t')))
+					(* G'' = G', V1 ... Vn *)
+	  val t'' = comp (t', Shift n)
+					(* G'' |- t'' : G *)
+	  val I = I.Inst (mkInst n)
+					(* I = (n, n-1 ... 1)  *)
+	  val t''' = Dot (Block I, t'')
+					(* G'' |- t''' : G, x:(c,s) *)
+	in 
+          (G'', t''')
+	end
+    and append (G', (nil, s)) = G'
+      | append (G', (D :: L, s)) = 
+          append (I.Decl (G', I.decSub (D, s)), (L, I.dot1 s))
+
   in 
     val lemmaLookup = lemmaLookup 
     val lemmaAdd = lemmaAdd
@@ -664,6 +702,6 @@ struct
 (* Added referenced by ABP *)
     val coerceFront = coerceFront
     val revCoerceFront = revCoerceFront
-
+    val deblockify = deblockify
   end
 end;  (* functor FunSyn *)
