@@ -290,7 +290,7 @@ exception Error' of Tomega.Sub
 	F F'
       end
 
-
+(* now unnecessary -cs Sun Jan  5 23:06:32 2003 
     (* createIHCtx (Psi, L) = (Psi', P', F')
      
        Invariant:
@@ -318,10 +318,43 @@ exception Error' of Tomega.Sub
 	  (Psi', T.PairPrg (T.Root (T.Var (1+length L), T.Nil), P'), T.And (F, F'))
 	end
 
+*)
+
+
+    (* createIH L = (Psi', P', F')
+     
+       Invariant:
+       If   L is a list of type families
+       and  Psi is a context
+       then Psi' extends Psi' by declarations in L
+       and  F' is the conjunction of the formuals 
+      	    that corresponds to each type family in L
+       and  Psi' |- P' in F'
+    *)
+    fun createIH nil = raise Error "Empty theorem"
+      | createIH [a] = 
+        let 
+	  val name = I.conDecName (I.sgnLookup a)
+	  val F = convertOneFor a
+	in
+	  (name, F)
+	end
+      | createIH (a :: L) = 
+	let
+	  val name = I.conDecName (I.sgnLookup a)
+	  val F = convertOneFor a
+	  val (name', F') = createIH  L
+	in
+	  (name ^ "/" ^ name', T.And (F, F'))
+	end
+
+
+
 
     fun convertFor L = 
-      let 
-	val (Psi', P', F') = createIHCtx (I.Null, L)
+      let
+	val (_, F') = createIH L 
+(* was:	val (Psi', P', F') = createIHCtx (I.Null, L) *)
       in
 	F'
       end
@@ -622,7 +655,7 @@ exception Error' of Tomega.Sub
        then Psi |- t' = m, m+1 ... n. ^n :  Psi0
     *)
     fun createIHSub (Psi, L) =
-         T.Shift (I.ctxLength Psi - List.length L)
+         T.Shift (I.ctxLength Psi - 1 (*List.length L *))
 
 
     (* transformInit (Psi, (a, S), w1) = (w', s')
@@ -931,7 +964,7 @@ exception Error' of Tomega.Sub
 	    and  Sig (L') = (Gsome, Lblock')
        then C' is a list of cases (corresponding to each (G, V) in Sig)
     *)
-    fun traverse (Psi0, L, Sig, wmap) =
+    fun traverse (Psi0, L, Sig, wmap, projs) =
       let 
 	fun append (G, I.Null) = G
 	  | append (G, I.Decl (G', D)) = I.Decl (append (G, G'), D)
@@ -1003,32 +1036,44 @@ exception Error' of Tomega.Sub
 	      val n = domain (Psi1, w1)	(* n = |Psi0, G', B'| *)
 	      val m = I.ctxLength Psi0  (* m = |Psi0| *)
 
-
-              (* lookup (L, a) = (H, F) *)
-
-	
-	      fun lookup (nil, a) = 
-		  let
+              fun lookupbase a =  
+		  let 
 		    val s = I.conDecName (I.sgnLookup a)
 		    val l = T.lemmaName s
 		    val T.ValDec (_, P, F) = T.lemmaLookup l
 		  in
-		    (T.Const l, F)
+		    (T.Root (T.Const l, T.Nil), F)
 		  end
-		| lookup (b :: L, a) = 
+
+	      fun lookup (([b], NONE, F), a) = 
+		  if a=b then
+		    let 
+		      val P = T.Root (T.Var n, T.Nil)
+		    in
+		      (P, F)
+		    end
+		  else lookupbase a
+		| lookup (([b], SOME [lemma], F), a) =
 		  if a = b then 
 		    let 
-		      val k = 1 + (List.length L) 
-		      val T.PDec(_, F) = I.ctxLookup (Psi0, k)
-					(* . |- F : for *)
-		      val k' = k + n - m	
-					(* Psi0, G', B' |- k' :: F  *)
+		      val P = T.Root (T.Const lemma, T.AppPrg (T.Root (T.Var n, T.Nil), T.Nil))
 		    in
-		      (T.Var k', F)
+		      (P, F)
 		    end
-		  else lookup (L, a)
-	
-	      val (H, F) = lookup (L, a)
+		  else lookupbase a
+		| lookup ((b :: L, SOME (lemma :: lemmas), T.And (F1, F2)), a) = 
+		  if a = b then 
+		    let 
+		      val P = T.Root (T.Const lemma, T.AppPrg (T.Root (T.Var n, T.Nil), T.Nil))
+		    in
+		      (P, F1)
+		    end
+		  else lookup ((L, SOME lemmas, F2), a)
+
+	      val T.PDec(_, F0) = I.ctxLookup (Psi0, 1)
+					(* . |- F : for *)
+	      val (HP, F) = lookup ((L, projs, F0), a)
+
 
 (*	      fun lookup (b :: L, a) = 
 		  if a = b then 1 + (List.length L) 
@@ -1078,7 +1123,7 @@ exception Error' of Tomega.Sub
 	
 
 
-	      val P'' = T.Root (H (*T.Var k' *) , S'')
+	      val P'' = T.Redex (HP (*T.Var k' *) , S'')  (* was T.Root  -cs Sun Jan  5 23:15:06 2003 *)
 					(* Psi0, G', B' |- P'' :: F'' *)
 
 	      val b = I.ctxLength B     (* b = |B| = |B'| *)
@@ -1175,11 +1220,9 @@ exception Error' of Tomega.Sub
 					   at work which one has to prove 
 					   correct 
                                         *)
-
 	      val _ = TomegaTypeCheck.checkPrg (Psi2, (Pat, F4))
 	      val t = T.Dot (T.Prg Pat, T.embedSub z3)
                                         (* Psi0, G3 |- t :: Psi0, G', x :: F4  *)
-
 		
 	    in     
 	      (SOME (w3, 
@@ -1341,21 +1384,12 @@ exception Error' of Tomega.Sub
 	    family in L into functional form 
     *)
 
-    fun convertPrg (L) = 
+    fun convertPrg (L, projs) = 
       let
-	
-	fun recursion () =
-	  let
-	    val (Psi, P, F) = createIHCtx (I.Null, L)
-	    val t = T.Dot (T.Prg P, T.Shift (I.ctxLength Psi))	      
-	  in
-	    (Psi, fn p => T.Rec (T.PDec (SOME (name L), F), 
-				 T.Case ((* F, *) T.Cases [(Psi, t, p)])), F)
-	  end
-
-	val (Psi0, Prec, F0) = recursion ()
-
-
+	val (name, F0) = createIH L
+	val D0 = T.PDec (SOME name, F0)
+	val Psi0 = I.Decl (I.Null, D0)
+	val Prec = fn p => T.Rec (D0, p)
 	fun convertWorlds [a] = 
 	    let
 	      val W = WorldSyn.lookup a	(* W describes the world of a *)
@@ -1387,7 +1421,7 @@ exception Error' of Tomega.Sub
 	    val _ = validSig (Psi0, dynSig)
 
 (*	    val C0 = blockCases (Psi0, a, L, Sig, wmap) *)
-	    val C0 = traverse (Psi0, L, dynSig, wmap) 
+	    val C0 = traverse (Psi0, L, dynSig, wmap, projs) 
   	    (* init' F = P'
 
 	       Invariant:
@@ -1405,7 +1439,7 @@ exception Error' of Tomega.Sub
 	      | init F' = (F', fn p => p)
 
 	    val (F', Pinit) = init F
-	    val C = traverse (Psi0, L, statSig, wmap)
+	    val C = traverse (Psi0, L, statSig, wmap, projs)
 					(* Psi0, x1:V1, ..., xn:Vn |- C :: F *)
 	  in
 	    Pinit (T.Case ((* F', *) T.Cases (C0 @ C)))
@@ -1455,29 +1489,44 @@ exception Error' of Tomega.Sub
       | createProjection (Psi, F,  Pattern) =
           fn k => T.Case (T.Cases [(I.Decl (Psi, T.PDec (NONE, F)),
 			    T.Dot (T.Prg (Pattern (T.Root (T.Var 1, T.Nil))), 
-				   T.Shift (1+ I.ctxLength Psi)),
+				   T.Shift (I.ctxLength Psi)),
 			    T.Root (T.Var k, T.Nil))])
 	  
-    fun installMutual ([cid], F, k, Proj) = 
+	  
+    fun installProjection (nil, n, F, Proj) = nil
+      | installProjection (cid :: cids, n, F, Proj) = 
         let
+	  val P = T.Lam (T.PDec (NONE, F), 
+			 createProjection (I.Null, F, fn P => P) n)
 	  val name = I.conDecName (I.sgnLookup cid)
-	  val _ = T.lemmaAdd (T.ValDec (name, Proj k , F))
+	  val lemma = T.lemmaAdd (T.ValDec ("#" ^ name, P, F))
 	in
-	  ()
-	end
-      | installMutual (cid :: cids, T.And (F1, F2), k, Proj) =
-        let
-	  val name = I.conDecName (I.sgnLookup cid)
-	  val l = T.lemmaAdd (T.ValDec (name, Proj k , F1))
-	in
-	  installMutual (cids, F2, k+1, Proj)
+	  lemma :: installProjection (cids, n+1, F, Proj)
 	end
 
 
+    fun installSelection ([cid], [lemma], F1, main) =
+        let
+	  val P = T.Root (T.Const lemma, T.AppPrg (T.Root (T.Const main, T.Nil), T.Nil))
+	  val name = I.conDecName (I.sgnLookup cid)
+	  val lemma' = T.lemmaAdd (T.ValDec (name, P, F1))
+	in
+	  [lemma']
+	end
+      | installSelection (cid :: cids, lemma :: lemmas, T.And (F1, F2), main) = 
+        let
+	  val P = T.Root (T.Const lemma, T.AppPrg (T.Root (T.Const main, T.Nil), T.Nil))
+	  val name = I.conDecName (I.sgnLookup cid)
+	  val lemma' = T.lemmaAdd (T.ValDec (name, P, F1))
+	in
+	  lemma' :: installSelection (cids, lemmas, F2, main)
+	end
+
+	    
     fun installPrg [cid] = 
         let
 	  val F = convertFor [cid]
-	  val P = convertPrg [cid]
+	  val P = convertPrg ([cid], NONE)
 	  val name = I.conDecName (I.sgnLookup cid)
 	  val lemma = T.lemmaAdd (T.ValDec (name, P, F))
 	in
@@ -1486,14 +1535,18 @@ exception Error' of Tomega.Sub
       | installPrg cids = 
 	let 
 	  val F = convertFor cids
-	  val P = convertPrg cids
+	  val Proj = createProjection (I.Null, F, fn P => P)
+	  val projs = installProjection (cids, 0, F, Proj)
+
+	  val P = convertPrg (cids, SOME projs)
 	  val s = name cids
-	  val lemma = T.lemmaAdd (T.ValDec (s, P , F))
-	  val Proj = fn k => T.Redex (T.Lam (T.PDec (NONE, F), 
-					     createProjection (I.Null, F, fn P => P) k),
-				      T.AppPrg (T.Root (T.Const lemma, T.Nil), T.Nil))
+
+	  val lemma = T.lemmaAdd (T.ValDec (s, P, F))
+
+	  val sels = installSelection (cids, projs, F, lemma)
+
 	in
-	  (installMutual (cids, F, 1, Proj); lemma)
+	  lemma
 	end
 
 
@@ -1510,7 +1563,7 @@ exception Error' of Tomega.Sub
 	  
   in 
     val convertFor = convertFor
-    val convertPrg = convertPrg
+    val convertPrg = fn L => convertPrg (L, NONE)
     val installFor = installFor
     val installPrg = installPrg
     val traverse = traverse

@@ -274,8 +274,12 @@ struct
 	end
       | checkPrgW (Psi, (T.PairPrg (P1, P2), (T.And( F1, F2), t))) =
 	let
+	  val _ = chatter 4 (fn () => "[and")	  
 	  val _ = checkPrg (Psi, (P1, (F1, t)))
+	  val _ = chatter 4 (fn () => "...")	  
 	  val _ = checkPrg (Psi, (P2, (F2, t)))
+	  val _ = chatter 4 (fn () => "]")
+
 	in
 	  ()
 	end
@@ -311,6 +315,8 @@ struct
 	end
       | checkPrgW (Psi, (T.New (T.Lam (D as T.UDec (I.BDec (_, (cid, s))), P)), (F, t))) =
 	  (print "* Temporary incompleteness;  code is written but not yet clean\n") 
+      | checkPrgW (Psi, (T.Redex (P1, P2), (F, t))) =
+	  (print "* Temporary incompleteness; redex not checkable")
 (*	let 
 
 	  fun makeCtx (G, (nil, s)) = G
