@@ -5,6 +5,12 @@
 functor Opsem (structure IntSyn' : INTSYN
 	       structure Tomega' : TOMEGA
 	         sharing Tomega'.IntSyn = IntSyn'
+	       structure Whnf : WHNF
+		 sharing Whnf.IntSyn = IntSyn'
+	       structure Abstract : ABSTRACT
+		 sharing Abstract.IntSyn = IntSyn'
+	       structure Subordinate : SUBORDINATE
+	         sharing Subordinate.IntSyn = IntSyn'
 	       structure Normalize : NORMALIZE
 		 sharing Normalize.Tomega = Tomega'
 	       structure TypeCheck : TYPECHECK
@@ -28,7 +34,9 @@ struct
   structure IntSyn = IntSyn'
   structure T = Tomega
   structure I = IntSyn
-  
+  structure S = Subordinate    
+  structure A = Abstract
+
   exception Error of string
 
   local
@@ -81,6 +89,39 @@ struct
 
      | matchVal _ = raise NoMatch
 
+
+
+
+    (* raisePrg (G, P, F) = (P', F')) 
+ 
+       Invariant:
+       If   Psi, G |- P in F
+       and  Psi |- G : blockctx
+       then Psi |- P' in F'
+       and  P = raise (G, P')   (using subordination)
+       and  F = raise (G, F')   (using subordination)
+    *)
+    fun raisePrg (G, T.Unit) = T.Unit
+      | raisePrg (G, T.PairPrg (P1, P2)) =
+        let 
+	  val P1' = raisePrg (G, P1)
+	  val P2' = raisePrg (G, P2)
+	in
+	  T.PairPrg (P1', P2')
+	end
+      | raisePrg (G, T.PairExp (U, P)) =
+	let 
+	  val V = TypeCheck.infer' (G, U)
+	  val w = S.weaken (G, I.targetFam V)
+                                                   (* G  |- w  : G'    *)
+	  val iw = Whnf.invert w 	            (* G' |- iw : G     *)
+	  val G' = Whnf.strengthen (iw, G)        (* Psi0, G' |- B'' ctx *)
+
+	  val U' = A.raiseTerm (G', I.EClo (U, iw))
+	  val P' = raisePrg (G, P)
+	in
+	  T.PairExp (U', P')
+	end
 
    (* evalPrg (Psi, (P, t)) = V
      
@@ -140,9 +181,9 @@ struct
 	     val D' = T.decSub (D, t)
 	     val V = evalPrg (I.Decl (Psi, D'), (P, T.dot1 t))
 	       (* Carsten to fix..  Formula is set to T.True..  not so good *)
-	     val newP = Converter.raisePrg (T.coerceCtx (I.Decl (I.Null, D')), V, T.True)
+	     val newP = raisePrg (T.coerceCtx (I.Decl (I.Null, D')), V)
 	   in 
-	     evalPrg (Psi, (newP, t))
+	     newP
 	   end )
 
 
@@ -234,7 +275,7 @@ struct
       | matchSub (Psi, t as T.Dot _, T.Shift n) =
           matchSub (Psi, t, T.Dot (T.Idx (n+1), T.Shift (n+1)))
       | matchSub (Psi, T.Dot (T.Exp U1, t1), T.Dot (T.Exp U2, t2)) =
-	  ((matchSub (Psi, t1, t2); print "\nE:"; print (Print.expToString (T.coerceCtx Psi, U1) ^ " =?= " ^ Print.expToString (T.coerceCtx Psi, U2) ^ "\n");
+	  ((matchSub (Psi, t1, t2); (* print "\nE:"; print (Print.expToString (T.coerceCtx Psi, U1) ^ " =?= " ^ Print.expToString (T.coerceCtx Psi, U2) ^ "\n"); *)
 	    
 	   Unify.unify (T.coerceCtx Psi, (U1, I.id), (U2, I.id)); print "\nU") handle Unify.Unify s => (print s; raise NoMatch))
       | matchSub (Psi, T.Dot (T.Exp U1, t1), T.Dot (T.Idx k, t2)) =
