@@ -4,6 +4,8 @@
 functor Cover
   (structure Global : GLOBAL
    structure IntSyn' : INTSYN
+   structure Tomega : TOMEGA
+     sharing Tomega.IntSyn = IntSyn'
    structure Whnf : WHNF
      sharing Whnf.IntSyn = IntSyn'
    structure Abstract : ABSTRACT
@@ -18,6 +20,7 @@ functor Cover
      sharing Index.IntSyn = IntSyn'
    structure WorldSyn : WORLDSYN
      sharing WorldSyn.IntSyn = IntSyn'
+     sharing WorldSyn.Tomega = Tomega
    structure Names : NAMES
      sharing Names.IntSyn = IntSyn'
    structure Paths : PATHS
@@ -36,6 +39,7 @@ struct
 
   local
     structure I = IntSyn
+    structure T = Tomega
     structure M = ModeSyn
     structure W = WorldSyn
     structure P = Paths
@@ -883,10 +887,10 @@ struct
           blockCases' (G, Vs, (lvar, i+1), (t', piDecs), sc)
 	end
 
-    fun worldCases (G, Vs, W.Worlds (nil), sc) = ()
-      | worldCases (G, Vs, W.Worlds (cid::cids), sc) =
+    fun worldCases (G, Vs, T.Worlds (nil), sc) = ()
+      | worldCases (G, Vs, T.Worlds (cid::cids), sc) =
           ( blockCases (G, Vs, cid, I.constBlock cid, sc) ;
-	    worldCases (G, Vs, W.Worlds (cids), sc) )
+	    worldCases (G, Vs, T.Worlds (cids), sc) )
 
     fun lowerSplit (G, Vs, W, sc) = lowerSplitW (G, Whnf.whnf Vs, W, sc)
     and lowerSplitW (G, Vs as (I.Root (I.Const a, _), s), W, sc) =

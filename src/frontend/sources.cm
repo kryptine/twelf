@@ -13,15 +13,17 @@ Group is
   ../index/sources.cm
   ../thm/sources.cm
   ../order/sources.cm
-  ../m2/sources.cm
+(*  ../m2/sources.cm *)
   ../compile/sources.cm
   ../opsem/sources.cm
   ../subordinate/sources.cm
   ../modules/sources.cm
-  ../meta/sources.cm
+  ../meta/sources.cm 
   ../solvers/sources.cm
   ../worldcheck/sources.cm
   ../cover/sources.cm
+  ../tomega/sources.cm
+  ../prover/sources.cm
   lexer.sig
   lexer.fun
   parsing.sig

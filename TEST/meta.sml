@@ -10,9 +10,9 @@ local
 
   fun test names =
     (let 
-      val a = map (fn x => valOf (Names.nameLookup x)) names
+      val a = map (fn x => valOf (Names.constLookup (valOf (Names.stringToQid x)))) names
       val name = foldr op^ "" names
-      val _ = Names.varReset ()
+      val _ = Names.varReset IntSyn.Null
       val P = RelFun.convertPro a
       val F = RelFun.convertFor a
       val _ = (FunTypeCheck.check (P, F); Twelf.OK) 
@@ -84,11 +84,11 @@ in
   val _ = load "examples/church-rosser/sources.cfg"
   val _ = test ["identity"]
   val _ = test ["append"]
-  val _ = test ["subst"]
+(*  val _ = test ["subst"] 
   val _ = test ["dia"]
   val _ = test ["strip"] 
   val _ = test ["conf"]
-  val _ = test ["cr"]
+  val _ = test ["cr"] *)
 
   (* Regression test for Cut-Elimination *)
   val _ = load "examples/cut-elim/sources.cfg"

@@ -187,6 +187,7 @@ struct
     | conDecImp (ConDef (_, _, i, _, _, _)) = i
     | conDecImp (AbbrevDef (_, _, i, _, _, _)) = i
     | conDecImp (SkoDec (_, _, i, _, _)) = i
+    | conDecImp (BlockDec (_, _,  _, _)) = 0   (* watch out -- carsten *)
 
   fun conDecStatus (ConDec (_, _, _, status, _, _)) = status
     | conDecStatus _ = Normal
@@ -499,7 +500,7 @@ struct
 
   fun blockDec (G, v as (Bidx k), i) =
     let 
-      val BDec (_, (l, s)) = ctxDec (G, k)   
+      val BDec (_, (l, s)) = ctxDec (G, k)  
       (* G |- s : Gsome *)
       val (Gsome, Lblock) = conDecBlock (sgnLookup l)
       fun blockDec' (t, D :: L, 1, j) = decSub (D, t)
