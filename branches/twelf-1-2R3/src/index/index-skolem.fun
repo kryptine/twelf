@@ -1,10 +1,10 @@
-(* Indexing *)
+(* Indexing (Constants and Skolem constants) *)
 (* Author: Carsten Schuermann *)
 (* Modified: Frank Pfenning *)
 
-functor Index (structure Global : GLOBAL
-	       structure Queue : QUEUE
-	       structure IntSyn': INTSYN)
+functor IndexSkolem (structure Global : GLOBAL
+		     structure Queue : QUEUE
+		     structure IntSyn': INTSYN)
   : INDEX =
 struct
   structure IntSyn = IntSyn'
@@ -41,9 +41,13 @@ struct
        presently ignores definitions
     *)
     fun install (H as I.Const c) =
-        case I.sgnLookup (c)
+        (case I.sgnLookup (c)
 	  of I.ConDec (_, _, A, I.Type) => update (I.targetFam A, H)
-	   | _ => ()
+	   | _ => ())
+      | install (H as I.Skonst c) =
+        (case I.sgnLookup (c)
+	   of I.SkoDec (_, _, A, I.Type) => update (I.targetFam A, H)
+	    | _ => ())
 
     (* lookup a = [c1,...,cn] *)
     (*
