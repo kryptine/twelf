@@ -1,5 +1,5 @@
 (* Translator from Delphin external syntax to Delphin internal syntax *)
-(* Author:  Carsten Schuermann, Richard Fontana *)
+(* Author:  Carsten Schuermann *)
 
 
 functor Trans (structure DextSyn' : DEXTSYN) (* : TRANS *) =
@@ -13,7 +13,7 @@ struct
   structure I = IntSyn 
   structure LS = Stream  
   structure T = Tomega
-  
+  structure TA = TomegaAbstract  
 
   exception Error of string
   local 
@@ -1018,7 +1018,7 @@ struct
 	   val (P, (F, t)) = transProgS (I.Decl (Psi, T.UDec D'), D.New (eDs, eP), W, args)
 	   val T.UDec D'' = externalizeMDec (I.ctxLength Psi, T.UDec D')
 	   val (B, _) = T.deblockify  (I.Decl (I.Null, D''))
-	   val F' = Converter.raiseFor (B, (F, T.coerceSub t))
+	   val F' = TA.raiseFor (B, (F, T.coerceSub t))
 	 in
 	   (T.New (T.Lam (T.UDec D', P)), (F', T.id))   (* bug: forgot to raise F[t] to F' --cs Tue Jul  1 10:49:52 2003 *)
 	 end
