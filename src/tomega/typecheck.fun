@@ -314,8 +314,10 @@ struct
 	end
       | checkPrgW (Psi, (T.New (T.Lam (D as T.UDec (I.BDec (_, (cid, s))), P)), (F, t))) =
 	  (print "* Temporary incompleteness;  code is written but not yet clean\n") 
-      | checkPrgW (Psi, (T.Lam (D as T.UDec (I.BDec (_, _)), P), (F, t))) =
-	  (print "* Temporary incompleteness;  fix") 
+(*      | checkPrgW (Psi, (T.Lam (T.UDec (D as I.BDec (_, _)), P), 
+			 (T.All ((T.UDec D', _), F'), t))) =
+	  (Conv.convDec ((D, I.id), (D', T.coerceSub t)); 
+	   checkPrg (I.Decl (Psi, T.UDec D), (P, (F', (T.dot1 t))))) *)
       | checkPrgW (Psi, (T.Redex (P1, P2), (F, t))) =
 	  (print "* Temporary incompleteness; redex not checkable")
       | checkPrgW (Psi, (T.Box (W, P), (T.World (W', F), t))) =

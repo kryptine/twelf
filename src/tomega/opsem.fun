@@ -162,12 +162,21 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
       | evalPrg (Psi, (T.Root (T.Const lemma, S), t)) = 
 	    evalPrg (Psi, (T.Redex(T.lemmaDef lemma, S), t))
 
+      | evalPrg (Psi, (T.Lam (D as T.UDec (I.BDec _), P), t)) = 
+	  let
+	    val D' = T.decSub (D, t)
+	  in
+	    T.Lam (D', evalPrg (I.Decl (Psi, D'), (P, T.dot1 t)))
+	  end
       | evalPrg (Psi, (T.Lam (D, P), t)) = 
 	  T.Lam (T.decSub (D, t), T.PClo (P, T.dot1 t))
 
       | evalPrg (Psi, (P' as T.Rec (D, P), t)) =  
+let
+val _=print "rec"
+in
 	 evalPrg (Psi, (P, T.Dot (T.Prg (T.PClo (P', t)), t)))
-
+end
 
       | evalPrg (Psi, (T.PClo (P, t'), t)) = 
 	  evalPrg (Psi, (P, T.comp (t', t)))
@@ -185,9 +194,13 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
 
       | evalPrg (Psi, (T.Let (D, P1, P2), t)) = 
 	  let
+	    val _ = print "LET["
 	    val V = evalPrg (Psi, (P1, t)) 
+	    val _ = print "]["
+	    val V' = evalPrg (Psi, (P2, T.Dot (T.Prg V, t)))
+	    val _ = print "]"	    
 	  in 
-	    evalPrg (Psi, (P2, T.Dot (T.Prg V, t)))						 
+	    V'
 	  end
 
       | evalPrg (Psi, (T.New (T.Lam (D, P)), t)) = 
@@ -267,6 +280,7 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
 
     and match (Psi, t1, T.Cases ((Psi', t2, P) :: C)) =
         let 
+val _ = print "match"
 	  (* val I.Null = Psi *)
 	  val t = createVarSub (Psi, Psi') (* Psi |- t : Psi' *)
 		  			  (* Psi' |- t2 . shift(k) : Psi'' *)
@@ -375,11 +389,15 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
     | evalRedex (Psi, V, (T.SClo (S, t1), t2)) =
           evalRedex (Psi, V, (S, T.comp (t1, t2)))
     | evalRedex (Psi, T.Lam (T.UDec (I.Dec (_, A)), P'), (T.AppExp (U, S), t)) =  
-	  evalRedex (Psi, evalPrg (Psi, (P', T.Dot (T.Exp (I.EClo (U, T.coerceSub t)), T.id))), (S, t))
-
+      let
+val _ = print "redex"
+        val V = evalPrg (Psi, (P', T.Dot (T.Exp (I.EClo (U, T.coerceSub t)), T.id)))
+val _  = print "|"
+      in
+	evalRedex (Psi, V, (S, t))
+      end
     | evalRedex (Psi, T.Lam (T.UDec _, P'), (T.AppBlock (B, S), t)) = 
           evalRedex (Psi, evalPrg (Psi, (P', T.Dot (T.Block (I.blockSub (B, T.coerceSub t)), T.id))), (S, t))
-
     | evalRedex (Psi, T.Lam (T.PDec _, P'), (T.AppPrg (P, S), t)) = 
 	  let
 	    val V = evalPrg (Psi, (P, t))
