@@ -266,12 +266,6 @@ struct
       | decSub (UDec D, t) = UDec (I.decSub (D, coerceSub t))
 
 
-    (* Invariant:
-
-       To be defined tomorrow 
-    *)
-    fun blockSub (I.Inst t', t) = I.Inst (I.comp (t', coerceSub t))
-
     (* frontSub (Ft, t) = Ft' 
      
        Invariant:
@@ -283,7 +277,7 @@ struct
     and frontSub (Idx (n), t) = varSub (n, t)
       | frontSub (Exp (U), t) = Exp (I.EClo (U, coerceSub t))
       | frontSub (Prg (P), t) = Prg (PClo (P, t))
-      | frontSub (Block B, t) = Block (blockSub (B, t))
+      | frontSub (Block B, t) = Block (I.blockSub (B, coerceSub t))
      (* Block case is missing --cs *)
 
 
