@@ -1738,7 +1738,12 @@ struct
 	  substToSpine' (s, G, I.App(I.EClo Us, T))
 	end
       | substToSpine' ( I.Dot (I.Idx _, s) , I.Decl (G, I.BDec (_, (L, t))), T) = 
-	raise Domain
+	  raise Domain
+	  (* Attempted fix, didn't work because I don't know how you
+             computed splitting candidates for Blocks
+	     --cs Sat Jan  4 22:38:01 2003
+	  substToSpine' (s, G, T)
+	  *)
 
       (* I.Axp, I.Block(B) or other I.Undef impossible *)
 
@@ -1773,6 +1778,18 @@ struct
 	  (* G', D[s] |- s o ^ : G *)
 	  (* G', D[s] |- 1.s o ^ : G, D *)
 	end
+
+      (* added a new case to through out blocks   (you must restrict the previous
+         case to I.Dec _)
+         -cs Sat Jan  4 22:55:12 2003 
+      | purify' (I.Decl (G, D as I.BDec _)) =
+        let val (G', s) = purify' G
+	  (* G' |- s : G *)
+	in
+	  (G', I.Dot (I.Undef, s))
+	  (* G' |- _.s : G,_ *)
+	end
+      *)
 
     (* purify G = G' where all NDec's have been erased from G
        If   |- G ctx
