@@ -9,4 +9,6 @@ Group is
   worldsyn.fun
   worldprint.sig
   worldprint.fun
+  worldify.sig
+  worldify.fun
   worldcheck.sml

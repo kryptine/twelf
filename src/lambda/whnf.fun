@@ -453,18 +453,18 @@ struct
 	  normalizeSpine (S, comp (s', s))
 
     and normalizeDec (Dec (xOpt, V), s) = Dec (xOpt, normalizeExp (V, s))
+      | normalizeDec (BDec (xOpt, (c, t)), s) = 
+         BDec (xOpt, (c, normalizeSub (comp (t, s))))
     and normalizeDecP ((D, P), s) = (normalizeDec (D, s), P)
 
     (* dead code -fp *)
     (* pre-Twelf 1.2 code walk Fri May  8 11:37:18 1998 *)
-    (*
+    (* not any more --cs Wed Jun 19 13:59:56 EDT 2002 *)
     and normalizeSub (s as Shift _) = s
       | normalizeSub (Dot (Ft as Idx _, s)) =
 	  Dot (Ft, normalizeSub (s))
-      | normalizeSub (Dot (Exp (U, V), s)) =
-	  Dot (Exp (normalizeExp (U, id), normalizeExp (V, id)),
-		 normalizeSub s)
-	  *)
+      | normalizeSub (Dot (Exp U, s)) =
+	  Dot (Exp (normalizeExp (U, id)), normalizeSub s)
 
 
     fun normalizeCtx Null = Null

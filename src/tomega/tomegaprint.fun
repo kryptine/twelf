@@ -90,8 +90,8 @@ struct
 	       val G = T.coerceCtx Psi
 	       val D' = Names.decName (G, D)
 	     in
-	       [Fmt.String "{{", P.formatDec (G, D'), 
-		Fmt.String "}}", Fmt.Break] @
+	       [Fmt.String "All {", P.formatDec (G, D'), 
+		Fmt.String "}", Fmt.Break] @
 	       formatFor' (I.Decl (Psi, T.UDec D'), F)
 	     end)
       | formatFor' (Psi, T.Ex (D, F)) =
@@ -99,14 +99,21 @@ struct
 	  val G = T.coerceCtx Psi
 	  val D' = Names.decName (G, D)
 	in
-	  [Fmt.String "[[", P.formatDec (G,  D'), Fmt.String "]]", Fmt.Break] @
+	  [Fmt.String "Ex [", P.formatDec (G,  D'), Fmt.String "]", Fmt.Break] @
 	  formatFor' (I.Decl (Psi, T.UDec D'), F)
 	end
+      | formatFor' (Psi, T.And (F1, F2)) = 
+	  [Fmt.String "(",
+	   Fmt.HVbox (formatFor' (Psi, F1)),
+	   Fmt.String ")", Fmt.Break, Fmt.String "/\\", Fmt.Space, Fmt.String "(",
+	   Fmt.HVbox (formatFor' (Psi, F1)),
+	   Fmt.String ")"]
       | formatFor' (Psi, T.True) = 
 	[Fmt.String "True"]
 	
 
     fun formatFor (G, F) = Fmt.HVbox (formatFor' (G, Normalize.normalizeFor (F, T.id))) 
+    fun forToString (Psi, F) = Fmt.makestring_fmt (formatFor (Psi, F))
      
 (*
 
@@ -607,16 +614,15 @@ struct
       Fmt.Vbox0 0 1 [formatFor (I.Null, F) names, Fmt.Break,
 		     formatPro (I.Null, P) names]
 
-    fun forToString Args names = Fmt.makestring_fmt (formatFor Args names)
     fun proToString Args names = Fmt.makestring_fmt (formatPro Args names)
     fun lemmaDecToString Args = Fmt.makestring_fmt (formatLemmaDec Args)
 *)
   in
     val formatFor = formatFor
+    val forToString = forToString
 (*    val formatPro = formatPro
     val formatLemmaDec = formatLemmaDec
      
-    val forToString = forToString
     val proToString = proToString 
     val lemmaDecToString = lemmaDecToString *)
   end

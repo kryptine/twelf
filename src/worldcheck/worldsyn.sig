@@ -16,6 +16,8 @@ sig
   val lookup : IntSyn.cid -> Tomega.Worlds      (* raises Error if undeclared *)
 
   val worldcheck : Tomega.Worlds -> IntSyn.cid -> unit
-  val ctxToList : IntSyn.Dec IntSyn.Ctx -> dlist
+  val ctxToList  : IntSyn.Dec IntSyn.Ctx -> dlist
+  val isSubsumed : Tomega.Worlds -> IntSyn.cid -> unit
+  val getWorlds  : IntSyn.cid -> Tomega.Worlds
 
 end; (* signature WORLDSYN *)
