@@ -30,6 +30,7 @@ sig
   (* Applies f:'a -> unit to all entries in the set
      pre-order traversal *)
   val app : 'a ordSet -> ('a -> unit) -> unit
+  val update : 'a ordSet -> ('a -> 'a) -> 'a ordSet
 
   (* Applies f:'a entry -> unit to all entries in the set
      pre-order traversal *)

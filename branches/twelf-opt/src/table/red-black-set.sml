@@ -185,6 +185,22 @@ struct
 	ap dict
       end
 
+  fun update f (Set(n, dict)) =
+      let fun upd (Empty) = Empty
+	    | upd (Red tree) = Red(upd' tree)
+	    | upd (Black tree) = Black(upd' tree)
+	  and upd' (entry1 as (k, datum), left, right) =
+	      let
+		 val left' = upd left
+		 val datum' = f datum
+		 val right' =  upd right
+	       in 
+		 ((k, datum'), left', right')
+	       end 
+      in
+	Set(n, upd dict)
+      end
+
   fun forall (Set(n, dict)) f =
       let fun ap (Empty) = ()
 	    | ap (Red tree) = ap' tree
@@ -439,6 +455,7 @@ struct
     val clear = (fn ordSet => (ordSet := empty))
 
     val app = (fn ordSet => fn f => app f (!ordSet))
+    val update = (fn ordSet => fn f => ((ordSet := (update f (!ordSet)); ordSet)))
     val forall = (fn ordSet => fn f => forall (!ordSet) f)
 
     fun size S = setsize (!S) 
