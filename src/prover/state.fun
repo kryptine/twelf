@@ -37,9 +37,21 @@ struct
     fun close (State ((_, F), _)) = 
          T.convFor ((Normalize.normalizeFor (F, T.id), T.id), (T.True, T.id))
 
+    fun construct (State ((Psi, T.And (F1, F2)), W)) sc fc =
+          construct (State ((Psi, F1), W)) 
+	    (fn P1 => construct (State ((Psi, F2), W))
+	                (fn P2 => sc (T.PairPrg (P1, P2)))
+			fc)
+	    fc
+      | construct (State ((Psi, T.True), W)) sc fc =
+	  sc (T.Unit)
+      | construct (State ((Psi, T.All (D, F)), W)) sc fc =
+	  construct (State ((I.Decl (Psi, D), F), W)) sc fc
+	  
       
   in
     val close = close
     val init = init
+    val construct = construct
   end
 end

@@ -100,6 +100,7 @@ struct
   = Parameter
   | Dec of ResGoal * IntSyn.Sub * IntSyn.Head
   | BDec of (ResGoal * IntSyn.Sub *IntSyn.Head) list
+  | PDec
 
   (* The dynamic clause pool --- compiled version of the context *)
   (* Dynamic programs: context with synchronous clause pool *)

@@ -348,7 +348,9 @@ struct
 	  | matchDProg (I.Decl (dPool', C.Parameter), n) =
 	      matchDProg (dPool', n+1)
 	  | matchDProg (I.Decl (dPool', C.BDec RGs), n) =
-	      matchBlock (RGs, (n, 1))
+	      (matchBlock (RGs, (n, 1)); matchDProg (dPool', n+1))
+	  | matchDProg (I.Decl (dPool', C.PDec), n) =
+	      matchDProg (dPool', n+1)
       in
 	matchDProg (dPool, 1)
       end

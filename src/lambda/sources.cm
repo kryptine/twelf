@@ -18,4 +18,6 @@ Group is
   abstract.fun
   approx.sig
   approx.fun
+  normalize.sig
+  normalize.fun
   lambda.sml
