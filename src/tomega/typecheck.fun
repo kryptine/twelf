@@ -511,7 +511,7 @@ raise Domain
 	in
 	    TypeCheck.typeCheck (T.coerceCtx G, (M, I.EClo(A, T.coerceSub(s))))
 	end
-      | checkSub (G, T.Dot (T.Block (I.Bidx v), s), I.Decl(G', T.UDec (I.BDec(l2, (_, s2))))) = 
+(*      | checkSub (G, T.Dot (T.Block (I.Bidx v), s), I.Decl(G', T.UDec (I.BDec(l2, (_, s2))))) = 
 	(* Unexpected in LF level? -- Yu Liao *) (* What does v in I.Bidx v mean??? *)
 	let 
  	    val _ = checkSub (G, s, G')
@@ -522,7 +522,7 @@ raise Domain
 		if Conv.convSub (I.comp (s2, T.coerceSub(s)), s1)
 		then ()
 		else raise Error "Sub isn't well typed!"
-	end
+	end*)
       | checkSub (Psi, T.Dot (T.Prg P, t), I.Decl(Psi', T.PDec(_, F'))) =
 	let 
 	  val _ = chatter 4 (fn () => "$")
@@ -531,7 +531,58 @@ raise Domain
 	in
 	    checkPrg (Psi, (P, (F', t)))
 	end
-      | checkSub (Psi, T.Dot _, I.Null) = raise Domain
+      | checkSub (Psi, T.Dot (T.Block B, t), I.Decl(Psi', T.UDec (I.BDec(l2, (c, s2))))) =
+	let 
+	  val _ = chatter 4 (fn () => "$")
+	  val _ = checkSub (Psi, t, Psi')
+	in
+	    checkBlock (Psi, (B, (c, I.comp (s2, T.coerceSub t))))
+	end
+      | checkSub (Psi, T.Dot _, I.Null) = raise Error "Sub is not well typed"
+
+
+    and checkBlock (Psi, (I.Bidx v, (c2, s2))) = 
+ 	let 
+	  val T.UDec (I.BDec(l1, (c1, s1))) = T.ctxDec (Psi, v)
+	in
+	  if (c1 <> c2) then raise Error "Sub isn't well typed!"
+	  else if Conv.convSub (s2, s1)  then ()
+	       else raise Error "Sub isn't well typed!"
+	end
+      | checkBlock (Psi, (I.Inst s, (c2, s2))) = 
+	let
+	  val (G, L) = I.constBlock c2
+	in
+	  checkInst (Psi, s, (1, L, s2))
+	end
+
+   (* Invariant:
+
+      If   Psi |- s2 : Psi'    Psi' |-  Bn ... Bm
+      and  Psi |- s : [cn :An ... cm:Am]
+      and  Ai == Bi n<= i<=m
+      then checkInst returns () otherwise an exception is raised.
+   *)
+   and checkInst (Psi, s, (_, nil, _)) = ()
+     | checkInst (Psi, s, (n, D :: L, s2)) = 
+       let
+	 val G = T.coerceCtx Psi
+	 val s' = I.Dot (I.bvarSub  (n, s), I.Shift (I.ctxLength G))
+	 val D' = I.decSub (D, s2)
+	 val G' = I.Decl (I.Null, D')
+	 val _ = TypeCheck.typeCheckSub (G, s', G')
+	   
+	 
+(*	 val I.Idx k = I.bvarSub  (n, s)   (* by invariant *)
+	 val I.Dec (_ , V1) = I.decSub (D, s2)
+	 val I.Dec (_ , V2) = I.ctxDec (T.coerceCtx Psi, k)
+	 val _ = Conv.conv ((V1, I.id), (V2, I.id)) 
+*)
+       in
+	 checkInst (Psi, s, (n+1, L, I.dot1 s2))
+       end
+
+	
 
     and isValue (T.Lam _) = ()
       | isValue (T.PairExp (M, P)) = isValue P
@@ -548,7 +599,6 @@ raise Domain
 
 
     fun check (Psi, (P, F)) = checkPrg (Psi, (P, (F, T.id)))
-    fun checkSub (Psi, t, Psi') = checkSub (Psi, t, Psi')
 
 
 

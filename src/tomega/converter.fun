@@ -104,9 +104,9 @@ exception Error' of Tomega'.For
     (* strengthenCtx (G, s) = (G', s')
      
        If   G0 |- G ctx
-       and  G0 |- s : G1 
-       then G1 |- G' = G[s^-1] ctx
-       and  G0 |- s' : G1, G'  
+       and  G0 |- w : G1 
+       then G1 |- G' = G[w^-1] ctx
+       and  G0 |- w' : G1, G'  
     *)
     fun strengthenCtx (I.Null, s) = (I.Null, s)
       | strengthenCtx (I.Decl (G, D), s) = 
@@ -857,6 +857,8 @@ exception Error' of Tomega'.For
 val  _ = print "["
 	      val Psi1 = append (Psi0, append (G, T.embedCtx B))
 					(* Psi1 = Psi0, G, B *)
+	      val _ = TomegaTypeCheck.checkCtx (Psi1)
+val _  = print "."
 
 	      val n = domain (Psi1, w1)	(* n = |Psi0, G', B'| *)
 	      val m = I.ctxLength Psi0  (* m = |Psi0| *)
@@ -904,6 +906,12 @@ val  _ = print "["
 					(* Psi0, G', B' |- F'' :: for *)
 					(* Psi0, G', B' |- S'' :: F' >> F'' *)
 
+val _ = print "&"
+	      val _ = TomegaTypeCheck.checkFor (append (append (Psi0, G), T.embedCtx B), 
+						(Normalize.normalizeFor(F'', T.embedSub w1)))
+	
+
+
 	      val P'' = T.Root (T.Var k', S'')
 					(* Psi0, G', B' |- P'' :: F'' *)
 
@@ -944,13 +952,18 @@ fun mk_iota (0, t) = t
 					(* |- Psi0, G', B' ctx *)
 
 	      val n' = n - I.ctxLength B'   (* n' = |Psi0, G'| *)
-	      val _ = TomegaTypeCheck.checkCtx (Psi1)
-(*val _ = print "."
-              val Psi1' = append (append (Psi0, G), T.embedCtx (deblockify B))
 
-	      val _ = TomegaTypeCheck.checkCtx (Psi1')
 
-*)
+	      fun subCtx (I.Null, s) = (I.Null, s)
+		| subCtx (I.Decl (G, D), s) = 
+		  let val (G', s') = subCtx (G, s)
+		  in (I.Decl (G', I.decSub (D, s')), I.dot1 s')
+		  end
+
+	      val (B'', _) = subCtx (B', w1')
+	      val _ = TomegaTypeCheck.checkCtx (append (append (Psi0, G), T.embedCtx B''))
+val _ = print "."
+
 
 
 	      (* lift (B, (P, F)) = (P', F')
@@ -960,35 +973,52 @@ fun mk_iota (0, t) = t
 		 then Psi0, G |- P'  :: F'
 		 and  P' =  (lam B. P)
 		 and  F' = raiseFor (B, F)
-	      *)
+ 	      *)
 	      fun lift (I.Null, P) = P
 		| lift (I.Decl (G, D), P) = 
 		    lift (G, T.New (T.Lam (T.UDec D, P)))
 
 
               val P''' = lift (B', P'') (* Psi0, G' |- P''' :: F''' *)
+  
+
+              val GB' = deblockify B'    (* Psi0, G' |- GB' ctx *)
+
+	      val (GB'', _) = subCtx (GB', w1')
+	      val _ = TomegaTypeCheck.checkCtx (append (append (Psi0, G), T.embedCtx GB''))
 val _ = print "."
 
 
 
-              val GB' = deblockify B'    (* Psi0, G' |- GB' ctx *)
-
 	      val b4 = I.ctxLength GB'
+	      val _ = print (Int.toString (b4))
+	      val _ = print (Int.toString (n'))
 val iota1 = I.Shift (n' + b4)
 					(* Psi0, G', GB') |- iota1 : . *)
 
 val s' = blockToIota (T.Shift b4, B',iota1)
 					(* Psi0, G', GB'  |- s' : Psi0, G', B' *)
+
+val _ = TomegaTypeCheck.checkSub (T.embedCtx GB', s', T.embedCtx B')
 val _ = print "."
 
 
+	      val RR = Normalize.normalizeFor (F'', s')
+                                        (* Psi0, G' |- F''' for *)
+	      val _ = TomegaTypeCheck.checkFor (append (append (Psi0, G), T.embedCtx GB'), 
+						(Normalize.normalizeFor(RR, T.embedSub w1')))
 		    
 
 val _ = print ";"
 	      val F''' = raiseFor (GB', Normalize.normalizeFor (F'', s'))
                                         (* Psi0, G' |- F''' for *)
+	      val _ = TomegaTypeCheck.checkFor (append (Psi0, G), 
+						(Normalize.normalizeFor(F''', T.embedSub w1')))
+	
 
-val _ = print "."
+
+
+val _ = print "*"
 
 	      val (Psi1'', w2, z2) = strengthen (Psi1, (a, S), w1, M.Minus)
 		                        (* |- Psi0, Psi1'' ctx *)
