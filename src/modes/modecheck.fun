@@ -23,7 +23,7 @@ struct
 
     datatype Status =                   (* Variable status             *)
         Existential of			(* S ::= Existential (I, xOpt) *)
-	  Info * string option
+	  Info * I.name option
       | Universal                       (*     | Universal             *)
 
 
@@ -262,7 +262,6 @@ struct
     (* checkD1 (D, V, occ)  = (D', k) 
 
        If   G |- V : L
-       and  V does not contain Skolem constants 
        and  D ~ G
        then D' is the result of checking V
        and  D' ~ G
@@ -323,7 +322,6 @@ struct
     (* checkG1 (D, V)  = D' 
 
        If   G |- V : L
-       and  V does not contain Skolem constants 
        and  D ~ G
        then D' ~ G 
        and  D' is the result of checking V 

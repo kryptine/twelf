@@ -8,14 +8,12 @@ sig
 
   exception Unify of string
 	
-  val unify : IntSyn.dctx * IntSyn.eclo * IntSyn.eclo -> unit	(* raises Unify *)
-  val unifyW : IntSyn.dctx * IntSyn.eclo * IntSyn.eclo -> unit (* raises Unify *)
+  val unify : IntSyn.eclo * IntSyn.eclo -> unit	(* raises Unify *)
+  val unifyW : IntSyn.eclo * IntSyn.eclo -> unit (* raises Unify *)
 
-  (* unifiable (G, Us,Us') will instantiate EVars as an effect *)
-  val unifiable : IntSyn.dctx * IntSyn.eclo * IntSyn.eclo -> bool
+  (* unifiable (Us,Us') will instantiate EVars as an effect *)
+  val unifiable : IntSyn.eclo * IntSyn.eclo -> bool
 
-  (* unifiable' (G, Us,Us') is like unifiable, but returns NONE for
-     success and SOME(msg) for failure *)
-  val unifiable' : IntSyn.dctx * IntSyn.eclo * IntSyn.eclo -> string option
+  val safeInvertExp : IntSyn.eclo * IntSyn.Sub -> IntSyn.Exp
 
 end;  (* signature UNIFY *)

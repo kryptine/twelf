@@ -2,13 +2,11 @@
 (* Author: Carsten Schuermann *)
 
 functor ParseThm
-  (structure Paths : PATHS
-   structure Parsing' : PARSING
-     sharing Parsing'.Lexer.Paths = Paths
+  (structure Parsing' : PARSING
    structure ThmExtSyn' : THMEXTSYN
-     sharing ThmExtSyn'.Paths = Paths
+   structure Paths : PATHS
    structure ParseTerm : PARSE_TERM
-     sharing ParseTerm.Parsing.Lexer = Parsing'.Lexer
+     sharing ParseTerm.Parsing = Parsing'
      sharing ParseTerm.ExtSyn = ThmExtSyn'.ExtSyn)
      : PARSE_THM =
 struct
@@ -174,38 +172,6 @@ struct
     fun parseProve' (LS.Cons ((L.PROVE, r), s')) = 
           parsePDecl (LS.expose s')
 
-
-    (* ----------------------- *)
-    (* %establish declarations *)
-    (* ----------------------- *)
-
-    (* parseEDecl "id nat order callpats." *)
-    fun parseEDecl (LS.Cons ((L.ID (_, id), r), s')) =
-        let
-	  val depth = idToNat (r, id)
-	  val (t', f') = parseTDecl (LS.expose s')
-	in
-	  (E.establish (depth, t'), f')
-	end
-      | parseEDecl (LS.Cons ((t, r), s')) =
-	Parsing.error (r, "Expected theorem identifier, found " ^ L.toString t)
-
-    (* parseEstablish' "%establish pdecl." *)
-    fun parseEstablish' (LS.Cons ((L.ESTABLISH, r), s')) = 
-          parseEDecl (LS.expose s')
-
-    (* -------------------- *)
-    (* %assert declarations *)
-    (* -------------------- *)
-
-    (* parseAssert' "%assert cp" *)
-    fun parseAssert' (LS.Cons ((L.ASSERT, r), s')) = 
-        let
-	  val (callpats, f'') = parseCallPats (LS.expose s')
-        in 
-	  (E.assert (E.callpats callpats), f'')
-	end
-
     (* --------------------- *)
     (* %theorem declarations *)
     (* --------------------- *)
@@ -242,48 +208,8 @@ struct
       | parseDecs (LS.Cons ((t, r), s')) =
 	  Parsing.error (r, "Expected `{', found " ^ L.toString t)
 
-    fun parsePi (LS.Cons ((L.ID (_, "pi"), r), s')) =
-          parseDecs (LS.expose s')
-      | parsePi (LS.Cons ((t, r), s')) =
-	  Parsing.error (r, "Expected `pi', found " ^ L.toString t)
 
-    fun parseSome (gbs, LS.Cons ((L.ID (_, "some"), r), s')) =
-        let
-	  val (g1, f') = parseDecs (LS.expose s')
-	  val (g2, f'') = parsePi f'
-	in
-	  parseSome' ((g1,g2)::gbs, f'')
-	end
-      | parseSome (gbs, f as LS.Cons ((L.ID (_, "pi"), r), s')) =
-	let
-	  val (g2, f') = parsePi f
-	in
-	  parseSome' ((E.null, g2)::gbs, f')
-	end
-      | parseSome (gbs, LS.Cons ((t, r), s')) =
-	  Parsing.error (r, "Expected `some' or `pi', found " ^ L.toString t)
-      
-    and parseSome' (gbs, f as LS.Cons ((L.RPAREN, r), s')) = (gbs, f)
-      | parseSome' (gbs, LS.Cons ((L.ID (_, "|"), r), s')) =
-          parseSome (gbs, LS.expose s')
-      | parseSome' (gbs, LS.Cons ((t, r), s')) =
-	  Parsing.error (r, "Expected `)' or `|', found " ^ L.toString t)
-
-    fun stripParen (gbs, LS.Cons ((L.RPAREN, r), s')) = (gbs, LS.expose s')
-
-    fun parseGBs (LS.Cons ((L.LPAREN, r), s')) =
-          stripParen (parseSome (nil, LS.expose s'))
-      | parseGBs (LS.Cons ((t, r), s')) =
-	  Parsing.error (r, "Expected `(', found " ^ L.toString t)
-
-    fun forallG ((gbs', f'), r) =
-        let
-	  val (t'', f'') = parseForallStar f'
-	in
-	  (E.forallG (gbs', (r, t'')), f'')
-	end
-
-    and forallStar ((g', f'), r) = 
+    fun forallStar ((g', f'), r) = 
         let 
 	  val (t'', f'') = parseForall f'
 	in 
@@ -343,23 +269,9 @@ struct
 	  Parsing.error (r, "Expected `forall*', `forall', `exists', or `true', found "
 			     ^ L.toString t)
 
-    and parseCtxScheme (LS.Cons ((L.ID (_, "forallG"), r), s')) =
-           forallG (parseGBs (LS.expose s'), r)
-      | parseCtxScheme (LS.Cons ((L.ID (_, "forall*"), r), s')) =
-	   forallStar (parseDecs (LS.expose s'), r)
-      | parseCtxScheme (LS.Cons ((L.ID (_, "forall"), r), s')) =
-	  forall (parseDecs (LS.expose s'), r)
-      | parseCtxScheme (LS.Cons ((L.ID (_, "exists"), r), s')) =
-	  exists (parseDecs (LS.expose s'), r)
-      | parseCtxScheme (LS.Cons ((L.ID (_, "true"), r), s')) =
-	  top (LS.expose s', r)
-      | parseCtxScheme (LS.Cons ((t, r), s')) =
-	  Parsing.error (r, "Expected `forallG', `forall*', `forall', `exists', or `true', found "
-			     ^ L.toString t)
-
     (* parseColon ": mform" *)
     fun parseColon (LS.Cons ((L.COLON, r), s')) =
-          parseCtxScheme (LS.expose s')
+          parseForallStar (LS.expose s')
       | parseColon (LS.Cons ((t, r), s')) =   
 	  Parsing.error (r, "Expected `:', found " ^ L.toString t)
 
@@ -383,8 +295,6 @@ struct
     val parseTheorem' = parseForallStar
     val parseTheoremDec' = parseTheoremDec'
     val parseProve' = parseProve'
-    val parseEstablish' = parseEstablish'
-    val parseAssert' = parseAssert'
   end  (* local ... in *)
 
 end;  (* functor Parser *)

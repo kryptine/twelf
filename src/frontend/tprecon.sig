@@ -11,6 +11,7 @@ sig
 
   structure Paths : PATHS
 
+  type name = string			(* variable or constant name *)
   type term				(* term *)
   type dec				(* variable declaration *)
 
@@ -28,16 +29,15 @@ sig
   val lam : dec * term * Paths.region -> term (* [d] tm, region for "[d]" *)
   val typ : Paths.region -> term	(* type, region for "type" *)
 
-  val dec : string option * term -> dec	(* id : tm | _ : tm *)
-  val dec0 : string option -> dec		(* id | _  (type omitted) *)
+  val dec : name option * term -> dec	(* id : tm | _ : tm *)
+  val dec0 : name option -> dec		(* id | _  (type omitted) *)
 
   type condec				(* constant declaration *)
-  val condec : string * term -> condec	(* id : tm *)
-  val condef : string option * term * term option -> condec
-					(* id : tm = tm | _ : tm = tm *)
+  val condec : name * term -> condec	(* id : tm *)
+  val condef : name option * term * term -> condec (* id : tm = tm | _ : tm = tm *)
 
   type query				(* query *)
-  val query : string option * term -> query (* ucid : tm | tm *)
+  val query : name option * term -> query (* ucid : tm | tm *)
 
 end;  (* signature EXTSYN *)
 
@@ -71,13 +71,13 @@ sig
   val decToDec : IntSyn.dctx * dec -> IntSyn.Dec (* reconstructs D such that G |- D dec *)
   val termToExp : IntSyn.dctx * term -> IntSyn.Exp (* reconstructs V such that G |- V : type *)
 
-  val queryToQuery : query * Paths.location
-                     -> IntSyn.Exp * string option * (IntSyn.Exp * string) list
+  val queryToQuery : query
+                     -> IntSyn.Exp * IntSyn.name option * (IntSyn.Exp * IntSyn.name) list
                      (* (A, SOME("X"), [(Y1, "Y1"),...] *)
 		     (* where A is query type, X the optional proof term variable name *)
 		     (* Yi the EVars in the query and "Yi" their names *)
 
-  val condecToConDec : condec * Paths.location -> IntSyn.ConDec option * Paths.occConDec option
+  val condecToConDec : condec * Paths.region -> IntSyn.ConDec option * Paths.occConDec option
                      (* optional ConDec is absent for anonymous definitions *)
 
 end;  (* signature TP_RECON *)

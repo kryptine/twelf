@@ -13,31 +13,29 @@ functor Twelf
 
    structure Names : NAMES
      sharing Names.IntSyn = IntSyn'
-   structure Paths : PATHS
+   structure Paths' : PATHS
    structure Origins : ORIGINS
-     sharing Origins.Paths = Paths
+     sharing Origins.Paths = Paths'
    structure Lexer : LEXER
-     sharing Lexer.Paths = Paths
+     sharing Lexer.Paths = Paths'
    structure Parsing : PARSING
      sharing Parsing.Lexer = Lexer
    structure Parser : PARSER
      sharing Parser.Names = Names
-     sharing Parser.ExtSyn.Paths = Paths
-     sharing Parser.ExtSynQ.Paths = Paths
    structure TypeCheck : TYPECHECK
-   structure Constraints : CONSTRAINTS
-     sharing Constraints.IntSyn = IntSyn'
+   structure Strict : STRICT
+     sharing Strict.IntSyn = IntSyn'
    structure Abstract : ABSTRACT
      sharing Abstract.IntSyn = IntSyn'
    structure TpReconQ : TP_RECON
      sharing TpReconQ.IntSyn = IntSyn'
-     sharing TpReconQ.Paths = Paths
+     sharing TpReconQ.Paths = Paths'
      sharing type TpReconQ.term = Parser.ExtSynQ.term
      sharing type TpReconQ.query = Parser.ExtSynQ.query
      (* sharing type TpReconQ.Paths.occConDec = Origins.Paths.occConDec *)
    structure TpRecon : TP_RECON
      sharing TpRecon.IntSyn = IntSyn'
-     sharing TpRecon.Paths = Paths
+     sharing TpRecon.Paths = Paths'
      sharing type TpRecon.condec = Parser.ExtSyn.condec
      sharing type TpRecon.term = Parser.ExtSyn.term
      (* sharing type TpRecon.Paths.occConDec = Origins.Paths.occConDec *)
@@ -46,24 +44,22 @@ functor Twelf
      sharing ModeSyn.IntSyn = IntSyn'
    structure ModeCheck : MODECHECK
      sharing ModeCheck.ModeSyn = ModeSyn
-     sharing ModeCheck.Paths = Paths
+     sharing ModeCheck.Paths = Paths'
    structure ModeRecon : MODE_RECON
      sharing ModeRecon.ModeSyn = ModeSyn
-     sharing ModeRecon.Paths = Paths
+     sharing ModeRecon.Paths = Paths'
      sharing type ModeRecon.modedec = Parser.ExtModes.modedec
    structure ModePrint : MODEPRINT
      sharing ModePrint.ModeSyn = ModeSyn
    structure ModeDec : MODEDEC
      sharing ModeDec.ModeSyn = ModeSyn
-     sharing ModeDec.Paths = Paths
+     sharing ModeDec.Paths = Paths'
 
    structure Terminate : TERMINATE
      sharing Terminate.IntSyn = IntSyn'
 
    structure Index : INDEX
      sharing Index.IntSyn = IntSyn'
-   structure IndexSkolem : INDEX
-     sharing IndexSkolem.IntSyn = IntSyn'
    structure Subordinate : SUBORDINATE
      sharing Subordinate.IntSyn = IntSyn'
    structure CompSyn' : COMPSYN
@@ -80,41 +76,28 @@ functor Twelf
      sharing Solve.IntSyn = IntSyn'
      sharing type Solve.ExtSynQ.term = Parser.ExtSynQ.term
      sharing type Solve.ExtSynQ.query = Parser.ExtSynQ.query
-     sharing Solve.Paths = Paths
+     sharing Solve.Paths = Paths'
    structure ThmSyn : THMSYN
-     sharing ThmSyn.Paths = Paths
+     sharing ThmSyn.Paths = Paths'
    structure Thm : THM
      sharing Thm.ThmSyn = ThmSyn
-     sharing Thm.Paths = Paths
+     sharing Thm.Paths = Paths'
    structure ThmRecon : THM_RECON
      sharing ThmRecon.ThmSyn = ThmSyn
-     sharing ThmRecon.Paths = Paths
+     sharing ThmRecon.Paths = Paths'
      sharing ThmRecon.ThmSyn.ModeSyn = ModeSyn
      sharing type ThmRecon.tdecl = Parser.ThmExtSyn.tdecl
      sharing type ThmRecon.theorem = Parser.ThmExtSyn.theorem
      sharing type ThmRecon.theoremdec = Parser.ThmExtSyn.theoremdec 
      sharing type ThmRecon.prove = Parser.ThmExtSyn.prove
-     sharing type ThmRecon.establish = Parser.ThmExtSyn.establish
-     sharing type ThmRecon.assert = Parser.ThmExtSyn.assert
    structure ThmPrint : THMPRINT
      sharing ThmPrint.ThmSyn = ThmSyn
 
    structure MetaGlobal : METAGLOBAL
-   structure FunSyn : FUNSYN
-     sharing FunSyn.IntSyn = IntSyn'
-   structure Skolem : SKOLEM
-     sharing Skolem.IntSyn = IntSyn'
    structure Prover : PROVER
-     sharing Prover.IntSyn = IntSyn'
+     sharing Prover.MetaSyn.IntSyn = IntSyn'
    structure ClausePrint : CLAUSEPRINT
-     sharing ClausePrint.IntSyn = IntSyn'
-
-   structure Trace : TRACE
-
-   structure PrintTeX : PRINT
-     sharing PrintTeX.IntSyn = IntSyn'
-   structure ClausePrintTeX : CLAUSEPRINT
-     sharing ClausePrintTeX.IntSyn = IntSyn')
+     sharing ClausePrint.IntSyn = IntSyn')
  :> TWELF =
 struct
 
@@ -173,16 +156,6 @@ struct
 	  then Print.expToString GU
 	else ""
 
-    fun printProgTeX () =
-        (print "\\begin{bigcode}\n";
-	 ClausePrintTeX.printSgn ();
-	 print "\\end{bigcode}\n")
-
-    fun printSgnTeX () =
-        (print "\\begin{bigcode}\n";
-	 PrintTeX.printSgn ();
-         print "\\end{bigcode}\n")
-
     (* status ::= OK | ABORT  is the return status of various operations *)
     datatype Status = OK | ABORT
 
@@ -197,17 +170,6 @@ struct
 		       ^ f ^ "\n");
 	 ABORT)
 
-
-    (* should move to paths, or into the prover module... but not here! -cs *)
-    fun joinregion (r, nil) = r
-      | joinregion (r, r' :: rs) = 
-          joinregion (Paths.join (r, r'), rs)
-
-
-
-    fun constraintsMsg (eqns) =
-        "Typing ambiguous -- unresolved constraints\n" ^ Print.eqnsToString eqns
-
     (* val handleExceptions : string -> ('a -> Status) -> 'a -> Status *)
     (* handleExceptions filename f x = f x
        where standard exceptions are handled and an appropriate error message is
@@ -221,8 +183,8 @@ struct
 	      | ThmRecon.Error (msg) => abortFileMsg (fileName, msg)
 	      | TypeCheck.Error (msg) => abort ("Double-checking types fails: " ^ msg ^ "\n"
 						^ "This indicates a bug in Twelf.\n")
+	      | Strict.Error (msg) => abortFileMsg (fileName, msg)
 	      | Abstract.Error (msg) => abortFileMsg (fileName, msg)
-	      (* | Constraints.Error (eqns) => abortFileMsg (fileName, constraintsMsg eqns) *)
 	      | Terminate.Error (msg) => abort (msg ^ "\n") (* Terminate includes filename *)
 	      | Thm.Error (msg) => abortFileMsg (fileName, msg)
 	      | ModeSyn.Error (msg) => abortFileMsg (fileName, msg)
@@ -235,7 +197,7 @@ struct
 	      | IO.Io (ioError) => abortIO (fileName, ioError)
 	      | Solve.AbortQuery (msg) => abortFileMsg (fileName, msg)
 	      | ThmSyn.Error (msg) => abortFileMsg (fileName, msg)
-	      | Prover.Error (msg) => abortFileMsg (fileName, msg)
+	      | Prover.Error (msg) => abort ("Prover error: " ^ msg ^ "\n")
 	      | exn => (abort ("Unrecognized exception\n"); raise exn))
 
     (* installConDec (conDec, ocOpt)
@@ -247,8 +209,7 @@ struct
 	    val cid = IntSyn.sgnAdd conDec
 	    val _ = Names.installName (IntSyn.conDecName conDec, cid)
 	    val _ = Origins.installOrigin (cid, fileNameocOpt)
-	    val _ = Index.install (IntSyn.Const cid)
-	    val _ = IndexSkolem.install (IntSyn.Const cid)
+	    val _ = Index.install cid
 	    val _ = (Timers.time Timers.compiling Compile.install) cid
 	    val _ = (Timers.time Timers.subordinate Subordinate.install) cid
 	in 
@@ -262,13 +223,10 @@ struct
     *)
     fun install1 (fileName, Parser.ConDec(condec, r)) =
         (* Constant declarations c : V, c : V = U plus variations *)
-        (let
-	  val (optConDec, ocOpt) = TpRecon.condecToConDec (condec, Paths.Loc (fileName,r))
+	let
+	  val (optConDec, ocOpt) = TpRecon.condecToConDec (condec, r)
 	  fun icd (SOME(conDec)) =
 	      let
-		  (* names are assigned in TpRecon *)
-		  (* val conDec' = nameConDec (conDec) *)
-		  (* should print here, not in TpRecon *)
 		  val _ = (Timers.time Timers.modes ModeCheck.checkD) (conDec, ocOpt)
 		  (* allocate new cid after checking modes! *)
 		  val cid = installConDec (conDec, (fileName, ocOpt))
@@ -280,32 +238,28 @@ struct
 	in
 	  icd optConDec
 	end
-        handle Constraints.Error (eqns) =>
-	       raise TpRecon.Error (Paths.wrap (r, constraintsMsg eqns)))
 
       (* Solve declarations %solve c : A *)
       | install1 (fileName, Parser.Solve((name,tm), r)) =
-	(let
-	  val conDec = Solve.solve ((name, tm), Paths.Loc (fileName, r))
-	  val conDec' = Names.nameConDec (conDec)
+	let
+	  val conDec = Solve.solve ((name, tm), r)
+	  val _ = Strict.check (conDec, NONE)
 	  (* allocate cid after strictness has been checked! *)
-	  val cid = installConDec (conDec', (fileName, NONE))
+	  val cid = installConDec (conDec, (fileName, NONE))
 	  val _ = if !Global.chatter >= 3
 		    then print ((Timers.time Timers.printing Print.conDecToString)
-				       conDec' ^ "\n")
+				       conDec ^ "\n")
 		  else if !Global.chatter >= 2
 			 then print (" OK\n")
 		       else ();
 	in
 	  ()
 	end
-        handle Constraints.Error (eqns) =>
-	       raise TpRecon.Error (Paths.wrap (r, constraintsMsg eqns)))
 
       (* %query <expected> <try> A or %query <expected> <try> X : A *)
       | install1 (fileName, Parser.Query(expected,try,query, r)) =
         (* Solve.query might raise Solve.AbortQuery (msg) *)
-	(Solve.query ((expected, try, query), Paths.Loc (fileName, r))
+	(Solve.query (expected, try, query)
 	 handle Solve.AbortQuery (msg)
 	        => raise Solve.AbortQuery (Paths.wrap (r, msg)))
 
@@ -339,7 +293,7 @@ struct
 	  val La = Thm.install (T, rrs)
 	  val _ = map (Timers.time Timers.terminate Terminate.checkFam) La
 	  val _ = if !Global.chatter >= 3 
-		    then print ("%terminates " ^ ThmPrint.tDeclToString T ^ ".\n")
+		    then print ("%terminates " ^ (ThmPrint.tDeclToString T) ^ ".\n")
 		  else ()
 	in
 	  ()
@@ -349,16 +303,13 @@ struct
       | install1 (fileName, Parser.TheoremDec tdec) =
 	let 
 	  val (Tdec, r) = ThmRecon.theoremDecToTheoremDec tdec
-	  val (GBs, E as IntSyn.ConDec (name, k, V, L)) = ThmSyn.theoremDecToConDec (Tdec, r)
-	  val _ = FunSyn.labelReset ()
-	  val _ = List.foldr (fn ((G1, G2), k) => FunSyn.labelAdd 
-			    (FunSyn.LabelDec (Int.toString k, FunSyn.ctxToList G1, FunSyn.ctxToList G2))) 0 GBs
-								       
+	  val E as IntSyn.ConDec (name, k, V, L) = ThmSyn.theoremDecToConDec (Tdec, r)
 	  val cid = installConDec (E, (fileName, NONE))
 	  val MS = ThmSyn.theoremDecToModeSpine (Tdec, r)
 	  val _ = ModeSyn.installMode (cid, MS)
 	  val _ = if !Global.chatter >= 3
-		    then print ("%theorem " ^ Print.conDecToString E ^ "\n")
+		    then print ("%theorem " ^ name ^ " : " ^ 
+				       ClausePrint.theoremToString cid ^ ".\n")
 		  else ()
 	in
 	  ()
@@ -380,57 +331,11 @@ struct
 					     ^ ".\n")) La   (* mode must be declared!*)
 		  else [()]
 
-	  val _ = Prover.auto () handle Prover.Error msg => raise Prover.Error (Paths.wrap (joinregion rrs, msg)) (* times itself *)
-	  val _ = if !Global.chatter >= 3 
-		    then print ("%QED\n")
-		  else ()
-		    
-	in
-	  (Prover.install (fn E => installConDec (E, (fileName, NONE)));
-	   Skolem.install La) 
-	end 
-
-      (* Establish declaration *)
-      | install1 (fileName, Parser.EstablishDec lterm) =
-        let 
-	  val (ThmSyn.PDecl (depth, T), rrs) = ThmRecon.establishToEstablish lterm 
-	  val La = Thm.install (T, rrs)  (* La is the list of type constants *)
-	  val _ = if !Global.chatter >= 3 
-		    then print ("%prove " ^ (Int.toString depth) ^ " " ^
-				       (ThmPrint.tDeclToString T) ^ ".\n")
-		  else ()
-	  val _ = Prover.init (depth, La)
-	  val _ = if !Global.chatter >= 3 
-		    then map (fn a => print ("%mode " ^ 
-					     (ModePrint.modeToString (a, valOf (ModeSyn.modeLookup a)))
-					     ^ ".\n")) La   (* mode must be declared!*)
-		  else [()]
-
-	  val _ = Prover.auto () handle Prover.Error msg => raise Prover.Error (Paths.wrap (joinregion rrs, msg)) (* times itself *)
-		    
+	  val _ = Prover.auto () (* times itself *)
 	in
 	  Prover.install (fn E => installConDec (E, (fileName, NONE)))
-	end 
-
-      (* Establish declaration *)
-      | install1 (fileName, Parser.AssertDec aterm) =
-	let 
-	  val _ = if not (!Global.unsafe)
-		    then raise ThmSyn.Error "%assert not safe: Toggle `unsafe' flag"
-	          else ()
-	  val (cp as ThmSyn.Callpats (L), rrs) = ThmRecon.assertToAssert aterm 
-	  val La = map (fn (c, P) => c) L  (* La is the list of type constants *)
-	  val _ = if !Global.chatter >= 3 
-		    then print ("%assert " ^ (ThmPrint.callpatsToString cp) ^ ".\n")
-		  else ()
-	  val _ = if !Global.chatter >= 3 
-		    then map (fn a => print ("%mode " ^ 
-					     (ModePrint.modeToString (a, valOf (ModeSyn.modeLookup a)))
-					     ^ ".\n")) La   (* mode must be declared!*)
-		  else [()]
-	in
-	  Skolem.install La
 	end
+
 
     (* loadFile (fileName) = status
        reads and processes declarations from fileName in order, issuing
@@ -462,9 +367,7 @@ struct
 
     (* reset () = () clears all global tables, including the signature *)
     fun reset () = (IntSyn.sgnReset (); Names.reset (); ModeSyn.reset ();
-		    Index.reset (); 
-		    IndexSkolem.reset (); Subordinate.reset (); Terminate.reset ();
-		    FunSyn.labelReset ();
+		    Index.reset (); Subordinate.reset (); Terminate.reset ();
 		    CompSyn.sProgReset () (* necessary? -fp *)
 		    )
 
@@ -558,11 +461,6 @@ struct
       fun define (sources) = (OS.FileSys.getDir (), sources)
 
     end  (* structure Config *)
-
-    (* make (configFile)
-       read and then load configuration from configFile
-    *)
-    fun make (fileName) = Config.load (Config.read fileName)
   in
 
     (* re-exporting environment parameters and utilities defined elsewhere *)
@@ -573,13 +471,6 @@ struct
 	val length : int option ref	(* NONE, limit argument length *)
 	val indent : int ref		(* 3, indentation of subterms *)
 	val width : int ref		(* 80, line width *)
-        val sgn : unit -> unit		(* print signature *)
-        val prog : unit -> unit		(* print signature as program *)
-        structure TeX :			(* print in TeX format *)
-	sig
-	  val sgn : unit -> unit	(* print signature *)
-	  val prog : unit -> unit	(* print signature as program *)
-	end
       end
     =
     struct
@@ -588,36 +479,13 @@ struct
       val length = Print.printLength
       val indent = Print.Formatter.Indent
       val width = Print.Formatter.Pagewidth
-      fun sgn () = Print.printSgn ()
-      fun prog () = ClausePrint.printSgn ()
-      structure TeX =
-      struct
-	fun sgn () = printSgnTeX ()
-	fun prog () = printProgTeX ()
-      end
     end
-
-    structure Trace :
-    sig 
-      datatype 'a Spec =			(* trace specification *)
-	None				(* no tracing *)
-      | Some of 'a list			(* list of clauses and families *)
-      | All				(* trace all clauses and families *)
-
-      val trace : string Spec -> unit	(* clauses and families *)
-      val break : string Spec -> unit	(* clauses and families *)
-      val detail : int ref		(* 0 = none, 1 = default, 2 = unify *)
-
-      val show : unit -> unit		(* show trace, break, and detail *)
-      val reset : unit -> unit		(* reset trace, break, and detail *)
-    end
-    = Trace
 
     structure Timers :
       sig
 	val show : unit -> unit		(* show and reset timers *)
-	val reset : unit -> unit	(* reset timers *)
-	val check : unit -> unit	(* display, but not no reset *)
+	val reset : unit -> unit		(* reset timers *)
+	val check : unit -> unit		(* display, but not no reset *)
       end
     = Timers
 
@@ -632,15 +500,6 @@ struct
       val chDir = OS.FileSys.chDir
       val getDir = OS.FileSys.getDir
       fun exit () = OS.Process.exit (OS.Process.success)
-    end
-
-    structure Compile :
-    sig
-      val optimize : bool ref
-    end
-    =
-    struct
-      val optimize = Compile.optimize
     end
 
     structure Prover :
@@ -660,7 +519,6 @@ struct
 
     val chatter : int ref = Global.chatter
     val doubleCheck : bool ref = Global.doubleCheck
-    val unsafe : bool ref = Global.unsafe
 
     datatype Status = datatype Status
     val reset = reset
@@ -678,8 +536,7 @@ struct
 	val define : string list -> config  (* explicitly define configuration *)
       end
     = Config
-    val make = make
 
-    val version = "Twelf 1.2 R3 (with tracing)"
+    val version = "Twelf 1.2, Aug 27 1998"
   end  (* local *)
 end; (* functor Twelf *)

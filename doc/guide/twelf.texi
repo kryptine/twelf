@@ -51,7 +51,7 @@ Last updated @value{UPDATED}.
 @cindex typographical conventions
 @cindex file names
 
-Twelf is the current version of a succession of implementations of
+Twelf is current version of a succession of implementations of
 the logical framework LF.  Previous systems include Elf (which
 provided type reconstruction and the operational semantics reimplemented
 in Twelf) and MLF (which implemented module-level constructs loosely
@@ -65,13 +65,7 @@ implementation.
 
 For current information including download instructions, publications,
 and mailing list, see the Twelf home page at
-@t{http://www.cs.cmu.edu/~twelf/}.  This User's Guide is published as
-@display
- Frank Pfenning and Carsten Schuermann
- @emph{Twelf User's Guide}
- Technical Report CMU-CS-98-173, Department of Computer Science, 
- Carnegie Mellon University, November 1998.
-@end display
+@t{http://www.cs.cmu.edu/~twelf/}.
 
 @ifhtml
 <UL>
@@ -590,7 +584,6 @@ juxtaposition or equal or lower precedence than @samp{->} and @samp{<-}.
 @cindex name preferences
 @cindex declarations, name preference
 @cindex variable naming
-@findex %name
 
 During printing, Twelf frequently has to assign names to anonymous
 variables.  In order to improve readability, the user can declare a name
@@ -2861,7 +2854,7 @@ directory.
 @section Twelf Mode
 
 @cindex Twelf mode in Emacs
-@cindex declaration, current
+@cindex declaration, currnt
 @cindex current declaration
 
 The Twelf mode in Emacs provides support for editing and indentation,

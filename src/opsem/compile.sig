@@ -10,13 +10,10 @@ sig
   structure IntSyn: INTSYN
   structure CompSyn: COMPSYN
 
-  val optimize : bool ref
-
   val install : IntSyn.cid -> unit
 
-  val compileClause: bool -> (IntSyn.Dec IntSyn.Ctx * IntSyn.Exp)
-                          -> CompSyn.ResGoal
-  val compileCtx: bool -> (IntSyn.Dec IntSyn.Ctx) -> CompSyn.DProg
-  val compileGoal: (IntSyn.Dec IntSyn.Ctx * IntSyn.Exp) -> CompSyn.Goal
+  val compileClause: IntSyn.Exp -> CompSyn.ResGoal
+  val compileCtx: IntSyn.Dec IntSyn.Ctx -> CompSyn.dprog
+  val compileGoal: IntSyn.Exp -> CompSyn.Goal
 
 end; (* signature COMPILE *)

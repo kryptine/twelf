@@ -83,7 +83,7 @@ struct
 	  inferSpine (G, (S, I.comp (s', s)), Vs)
       | inferSpine (G, (I.App (U, S), s1), (I.Pi ((I.Dec (_, V1), _), V2), s2)) =
 	  (checkExp(G, (U, s1), (V1, s2));
-	   inferSpine (G, (S, s1), Whnf.whnf (V2, I.Dot (I.Exp (I.EClo (U, s1)), s2))))
+	   inferSpine (G, (S, s1), Whnf.whnf (V2, I.Dot (I.Exp (I.EClo (U, s1), V1), s2))))
 	  (* G |- Pi (x:V1, V2) [s2] = Pi (x: V1 [s2], V2 [1.s2 o ^1] : L
 	     G |- U [s1] : V1 [s2]
 	     Hence
@@ -114,9 +114,6 @@ struct
 	end
       | inferCon (G, I.Const(c)) = I.constType (c)
       | inferCon (G, I.Def(d))  = I.constType (d)
-      | inferCon (G, I.Skonst(c)) = I.constType (c) (* this is just a hack. --cs 
-						       must be extended to handle arbitrary 
-						       Skolem constants in the right way *)
       (* no case for FVar *)
 
     (* checkDec (G, (x:V, s)) = B
@@ -130,7 +127,6 @@ struct
 
     fun check (U, V) = checkExp (I.Null, (U, I.id), (V, I.id))
     fun infer U = I.EClo (inferExp (I.Null, (U, I.id)))
-    fun infer' (G, U) = I.EClo (inferExp (G, (U, I.id)))
 
     fun checkCtx (I.Null) =  ()
       | checkCtx (I.Decl (G, D)) = 
@@ -138,13 +134,8 @@ struct
     
   in
       val check = check
-      val checkDec = checkDec
-
       val infer = infer
-      val infer' = infer'
       val typeCheck = fn (G, (U, V)) => 
 	                   (checkCtx G; checkExp (G, (U, I.id), (V, I.id)))
-      val typeCheckCtx = checkCtx			   
-
   end  (* local ... *)
 end; (* functor TypeCheck *)

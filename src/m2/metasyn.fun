@@ -48,8 +48,9 @@ struct
       | createEVarSpineW (G, Vs as (I.Root _, s)) = (I.Nil, Vs)   (* s = id *)
       | createEVarSpineW (G, (I.Pi ((D as I.Dec (_, V1), _), V2), s)) =  
 	let 
-	  val X = I.newEVar (G, I.EClo (V1, s))
-	  val (S, Vs) = createEVarSpine (G, (V2, I.Dot (I.Exp (X), s)))
+	  val X = I.newEVar (I.EClo (V1, s))
+	  val (S, Vs) = createEVarSpine (I.Decl (G, I.decSub (D, s)), 
+					 (V2, I.Dot (I.Exp (X, V1), s)))
 	in
 	  (I.App (X, S), Vs)
 	end
@@ -61,15 +62,12 @@ struct
        then . |- U' = c @ (Xn; .. Xn; Nil)
        and  . |- U' : V' [s']
     *)
-    fun createAtomConst (G, H) = 
+    fun createAtomConst (G, cid) = 
       let
-	val cid = (case H 
-	             of (I.Const cid) => cid
-		      | (I.Skonst cid) => cid)
 	val V = I.constType cid
 	val (S, Vs) = createEVarSpine (G, (V, I.id))
       in
-	(I.Root (H, S), Vs)
+	(I.Root (I.Const (cid), S), Vs)
       end
 
     (* createAtomBVar (G, k) = (U', (V', s'))

@@ -12,7 +12,7 @@ sig
   val expand : MetaSyn.State -> operator list 
   val apply : operator -> MetaSyn.State list
 
-  val var : operator -> int
+  val var : operator -> MetaSyn.Var
   val menu : operator -> string
   val index : operator -> int
 end;  (* signature SPLITTING *)

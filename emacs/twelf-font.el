@@ -41,12 +41,13 @@
 ;; for FSF Emacs 19
 (if (not (fboundp 'font-lock-any-faces-p))
     (defun font-lock-any-faces-p (start end)
-      (text-property-not-all start end 'face nil)))
+      (text-property-not-all start end 'font-lock nil)))
 
 ;; for FSF Emacs 19
 (if (not (fboundp 'font-lock-set-face))
     (defun font-lock-set-face (start end face)
-      (put-text-property start end 'face face)))
+      (put-text-property start end 'face face)
+      (put-text-property start end 'font-lock t)))
 
 ;; for FSF Emacs 19
 (if (and (boundp 'font-lock-face-attributes)
@@ -96,12 +97,11 @@
    ;; delimited comments, perhaps should use different font
    ;;("%{" "}%" comment)
    (twelf-font-find-delimited-comment . twelf-font-comment-face)
-   ;; empty-line comments
-   ("%$" 0 twelf-font-comment-face)
    ;; single-line comments
-   ("%[% \t\f].*$" 0 twelf-font-comment-face)
+   ;; replace \\W by \\s- for whitespace?
+   ("%\\W.*$" 0 twelf-font-comment-face)
    ;; %keyword declarations
-   ("\\(%infix\\|%prefix\\|%postfix\\|%name\\|%solve\\|%query\\|%mode\\|%terminates\\|%theorem\\|%prove\\|%assert\\|%establish\\).*$"
+   ("\\(%infix\\|%prefix\\|%prefix\\|%postfix\\|%name\\|%solve\\|%query\\|%mode\\|%terminates\\|%theorem\\|%prove\\).*$"
     1 twelf-font-percent-key-face nil)
    ;; keywords, omit punctuations for now.
    ("\\(\\<<-\\>\\|\\<->\\>\\|\\<type\\>\\|\\<=\\>\\|\\<_\\>\\)"
@@ -174,8 +174,7 @@ regular expressions."
 (defun twelf-font-fontify-decl  ()
   "Fontifies the current Twelf declaration."
   (interactive)
-  (let* ((inhibit-read-only t)		; for FSF Emacs
-	 (region (twelf-current-decl))
+  (let* ((region (twelf-current-decl))
 	 (start (nth 0 region))
 	 (end (nth 1 region)))
     (save-excursion
@@ -185,11 +184,10 @@ regular expressions."
 (defun twelf-font-fontify-buffer ()
   "Fontitifies the current buffer as Twelf code."
   (interactive)
-  (let ((inhibit-read-only t))		; for FSF Emacs
-    (if (not twelf-config-mode)
-	(save-excursion
-	  (font-lock-unfontify-region (point-min) (point-max)) ; t optional in XEmacs
-	  (twelf-font-fontify-region (point-min) (point-max))))))
+  (if (not twelf-config-mode)
+      (save-excursion
+	(font-lock-unfontify-region (point-min) (point-max)) ; t optional in XEmacs
+	(twelf-font-fontify-region (point-min) (point-max)))))
 
 (defun twelf-font-unfontify ()
   "Removes fontification from current buffer."
@@ -363,11 +361,8 @@ variable using the variable OCC-FACE."
 	    (search-forward-regexp (concat "\\<" (regexp-quote word) "\\>")
 				   scope-end 'limit)
 	  ;; Check overlap here!!! --- current bug if in comment
-	  (if (font-lock-any-faces-p (match-beginning 0) (match-end 0))
-	      ;; no overlap --- ignore comments which are fontified already
-	      nil
-	    (font-lock-set-face (match-beginning 0) (match-end 0)
-				occ-face)))
+	  (font-lock-set-face (match-beginning 0) (match-end 0)
+			      occ-face))
 	(goto-char end)
 	(cons start end)))
   ;;)

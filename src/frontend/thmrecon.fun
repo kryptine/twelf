@@ -89,28 +89,18 @@ struct
     fun prove (n, (td, rrs)) = (ThmSyn.PDecl (n, td), rrs)
     fun proveToProve P = P 
 
-    type establish = ThmSyn.PDecl * (Paths.region * Paths.region list)
-    fun establish (n, (td, rrs)) = (ThmSyn.PDecl (n, td), rrs)
-    fun establishToEstablish P = P 
-      
-    type assert = ThmSyn.Callpats * Paths.region list
-    fun assert (cp, rs) = (cp, rs)
-    fun assertToAssert P = P 
-
     type ctx = T.dec I.Ctx
     val null = I.Null
     val decl = I.Decl
 
-    type labeldec = I.Dec I.Ctx * I.Dec I.Ctx
-    type thm = labeldec list * I.Dec I.Ctx * ModeSyn.Mode I.Ctx * int
-
-    type theorem = thm -> thm * Paths.region
+    type theorem = (I.Dec I.Ctx * ModeSyn.Mode I.Ctx * int) 
+                   -> ((I.Dec I.Ctx * ModeSyn.Mode I.Ctx * int) * Paths.region)
     type theoremdec = string * theorem
 
     (* implicit arguments, Type, Modevector *)
 
 
-    (* abstract (GBs, G1, M, G2, k, mode) = (GBs, G', M', k')
+    (* abstract (G1, M, G2, k, mode) = (G', M', k')
      
        Invariant:  
        If   G1 |- M   (where the k-prefix of G1 are implicit parameters)
@@ -120,65 +110,41 @@ struct
        and  M' = M, mode ... mode   (|G2| times)
        
     *)
-    fun abstract (GBs, G, M, I.Null, k, _) = (GBs, G, M, k)
-      | abstract (GBs, G, M, I.Decl (g, d), k, mode) =
+    fun abstract (G, M, I.Null, k, _) = (G, M, k)
+      | abstract (G, M, I.Decl (g, d), k, mode) =
 	let 
-	  val (GBs', G', M', k') = abstract (GBs, G, M, g, k, mode)
+	  val (G', M', k') = abstract (G, M, g, k, mode)
 	  val D = T.decToDec (G', d)
 	in
-	  (GBs', I.Decl (G', D), I.Decl (M', mode), k)
-	end
-
-    fun abstractCtx (G, I.Null) = (G, I.Null)
-      | abstractCtx (G, I.Decl (ctx, d)) =
-        let
-	  val (G', G'') = abstractCtx (G, ctx)
-	  val D = T.decToDec (G', d)
-	in
-          (I.Decl (G', D), I.Decl (G'', D))
-	end
-
-    fun abstractCtxPair (ctxSome, ctxPi) =
-        let
-	  val (_, G1) = abstractCtx (I.Null, ctxSome)
-	  val (_, G2) = abstractCtx (G1, ctxPi)
-	in
-	  (G1, G2)
+	  (I.Decl (G', D), I.Decl (M', mode), k)
 	end
    
-    fun top r (GBs, G, M, k) = ((GBs, G, M, k), r)
-    fun exists (g, (r, t)) (GBs, G, M, k) = 
+    fun top r (G, M, k) = ((G, M, k), r)
+    fun exists (g, (r, t)) (G, M, k) = 
         let 
-	  val (t', r') = t (abstract (GBs, G, M, g, k, M.Minus))
+	  val (t', r') = t (abstract (G, M, g, k, M.Minus))
 	in
 	  (t', P.join (r, r'))
 	end
-    fun forall (g, (r, t)) (GBs, G, M, k) = 
+    fun forall (g, (r, t)) (G, M, k) = 
         let 
-	  val (t', r') = t (abstract (GBs, G, M, g, k, M.Plus))
+	  val (t', r') = t (abstract (G, M, g, k, M.Plus))
 	in
 	  (t', P.join (r, r'))
 	end
-    fun forallStar (g, (r, t)) (GBs, G, M, k) = 
+    fun forallStar (g, (r, t)) (G, M, k) = 
         let
-	  val (t', r') = t (abstract (GBs, G, M, g, I.ctxLength g, M.Plus))
+	  val (t', r') = t (abstract (G, M, g, I.ctxLength g, M.Plus))
 	in
 	  (t', P.join (r, r'))
 	end
-    fun forallG (gbs, (r, t)) (_, G, M, k) =
-         let
-	   val GBs = List.map abstractCtxPair gbs
-	   val (t', r') = t (GBs, G, M, k)
-	 in
-	   (t', P.join (r, r'))
-	 end
 
     fun dec (name, t) = (name, t)
 
     fun theoremToTheorem t = 
         let
 	  val _ = Names.varReset ()
-	  val (t', r') = t (nil, I.Null, I.Null, 0)
+	  val (t', r') = t (I.Null, I.Null, 0)
 	in
 	  (L.ThDecl t', r')
 	end
@@ -206,16 +172,9 @@ struct
     type prove = prove
     val prove = prove
 
-    type establish = establish
-    val establish = establish
-
-    type assert = assert
-    val assert = assert
 
     val tdeclTotDecl = tdeclTotDecl
     val proveToProve = proveToProve
-    val establishToEstablish = establishToEstablish
-    val assertToAssert = assertToAssert
       
     type ctx = ctx
     val null = null
@@ -226,7 +185,6 @@ struct
     val forallStar = forallStar
     val forall = forall
     val exists = exists
-    val forallG = forallG
     val theoremToTheorem = theoremToTheorem 
 
     type theoremdec = theoremdec

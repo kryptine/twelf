@@ -7,9 +7,9 @@ sig
   structure IntSyn: INTSYN
   structure CompSyn: COMPSYN
 
-  val goalToString: string -> IntSyn.dctx * CompSyn.Goal -> string
-  val clauseToString: string -> IntSyn.dctx * CompSyn.ResGoal -> string
+  val goalToString: IntSyn.dctx * CompSyn.Goal -> string
+  val clauseToString: IntSyn.dctx * CompSyn.ResGoal -> string
   val sProgToString: unit -> string
-  val dProgToString: CompSyn.DProg -> string
+  val dProgToString: CompSyn.dprog -> string
 
 end; (* signature CPRINT *)

@@ -4,12 +4,13 @@
 signature PATHS =
 sig
 
-  datatype region = Reg of int * int	(* r ::= (i,j) is interval [i,j) *)
-  datatype location = Loc of string * region (* loc ::= (filename, region) *)
+  type pos = int			(* characters, starting at 0 *)
+  type region = pos * pos		(* r ::= (i,j) is interval [i,j) *)
+  type location = string * region	(* loc ::= (filename, region) *)
 
   (* line numbering, used when printing regions *)
   val resetLines : unit -> unit		(* reset line numbering *)
-  val newLine : int -> unit		(* new line starts at character i *)
+  val newLine : pos -> unit		(* new line starts at character i *)
 
   val join : region * region -> region	(* join(r1,r2) = smallest region enclosing r1 and r2 *)
   val toString : region -> string	(* line1.col1-line2.col2, parsable by Emacs *)
@@ -62,7 +63,7 @@ sig
   val toRegion : occExp -> region
   val toRegionSpine : occSpine * region -> region
 
-  val posToPath : occExp -> int -> Path
+  val posToPath : occExp -> pos -> Path
 
   val occToRegionExp : occExp -> occ -> region
   val occToRegionDec : occConDec -> occ -> region (* into v for c : V *)

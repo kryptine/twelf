@@ -4,6 +4,8 @@
 functor Abstract (structure IntSyn' : INTSYN
 		  structure Whnf    : WHNF
 		    sharing Whnf.IntSyn = IntSyn'
+		  structure Pattern : PATTERN
+		    sharing Pattern.IntSyn = IntSyn'
 		  structure Unify   : UNIFY
 		    sharing Unify.IntSyn = IntSyn'
 		  structure Constraints : CONSTRAINTS
@@ -23,9 +25,8 @@ struct
     (* Intermediate Data Structure *)
 
     datatype EFVar =
-      EV of I.Exp			(* Y ::= X         for  GX |- X : VX *)
-    | FV of string * I.Exp		(*     | (F , V)      if . |- F : V *)
-
+      EV of I.Exp option ref * I.Exp	(* Y ::= (X , {G} V)  if G |- X : V *)
+    | FV of I.name * I.Exp		(*     | (F , {G} V)  if G |- F : V *)
 
     (*
        We write {{K}} for the context of K, where EVars and FVars have
@@ -44,32 +45,20 @@ struct
        constraints after simplification.
     *)
 
-
-    (* collectConstraints K = eqns
-       where eqns collects all constraints attached to EVars in K
-    *)
-    fun collectConstraints (I.Null) = nil
-      | collectConstraints (I.Decl (G, FV _)) = collectConstraints G
-      | collectConstraints (I.Decl (G, EV (I.EVar (_, _, _, nil)))) = collectConstraints G
-      | collectConstraints (I.Decl (G, EV (I.EVar (_, _, _, Cnstr)))) =
-        C.simplify Cnstr @ collectConstraints G
-
     (* checkEmpty Cnstr = ()
        raises Error exception if constraints Cnstr cannot be simplified
        to the empty constraint
     *)
-    (* 
     fun checkEmpty (nil) = ()
       | checkEmpty (Cnstr) =
         (case C.simplify Cnstr
 	   of nil => ()
 	    | _ => raise Error "Typing ambiguous -- unresolved constraints")
-    *)
 
     (* eqEVar X Y = B
        where B iff X and Y represent same variable
     *)
-    fun eqEVar (I.EVar (r1, _, _, _)) (EV (I.EVar (r2, _, _, _))) = (r1 = r2)
+    fun eqEVar (I.EVar (r1, _, _)) (EV (r2,  _)) = (r1 = r2)
       | eqEVar _ _ = false
 
     (* eqFVar F Y = B
@@ -88,41 +77,25 @@ struct
 	  exists' K
 	end
 
-
-
-    fun or (I.Maybe, _) = I.Maybe
-      | or (_, I.Maybe) = I.Maybe
-      | or (I.Meta, _) = I.Meta
-      | or (_, I.Meta) = I.Meta
-      | or (I.No, I.No) = I.No
-
-      
-    (* occursInExp (k, U) = DP, 
+    (* occursInExp (k, U) = B, 
 
        Invariant:
        If    U in nf 
-       then  DP = No      iff k does not occur in U
-	     DP = Maybe   iff k occurs in U some place not as an argument to a Skonst
-	     DP = Meta    iff k occurs in U and only as arguments to Skonsts
+       then  B iff k occurs in U
     *)
-    fun occursInExp (k, I.Uni _) = I.No
-      | occursInExp (k, I.Pi (DP, V)) = or (occursInDecP (k, DP), occursInExp (k+1, V))
-      | occursInExp (k, I.Root (H, S)) = occursInHead (k, H, occursInSpine (k, S))
-      | occursInExp (k, I.Lam (D, V)) = or (occursInDec (k, D), occursInExp (k+1, V))
+    fun occursInExp (k, I.Uni _) = false
+      | occursInExp (k, I.Pi (DP, V)) = occursInDecP (k, DP) orelse occursInExp (k+1, V)
+      | occursInExp (k, I.Root (H, S)) = occursInHead (k, H) orelse occursInSpine (k, S)
+      | occursInExp (k, I.Lam (D, V)) = occursInDec (k, D) orelse occursInExp (k+1, V)
       (* no case for Redex, EVar, EClo *)
 
-    and occursInHead (k, I.BVar (k'), DP) = 
-        if (k = k') then I.Maybe
-	else DP
-      | occursInHead (k, I.Const _, DP) = DP
-      | occursInHead (k, I.Def _, DP) = DP
-      | occursInHead (k, I.Skonst _, I.No) = I.No
-      | occursInHead (k, I.Skonst _, I.Meta) = I.Meta
-      | occursInHead (k, I.Skonst _, I.Maybe) = I.Meta
+    and occursInHead (k, I.BVar (k')) = (k = k')
+      | occursInHead (k, I.Const _) = false
+      | occursInHead (k, I.Def _) = false
       (* no case for FVar *)
 
-    and occursInSpine (_, I.Nil) = I.No
-      | occursInSpine (k, I.App (U, S)) = or (occursInExp (k, U), occursInSpine (k, S))
+    and occursInSpine (_, I.Nil) = false
+      | occursInSpine (k, I.App (U, S)) = occursInExp (k, U) orelse occursInSpine (k, S)
       (* no case for SClo *)
 
     and occursInDec (k, I.Dec (_, V)) = occursInExp (k, V)
@@ -134,20 +107,42 @@ struct
     (* optimize to have fewer traversals? -cs *)
     (* pre-Twelf 1.2 code walk Fri May  8 11:17:10 1998 *)
     fun piDepend (DPV as ((D, I.No), V)) = I.Pi DPV
-      | piDepend (DPV as ((D, I.Meta), V)) = I.Pi DPV
       | piDepend ((D, I.Maybe), V) = 
-	  I.Pi ((D, occursInExp (1, V)), V)
-	
-    (* raiseType (G, V) = {{G}} V
+        if occursInExp (1, V)
+	  then I.Pi ((D, I.Maybe), V)
+	else I.Pi ((D, I.No), V)
 
-       Invariant:
-       If G |- V : L
-       then  . |- {{G}} V : L
-
-       All abstractions are potentially dependent.
+    (* raiseType (G, (V, s)) = V'
+     
+       Invariant: 
+       If   G |- s : G'     G' |- V : L
+       then V' = {G'} V
+       and  . |- V' : L
     *)
-    fun raiseType (I.Null, V) = V
-      | raiseType (I.Decl (G, D), V) = raiseType (G, I.Pi ((D, I.Maybe), V))
+    fun raiseType (G, (V, s)) = 
+      let 
+	val depth = I.ctxLength (G)
+	fun raiseType' (I.Shift (k), V) =
+	    if k < depth
+	      then raiseType' (I.Dot (I.Idx (k+1), I.Shift (k+1)), V)
+	    else (* k = depth *) V
+	  | raiseType' (I.Dot (I.Idx (k), s'), V) =
+            let val D =
+	          if Pattern.checkSub s'
+		    then let
+			   val I.Dec (name, V) =  I.ctxDec (G, k)
+			 in (* must succeed --- do not handle Unify.NonInvertible *)
+			   I.Dec (name, Unify.safeInvertExp((V, I.id), s'))
+			 end
+		  else raise Error "Typing ambiguous -- mixed substitution cannot be raised"
+	    in
+	      raiseType' (s', I.Pi ((D, I.Maybe), V))
+	    end
+	  | raiseType' (I.Dot (I.Exp (_, V'), s'), V) =
+	      raiseType' (s', I.Pi ((I.Dec (NONE, V'), I.Maybe), V))
+      in
+	raiseType' (s, V)
+      end
 
     (* collectExpW (G, (U, s), K) = K'
 
@@ -171,14 +166,14 @@ struct
 	  collectSpine (G, (S, s), K)
       | collectExpW (G, (I.Lam (D, U), s), K) =
 	  collectExp (I.Decl (G, I.decSub (D, s)), (U, I.dot1 s), collectDec (G, (D, s), K))
-      | collectExpW (G, (X as I.EVar (r, GX, V, Cnstr), s), K) =
+      | collectExpW (G, (X as I.EVar (r, V, Cnstr), s), K) =
 	  if exists (eqEVar X) K
 	    then collectSub(G, s, K)
 	  else let
-	         (* val _ = checkEmpty Cnstr *)
-		 val V' = raiseType (GX, V) (* inefficient! *)
+	         val _ = checkEmpty Cnstr
+		 val V' = raiseType(G, (V, s))
 	       in
-		 collectSub(G, s, I.Decl (collectExp (I.Null, (V', I.id), K), EV (X)))
+		 collectSub(G, s, I.Decl (collectExp (I.Null, (V', I.id), K), EV(r, V')))
 	       end
       (* No other cases can occur due to whnf invariant *)
 
@@ -220,7 +215,10 @@ struct
     *)
     and collectSub (G, I.Shift _, K) = K
       | collectSub (G, I.Dot (I.Idx _, s), K) = collectSub (G, s, K)
-      | collectSub (G, I.Dot (I.Exp (U), s), K) =
+      | collectSub (G, I.Dot (I.Exp (U, V), s), K) =
+          (* Staging invariant guarantees that we do not need to collect in V? -fp *)
+          (* relies on left-to-right traversal, see also remarks on invertExpW in unify.fun *)
+          (* pre-Twelf 1.2 code walk Fri May  8 11:08:40 1998 *)
 	  collectSub (G, s, collectExp (G, (U, I.id), K))
 
     (* abstractEVar (K, depth, X) = C'
@@ -232,7 +230,7 @@ struct
        then C' = BVar (depth + k)
        and  {{K}}, G |- C' : V
     *)
-    fun abstractEVar (I.Decl (K', EV (I.EVar(r',_,_,_))), depth, X as I.EVar (r, _, _, _)) =
+    fun abstractEVar (I.Decl (K', EV (r', _)), depth, X as I.EVar (r, _, _)) =
         if r = r' then I.BVar (depth+1)
 	else abstractEVar (K', depth+1, X)
       | abstractEVar (I.Decl (K', FV (n', _)), depth, X) = 
@@ -303,7 +301,7 @@ struct
 	else (* k = depth *) S
       | abstractSub (K, depth, I.Dot (I.Idx (k), s), S) =
 	  abstractSub (K, depth, s, I.App (I.Root (I.BVar (k), I.Nil), S))
-      | abstractSub (K, depth, I.Dot (I.Exp (U), s), S) =
+      | abstractSub (K, depth, I.Dot (I.Exp (U, _), s), S) =
 	  abstractSub (K, depth, s, I.App (abstractExp (K, depth, (U, I.id)), S))
  
     (* abstractSpine (K, depth, (S, s)) = S'
@@ -370,9 +368,8 @@ struct
        and  . ||- V'
     *)
     fun abstractKPi (I.Null, V) = V
-      | abstractKPi (I.Decl (K', EV (I.EVar (_, GX, VX, _))), V) =
+      | abstractKPi (I.Decl (K', EV (_, V')), V) =
         let
-          val V' = raiseType (GX, VX) 
 	  val V'' = abstractExp (K', 0, (V', I.id))
 	  val _ = checkType V''	
 	in
@@ -399,16 +396,12 @@ struct
        and  . ||- U'
     *)
     fun abstractKLam (I.Null, U) = U
-      | abstractKLam (I.Decl (K', EV (I.EVar (_, GX, VX, _))), U) =
-        let
-	  val V' = raiseType (GX, VX)
-	in
+      | abstractKLam (I.Decl (K', EV (_,V')), U) =
           abstractKLam (K', I.Lam (I.Dec(NONE, abstractExp (K', 0, (V', I.id))), U))
-	end
       | abstractKLam (I.Decl (K', FV (name,V')), U) =
  	  abstractKLam (K', I.Lam (I.Dec(SOME(name), abstractExp (K', 0, (V', I.id))), U))
 
-    (* abstractDecImp V = (k', V')   (* rename --cs  (see above) *)
+    (* abstractDec V = (k', V')
 
        Invariant: 
        If    . |- V : L
@@ -419,13 +412,9 @@ struct
        and   . ||- V'
        and   k' = |K|
     *)
-    fun abstractDecImp V =
+    fun abstractDec V =
         let
 	  val K = collectExp (I.Null, (V, I.id), I.Null)
-	  val constraints = collectConstraints K
-	  val _ = case constraints
-	            of nil => ()
-		     | _ => raise C.Error (constraints)
 	in
 	  (I.ctxLength K, abstractKPi (K, abstractExp (K, 0, (V, I.id))))
 	end 
@@ -461,49 +450,12 @@ struct
 	of I.Null => true
          | _ => false
 
-    fun closedSub (G, I.Shift _) = true
-      | closedSub (G, I.Dot (I.Idx _, s)) = closedSub (G, s)
-      | closedSub (G, I.Dot (I.Exp U, s)) = 
-      (case collectExp (G, (U, I.id), I.Null)
-	 of I.Null => closedSub (G, s)
-          | _ => false)
-
-    fun closedExp (G, (U, s)) = 
-      case collectExp (G, (U, I.id), I.Null)
-	of I.Null => true
-         | _ => false
-
-    fun closedCtx I.Null = true
-      | closedCtx (I.Decl (G, D)) =
-          closedCtx G andalso closedDec (G, (D, I.id))
-
-    fun evarsToK (nil) = I.Null
-      | evarsToK (X::Xs) = I.Decl (evarsToK (Xs), EV(X))
-
-    fun KToEVars (I.Null) = nil
-      | KToEVars (I.Decl (K, EV(X))) = X::KToEVars (K)
-      | KToEVars (I.Decl (K, _)) = KToEVars (K)
-
-    (* collectEVars (G, U[s], Xs) = Xs'
-       Invariants:
-         G |- U[s] : V
-         Xs' extends Xs by new EVars in U[s]
-    *)
-    fun collectEVars (G, Us, Xs) =
-          KToEVars (collectExp (G, Us, evarsToK (Xs)))
-
   in
-
+    val raiseType = raiseType
     val piDepend = piDepend
     val closedDec = closedDec
-    val closedSub = closedSub
-    val closedExp = closedExp 
 
-    val abstractDecImp = abstractDecImp
+    val abstractDec = abstractDec
     val abstractDef = abstractDef
-
-    val collectEVars = collectEVars
-
-    val closedCtx = closedCtx
   end
 end;  (* functor Abstract *)

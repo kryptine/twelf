@@ -22,8 +22,6 @@ struct
     structure M = MetaSyn
     structure I = MetaSyn.IntSyn
 
-    exception Success of M.State
-
     fun delay (search, Params) () = 
       (search Params
        handle Search.Error s => raise Error s)
@@ -46,21 +44,20 @@ struct
         and OL' is a list containing one operator which instantiates all - non-index variables
 	  in V' with the smallest possible terms.
     *)
-    fun operators (G, GE, Vs, abstractAll, abstractEx,  makeAddress) =
-          operatorsW (G, GE, Whnf.whnf Vs, abstractAll, abstractEx,  makeAddress)
-    and operatorsW (G, GE, Vs as (I.Root (C, S), _), abstractAll, abstractEx,  makeAddress) =
+    fun operators (G, GE, Vs, abstract, makeAddress) =
+          operatorsW (G, GE, Whnf.whnf Vs, abstract, makeAddress)
+    and operatorsW (G, GE, Vs as (I.Root (C, S), _), abstract, makeAddress) =
           (nil, 
-	   (makeAddress 0, delay (fn Params => (Search.searchEx Params handle Success S => [S]), 
-				  (G, GE, Vs, abstractEx))))
+	   (makeAddress 0, delay (Search.searchEx, (G, GE, Vs, abstract))))
       | operatorsW (G, GE, (I.Pi ((D as I.Dec (_, V1), P), V2), s), 
-		    abstractAll, abstractEx,  makeAddress) = 
+		    abstract, makeAddress) = 
 	let 
 	  val (GO', O) = operators (I.Decl (G, I.decSub (D, s)), GE, (V2, I.dot1 s), 
-				    abstractAll, abstractEx,  
+				    abstract, 
 				    makeAddressCont makeAddress)
 	in
 	  ((makeAddress 0, delay (Search.searchAll, 
-				  (G, GE, (V1, s), abstractAll))) :: GO', O)
+				  (G, GE, (V1, s), abstract))) :: GO', O)
 	end
 
 
@@ -72,8 +69,7 @@ struct
        then |- G' ctx
        and  G' |- M' mtx
        and  G' |- s' : G
-       and  GE a list of EVars
-
+       and  GE a list (G, X) of EVars and their contexts in s'
     *)
     fun createEVars (M.Prefix (I.Null, I.Null, I.Null)) = 
           (M.Prefix (I.Null, I.Null, I.Null), I.id, nil)
@@ -87,10 +83,9 @@ struct
       | createEVars (M.Prefix (I.Decl (G, I.Dec (_, V)), I.Decl (M, M.Bot), I.Decl (B, _))) =
 	let 
 	  val (M.Prefix (G', M', B'), s', GE') = createEVars (M.Prefix (G, M, B))
-	  val X = I.newEVar (G', I.EClo (V, s'))
-	  val X' = Whnf.lowerEVar X
+	  val X  = I.newEVar (I.EClo (V, s'))
 	in
-	  (M.Prefix (G', M', B'), I.Dot (I.Exp (X), s'), X' :: GE')
+	  (M.Prefix (G', M', B'), I.Dot (I.Exp (X, V), s'), (G', X) :: GE')
 	end
 
 
@@ -111,15 +106,11 @@ struct
     fun expand (S as M.State (name, M.Prefix (G, M, B), V)) = 
 	let 
 	  val (M.Prefix (G', M', B'), s', GE') = createEVars (M.Prefix (G, M, B))
-	  fun abstractAll acc = (MetaAbstract.abstract (M.State (name, M.Prefix (G', M', B'),
-								I.EClo (V, s'))) :: acc
-				handle MetaAbstract.Error s => acc)
-	  fun abstractEx () = (raise Success (MetaAbstract.abstract (M.State (name, M.Prefix (G', M', B'),
-							       I.EClo (V, s')))))
-			       handle MetaAbstract.Error s => ()
-
+	  fun abstract () = (MetaAbstract.abstract (M.State (name, M.Prefix (G', M', B'),
+							     I.EClo (V, s')))
+			     handle MetaAbstract.Error s => raise Error s)
 	in
-	  operators (G', GE', (V, s'), abstractAll, abstractEx, makeAddressInit S)
+	  operators (G', GE', (V, s'), abstract, makeAddressInit S) 
 	end
     
 

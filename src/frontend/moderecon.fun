@@ -3,8 +3,8 @@
 
 functor ModeRecon (structure Global : GLOBAL
 		   structure ModeSyn' : MODESYN
-		   structure Whnf : WHNF
-		     sharing Whnf.IntSyn = ModeSyn'.IntSyn
+		   structure Pattern : PATTERN
+		     sharing Pattern.IntSyn = ModeSyn'.IntSyn
 		   structure Paths' : PATHS
 		   structure ModePrint : MODEPRINT
 		     sharing ModePrint.ModeSyn = ModeSyn'
@@ -68,8 +68,8 @@ struct
 	    fun convertSpine (I.Nil) = M.Mnil
 	      | convertSpine (I.App (U, S)) = 
 		let 
-		  val k = Whnf.etaContract U
-		          handle Whnf.Eta => 
+		  val k = Pattern.etaContract U
+		          handle Pattern.Eta => 
 			    error (r, "Argument not a variable")  (* print U? -fp *)
 		  val I.Dec (name, _) = I.ctxLookup (G, k)
 		  val mode = I.ctxLookup (D, k)
@@ -83,8 +83,6 @@ struct
 	      | convertExp (I.Root (I.Def (d), S))  = 
 		  (* error is signalled later in ModeDec.checkFull *)
 		  (d, convertSpine S)
-	      (* convertExp (I.Root (I.Skonst _, S)) can't occur *)
-		  
 
 	    val (a, mS) = convertExp (T.termToExp (G, t))
 	  in

@@ -4,30 +4,28 @@
 functor Parser (structure Parsing' : PARSING
 		structure Stream' : STREAM (* result stream *)
 		structure ExtSyn' : EXTSYN
-		  sharing ExtSyn'.Paths = Parsing'.Lexer.Paths
 		structure ExtSynQ' : EXTSYN
-		  sharing ExtSynQ'.Paths = Parsing'.Lexer.Paths
 		structure Names' : NAMES
 		structure ExtModes' : EXTMODES
 		structure ThmExtSyn' : THMEXTSYN
 		structure ParseConDec : PARSE_CONDEC
-		  sharing ParseConDec.Parsing.Lexer = Parsing'.Lexer
+		  sharing ParseConDec.Parsing = Parsing'
 		  sharing ParseConDec.ExtSyn = ExtSyn'
 		structure ParseQuery : PARSE_QUERY
-		  sharing ParseQuery.Parsing.Lexer = Parsing'.Lexer
+		  sharing ParseQuery.Parsing = Parsing'
 		  sharing type ParseQuery.ExtSyn.term = ExtSynQ'.term
 		  sharing type ParseQuery.ExtSyn.query = ExtSynQ'.query
 		structure ParseFixity : PARSE_FIXITY
-		  sharing ParseFixity.Parsing.Lexer = Parsing'.Lexer
+		  sharing ParseFixity.Parsing = Parsing'
 		  sharing ParseFixity.Names = Names' 
                 structure ParseMode : PARSE_MODE
-		  sharing ParseMode.Parsing.Lexer = Parsing'.Lexer
+		  sharing ParseMode.Parsing = Parsing'
 		  sharing ParseMode.ExtModes = ExtModes'
 	        structure ParseThm : PARSE_THM
-		  sharing ParseThm.Parsing.Lexer = Parsing'.Lexer
+		  sharing ParseThm.Parsing = Parsing'
 		  sharing ParseThm.ThmExtSyn = ThmExtSyn'
                 structure ParseTermQ : PARSE_TERM 
-                  sharing ParseTermQ.Parsing.Lexer = Parsing'.Lexer
+                  sharing ParseTermQ.Parsing = Parsing'
                   sharing type ParseTermQ.ExtSyn.term = ExtSynQ'.term
 		  sharing type ParseTermQ.ExtSyn.query = ExtSynQ'.query)
   : PARSER =
@@ -43,16 +41,14 @@ struct
 
   datatype fileParseResult =
       ConDec of ExtSyn.condec * ExtSyn.Paths.region
-    | FixDec of (string * ExtSyn.Paths.region) * Names.Fixity.fixity
-    | NamePref of (string * ExtSyn.Paths.region) * (string * string option)
+    | FixDec of (ExtSyn.name * ExtSyn.Paths.region) * Names.Fixity.fixity
+    | NamePref of (ExtSyn.name * ExtSyn.Paths.region) * ExtSyn.name  
     | ModeDec of ExtModes.modedec
     | TerminatesDec of ThmExtSyn.tdecl
     | TheoremDec of ThmExtSyn.theoremdec
     | ProveDec of ThmExtSyn.prove
-    | EstablishDec of ThmExtSyn.establish
-    | AssertDec of ThmExtSyn.assert
     | Query of int option * int option * ExtSynQ.query * ExtSyn.Paths.region (* expected, try, A *)
-    | Solve of (string * ExtSynQ.term) * ExtSyn.Paths.region
+    | Solve of (ExtSyn.name * ExtSynQ.term) * ExtSyn.Paths.region
     (* Further pragmas to be added later here *)
 
   local
@@ -134,8 +130,6 @@ struct
       | parseStream' (f as LS.Cons ((L.TERMINATES, r), s')) = parseTerminates' f
       | parseStream' (f as LS.Cons ((L.THEOREM, r), s')) = parseTheorem' f
       | parseStream' (f as LS.Cons ((L.PROVE, r), s')) = parseProve' f
-      | parseStream' (f as LS.Cons ((L.ESTABLISH, r), s')) = parseEstablish' f
-      | parseStream' (f as LS.Cons ((L.ASSERT, r), s')) = parseAssert' f
       | parseStream' (LS.Cons ((L.EOF, r), s')) = Stream.Empty
       | parseStream' (LS.Cons ((t,r), s')) =
 	  Parsing.error (r, "Expected constant name or pragma keyword, found "
@@ -182,20 +176,6 @@ struct
 	  val (ldec, f') = ParseThm.parseProve' (f)
 	in
 	  Stream.Cons (ProveDec ldec, parseStream (stripDot f'))
-	end
-
-    and parseEstablish' (f) =
-        let
-	  val (ldec, f') = ParseThm.parseEstablish' (f)
-	in
-	  Stream.Cons (EstablishDec ldec, parseStream (stripDot f'))
-	end
-
-    and parseAssert' (f) =
-        let
-	  val (ldec, f') = ParseThm.parseAssert' (f)
-	in
-	  Stream.Cons (AssertDec ldec, parseStream (stripDot f'))
 	end
 
     fun parseQ (s) = Stream.delay (fn () => parseQ' (LS.expose s))

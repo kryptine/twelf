@@ -94,7 +94,7 @@ struct
     fun decToVarName (I.Dec (NONE, _)) = "implicit variable"
       | decToVarName (I.Dec (SOME(x), _)) = "variable " ^ x
 
-    (* strictTop ((U, V), ocdOpt) = ()
+    (* strictTop (condec, ocdOpt) = ()
        
        Invariant:
        condec has form c = U : V where . |- U : V
@@ -105,7 +105,7 @@ struct
 
        ocdOpt is an optional occurrence tree for condec for error messages
     *)
-    fun strictTop ((U, V), ocdOpt) =
+    fun strictTop (I.ConDef (_, _, U, V, _), ocdOpt) =
         let fun strictArgParms (I.Root (I.BVar _, _), _, occ) =
                 raise Error (occToString (ocdOpt, occ) ^ "Head not rigid")
 	      | strictArgParms (I.Root _, _, _) = ()
@@ -115,12 +115,8 @@ struct
 		else raise Error (occToString (ocdOpt, occ)
 				  ^ "No strict occurrence of " ^ decToVarName D)
 	in
-	  (strictArgParms (U, V, Paths.top); true) handle Error _ => false
+	  strictArgParms (U, V, Paths.top)
 	end
-
-
-      
-
   in
     val check = strictTop
   end

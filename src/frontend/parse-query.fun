@@ -5,7 +5,7 @@ functor ParseQuery
   (structure Parsing' : PARSING
    structure ExtSyn' : EXTSYN
    structure ParseTerm : PARSE_TERM
-     sharing ParseTerm.Parsing.Lexer = Parsing'.Lexer
+     sharing ParseTerm.Parsing = Parsing'
      sharing ParseTerm.ExtSyn = ExtSyn')
   : PARSE_QUERY =
 struct

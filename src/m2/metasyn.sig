@@ -23,6 +23,10 @@ sig
     SgnEmpty				(* IS ::= .                   *)
   | ConDec of IntSyn.ConDec * Sgn       (*      | c:V, IS             *)
 
-  val createAtomConst : IntSyn.dctx * IntSyn.Head -> (IntSyn.Exp * IntSyn.eclo)
+  type Var = int
+
+  val createAtomConst : IntSyn.dctx * IntSyn.cid -> (IntSyn.Exp * IntSyn.eclo)
   val createAtomBVar : IntSyn.dctx * int -> (IntSyn.Exp * IntSyn.eclo)
 end; (* signature METASYN *)
+
+

@@ -58,13 +58,13 @@ struct
 	 cases from I
     *)
     fun constCases (G, Vs, nil, abstract, ops) = ops
-      | constCases (G, Vs, I.Const c::Sgn, abstract, ops) = 
+      | constCases (G, Vs, c::Sgn, abstract, ops) = 
 	let
-	  val (U, Vs') = M.createAtomConst (G, I.Const c)
+	  val (U, Vs') = M.createAtomConst (G, c)
 	in
 	  constCases (G, Vs, Sgn, abstract,
 		      Trail.trail (fn () => 
-				   (if Unify.unifiable (G, Vs, Vs')
+				   (if Unify.unifiable (Vs, Vs')
 				      then Active (abstract (I.conDecName (I.sgnLookup c) ^ "/", U))
 					   :: ops
 				    else ops)
@@ -88,7 +88,7 @@ struct
 	in
 	  paramCases (G, Vs, k-1, abstract, 
 		      Trail.trail (fn () =>
-				   (if Unify.unifiable (G, Vs, Vs')
+				   (if Unify.unifiable (Vs, Vs')
 				      then Active (abstract (Int.toString k ^ "/", U)) :: ops
 				    else ops)
 				   handle MetaAbstract.Error _ => InActive  :: ops))
@@ -126,7 +126,7 @@ struct
     fun split (M.Prefix (G, M, B), (D as I.Dec (_, V), s), abstract) = 
            lowerSplitDest (I.Null, (V, s), 
 			   fn (name', U') => abstract (name', M.Prefix (G, M, B),
-						       I.Dot (I.Exp (U'), s)))
+						       I.Dot (I.Exp (U', V), s)))
       
     (* rename to add N prefix? *)
     (* occursIn (k, U) = B, 
@@ -144,7 +144,6 @@ struct
     and occursInCon (k, I.BVar (k')) = (k = k')
       | occursInCon (k, I.Const _) = false
       | occursInCon (k, I.Def _) = false
-      | occursInCon (k, I.Skonst _) = false
       (* no case for FVar *)
 
     and occursInSpine (_, I.Nil) = false
@@ -424,7 +423,7 @@ struct
 			 abstractCont ((D, mode, b), abstract),
 			 makeAddressCont makeAddress)
 	    val I.Dec (xOpt, V) = D
-	    val X = I.newEVar (G', I.EClo (V, s'))
+	    val X = I.newEVar (I.EClo (V, s'))
 	    val ops' = if b > 0 (* check if splitting bound > 0 *)
 		andalso not (isIndex 1) andalso checkDec (M, D)
 			   then 
@@ -432,7 +431,7 @@ struct
 			       :: ops
 		       else ops
 	  in
-	    (M.Prefix (G', M', B'), I.Dot (I.Exp (X), s'), ops')
+	    (M.Prefix (G', M', B'), I.Dot (I.Exp (X, V), s'), ops')
 	  end
       | expand' (M.Prefix (I.Decl (G, D), I.Decl (M, mode as M.Bot), I.Decl (B, b)),
 		 isIndex, abstract, makeAddress) = 

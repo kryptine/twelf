@@ -45,10 +45,8 @@ struct
 
     fun tDeclToString (L.TDecl (O, L.Callpats L)) = F.makestring_fmt (F.HVbox (fmtOrder O @ 
 							   (F.String " " :: fmtCallpats L)))
-    fun callpatsToString (L.Callpats L) = F.makestring_fmt (F.HVbox (fmtCallpats L))
   in
     val tDeclToString = tDeclToString
-    val callpatsToString = callpatsToString
   end (* local *)
 
 end; (* functor ThmPrint *)

@@ -28,18 +28,11 @@ struct
     datatype associativity = Left | Right | None
 
     (* Operator Precedence *)
-    datatype precedence = Strength of int
+    type precedence = int
 
     (* Maximal and minimal precedence which can be declared explicitly *)
-    val maxPrec = Strength(9999)
-    val minPrec = Strength(0)
-
-    fun less (Strength(p), Strength(q)) = (p < q)
-    fun leq (Strength(p), Strength(q)) = (p <= q)
-    fun compare (Strength(p), Strength(q)) = Int.compare (p, q)
-
-    fun inc (Strength(p)) = Strength(p+1)
-    fun dec (Strength(p)) = Strength(p-1)
+    val maxPrec = 9999
+    val minPrec = 0
 
     (* Fixities ascribed to constants *)
     datatype fixity =
@@ -52,14 +45,14 @@ struct
     fun prec (Infix(p,_)) = p
       | prec (Prefix(p)) = p
       | prec (Postfix(p)) = p
-      | prec (Nonfix) = inc (maxPrec)
+      | prec (Nonfix) = maxPrec+1
 
     (* toString (fix) = declaration corresponding to fix *)
-    fun toString (Infix(Strength(p),Left)) = "%infix left " ^ Int.toString p
-      | toString (Infix(Strength(p),Right)) = "%infix right " ^ Int.toString p
-      | toString (Infix(Strength(p),None)) = "%infix none " ^ Int.toString p
-      | toString (Prefix(Strength(p))) = "%prefix " ^ Int.toString p
-      | toString (Postfix(Strength(p))) = "%postfix " ^ Int.toString p
+    fun toString (Infix(p,Left)) = "%infix left " ^ Int.toString p
+      | toString (Infix(p,Right)) = "%infix right " ^ Int.toString p
+      | toString (Infix(p,None)) = "%infix none " ^ Int.toString p
+      | toString (Prefix(p)) = "%prefix " ^ Int.toString p
+      | toString (Postfix(p)) = "%postfix " ^ Int.toString p
       | toString (Nonfix) = "%nonfix"	(* not legal input *)
 
   end  (* structure Fixity *)
@@ -89,8 +82,6 @@ struct
      raises Error (msg) otherwise
   *)
   fun checkArgNumber (IntSyn.ConDec (name, i, V, L), n) =
-	checkAtomic (name, V, i+n)
-    | checkArgNumber (IntSyn.SkoDec (name, i, V, L), n) =
 	checkAtomic (name, V, i+n)
     | checkArgNumber (IntSyn.ConDef (name, i, _, V, L), n) =
 	checkAtomic (name, V, i+n)
@@ -133,7 +124,7 @@ struct
   *)
 
   (* nameInfo carries the print name and fixity for a constant *)
-  datatype nameInfo = NameInfo of string * Fixity.fixity
+  datatype nameInfo = NameInfo of IntSyn.name * Fixity.fixity
 
   local
     val maxCid = Global.maxCid
@@ -148,7 +139,7 @@ struct
     fun hashClear () = HashTable.clear sgnHashTable
 
     (* namePrefTable maps constants (cids) to name preferences (strings) *)
-    val namePrefTable : (string * string) IntTree.Table = IntTree.new (0)
+    val namePrefTable : IntSyn.name IntTree.Table = IntTree.new (0)
     val namePrefInsert = IntTree.insert namePrefTable
     val namePrefLookup = IntTree.lookup namePrefTable
     fun namePrefClear () = IntTree.clear namePrefTable
@@ -231,13 +222,11 @@ struct
             | NONE => Fixity.Nonfix)
 
     (* Name Preferences *)
-    (* ePref is the name preference for existential variables of given type *)
-    (* uPref is the name preference for universal variables of given type *)
 
-    (* installNamePref' (name, cidOpt, ePref, uPref) see installNamePref *)
-    fun installNamePref' (name, NONE, (ePref, uPref)) =
+    (* installNamePref' (name, cidOpt, namePref) see installNamePref *)
+    fun installNamePref' (name, NONE, namePref) =
         raise Error ("Undeclared identifier " ^ name ^ " cannot be given name preference")
-      | installNamePref' (name, SOME(cid), (ePref, uPref)) =
+      | installNamePref' (name, SOME(cid), namePref) =
 	let
 	  val L = IntSyn.constUni (cid)
 	  val _ = case L
@@ -246,42 +235,29 @@ struct
 				    ^ "Name preferences can only be established for type families")
 		     | IntSyn.Kind => ()
 	in
-	  namePrefInsert (cid, (ePref, uPref))
+	  namePrefInsert (cid, namePref)
 	end
 
-    (* installNamePref (name, (ePref, uPrefOpt)) = ()
+    (* installNamePref (name, namePref) = ()
        Effect: install name preference for type family named by 'name'
        raise Error if name is undeclared or name does not refer to a type family
     *)
-    fun installNamePref (name, (ePref, SOME(uPref))) =
-          installNamePref' (name, nameLookup name, (ePref, uPref))
-      | installNamePref (name, (ePref, NONE)) =
-	  installNamePref' (name, nameLookup name, (ePref, String.map Char.toLower ePref))
+    fun installNamePref (name, namePref) =
+          installNamePref' (name, nameLookup name, namePref)
 
-    (* local names are more easily re-used: they don't increment the
-       counter associated with a name
-    *)
-    datatype Extent = Local | Global
-    datatype Role = Exist | Univ of Extent
 
-    fun extent (Exist) = Global
-      | extent (Univ (ext)) = ext
+    fun namePrefOf'' (NONE) = "X"
+      | namePrefOf'' (SOME(namePref)) = namePref
 
-    fun namePrefOf'' (Exist, NONE) = "X"
-      | namePrefOf'' (Univ _, NONE) = "x"
-      | namePrefOf'' (Exist, SOME(ePref, uPref)) = ePref
-      | namePrefOf'' (Univ _, SOME(ePref, uPref)) = uPref
+    fun namePrefOf' (NONE) = "X"
+      | namePrefOf' (SOME(cid)) = namePrefOf'' (namePrefLookup (cid))
 
-    fun namePrefOf' (Exist, NONE) = "X"
-      | namePrefOf' (Univ _, NONE) = "x"
-      | namePrefOf' (role, SOME(cid)) = namePrefOf'' (role, namePrefLookup (cid))
-
-    (* namePrefOf (role, V) = name
+    (* namePrefOf V = name
        where name is the preferred base name for a variable with type V
 
-       V should be a type, but the code is robust, returning the default "X" or "x"
+       V should be a type, but the code is robust, returning the default "X"
     *)
-    fun namePrefOf (role, V) = namePrefOf' (role, IntSyn.targetFamOpt V)
+    fun namePrefOf (V) = namePrefOf' (IntSyn.targetFamOpt V)
 
   end  (* local ... *)
 
@@ -342,9 +318,9 @@ struct
     val evarList : (IntSyn.Exp * string) list ref = ref nil
 
     fun evarReset () = (evarList := nil)
-    fun evarLookup (IntSyn.EVar(r,_,_,_)) =
+    fun evarLookup (IntSyn.EVar(r,_,_)) =
         let fun evlk (nil) = NONE
-	      | evlk ((IntSyn.EVar(r',_,_,_), name)::l) =
+	      | evlk ((IntSyn.EVar(r',_,_), name)::l) =
 	        if r = r' then SOME(name) else evlk l
 	in
 	  evlk (!evarList)
@@ -357,8 +333,8 @@ struct
     (* return a list of names of EVars that have constraints on them *)
     (* Note that EVars which don't have names, will not be considered! *)
     fun evarCnstr' (nil, acc) = acc
-      | evarCnstr' ((Xn as (IntSyn.EVar(ref(NONE), _, _, Constr as (_::_)), name))::l, acc) =
-          evarCnstr' (l, Xn::acc)
+      | evarCnstr' ((IntSyn.EVar(ref(NONE), _, Constr as (_::_)), name)::l, acc) =
+          evarCnstr' (l, name::acc)
       | evarCnstr' (_::l, acc) = evarCnstr' (l, acc)
     fun evarCnstr () = evarCnstr' (!evarList, nil)
 
@@ -396,7 +372,7 @@ struct
     fun getFVarType (name) =
         (case varLookup name
 	   of NONE => let
-			val V = IntSyn.newTypeVar (IntSyn.Null)	(* FVars typed in empty Ctx *)
+			val V = IntSyn.newTypeVar ()
 			val _ = varInsert (name, FVAR (V));
 		      in 
 			 V
@@ -414,9 +390,8 @@ struct
     fun getEVar (name) =
         (case varLookup name
 	   of NONE => let
-			(* free variables typed in empty context *)
-			val V = IntSyn.newTypeVar (IntSyn.Null)
-			val (X as (IntSyn.EVar(r,_,_,_))) = IntSyn.newEVar (IntSyn.Null, V)
+			val V = IntSyn.newTypeVar ()
+			val (X as (IntSyn.EVar(r,_,_))) = IntSyn.newEVar V
 			val _ = varInsert (name, EVAR (X))
 			val _ = evarInsert (X, name)
 		      in 
@@ -424,12 +399,6 @@ struct
 		      end
             | SOME(EVAR(X)) => X)
 	    (* other cases should be impossible *)
-
-    fun getEVarOpt (name) =
-        (case varLookup name
-	  of NONE => NONE
-           | SOME(EVAR(X)) => SOME(X)
-           | SOME(FVAR(X)) => NONE)
 
     (* varDefined (name) = true iff `name' refers to a free variable, *)
     (* which could be an EVar for constant declarations or FVar for queries *)
@@ -464,22 +433,9 @@ struct
 	in
 	  if varDefined name orelse conDefined name
 	     orelse ctxDefined (G,name)
-	    then tryNextName (G, base)
+	    then tryNextName (G,base)
 	  else name
 	end
-
-    fun findNameLocal (G, base, i) =
-        let val name = base ^ (if i = 0 then "" else Int.toString (i))
-	in
-	  if varDefined name orelse conDefined name
-	     orelse ctxDefined (G, name)
-	    then findNameLocal (G, base, i+1)
-	  else name
-	end
-
-    fun findName (G, base, Local) = findNameLocal (G, base, 0)
-      | findName (G, base, Global) = tryNextName (G, base)
-        
 
     val takeNonDigits = Substring.takel (not o Char.isDigit)
 
@@ -492,10 +448,10 @@ struct
        where name is the next unused name appropriate for X,
        based on the name preference declaration for A if X:A
     *)
-    fun newEVarName (G, X as IntSyn.EVar(r, _, V, Cnstr)) =
+    fun newEVarName (G, X as IntSyn.EVar(r, V, Cnstr)) =
         let
 	  (* use name preferences below *)
-	  val name = tryNextName (G, namePrefOf (Exist, V))
+	  val name = tryNextName (G, namePrefOf V)
 	in
 	  (evarInsert (X, name);
 	   name)
@@ -528,109 +484,23 @@ struct
 	   of IntSyn.Dec(SOME(name), _) => name)
               (* NONE should not happen *)
 
-    (* decName' role (G, D) = G,D'
+    (* decName (G, D) = G,D'
        where D' is a possible renaming of the declaration D
        in order to avoid shadowing other variables or constants
        If D does not assign a name, this picks, based on the name
        preference declaration.
     *)
-    fun decName' role (G, IntSyn.Dec (NONE, V)) =
+    fun decName (G, IntSyn.Dec (NONE, V)) =
         let
-	  val name = findName (G, namePrefOf (role, V), extent (role))
+	  val name = tryNextName (G, namePrefOf V)
 	in
 	  IntSyn.Dec (SOME(name), V)
 	end
-      | decName' role (G, D as IntSyn.Dec (SOME(name), V)) =
+      | decName (G, D as IntSyn.Dec (SOME(name), V)) =
 	if varDefined name orelse conDefined name
 	  orelse ctxDefined (G, name)
 	  then IntSyn.Dec (SOME (tryNextName (G, baseOf name)), V)
 	else D
-
-    val decName = decName' Exist
-    val decEName = decName' Exist
-    val decUName = decName' (Univ (Global))
-    val decLUName = decName' (Univ (Local))
-
-    (* ctxName G = G'
-       
-        Invariant:
-	|- G == G' ctx
-	where some Declaration in G' have been named/renamed
-    *)
-    fun ctxName (IntSyn.Null) = IntSyn.Null
-      | ctxName (IntSyn.Decl (G, D)) = 
-        let
-	  val G' = ctxName G
-	in
-	  IntSyn.Decl (G', decName (G', D))
-	end
-
-    (* ctxLUName G = G'
-       like ctxName, but names assigned are local universal names.
-    *)
-    fun ctxLUName (IntSyn.Null) = IntSyn.Null
-      | ctxLUName (IntSyn.Decl (G, D)) = 
-        let
-	  val G' = ctxLUName G
-	in
-	  IntSyn.Decl (G', decLUName (G', D))
-	end
-
-    (* pisEName' (G, V) = V'
-       Assigns names to dependent Pi prefix of V.
-       Used for implicit EVar in constant declarations after abstraction.
-    *)
-    fun pisEName' (G, IntSyn.Pi ((D, IntSyn.Maybe), V)) =
-        let
-	  val D' = decEName (G, D)
-	in
-	  IntSyn.Pi ((D', IntSyn.Maybe),
-		     pisEName' (IntSyn.Decl (G, D'), V))
-	end
-      | pisEName' (G, V) = V
-
-    fun pisEName (V) = pisEName' (IntSyn.Null, V)
-
-    (* defEName' (G, (U,V)) = (U',V')
-       Invariant: G |- U : V  and G |- U' : V' since U == U' and V == V'.
-       Assigns name to dependent Pi prefix of V and corresponding lam prefix of U.
-       Used for implicit EVar in constant definitions after abstraction.
-    *)
-    fun defEName' (G, (IntSyn.Lam (D, U), IntSyn.Pi ((_, P), V))) =
-        let
-	  val D' = decEName (G, D)
-	  val (U', V') = defEName' (IntSyn.Decl (G, D'), (U, V))
-	in
-	  (IntSyn.Lam (D', U'), IntSyn.Pi ((D', P), V'))
-	end
-      | defEName' (G, (U, V)) = (U, V)
-
-    fun defEName UV = defEName' (IntSyn.Null, UV)
-
-    fun nameConDec' (IntSyn.ConDec (name, imp, V, L)) =
-          IntSyn.ConDec (name, imp, pisEName V, L)
-      | nameConDec' (IntSyn.ConDef (name, imp, U, V, L)) =
-	let 
-	  val (U', V') = defEName (U, V)
-	in
-	  IntSyn.ConDef (name, imp, U', V', L)
-	end
-      | nameConDec' (IntSyn.NSConDef (name, imp, U, V, L)) =
-	let 
-	  val (U', V') = defEName (U, V)
-	in
-	  IntSyn.NSConDef (name, imp, U', V', L)
-	end
-      | nameConDec' (skodec) = skodec (* fix ??? *)
-
-    (* Assigns names to variables in a constant declaration *)
-    (* The varReset (); is necessary so that explicitly named variables keep their name *)
-    fun nameConDec (conDec) =
-        (varReset ();			(* declaration is always closed *)
-	 nameConDec' conDec)
-
-    fun skonstName (name) =
-          tryNextName (IntSyn.Null, name)
 
     val namedEVars = namedEVars
     val evarCnstr = evarCnstr

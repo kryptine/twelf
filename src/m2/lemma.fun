@@ -35,9 +35,9 @@ struct
       | createEVars (M.Prefix (I.Decl (G, I.Dec (_, V)), I.Decl (M, M.Bot), I.Decl (B, _))) =
 	let 
 	  val (M.Prefix (G', M', B'), s') = createEVars (M.Prefix (G, M, B))
-	  val X  = I.newEVar (G', I.EClo (V, s'))
+	  val X  = I.newEVar (I.EClo (V, s'))
 	in
-	  (M.Prefix (G', M', B'), I.Dot (I.Exp (X), s'))
+	  (M.Prefix (G', M', B'), I.Dot (I.Exp (X, V), s'))
 	end
 
     (* apply (((G, M), V), a) = ((G', M'), V')
@@ -56,7 +56,7 @@ struct
     fun apply (M.State (name, GM, V), a) =  
 	let 
 	  val (GM' as M.Prefix (G', M', B'), s') = createEVars GM
-	  val (U', Vs') = M.createAtomConst (G', I.Const a)  (* Vs' = type *) 
+	  val (U', Vs') = M.createAtomConst (G', a)  (* Vs' = type *) 
 	in
 	  A.abstract (M.State (name, GM', I.Pi ((I.Dec (NONE, U'), I.No), 
 						I.EClo (V, I.comp (s',I.shift)))))

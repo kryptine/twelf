@@ -10,10 +10,9 @@ sig
 
   exception AbortQuery of string
 
-  val solve : (string * ExtSynQ.term) * Paths.location -> IntSyn.ConDec
+  val solve : (IntSyn.name * ExtSynQ.term) * Paths.region -> IntSyn.ConDec
 
-  val query : (int option * int option * ExtSynQ.query) * Paths.location -> unit
-					(* may raise AbortQuery(msg) *)
+  val query : int option * int option * ExtSynQ.query -> unit (* may raise AbortQuery(msg) *)
   val qLoop : unit -> bool		(* true means normal exit *)
 
 end;  (* signature SOLVE *)

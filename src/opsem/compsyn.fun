@@ -20,19 +20,9 @@ struct
 
   and ResGoal =                         (* Residual Goals             *)
     Eq     of IntSyn.Exp                (* r ::= p = ?                *)
-  | Assign of IntSyn.Exp * AuxGoal      (*     | p = ?, where p has   *)
-					(* only new vars,             *)  
-                                        (* then unify all the vars    *)
   | And    of ResGoal                   (*     | r & (A,g)            *)
               * IntSyn.Exp * Goal       
-  | In     of ResGoal                   (*     | r && (A,g)           *)
-              * IntSyn.Exp * Goal       
   | Exists of IntSyn.Dec * ResGoal      (*     | exists x:A. r        *)
-  | Exists' of IntSyn.Dec * ResGoal	(*     | exists x:A. r        *)
-
-  and AuxGoal =
-    Trivial				(* *)
-  | Unify of IntSyn.Eqn * AuxGoal	(* call unify of IntSyn.eqn *)
 
   (* Representation invariants for compiled syntax:
      Judgments:
@@ -67,16 +57,13 @@ struct
      G |- exists x:A. r  resgoal
      if  G |- A : type
          G, x:A |- r  resgoal
-
-     G |- exists' x:A. r  resgoal     but exists' doesn't effect the proof-term
-     if  G |- A : type
-         G, x:A |- r  resgoal
   *)
 
   (* The dynamic clause pool --- compiled version of the context *)
-  (* Dynamic programs: context with synchronous clause pool *)
+  type dpool = (ResGoal * IntSyn.Sub * IntSyn.cid) option IntSyn.Ctx
 
-  datatype DProg = DProg of IntSyn.dctx * (ResGoal * IntSyn.Sub * IntSyn.cid) option IntSyn.Ctx
+  (* Dynamic programs: context with synchronous clause pool *)
+  type dprog = IntSyn.dctx * dpool
 
   (* Static programs --- compiled version of the signature *)
   datatype ConDec =			(* Compiled constant declaration *)
@@ -118,10 +105,8 @@ struct
   *)
   and resGoalSub (Eq(q), s) = Eq (IntSyn.EClo (q,s))
     | resGoalSub (And(r, A, g), s) =
-        And (resGoalSub (r, IntSyn.dot1 s), IntSyn.EClo(A,s), goalSub (g, s))
-    | resGoalSub (In(r, A, g), s) =
-        In (resGoalSub (r, IntSyn.dot1 s), IntSyn.EClo(A,s), goalSub (g, s))
+       And (resGoalSub (r, IntSyn.dot1 s), IntSyn.EClo(A,s), goalSub (g, s))
     | resGoalSub (Exists(D, r), s) =
-        Exists (IntSyn.decSub(D, s), resGoalSub (r, IntSyn.dot1 s))
+       Exists (IntSyn.decSub(D, s), resGoalSub (r, IntSyn.dot1 s))
 
 end;  (* functor CompSyn *)

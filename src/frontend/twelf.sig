@@ -10,30 +10,6 @@ sig
     val length : int option ref	      (* NONE, limit argument length *)
     val indent : int ref	      (* 3, indentation of subterms *)
     val width : int ref		      (* 80, line width *)
-
-    val sgn : unit -> unit	      (* print signature *)
-    val prog : unit -> unit	      (* print signature as program *)
-
-    structure TeX :		      (* print in TeX format *)
-    sig
-      val sgn : unit -> unit	      (* print signature *)
-      val prog : unit -> unit	      (* print signature as program *)
-    end
-  end
-
-  structure Trace :
-  sig 
-    datatype 'a Spec =			(* trace and breakpoint spec *)
-      None				(* no tracing, default *)
-    | Some of 'a list			(* list of clauses and families *)
-    | All				(* trace all clauses and families *)
-
-    val trace : string Spec -> unit	(* trace clauses and families *)
-    val break : string Spec -> unit	(* break at clauses and families *)
-    val detail : int ref		(* 0 = none, 1 = default, 2 = unify *)
-
-    val show : unit -> unit		(* show trace, break, and detail *)
-    val reset : unit -> unit		(* reset trace, break, and detail *)
   end
 
   structure Timers :
@@ -50,11 +26,6 @@ sig
     val exit : unit -> unit	      (* exit Twelf and ML *)
   end
 
-  structure Compile :
-  sig
-    val optimize : bool ref
-  end
-
   structure Prover :
   sig
     datatype Strategy = RFS | FRS     (* F=Filling, R=Recursion, S=Splitting *)
@@ -65,7 +36,6 @@ sig
 
   val chatter : int ref		      (* 3, chatter level *)
   val doubleCheck : bool ref	      (* false, check after reconstruction *)
-  val unsafe : bool ref		      (* false, allows %assert *)
 
   datatype Status = OK | ABORT	      (* return status *)
 
@@ -83,8 +53,6 @@ sig
     val load : config -> Status	      (* reset and load configuration *)
     val define : string list -> config (* explicitly define configuration *)
   end
-
-  val make : string -> Status	      (* read and load configuration *)
 
   val version : string		      (* Twelf version *)
 end;  (* signature TWELF *)

@@ -8,14 +8,14 @@ sig
   exception Error of string
 
   val searchEx : 
-      MetaSyn.IntSyn.dctx * MetaSyn.IntSyn.Exp list
+      MetaSyn.IntSyn.dctx * (MetaSyn.IntSyn.dctx * MetaSyn.IntSyn.Exp) list
       * (MetaSyn.IntSyn.Exp * MetaSyn.IntSyn.Sub)
-      * (unit -> unit)
+      * (unit -> MetaSyn.State)
       -> MetaSyn.State list
     
   val searchAll : 
-      MetaSyn.IntSyn.dctx * MetaSyn.IntSyn.Exp list
+      MetaSyn.IntSyn.dctx * (MetaSyn.IntSyn.dctx * MetaSyn.IntSyn.Exp) list
       * (MetaSyn.IntSyn.Exp * MetaSyn.IntSyn.Sub)
-      * (MetaSyn.State list -> MetaSyn.State list)
+      * (unit -> MetaSyn.State)
       -> MetaSyn.State list
 end;  (* signature SEARCH *)

@@ -17,8 +17,6 @@ Group is
   ../timing/sources.cm
   meta-global.sig
   meta-global.sml
-  skolem.sig
-  skolem.fun
   metasyn.sig
   metasyn.fun
   meta-abstract.sig

@@ -9,6 +9,8 @@ Group is
   whnf.fun
   conv.sig
   conv.fun 
+  pattern.sig
+  pattern.fun
   constraints.sig
   constraints.fun
   unify.sig

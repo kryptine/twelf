@@ -24,9 +24,6 @@ twelf/doc/html/twelf_8.html
 twelf/doc/html/twelf_9.html
 twelf/doc/html/twelf_toc.html
 twelf/doc/info/twelf.info
-twelf/doc/info/twelf.info-1
-twelf/doc/info/twelf.info-2
-twelf/doc/info/twelf.info-3
 twelf/doc/pdf/twelf.pdf
 twelf/doc/ps/twelf.ps
 twelf/emacs/.twelf-init.el
@@ -74,6 +71,7 @@ twelf/examples/church-rosser/par-lemmas.elf
 twelf/examples/church-rosser/par-red.elf
 twelf/examples/church-rosser/sources.cfg
 twelf/examples/church-rosser/test.cfg
+twelf/examples/church-rosser/test.tag
 twelf/examples/compile/README
 twelf/examples/compile/cls/cls-complete.elf
 twelf/examples/compile/cls/cls-sound.elf

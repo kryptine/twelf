@@ -19,19 +19,16 @@ functor Solve
      sharing type TpReconQ.query = Parser.ExtSynQ.query
      (* sharing type TpReconQ.Paths.occConDec = Origins.Paths.occConDec *)
    structure Timers : TIMERS
-   structure CompSyn : COMPSYN
-     sharing CompSyn.IntSyn = IntSyn'
+   structure CompSyn' : COMPSYN
+     sharing CompSyn'.IntSyn = IntSyn'
    structure Compile : COMPILE
      sharing Compile.IntSyn = IntSyn'
-     sharing Compile.CompSyn = CompSyn
+     sharing Compile.CompSyn = CompSyn'
    structure Trail : TRAIL
      sharing Trail.IntSyn = IntSyn'
    structure AbsMachine : ABSMACHINE
      sharing AbsMachine.IntSyn = IntSyn'
-     sharing AbsMachine.CompSyn = CompSyn
-   structure Strict : STRICT
-     sharing Strict.IntSyn = IntSyn'
-     sharing Strict.Paths = TpReconQ.Paths
+     sharing AbsMachine.CompSyn = CompSyn'
    structure Print : PRINT
      sharing Print.IntSyn = IntSyn')
  : SOLVE =
@@ -123,22 +120,20 @@ struct
      is raised when M : A is the generalized form of a solution to the
      query A', where imp is the number of implicitly quantified arguments.
   *)
-  exception Solution of int * (IntSyn.Exp * IntSyn.Exp)
+  exception Solution of IntSyn.imp * (IntSyn.Exp * IntSyn.Exp)
 
   (* readfile (fileName) = status
      reads and processes declarations from fileName in order, issuing
      error messages and finally returning the status (either OK or
      ABORT).
   *)
-  fun solve ((name, solve), Paths.Loc (fileName, r)) =
+  fun solve ((name, solve), r) =
       let
 	val _ = if !Global.chatter >= 2
 		  then print ("%solve")
 		else ()
 	(* use region information! *)
-	val (A, NONE, Xs) =
-	       TpReconQ.queryToQuery(TpReconQ.query(NONE,solve), Paths.Loc (fileName, r))
-					(* times itself *)
+	val (A, NONE, Xs) = TpReconQ.queryToQuery(TpReconQ.query(NONE,solve))  (* times itself *)
 
 	(* echo declaration, according to chatter level *)
 	val _ = if !Global.chatter >= 2
@@ -151,8 +146,7 @@ struct
 				     ^ ".\n")
 		else ()
 
-	val g = (Timers.time Timers.compiling Compile.compileGoal) 
-	            (IntSyn.Null, A)
+	val g = (Timers.time Timers.compiling Compile.compileGoal) A
 
 	(* 
 	   the initial success continuation builds the abstractions to we can
@@ -168,15 +162,12 @@ struct
 	  returns () if there is none.  It could also not terminate
 	  *)
 	 (Timers.time Timers.solving AbsMachine.solve)
-	 ((g, IntSyn.id), CompSyn.DProg (IntSyn.Null, IntSyn.Null),
+	 ((g, IntSyn.id), (IntSyn.Null, IntSyn.Null),
 	  scInit);		
 	 raise AbortQuery ("No solution to %solve found"))
 	handle Solution (i,(U,V)) =>
 	  let
-	    val conDec = if Strict.check ((U, V), NONE) then 
-	                   IntSyn.ConDef (name, i, U, V, IntSyn.Type)
-			 else
-	                   IntSyn.NSConDef (name, i, U, V, IntSyn.Type)
+	    val conDec = IntSyn.ConDef (name, i, U, V, IntSyn.Type)
 	  in
 	    conDec
 	  end  (* solve _ handle Solution => _ *)
@@ -194,21 +185,22 @@ struct
       end
 
 	    (* %query <expected> <try> A or %query <expected> <try> X : A *)
-      fun query ((expected, try, quy), Paths.Loc (fileName, r)) =
+      fun query (expected, try, quy) =
 	  let
 	    val _ = if !Global.chatter >= 2
 		      then print ("%query " ^ boundToString expected
 					 ^ " " ^ boundToString try)
 		    else ()
 	    (* optName = SOME(X) or NONE, Xs = free variables in query excluding X *)
-	    val (A, optName, Xs) = TpReconQ.queryToQuery(quy, Paths.Loc (fileName, r))
-					(* times itself *)
+	    val (A, optName, Xs) = TpReconQ.queryToQuery(quy)  (* times itself *)
 	    val _ = if !Global.chatter >= 2
 		      then print (" ")
 		    else ()
 	    val _ = if !Global.chatter >= 3
-		      then print ("\n" ^ (Timers.time Timers.printing expToString)
-				  (IntSyn.Null, A) ^ ".\n")
+		      then print ("\n"
+					 ^ (Timers.time Timers.printing expToString)
+					 (IntSyn.Null, A)
+					 ^ ".\n")
 		    else ()
 	    (* Problem: we cannot give an answer substitution for the variables
 	       in the printed query, since the new variables in this query
@@ -220,8 +212,7 @@ struct
 	     (*
 		val Xs' = if !Global.chatter >= 3 then Names.namedEVars () else Xs
 	     *)
-	     val g = (Timers.time Timers.compiling Compile.compileGoal) 
-	                (IntSyn.Null, A)
+	     val g = (Timers.time Timers.compiling Compile.compileGoal) A
 
 	     (* solutions = ref <n> counts the number of solutions found *)
 	     val solutions = ref 0
@@ -231,10 +222,8 @@ struct
                 to search for further solutions
               *)
 	      fun scInit M =
-		  (solutions := !solutions+1;
-		   if !Global.chatter >= 3
-		     then (print ("---------- Solution " ^ Int.toString (!solutions) ^ " ----------\n");
-			   print ((Timers.time Timers.printing evarInstToString) Xs ^ "\n"))
+		  (if !Global.chatter >= 3
+		     then print ((Timers.time Timers.printing evarInstToString) Xs ^ "\n")
 		   else if !Global.chatter >= 2
 			  then print "."
 			else ();
@@ -246,13 +235,9 @@ struct
 					     [(M, name)] ^ "\n")
 			else ();
 		   if !Global.chatter >= 3
-		     (* Question: should we collect constraints in M? *)
-		     then case (Timers.time Timers.printing Print.evarConstrToStringOpt) Xs
-		            of NONE => ()
-			     | SOME(str) =>
-			       print ("Remaining constraints:\n"
-				      ^ str ^ "\n")
+		     then Constraints.warnConstraints (Names.evarCnstr ())
 		   else ();
+		   solutions := !solutions+1;
 		   if exceeds (SOME(!solutions),try)
 		     then raise Done
 		   else ())
@@ -261,7 +246,7 @@ struct
 		  then (Trail.reset ();
 			(* solve query if bound > 0 *)
 			((Timers.time Timers.solving AbsMachine.solve)
-			 ((g,IntSyn.id), CompSyn.DProg (IntSyn.Null, IntSyn.Null),
+			 ((g,IntSyn.id), (IntSyn.Null, IntSyn.Null),
 			  scInit)) handle Done => (); (* printing is timed into solving! *)
 			Trail.reset ();	(* in case Done was raised *)
 			(* check if number of solutions is correct *)
@@ -285,10 +270,8 @@ struct
   and qLoops' (S.Empty) = true		(* normal exit *)
     | qLoops' (S.Cons (query, s')) =
       let
-	val (A, optName, Xs) = TpReconQ.queryToQuery(query, Paths.Loc ("stdIn", Paths.Reg (0,0)))
-					(* times itself *)
-	val g = (Timers.time Timers.compiling Compile.compileGoal) 
-	            (IntSyn.Null, A)
+	val (A, optName, Xs) = TpReconQ.queryToQuery(query) (* times itself *)
+	val g = (Timers.time Timers.compiling Compile.compileGoal) A
 	fun scInit M =
 	    (print ((Timers.time Timers.printing evarInstToString) Xs ^ "\n");
 	     case optName
@@ -298,21 +281,14 @@ struct
 		    then print ((Timers.time Timers.printing evarInstToString)
 				       [(M, name)] ^ "\n")
 		  else ();
-	     if !Global.chatter >= 3
-	       (* Question: should we collect constraints from M? *)
-	       then case (Timers.time Timers.printing Print.evarConstrToStringOpt) Xs
-		      of NONE => ()
-		       | SOME(str) =>
-			 print ("Remaining constraints:\n"
-				^ str ^ "\n")
-	     else ();
+	     Constraints.warnConstraints (Names.evarCnstr ());
 	     if moreSolutions () then () else raise Done)
 	val _ = if !Global.chatter >= 3
 		  then print "Solving...\n"
 		else ()
       in
 	((Timers.time Timers.solving AbsMachine.solve)
-	 ((g,IntSyn.id), CompSyn.DProg (IntSyn.Null, IntSyn.Null), scInit); (* scInit is timed into solving! *)
+	 ((g,IntSyn.id), (IntSyn.Null, IntSyn.Null), scInit); (* scInit is timed into solving! *)
 	 print "No more solutions\n")
 	handle Done => ();
 	(* Ignore s': parse one query at a time *)

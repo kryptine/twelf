@@ -14,16 +14,14 @@ sig
 
   datatype fileParseResult =
       ConDec of ExtSyn.condec * ExtSyn.Paths.region
-    | FixDec of (string * ExtSyn.Paths.region) * Names.Fixity.fixity
-    | NamePref of (string * ExtSyn.Paths.region) * (string * string option)
+    | FixDec of (ExtSyn.name * ExtSyn.Paths.region) * Names.Fixity.fixity
+    | NamePref of (ExtSyn.name * ExtSyn.Paths.region) * ExtSyn.name  
     | ModeDec of ExtModes.modedec (* * ExtSyn.Paths.region *)
     | TerminatesDec of ThmExtSyn.tdecl
     | TheoremDec of ThmExtSyn.theoremdec
     | ProveDec of ThmExtSyn.prove
-    | EstablishDec of ThmExtSyn.establish
-    | AssertDec of ThmExtSyn.assert
     | Query of int option * int option * ExtSynQ.query * ExtSyn.Paths.region (* expected, try, A *)
-    | Solve of (string * ExtSynQ.term) * ExtSyn.Paths.region
+    | Solve of (ExtSyn.name * ExtSynQ.term) * ExtSyn.Paths.region
     (* Further declarations to be added here *)
 
   val parseStream: TextIO.instream -> fileParseResult Stream.stream

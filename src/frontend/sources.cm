@@ -15,14 +15,12 @@ Group is
   ../m2/sources.cm
   ../opsem/sources.cm
   ../subordinate/sources.cm
-  ../meta/sources.cm
   lexer.sig
   lexer.fun
   parsing.sig
   parsing.fun
   tprecon.sig
   tprecon.fun
-  tptrace.fun
   moderecon.sig
   moderecon.fun
   thmrecon.sig

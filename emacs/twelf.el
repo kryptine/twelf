@@ -124,7 +124,7 @@
 ;;; Current configuration --- A configuration is an ordered list of
 ;;; Twelf source files in dependency order.  It is usually initialized
 ;;; and maintained in a file sources.cfg.  The current configuration is
-;;; also the bases for the TAGS file created by twelf-tag.  This allows
+;;; also the bases for the TAGS file created by twelf-tags.  This allows
 ;;; quick jumping to declaration sites for constants, or to apply
 ;;; searches or replacements to all files in a configuration.
 ;;;
@@ -188,8 +188,6 @@
 ;;; Q: Improve tagging for %keyword declarations?
 ;;; Thu Jun 25 08:52:41 1998
 ;;; Finished major revision (version 3.0)
-;;; Fri Oct  2 11:06:15 1998
-;;; Added NT Emacs bug workaround
 
 (require 'comint)
 (require 'auc-menu) 
@@ -314,14 +312,11 @@ This is used by the error message parser.")
 (defconst *twelf-parm-table*
   '(("chatter" . nat)
     ("doubleCheck" . bool)
-    ("unsafe" . bool)
     ("Print.implicit" . bool)
     ("Print.depth" . limit)
     ("Print.length" . limit)
     ("Print.indent" . nat)
     ("Print.width" . nat)
-    ("Trace.detail" . nat)
-    ("Compile.optimize" . bool)
     ("Prover.strategy" . strategy)
     ("Prover.maxSplit" . nat)
     ("Prover.maxRecurse" . nat))
@@ -331,32 +326,21 @@ This is used by the error message parser.")
   "Chatter level in current Twelf server.
 Maintained to present reasonable menus.")
 
+;(defvar twelf-trace 0
+;  "Trace level in current Twelf server.
+;Maintained to present reasonable menus.")
+
 (defvar twelf-double-check "false"
   "Current value of doubleCheck Twelf parameter.")
-
-(defvar twelf-unsafe "false"
-  "Current value of unsafe Twelf parameter.")
 
 (defvar twelf-print-implicit "false"
   "Current value of Print.implicit Twelf parameter.")
 
-(defvar twelf-trace-detail 1
-  "Trace detail in current Twelf server.")
-
-(defvar twelf-trace-history ()
-  "History list of inputs to trace and break commands.
-Maintained to present reasonable menus.")
-
-(defvar twelf-compile-optimize "true"
-  "Current value of Compile.optimize Twelf parameter.")
-
 (defconst *twelf-track-parms*
   '(("chatter" . twelf-chatter)
+    ;("trace" . twelf-trace)
     ("doubleCheck" . twelf-double-check)
-    ("unsafe" . twelf-unsafe)
-    ("Print.implicit" . twelf-print-implicit)
-    ("Trace.detail" . twelf-trace-detail)
-    ("Compile.optimize" . twelf-compile-optimize))
+    ("Print.implicit" . twelf-print-implicit))
   "Association between Twelf parameters and Emacs tracking variables.")
 
 ;;;----------------------------------------------------------------------
@@ -1098,18 +1082,6 @@ Also updates the error cursor to the current line."
   (twelf-next-error))
 
 ;;;----------------------------------------------------------------------
-;;; NT Emacs bug workaround
-;;;----------------------------------------------------------------------
-
-(defun twelf-convert-standard-filename (filename)
-  "Convert FILENAME to form appropriate for Twelf Server of current OS."
-  (cond ((eq system-type 'windows-nt)
-	 (while (string-match "/" filename)
-	   (setq filename (replace-match "\\" t t filename)))
-	 filename)
-	(t (convert-standard-filename filename))))
-
-;;;----------------------------------------------------------------------
 ;;; Communication with Twelf server
 ;;;----------------------------------------------------------------------
 
@@ -1185,11 +1157,10 @@ With prefix argument also displays Twelf server buffer."
   (if twelf-config-mode
       (twelf-server-configure (buffer-file-name) "Server OK: Reconfigured")
     (let* ((save-file (buffer-file-name))
-	   (check-file (file-relative-name save-file (twelf-config-directory)))
-	   (check-file-os (twelf-convert-standard-filename check-file)))
+	   (check-file (file-relative-name save-file (twelf-config-directory))))
       (twelf-server-sync-config)
       (twelf-focus nil nil)
-      (twelf-server-send-command (concat "loadFile " check-file-os))
+      (twelf-server-send-command (concat "loadFile " check-file))
       (twelf-server-wait displayp))))
 
 (defun twelf-buffer-substring (start end)
@@ -1473,8 +1444,8 @@ server buffer."
            (pwd)))
 	((string-match "^set\\s +chatter\\s +\\([0-9]\\)+" input)
 	 (setq twelf-chatter (string-to-int (looked-at-string input 1))))
-	((string-match "^set\\s +Trace\\.detail\\s +\\([0-9]\\)+" input)
-	 (setq twelf-trace-detail (string-to-int (looked-at-string input 1))))
+	;;((string-match "^set\\s +trace\\s +\\([0-9]\\)+" input)
+	;; (setq twelf-trace (string-to-int (looked-at-string input 1))))
 	((string-match "^set\\s-+\\(\\S-+\\)\\s-+\\(\\w+\\)" input)
 	 (if (assoc (looked-at-string input 1) *twelf-track-parms*)
 	     (set (cdr (assoc (looked-at-string input 1) *twelf-track-parms*))
@@ -1596,11 +1567,9 @@ created if it doesn't exist."
 (defun twelf-init-variables ()
   "Initialize variables that track Twelf server state."
   (setq twelf-chatter 3)
+  ;;(setq twelf-trace 0)
   (setq twelf-double-check "false")
-  (setq twelf-unsafe "false")
-  (setq twelf-print-implicit "false")
-  (setq twelf-trace-detail 1)
-  (setq twelf-compile-optimize "true"))
+  (setq twelf-print-implicit "false"))
 
 (defun twelf-server (&optional program)
   "Start an Twelf server process in a buffer named *twelf-server*.
@@ -1641,7 +1610,7 @@ This locally re-binds `twelf-server-timeout' to 15 secs."
       (start-process *twelf-server-process-name*
 		     twelf-server-buffer
 		     twelf-server-program)
-      (twelf-server-wait nil)
+      (twelf-server-wait)
       (twelf-server-process))))
 
 (defun twelf-server-process (&optional buffer)
@@ -1707,49 +1676,45 @@ forever (until the user aborts, typically with \\[keyboard-quit])."
 
 (defun twelf-server-wait (&optional displayp ok-message abort-message)
   "Wait for server acknowledgment and beep if error occurred.
-If optional argument DISPLAYP is T, or if an error occurred, the
-Twelf server buffer is displayed.  If DISPLAYP is neither NIL nor T
-the Twelf server buffer is selected.  Optional second and third arguments
+If optional argument DISPLAYP is non-NIL, or if an error occurred, the
+Twelf server buffer is displayed.  Optional second and third arguments
 OK-MESSAGE and ABORT-MESSAGE are the strings to show upon successful
 completion or abort of the server which default to \"Server OK\" and
 \"Server ABORT\"."
-  (if (or (eq displayp 'nil) (eq displayp 't))
-      (let* ((chunk-count 0)
-	     (last-point *twelf-server-last-process-mark*)
-	     (previous-match-data (match-data))
-	     (selectp (not (equal displayp t)))
-	     (twelf-server-buffer (twelf-get-server-buffer))
-	     (twelf-server-process (get-buffer-process twelf-server-buffer))
-	     (previous-buffer (current-buffer)))
-	(unwind-protect
-	    (catch 'done
-	      (set-buffer twelf-server-buffer)
-	      (while t
-		(goto-char last-point)
-		(if (re-search-forward "\\(%% OK %%\n\\)\\|\\(%% ABORT %%\n\\)"
-				       (point-max) 'limit)
-		    (cond ((match-beginning 1)
-			   (if displayp
-			       (display-server-buffer twelf-server-buffer))
-			   (message (or ok-message "Server OK"))
-			   (throw 'done nil))
-			  ((match-beginning 2)
-			   (display-server-buffer twelf-server-buffer)
-			   (error (or abort-message "Server ABORT"))
-			   (throw 'done nil)))
-		  (cond ((or (not (twelf-accept-process-output
-				   twelf-server-process twelf-server-timeout))
-			     (= last-point (point)))
-			 (display-server-buffer twelf-server-buffer)
-			 (message "Server TIMEOUT, continuing Emacs")
-			 (throw 'done nil))
-			(t (setq chunk-count (+ chunk-count 1))
-			   (if (= (mod chunk-count 10) 0)
-			       (message (make-string (/ chunk-count 10) ?#)))
-			   (sit-for 0))))))
-	  (store-match-data previous-match-data)
-	  (set-buffer previous-buffer)))
-    (twelf-server-display t)))
+  (let* ((chunk-count 0)
+         (last-point *twelf-server-last-process-mark*)
+         (previous-buffer (current-buffer))
+         (previous-match-data (match-data))
+         (twelf-server-buffer (twelf-get-server-buffer))
+         (twelf-server-process (get-buffer-process twelf-server-buffer)))
+    (unwind-protect
+        (catch 'done
+          (set-buffer twelf-server-buffer)
+          (while t
+            (goto-char last-point)
+            (if (re-search-forward "\\(%% OK %%\n\\)\\|\\(%% ABORT %%\n\\)"
+                                   (point-max) 'limit)
+                (cond ((match-beginning 1)
+                       (if displayp
+                           (display-server-buffer twelf-server-buffer))
+                       (message (or ok-message "Server OK"))
+                       (throw 'done nil))
+                      ((match-beginning 2)
+                       (display-server-buffer twelf-server-buffer)
+                       (error (or abort-message "Server ABORT"))
+                       (throw 'done nil)))
+              (cond ((or (not (twelf-accept-process-output
+                               twelf-server-process twelf-server-timeout))
+                         (= last-point (point)))
+                     (display-server-buffer twelf-server-buffer)
+                     (message "Server TIMEOUT, continuing Emacs")
+                     (throw 'done nil))
+                    (t (setq chunk-count (+ chunk-count 1))
+                       (if (= (mod chunk-count 10) 0)
+                           (message (make-string (/ chunk-count 10) ?#)))
+                       (sit-for 0))))))
+      (store-match-data previous-match-data)
+      (set-buffer previous-buffer))))
 
 (defun twelf-server-quit ()
   "Kill the Twelf server process."
@@ -1793,9 +1758,7 @@ Starts a Twelf servers if necessary."
   (let* ((config-file (if (file-directory-p config-file)
                           (concat config-file "sources.cfg")
                         config-file))
-	 (config-file-os (twelf-convert-standard-filename config-file))
          (config-dir (file-name-directory config-file))
-	 (config-dir-os (twelf-convert-standard-filename config-dir))
          (config-buffer (set-buffer (or (get-file-buffer config-file)
                                         (find-file-noselect config-file))))
          config-list)
@@ -1810,14 +1773,14 @@ Starts a Twelf servers if necessary."
             (if (equal default-directory config-dir)
                 nil
               (setq default-directory config-dir)
-              (concat "OS.chDir " config-dir-os)))
+              (concat "OS.chDir " config-dir)))
            (_ (set-buffer config-buffer)))
       (cond ((not (null cd-command))
 	     (twelf-server-send-command cd-command)
 	     (twelf-server-wait nil ""
 				"Server ABORT: Could not change directory")))
       (twelf-server-send-command
-       (concat "Config.read " config-file-os))
+       (concat "Config.read " config-file))
       (twelf-server-wait nil (or ok-message "Server OK")
                        "Server ABORT: Could not be configured")
       ;; *twelf-config-buffer* should still be current buffer here
@@ -1850,18 +1813,10 @@ Starts a Twelf servers if necessary."
 ;    (setq *twelf-config-list* (cons filename *twelf-config-list*))
 ;    (setq *twelf-config-time* temp-time)))
 
-(defun natp (x)
-  "Checks if X is an integer greater or equal to 0."
-  (and (integerp x) (>= x 0)))
-
 (defun twelf-read-nat ()
-  "Reads a natural number from the minibuffer."
-  (let ((num nil))
-    (while (not (natp num))
-      (setq num (read-from-minibuffer "Number: " (if num (prin1-to-string num))
-				      nil t t))
-      (if (not (natp num)) (beep)))
-    num))
+  "Read a natural number in mini-buffer."
+  (let ((n (read-number "Number: " t)))
+    (if (>= n 0) n (error "Number must be non-negative"))))
 
 (defun twelf-read-bool ()
   "Read a boolean in mini-buffer."
@@ -1922,30 +1877,18 @@ Used in menus."
 		   "true" "false")))
     (twelf-set "doubleCheck" value)))
 
-(defun twelf-toggle-unsafe ()
-  "Toggles unsafe parameter of Twelf."
-  (let ((value (if (string-equal twelf-unsafe "false")
-		   "true" "false")))
-    (twelf-set "unsafe" value)))
-
 (defun twelf-toggle-print-implicit ()
   "Toggles Print.implicit parameter of Twelf."
   (let ((value (if (string-equal twelf-print-implicit "false")
 		   "true" "false")))
     (twelf-set "Print.implicit" value)))
 
-(defun twelf-toggle-compile-optimize ()
-  "Toggles Compile.optimize parameter of Twelf."
-  (let ((value (if (string-equal twelf-compile-optimize "false")
-		   "true" "false")))
-    (twelf-set "Compile.optimize" value)))
-
 (defun twelf-get (parm)
   "Prints the value of the Twelf parameter PARM.
 When called interactively, promts for parameter, supporting completion."
   (interactive (list (completing-read "Parameter: " *twelf-parm-table* nil t)))
   (twelf-server-send-command (concat "get " parm))
-  (twelf-server-wait nil)
+  (twelf-server-wait)
   (save-window-excursion
     (let ((twelf-server-buffer (twelf-get-server-buffer)))
       (set-buffer twelf-server-buffer)
@@ -1953,75 +1896,6 @@ When called interactively, promts for parameter, supporting completion."
       ;; We are now at the beginning of the output
       (end-of-line 1)
       (message (buffer-substring *twelf-server-last-process-mark* (point))))))
-
-(defun twelf-print-signature ()
-  "Prints the current signature in the Twelf server buffer."
-  (interactive)
-  (twelf-server-send-command "Print.sgn")
-  (twelf-server-display t))
-
-(defun twelf-print-program ()
-  "Prints the current signature as a program in the Twelf server buffer."
-  (interactive)
-  (twelf-server-send-command "Print.prog")
-  (twelf-server-display t))
-
-(defun twelf-print-tex-signature ()
-  "Prints the current signature in TeX style.
-The output appears in the  Twelf server buffer."
-  (interactive)
-  (twelf-server-send-command "Print.TeX.sgn")
-  (twelf-server-display t))
-
-(defun twelf-print-tex-program ()
-  "Prints the current signature as a program in TeX style.
-The output appears in the Twelf server buffer."
-  (interactive)
-  (twelf-server-send-command "Print.TeX.prog")
-  (twelf-server-display t))
-
-(defun twelf-read-constants ()
-  "Reads a list of constants from the mini-buffer, separated by whitespace.
-Right now this does not do any consistency checking."
-  (read-string "Constants: "
-	       (if (null twelf-trace-history) nil (car twelf-trace-history))
-	       'twelf-trace-history))
-
-(defun twelf-trace-trace-all ()
-  "Trace all clauses and families."
-  (interactive)
-  (twelf-server-send-command "Trace.traceAll"))
-
-(defun twelf-trace-trace ()
-  "Read list of constants and trace them."
-  (interactive)
-  (twelf-server-send-command (concat "Trace.trace " (twelf-read-constants))))
-
-(defun twelf-trace-untrace ()
-  "Untrace all clauses and families."
-  (interactive)
-  (twelf-server-send-command "Trace.untrace"))
-
-(defun twelf-trace-break-all ()
-  "Set breakpoints on all clauses and families."
-  (interactive)
-  (twelf-server-send-command "Trace.breakAll"))
-
-(defun twelf-trace-break ()
-  "Read list of constants and set breakpoints."
-  (interactive)
-  (twelf-server-send-command (concat "Trace.break " (twelf-read-constants))))
-
-(defun twelf-trace-unbreak ()
-  "Remove all breakpoints."
-  (interactive)
-  (twelf-server-send-command "Trace.unbreak"))
-
-(defun twelf-trace-show ()
-  "Show tracing and breakpoint information."
-  (interactive)
-  (twelf-server-send-command "Trace.show")
-  (twelf-server-wait t))
 
 (defun twelf-timers-reset ()
   "Reset the Twelf timers."
@@ -2095,18 +1969,16 @@ Optional argument TAGS-FILENAME specifies alternative filename."
           (or tags-filename
               (if (string-equal "sources.cfg"
 				(file-name-nondirectory config-filename))
-                  (concat (file-name-directory config-filename) "TAGS")
+                  (concat (file-name-directory config-filename "TAGS"))
 		(concat (file-name-sans-extension config-filename)
 			".tag")))))
     (save-excursion
       (set-buffer error-buffer)
       (goto-char (point-max))
-      (insert "Tagging configuration " config-filename " in file " tags-file "\n")
-      (setq *twelf-error-pos* (point-max)))
+      (insert "Tagging configuration " config-filename " in file " tags-file "\n"))
     (set-buffer *twelf-config-buffer*)
     (twelf-tag-files (rev-relativize *twelf-config-list* default-directory)
                    tags-file error-buffer)
-    ;; leaves us in error-buffer
     (if (get-buffer-process error-buffer)
         (set-marker (process-mark (get-buffer-process error-buffer))
                     (point-max)))))
@@ -2161,7 +2033,7 @@ optional argument ERROR-BUFFER specifies alternative buffer for error message
 		  (set-buffer error-buffer)
 		  (goto-char (point-max))
 		  (insert filename ":" (int-to-string error-line)
-			  ".1 Warning: missing period\n"))))
+			  " Warning: missing period\n"))))
 	  (save-excursion
 	    (set-buffer tags-buffer)
 	    (insert tag-string))))
@@ -2170,15 +2042,6 @@ optional argument ERROR-BUFFER specifies alternative buffer for error message
       (delete-char 1)
       (insert (int-to-string (- file-end file-start)))
       (goto-char (point-max)))))
-
-(defvar twelf-decl-pattern-noident
-  "\\(%infix\\|%prefix\\|%postfix\\|%name\\|%query\\|%mode\\|%terminates\\|%prove\\|%assert\\|%establish\\)\\>"
-  "Pattern used to match declarations which do not declare a new identifier.")
-
-(defvar twelf-decl-pattern-ident
-  "\\(%solve\\|%theorem\\)[ \t]\\(\\<\\w+\\>\\)"
-  "Pattern used to match declarations which declare a new identifer.
-(match-beginning 2) to (match-end 2) will be the declared identifer.")
 
 (defun twelf-next-decl (filename error-buffer)
   "Set point after the identifier of the next declaration.
@@ -2192,24 +2055,13 @@ FILENAME and ERROR-BUFFER are used if something appears wrong."
       (setq beg-of-id (point))
       (if (zerop (skip-chars-forward *twelf-id-chars*))
           ;; Not looking at id: skip ahead
-	  (cond ((looking-at twelf-decl-pattern-noident)
-		 ;; valid decl: no warning
-		 (twelf-end-of-par))
-		((looking-at twelf-decl-pattern-ident)
-		 ;; decl of identifer
-		 (setq beg-of-id (match-beginning 2))
-		 (setq end-of-id (match-end 2))
-		 (goto-char end-of-id)
-		 (setq id (buffer-substring beg-of-id end-of-id)))
-		(t ;; unrecognized text
-		 (skip-ahead filename (current-line-absolute) "Unrecognized declaration format"
-			     error-buffer)))
+          (skip-ahead filename (current-line-absolute) "No identifier"
+                      error-buffer)
         (setq end-of-id (point))
         (skip-twelf-comments-and-whitespace)
-        (if (not (looking-at "[:=]"))	; c : V or c = U or c : V = U
+        (if (not (looking-at ":"))
             ;; Not looking at valid decl: skip ahead
-            (skip-ahead filename (current-line-absolute end-of-id)
-			"No colon or equal sign"
+            (skip-ahead filename (current-line-absolute end-of-id) "No colon"
                         error-buffer)
           (goto-char end-of-id)
           (setq id (buffer-substring beg-of-id end-of-id))))
@@ -2224,8 +2076,8 @@ deposited in ERROR-BUFFER."
       (save-excursion
 	(set-buffer error-buffer)
 	(goto-char (point-max))
-	(insert filename ":" (int-to-string line) ".1 Warning: "
-		message "\n")))
+	(insert filename ":" (int-to-string line) " Warning: " message "\n")
+	(setq *twelf-error-pos* (point))))
   (twelf-end-of-par))
 
 (defun current-line-absolute (&optional char-pos)
@@ -2617,31 +2469,6 @@ Mode map
     )
   "Menu for commands applying at point.")
 
-(defconst twelf-print-menu
-  '("Print"
-    ["Signature" twelf-print-signature t]
-    ["Program" twelf-print-program t]
-    ("TeX"
-     ["Signature" twelf-print-tex-signature t]
-     ["Program" twelf-print-tex-program t]))
-  "Menu for printing commands.")
-
-(defconst twelf-trace-menu
-  (` ("Trace"
-      ("trace"
-       ["All" twelf-trace-trace-all t]
-       ["None" twelf-trace-untrace t]
-       ["Some" twelf-trace-trace t])
-      ("break"
-       ["All" twelf-trace-break-all t]
-       ["None" twelf-trace-unbreak t]
-       ["Some" twelf-trace-break t])
-      ["show" twelf-trace-show t]
-      ("detail"
-       (, (radio "0" '(twelf-set "Trace.detail" 0) '(= twelf-trace-detail 0)))
-       (, (radio "1*" '(twelf-set "Trace.detail" 1) '(= twelf-trace-detail 1)))
-       (, (radio "2" '(twelf-set "Trace.detail" 2) '(= twelf-trace-detail 2)))))))
-
 (defconst twelf-server-state-menu
   '("Server State"
     ["Configure" twelf-server-configure t]
@@ -2685,8 +2512,6 @@ Mode map
        (, (radio "6" '(twelf-set "chatter" 6) '(= twelf-chatter 6))))
       (, (toggle "doubleCheck" '(twelf-toggle-double-check)
 		 '(string-equal twelf-double-check "true")))
-      (, (toggle "unsafe" '(twelf-toggle-unsafe)
-		 '(string-equal twelf-unsafe "true")))
       ("Print."
        (, (toggle "implicit" '(twelf-toggle-print-implicit)
 		  '(string-equal twelf-print-implicit "true")))
@@ -2694,13 +2519,6 @@ Mode map
        ["length" (twelf-set-parm "Print.length") t]
        ["indent" (twelf-set-parm "Print.indent") t]
        ["width" (twelf-set-parm "Print.width") t])
-      ("Trace.detail"
-       (, (radio "0" '(twelf-set "Trace.detail" 0) '(= twelf-trace-detail 0)))
-       (, (radio "1*" '(twelf-set "Trace.detail" 1) '(= twelf-trace-detail 1)))
-       (, (radio "2" '(twelf-set "Trace.detail" 2) '(= twelf-trace-detail 2))))
-      ("Compile."
-       (, (toggle "optimize" '(twelf-toggle-compile-optimize)
-		  '(string-equal twelf-compile-optimize "true"))))
       ("Prover."
        ["strategy" (twelf-set-parm "Prover.strategy") t]
        ["maxSplit" (twelf-set-parm "Prover.maxSplit") t]
@@ -2750,9 +2568,7 @@ This may be selected from the menubar.  In XEmacs, also bound to Button3."
    twelf-error-menu
    twelf-options-menu
    twelf-syntax-menu
-   twelf-trace-menu
    twelf-tags-menu
-   twelf-print-menu
    twelf-timers-menu
    twelf-server-state-menu
    ["Info" twelf-info t]))
@@ -2767,7 +2583,6 @@ This may be selected from the menubar.  In XEmacs, also bound to Button3."
 
 (defun twelf-reset-menu ()
   "Reset Twelf menu."
-  (interactive)
   (twelf-remove-menu)
   (twelf-add-menu))
 
@@ -2789,10 +2604,7 @@ This may be selected from the menubar.  In XEmacs, also bound to Button3."
    ;; ["At Point" () nil]
    twelf-error-menu
    twelf-options-menu
-   twelf-trace-menu
    twelf-tags-menu
-   twelf-print-menu
-   twelf-timers-menu
    twelf-server-state-menu
    ["Info" twelf-info t]))
 
@@ -2806,7 +2618,6 @@ This may be selected from the menubar.  In XEmacs, also bound to Button3."
 
 (defun twelf-server-reset-menu ()
   "Reset Twelf menu."
-  (interactive)
   (twelf-server-remove-menu)
   (twelf-server-add-menu))
 

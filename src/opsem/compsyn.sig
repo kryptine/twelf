@@ -15,25 +15,15 @@ sig
 
   and ResGoal =                         (* Residual Goals             *)
     Eq     of IntSyn.Exp                (* r ::= p = ?                *)
-  | Assign of IntSyn.Exp * AuxGoal      (*     | p = ?, where p has   *)
-					(* only new vars,             *)  
-                                        (* then unify all the vars    *)
   | And    of ResGoal                   (*     | r & (A,g)            *)
               * IntSyn.Exp * Goal       
-  | In   of ResGoal			(*     | r virt& (A,g)        *)
-              * IntSyn.Exp * Goal       
   | Exists of IntSyn.Dec * ResGoal      (*     | exists x:A. r        *)
-  | Exists' of IntSyn.Dec * ResGoal	(*     | exists x:A. r        *)
-
-  and AuxGoal =
-    Trivial				(* trivially done *)
-  | Unify of IntSyn.Eqn * AuxGoal	(* call unify on IntSyn.eqn *)
 
   (* The dynamic clause pool --- compiled version of the context *)
-  (* type dpool = (ResGoal * IntSyn.Sub * IntSyn.cid) option IntSyn.Ctx *)
+  type dpool = (ResGoal * IntSyn.Sub * IntSyn.cid) option IntSyn.Ctx
 
   (* Dynamic programs: context with synchronous clause pool *)
-  datatype DProg = DProg of (IntSyn.dctx * (ResGoal * IntSyn.Sub * IntSyn.cid) option IntSyn.Ctx)
+  type dprog = IntSyn.dctx * dpool
 
   (* Static programs --- compiled version of the signature *)
   datatype ConDec =			(* Compiled constant declaration *)

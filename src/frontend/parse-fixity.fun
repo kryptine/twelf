@@ -15,22 +15,20 @@ struct
     structure L = Parsing.Lexer
     structure LS = Parsing.Lexer.Stream  
     structure FX = Names.Fixity
-
-    fun fixToString (FX.Strength(p)) = Int.toString p
 	    
     (* idToPrec (region, (idCase, name)) = n
        where n is the precedence indicated by name, which should consists
        of all digits.  Raises error otherwise, or if precedence it too large
     *)
     fun idToPrec (r, (_, name)) =
-      let val prec = FX.Strength (L.stringToNat (name))
+      let val prec = L.stringToNat (name)
 	             handle Overflow => Parsing.error (r, "Precedence too large")
 		          | L.NotDigit _ => Parsing.error (r, "Precedence not a natural number")
       in
-	if FX.less(prec, FX.minPrec) orelse FX.less (FX.maxPrec, prec)
+	if prec < FX.minPrec orelse prec > FX.maxPrec
 	  then Parsing.error (r, "Precedence out of range ["
-			      ^ fixToString FX.minPrec ^ ","
-			      ^ fixToString FX.maxPrec ^ "]")
+			      ^ Int.toString FX.minPrec ^ ","
+			      ^ Int.toString FX.maxPrec ^ "]")
 	else prec
       end
 
@@ -81,28 +79,21 @@ struct
     (* Parsing name preferences %name ... *)
     (*------------------------------------*)
 
-    (* parseName3 "string" or "" *)
-    fun parseName3 (name, r0, prefEName, LS.Cons ((L.ID (_, prefUName), r), s')) =
-        (* prefUName should be lower case---not enforced *)
-        (((name, r0), (prefEName, SOME(prefUName))), LS.expose s')
-      | parseName3 (name, r0, prefEName, f) =
-	(((name, r0), (prefEName, NONE)), f)
-
-    (* parseName2 "string" or "string string" *)
-    fun parseName2 (name, r0, LS.Cons ((L.ID (_, prefEName), r), s')) =
-        if L.isUpper prefEName
-	  then parseName3 (name, r0, prefEName, LS.expose s')
-	else Parsing.error (r, "Expected uppercase identifer, found " ^ prefEName)
+    (* parseName2 "string" *)
+    fun parseName2 (name, r0, LS.Cons ((L.ID (_, prefName), r), s')) =
+        if L.isUpper prefName
+	  then (((name, r0), prefName), LS.expose s')
+	else Parsing.error (r, "Expected uppercase identifer, found " ^ prefName)
       | parseName2 (name, r0, LS.Cons ((t, r), s')) =
 	  Parsing.error (r, "Expected name preference, found " ^ L.toString t)
 
-    (* parseName1 "id string" or "id string string" *)
+    (* parseName1 "id string" *)
     fun parseName1 (LS.Cons ((L.ID (_, name), r), s')) =
           parseName2 (name, r, LS.expose s')
       | parseName1 (LS.Cons ((t, r), s')) =
 	  Parsing.error (r, "Expected identifer to assign name preference, found " ^ L.toString t)
 
-    (* parseNamePref' "%name id string" or "%name id string string"
+    (* parseNamePref' "%name id string"
        Invariant: token stream starts with %name
     *)
     fun parseNamePref' (LS.Cons ((L.NAME, r), s')) = parseName1 (LS.expose s')

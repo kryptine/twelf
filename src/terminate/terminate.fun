@@ -6,6 +6,8 @@ functor Terminate (structure Global : GLOBAL
 		   structure IntSyn': INTSYN
 		   structure Whnf : WHNF
 		     sharing Whnf.IntSyn = IntSyn'
+		   structure Pattern : PATTERN
+		     sharing Pattern.IntSyn = IntSyn'
 	           structure Conv : CONV
 		     sharing Conv.IntSyn = IntSyn'
 	           structure Unify : UNIFY
@@ -53,7 +55,7 @@ struct
         (case Origins.originLookup c
 	   of (fileName, NONE) => raise Error (fileName ^ ":" ^ msg)
             | (fileName, SOME occDec) => 
-	      raise Error (P.wrapLoc (P.Loc (fileName, P.occToRegionDec occDec occ), msg)))
+	      raise Error (P.wrapLoc ((fileName, P.occToRegionDec occDec occ), msg)))
 
     fun fmtOrder (G, O) =
         let
@@ -96,7 +98,7 @@ struct
 	    | select''W (n, ((I.App (U', S'), s'), 
 			     (I.Pi ((I.Dec (_, V1''), _), V2''), s''))) = 
 		select'' (n-1, ((S', s'), 
-				(V2'', I.Dot (I.Exp (I.EClo (U', s')), s''))))
+				(V2'', I.Dot (I.Exp (I.EClo (U', s'), V1''), s''))))
 	  fun select' (Order.Arg n) = Order.Arg (select'' (n, ((S, s), Vid)))
 	    | select' (Order.Lex L) = Order.Lex (map select' L)
 	    | select' (Order.Simul L) = Order.Simul (map select' L)
@@ -129,15 +131,15 @@ struct
     fun isParameter (Q, X) = isParameterW (Q, Whnf.whnf (X, I.id))
 
     and isParameterW (Q, Us) = 
-        isUniversal (I.ctxLookup (Q, Whnf.etaContract (I.EClo Us)))
-	handle Whnf.Eta => isFreeEVar (Us)
+        isUniversal (I.ctxLookup (Q, Pattern.etaContract (I.EClo Us)))
+	handle Pattern.Eta => isFreeEVar (Us)
 
     (* isFreeEVar (Us) = true
        iff Us represents a possibly lowered uninstantiated EVar.
 
        Invariant: it participated only in matching, not full unification
     *)
-    and isFreeEVar (I.EVar (_, _, _, nil), _) = true   (* constraints must be empty *)
+    and isFreeEVar (I.EVar (_, _, nil), _) = true   (* constraints must be empty *)
       | isFreeEVar (I.Lam (D, U), s) = isFreeEVar (Whnf.whnf (U, I.dot1 s))
       | isFreeEVar _ = false
 
@@ -176,21 +178,21 @@ struct
 	      (I.Pi ((I.Dec (_, V2'), _), V'), s2')), sc) =
           if Subordinate.equiv (I.targetFam V, I.targetFam V1') (* == I.targetFam V2' *) then 
 	    let  (* enforce that X is only instantiated to parameters *) 
-	      val X = I.newEVar (G, I.EClo (V1', s1')) (* = I.newEVar (I.EClo (V2', s2')) *)
+	      val X = I.newEVar (I.EClo (V1', s1')) (* = I.newEVar (I.EClo (V2', s2')) *)
 	      val sc' = fn () => (isParameter (Q, X); sc ())    
 	    in
 	      lt (G, Q, ((U, s1), (V, s2)), 
-		  ((U', I.Dot (I.Exp (X), s1')), 
-		   (V', I.Dot (I.Exp (X), s2'))), sc')
+		  ((U', I.Dot (I.Exp (X, V1'), s1')), 
+		   (V', I.Dot (I.Exp (X, V2'), s2'))), sc')
 	    end
 	  else
 	    if Subordinate.below (I.targetFam V1', I.targetFam V) then
 	      let 
-		val X = I.newEVar (G, I.EClo (V1', s1')) (* = I.newEVar (I.EClo (V2', s2')) *)
+		val X = I.newEVar (I.EClo (V1', s1')) (* = I.newEVar (I.EClo (V2', s2')) *)
 	      in
 		lt (G, Q, ((U, s1), (V, s2)), 
-		    ((U', I.Dot (I.Exp (X), s1')), 
-		     (V', I.Dot (I.Exp (X), s2'))), sc)
+		    ((U', I.Dot (I.Exp (X, V1'), s1')), 
+		     (V', I.Dot (I.Exp (X, V2'), s2'))), sc)
 	      end
 	    else false  (* possibly redundant if lhs always subordinate to rhs *)
 
@@ -204,7 +206,7 @@ struct
 				   (I.Pi ((I.Dec (_, V1'), _), V2'), s2')), sc) = 
 	  le (G, Q, (Us, Vs), ((U', s1'), (V1', s2')), sc) orelse 
 	  ltSpine (G, Q, (Us, Vs), 
-		   ((S', s1'), (V2', I.Dot (I.Exp (I.EClo (U', s1')), s2'))), sc)
+		   ((S', s1'), (V2', I.Dot (I.Exp (I.EClo (U', s1'), V1'), s2'))), sc)
 
 
     (* eq (G, ((U, s1), (V, s2)), (U', s'), sc) = B
@@ -222,8 +224,8 @@ struct
     *)
     and eq (G, (Us, Vs), (Us', Vs'), sc) = 
         Trail.trail (fn () =>
-		     Unify.unifiable (G, Vs, Vs')
-		     andalso Unify.unifiable (G, Us, Us')
+		     Unify.unifiable (Vs, Vs')
+		     andalso Unify.unifiable (Us, Us')
 		     andalso sc ())
 
     (* le (G, Q, ((U, s1), (V, s2)), (U', s'), sc) = B
@@ -248,23 +250,23 @@ struct
 	if Subordinate.equiv (I.targetFam V, I.targetFam V1') (* == I.targetFam V2' *)
 	  then 
 	    let
-	      val X = I.newEVar (G, I.EClo (V1', s1')) (* = I.newEVar (I.EClo (V2', s2')) *)
+	      val X = I.newEVar (I.EClo (V1', s1')) (* = I.newEVar (I.EClo (V2', s2')) *)
 	      (* enforces that X can only bound to parameter or remain uninstantiated *)
 	      val sc' = fn () => (isParameter (Q, X) andalso sc ())
 	    in                         
 	      le (G, Q, ((U, s1), (V, s2)), 
-		  ((U', I.Dot (I.Exp (X), s1')), 
-		   (V', I.Dot (I.Exp (X), s2'))), sc')
+		  ((U', I.Dot (I.Exp (X, V1'), s1')), 
+		   (V', I.Dot (I.Exp (X, V2'), s2'))), sc')
 	    end
 	else
 	  if Subordinate.below  (I.targetFam V1', I.targetFam V)
 	    then
 	      let 
-		val X = I.newEVar (G, I.EClo (V1', s1')) (* = I.newEVar (I.EClo (V2', s2')) *)
+		val X = I.newEVar (I.EClo (V1', s1')) (* = I.newEVar (I.EClo (V2', s2')) *)
 	      in
 		le (G, Q, ((U, s1), (V, s2)), 
-		    ((U', I.Dot (I.Exp (X), s1')), 
-		     (V', I.Dot (I.Exp (X), s2'))), sc)
+		    ((U', I.Dot (I.Exp (X, V1'), s1')), 
+		     (V', I.Dot (I.Exp (X, V2'), s2'))), sc)
 	      end
 	  else false (* impossible, if additional invariant assumed (see ltW) *)
       | leW (G, Q, (Us, Vs), (Us', Vs'), sc) = 
@@ -292,7 +294,7 @@ struct
           lt (G, Q, (Us, Vs), UsVs', sc)
       | ltinitW (G, Q, ((I.Lam (_, U), s1), (I.Pi ((D, _), V), s2)), 
 		 ((U', s1'), (V', s2')), sc) =
-          ltinit (I.Decl (G, N.decLUName (G, I.decSub (D, s2))),
+          ltinit (I.Decl (G, N.decName (G, I.decSub (D, s2))),
 		  I.Decl (Q, Universal), 
 		  ((U, I.dot1 s1), (V, I.dot1 s2)), 
 		  ((U', I.comp (s1', I.shift)), (V', I.comp (s2', I.shift))), sc)
@@ -389,7 +391,6 @@ struct
        Invariant: 
        If   G : Q
        and  G |- s : G1     and   G1 |- V : L     (V, s) in whnf
-       and  V[s], V'[s'] does not contain Skolem constants
        and  G |- s' : G2    and   G2 |- V' : L'   (V', s') in whnf
        and  V' = a' @ S'
        and  G |- L = L'
@@ -400,12 +401,12 @@ struct
     fun checkGoal (G, Q, Vs, Vs', occ) = checkGoalW (G, Q, Whnf.whnf Vs, Vs', occ)
     and checkGoalW (G, Q, (I.Pi ((D as I.Dec (_, V1), I.No), V2), s), (V', s'), occ) = 
           (checkClause (G, Q, (V1, s), P.label occ); 
-	   checkGoal (I.Decl (G, N.decLUName (G, I.decSub (D, s))), 
+	   checkGoal (I.Decl (G, N.decName (G, I.decSub (D, s))), 
 		      I.Decl (Q, Universal), 
 		      (V2, I.dot1 s), 
 		      (V', I.comp (s', I.shift)), P.body occ))
       | checkGoalW (G, Q, (I.Pi ((D, I.Maybe), V), s), (V', s'), occ) =
-          checkGoal (I.Decl (G, N.decLUName (G, I.decSub (D, s))), 
+          checkGoal (I.Decl (G, N.decName (G, I.decSub (D, s))), 
 		     I.Decl (Q, Universal),
 		     (V, I.dot1 s), 
 		     (V', I.comp (s', I.shift)), P.body occ)
@@ -445,7 +446,6 @@ struct
        Invariant
        If   G : Q
        and  G |- s1 : G1   and   G1 |- V1 : type
-       and  V1[s1], V2[s2] does not contain Skolem constants
        and  G |- s2 : G2   and   G2 |- V2 : type
        and occ locates V1 in declaration
 
@@ -454,11 +454,11 @@ struct
     and checkImp (G, Q, Vs, Vs', occ) = checkImpW (G, Q, Vs, Whnf.whnf Vs', occ)
 
     and checkImpW (G, Q, (V, s), (I.Pi ((D', I.No), V'), s'), occ) =
-          checkImp (I.Decl (G, N.decEName (G, I.decSub (D', s'))),
+          checkImp (I.Decl (G, N.decName (G, I.decSub (D', s'))),
 		    I.Decl (Q, Existential),
 		    (V, I.comp (s, I.shift)), (V', I.dot1 s'), occ)
       | checkImpW (G, Q, (V, s), (I.Pi ((D', I.Maybe), V'), s'), occ) =
-          checkImp (I.Decl (G, N.decEName (G, I.decSub (D', s'))),
+          checkImp (I.Decl (G, N.decName (G, I.decSub (D', s'))),
 		    I.Decl (Q, Existential),
 		    (V, I.comp (s, I.shift)), (V', I.dot1 s'), occ)
       | checkImpW (G, Q, Vs, Vs' as (I.Root (I.Const a, S), s), occ) = 
@@ -469,21 +469,20 @@ struct
        Invariant: 
        If   G : Q
        and  G |- s : G1    and   G1 |- V : L
-       and  V[s] does not contain any Skolem constants
        then if (V, s) satifies the termination condition in G then  ()
 	 else exception Error is raised
     *)
     and checkClause (G, Q, Vs, occ) = checkClauseW (G, Q, Whnf.whnf Vs, occ)
 
     and checkClauseW (G, Q, (I.Pi ((D, I.Maybe), V), s), occ) =
-	  checkClause (I.Decl (G, N.decEName (G, I.decSub (D, s))), 
+	  checkClause (I.Decl (G, N.decName (G, I.decSub (D, s))), 
 		       I.Decl (Q, Existential), 
 		       (V, I.dot1 s), P.body occ)
       | checkClauseW (G, Q, (I.Pi ((D as I.Dec (_, V1), I.No), V2), s), occ) =
-          (checkImp (I.Decl (G, N.decEName (G, I.decSub (D, s))),
+          (checkImp (I.Decl (G, N.decName (G, I.decSub (D, s))),
 		     I.Decl (Q, Existential),
 		     (V1, I.comp (s, I.shift)), (V2, I.dot1 s), P.label occ);
-	   checkClause (I.Decl (G, N.decEName (G, I.decSub (D, s))),
+	   checkClause (I.Decl (G, N.decName (G, I.decSub (D, s))),
 			I.Decl (Q, Existential), 
 			(V2, I.dot1 s), P.body occ))
       | checkClauseW (G, Q, Vs, occ) = ()
@@ -498,7 +497,7 @@ struct
     fun checkFam a =
 	let 
 	  fun checkFam' nil = ()
-	    | checkFam' (I.Const b::bs) = 
+	    | checkFam' (b::bs) = 
 		(if (!Global.chatter) >= 4 then 
 		   print ("[" ^ N.constName b ^ ":")
 		 else ();

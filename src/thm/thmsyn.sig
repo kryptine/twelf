@@ -8,7 +8,7 @@ sig
 
   exception Error of string
 
-  type Param = string option
+  type Param = ModeSyn.IntSyn.name option
 
   datatype Order =
     Varg of string list
@@ -24,14 +24,12 @@ sig
 
   (* Theorem declaration  *)
   datatype ThDecl =
-    ThDecl of (ModeSyn.IntSyn.Dec ModeSyn.IntSyn.Ctx * ModeSyn.IntSyn.Dec ModeSyn.IntSyn.Ctx) list
-              * ModeSyn.IntSyn.Dec ModeSyn.IntSyn.Ctx * ModeSyn.Mode ModeSyn.IntSyn.Ctx * int
+    ThDecl of ModeSyn.IntSyn.Dec ModeSyn.IntSyn.Ctx * ModeSyn.Mode ModeSyn.IntSyn.Ctx * int
 
   (* Proof declaration *)
   datatype PDecl = 
     PDecl of int * TDecl
 
-  val theoremDecToConDec : ((string * ThDecl) * Paths.region) -> 
-                           (ModeSyn.IntSyn.Dec ModeSyn.IntSyn.Ctx * ModeSyn.IntSyn.Dec ModeSyn.IntSyn.Ctx) list * ModeSyn.IntSyn.ConDec
+  val theoremDecToConDec : ((string * ThDecl) * Paths.region) -> ModeSyn.IntSyn.ConDec
   val theoremDecToModeSpine : ((string * ThDecl) * Paths.region) -> ModeSyn.ModeSpine
 end;  (* signature THMSYN *)

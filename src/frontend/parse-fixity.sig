@@ -8,7 +8,6 @@ sig
   structure Names : NAMES
 
   val parseFixity' : ((string * Parsing.Lexer.Paths.region) * Names.Fixity.fixity) Parsing.parser
-  val parseNamePref' : ((string * Parsing.Lexer.Paths.region)
-			* (string * string option)) Parsing.parser
+  val parseNamePref' : ((string * Parsing.Lexer.Paths.region) * string) Parsing.parser
 
 end;  (* signature PARSE_FIXITY *)

@@ -17,12 +17,19 @@ struct
   *)
   fun ctxPop (Decl (G, D)) = G
 
-  (* ctxLookup (G, k) = D, kth declaration in G from right to left
+  (* ctxLookup (G, k) = D, k counting 
      Invariant: 1 <= k <= |G|, where |G| is length of G
   *)
-  fun ctxLookup (Decl (G', D), 1) = D
-    | ctxLookup (Decl (G', _), k') = ctxLookup (G', k'-1)
-    (* ctxLookup (Null, k')  should not occur by invariant *)
+  fun ctxLookup (G, k) =
+      let (* ctxLookup' (G'', k') = D
+	     where 1 <= k' <= |G''|
+           *)
+	fun ctxLookup' (Decl (G', D), 1) = D
+	  | ctxLookup' (Decl (G', _), k') = ctxLookup' (G', k'-1)
+	 (* ctxLookup' (Null, k')  should not occur by invariant *)
+      in
+	ctxLookup' (G, k)
+      end
 
   (* ctxLength G = |G|, the number of declarations in G *)
   fun ctxLength G =
@@ -36,7 +43,6 @@ struct
   datatype Depend =                     (* Dependency information     *)
     No                                  (* P ::= No                   *)
   | Maybe                               (*     | Maybe                *)
-  | Meta				(*     | Meta                 *)
 
   (* Expressions *)
 
@@ -50,16 +56,14 @@ struct
   | Root  of Head * Spine		(*     | C @ S                *)
   | Redex of Exp * Spine		(*     | U @ S                *)
   | Lam   of Dec * Exp			(*     | lam D. U             *)
-  | EVar  of Exp option ref * Dec Ctx * Exp * Eqn list
-					(*     | X<I> : G|-V, Cnstr   *)
+  | EVar  of Exp option ref * Exp * Eqn list
+					(*     | X<I> : V             *)
   | EClo  of Exp * Sub			(*     | U[s]                 *)
     
   and Head =				(* Heads:                     *)
     BVar  of int			(* H ::= k                    *)
   | Const of cid			(*     | c                    *)
-  | Skonst of cid			(*     | c#                   *)
   | Def   of cid			(*     | d                    *)
-  | NSDef of cid			(*     | d (non strict)       *)
   | FVar  of name * Exp * Sub		(*     | F[s]                 *)
     
   and Spine =				(* Spines:                    *)
@@ -73,41 +77,34 @@ struct
 
   and Front =				(* Fronts:                    *)
     Idx of int				(* Ft ::= k                   *)
-  | Exp of Exp				(*     | U                    *)
-  | Undef				(*     | _                    *)
+  | Exp of Exp * Exp			(*     | (U:V)                *)
 
   and Dec =				(* Declarations:              *)
     Dec of name option * Exp		(* D ::= x:V                  *)
     
   and Eqn =			        (* Equations                  *)
-    Eqn of Dec Ctx * Exp * Exp		(* Eqn ::= G|-(U1 == U2)      *)
+    Eqn of Exp * Exp			(* Eqn ::= (U1 == U2)         *)
 
   type dctx = Dec Ctx			(* G = . | G,D                *)
+  type root = Head * Spine		(* R = H @ S                  *)
   type eclo = Exp * Sub   		(* Us = U[s]                  *)
 
   (* Global signature *)
 
   exception Error of string             (* raised if out of space     *)
+  type imp = int			(* # of implicit arguments    *)
 
   datatype ConDec =			(* Constant Declaration       *)
-    ConDec of name * int		(* a : K : kind  or           *)
+    ConDec of name * imp		(* a : K : kind  or           *)
               * Exp * Uni	        (* c : A : type               *)
-  | ConDef of name * int		(* a = A : K : kind  or       *)
+  | ConDef of name * imp		(* a = A : K : kind  or       *)
               * Exp * Exp * Uni		(* d = M : A : type           *)
-  | NSConDef of string * int		(* a = A : K : kind  or       *)
-              * Exp * Exp * Uni		(* d = M : A : type           *)
-  | SkoDec of name * int		(* sa: K : kind  or           *)
-              * Exp * Uni	        (* sc: A : type               *)
 
   fun conDecName (ConDec (name, _, _, _)) = name
     | conDecName (ConDef (name, _, _, _, _)) = name
-    | conDecName (NSConDef (name, _, _, _, _)) = name
-    | conDecName (SkoDec (name, _, _, _)) = name
 
   fun conDecType (ConDec (_, _, V, _)) = V
     | conDecType (ConDef (_, _, _, V, _)) = V
-    | conDecType (NSConDef (_, _, _, V, _)) = V
-    | conDecType (SkoDec (_, _, V, _)) = V
 
   local
     val maxCid = Global.maxCid
@@ -139,37 +136,23 @@ struct
 
     (* 0 <= cid < !nextCid *)
     fun sgnLookup (cid) = Array.sub (sgnArray, cid)
-
-    fun sgnApp (f) =
-        let
-	  fun sgnApp' (cid) = 
-	      if cid = !nextCid then () else (f cid; sgnApp' (cid+1)) 
-	in
-	  sgnApp' (0)
-	end
-
   end
 
   fun constDef (d) =
       (case sgnLookup (d)
-	 of ConDef(_, _, U,_, _) => U
-	  | NSConDef (_, _, U,_, _) => U)
+	 of ConDef(_, _, U,_, _) => U)
 
   fun constType (c) = conDecType (sgnLookup (c))
 
   fun constImp (c) =
       (case sgnLookup(c)
 	 of ConDec (_,i,_,_) => i
-          | ConDef (_,i,_,_,_) => i
-          | NSConDef (_,i,_,_,_) => i
-	  | SkoDec (_,i,_,_) => i)
+          | ConDef (_,i,_,_,_) => i)
 
   fun constUni (c) =
       (case sgnLookup(c)
 	 of ConDec (_,_,_,L) => L
-          | ConDef (_,_,_,_,L) => L
-          | NSConDef (_,_,_,_,L) => L
-	  | SkoDec (_,_,_,L) => L)
+          | ConDef (_,_,_,_,L) => L)
 
   (* Declaration Contexts *)
 
@@ -205,12 +188,6 @@ struct
   *)
   val shift = Shift(1)
 
-  (* invShift = ^-1 = _.^0
-     Invariant:
-     G |- ^-1 : G, V     ^-1 is patsub
-  *)
-  val invShift = Dot(Undef, id)
-
   (* bvarSub (n, s) = Ft'
    
      Invariant: 
@@ -229,14 +206,9 @@ struct
      If   G |- s : G'     G' |- Ft : V
      then Ft' = Ft [s]
      and  G |- Ft' : V [s]
-
-     NOTE: EClo (U, s) might be undefined, so if this is ever
-     computed eagerly, we must introduce an "Undefined" exception,
-     raise it in whnf and handle it here so Exp (EClo (U, s)) => Undef
   *)
   and frontSub (Idx (n), s) = bvarSub (n, s)
-    | frontSub (Exp (U), s) = Exp (EClo (U, s))
-    | frontSub (Undef, s) = Undef
+    | frontSub (Exp (U, V), s) = Exp(EClo (U, s),V)
 
   (* decSub (x:V, s) = D'
 
@@ -292,34 +264,24 @@ struct
   fun dot1 (s as Shift (0)) = s
     | dot1 s = Dot (Idx(1), comp(s, shift))
 
-  (* invDot1 (s) = s'
-     invDot1 (1. s' o ^) = s'
-
-     Invariant:
-     s = 1 . s' o ^
-     If G' |- s' : G
-     (so G',V[s] |- s : G,V)
-  *)
-  fun invDot1 (s) = comp (comp(shift, s), invShift)
-
   (* EVar related functions *)
 
-  (* newEVar (G, V) = newEVarCnstr (G, V, nil) *)
-  fun newEVar (G, V) = EVar(ref NONE, G, V, nil)
+  (* newEVar (V) = newEVarCnstr (V, nil) *)
+  fun newEVar (V) = EVar(ref NONE, V, nil)
 
-  (* newEVar (G, V, Cnstr) = X, X new, constraints Cnstr
+  (* newEVar (V, Cnstr) = X, X new, constraints Cnstr
      If   G |- V : L
             |= Cnstr Con  (Cnstr are valid constraints, each in its own context)
      then G |- X : V
           X is the immediate successor variable to the
           variable Y indexing Cnstr
   *)
-  fun newEVarCnstr (G, V, Cnstr) = EVar(ref NONE, G, V, Cnstr)
+  fun newEVarCnstr (V, Cnstr) = EVar(ref NONE, V, Cnstr)
 
-  (* newTypeVar (G) = X, X new
+  (* newTypeVar () = X, X new
      where G |- X : type
   *)
-  fun newTypeVar (G) = EVar(ref NONE, G, Uni(Type), nil)
+  fun newTypeVar () = EVar(ref NONE, Uni(Type), nil)
 
   (* Type related functions *)
 
@@ -332,11 +294,11 @@ struct
     | targetFamOpt (Root (Def(cid), _)) = SOME(cid)
     | targetFamOpt (Redex (V, S)) = targetFamOpt V
     | targetFamOpt (Lam (_, V)) = targetFamOpt V
-    | targetFamOpt (EVar (ref (SOME(V)),_,_,_)) = targetFamOpt V
+    | targetFamOpt (EVar (ref (SOME(V)), _,_)) = targetFamOpt V
     | targetFamOpt (EClo (V, s)) = targetFamOpt V
     | targetFamOpt _ = NONE
-      (* Root(Bvar _, _), Root(FVar _, _),  EVar(ref NONE,..), Uni *)
-      (* Root(Skonst _, _) can't occur *)
+      (* Root(Bvar _, _), Root(FVar _, _), EVar(ref NONE,..), Uni *)
+
   (* targetFam (A) = a
      as in targetFamOpt, except V must be a valid type
   *)
