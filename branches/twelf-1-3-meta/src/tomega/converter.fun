@@ -15,6 +15,9 @@ functor Converter
      sharing Unify.IntSyn = IntSyn'
    structure Whnf : WHNF
      sharing Whnf.IntSyn = IntSyn'
+   structure Worldify : WORLDIFY
+     sharing Worldify.IntSyn = IntSyn'
+     sharing Worldify.Tomega = Tomega'
    structure TypeCheck : TYPECHECK
      sharing TypeCheck.IntSyn = IntSyn')
      : CONVERTER = 
@@ -821,7 +824,7 @@ struct
        and  c is a type family which entries are currently traversed
        then L' is a list of cases
     *)
-    fun traverse (Ts, c) =
+    fun traverse (Ts, c, Sig) =
       let 
 
 	(* traverseNeg (c'', Psi, (V, v), L) = ([w', d', PQ'], L')    [] means optional
@@ -854,17 +857,14 @@ struct
 					     (strengthenExp (V1, v), I.id), NONE, L'))
 
 	  | traverseNeg (c'', Psi, (V as I.Root (I.Const c', S) , v), L) = 
-	    if c = c' then
-	      let (* Clause head found *)
-		val S' = strengthenSpine (S, v)
-		val (Psi', w') = strengthen (Psi, (c', S'), I.Shift (I.ctxLength Psi), M.Plus)
-		val (w'', s'') = transformInit (Psi', (c', S'), w')
-	      in
-		(SOME (w', 1, (fn p => (Psi', s'', p), fn wf => transformConc ((c', S'), wf))), L)
-	      end
-	    else 
-	      (NONE, L)
-
+	    let (* Clause head found c = c'' *)
+	      val S' = strengthenSpine (S, v)
+	      val (Psi', w') = strengthen (Psi, (c', S'), I.Shift (I.ctxLength Psi), M.Plus)
+	      val (w'', s'') = transformInit (Psi', (c', S'), w')
+	    in
+	      (SOME (w', 1, (fn p => (Psi', s'', p), fn wf => transformConc ((c', S'), wf))), L)
+	    end
+	  
 	(* traversePos (c, Psi, G, (V, v), [w', d', PQ'], L) =  ([w'', d'', PQ''], L'') 
 	   
 	   Invariant:
@@ -896,7 +896,7 @@ struct
 		    of (SOME (w'', d'', (P'', Q'')), L'') => (SOME (w', d', PQ'), (P'' (Q'' w'')) :: L'')
 	             | (NONE, L'') => (SOME (w', d', PQ'), L'')))
 *)
-(*	  | traversePos (c'', Psi, I.Null, (V, v), SOME (w1, d, (P, Q)), L) = 
+	  | traversePos (c'', Psi, I.Null, (V, v), SOME (w1, d, (P, Q)), L) = 
 	    let (* Lemma calls (no context block) *)
 	      val I.Root (I.Const a', S) = Whnf.normalize (strengthenExp (V, v), I.id)
 	      val (Psi', w2) = strengthen (Psi, (a', S), w1, M.Minus)
@@ -905,12 +905,12 @@ struct
 			then TypeCheck.typeCheck (T.coerceCtx Psi', (I.Uni I.Type, I.Uni I.Kind))
 		      else ()    (* provide typeCheckCtx from typecheck *)
 	      val w3 = strengthenSub (w1, w2)
-	      val (d4, w4, t4, Ds) = transformDec (Ts, (Psi', I.Null), d, (a', S), w1, w2, w3) 
+	      val (d4, w4, t4, Ds) = transformDec (Ts, (Psi', I.Null), d, (a', S), w1, w2, w3)
 	    in     
 	      (SOME (w2, d4, (fn p => P (T.Let (Ds, 
 				       T.Case (T.Cases [(Psi', t4, p)]))), Q)), L)
 	    end
-*)
+
 
 (*	  | traversePos (c'', Psi, G, (V, v), SOME (w1, d, (P, Q)), L) = 
 	    let (* Lemma calls (under a context block) *)
@@ -948,17 +948,12 @@ struct
 	  | traversePos (c'', Psi, G, (V, v), NONE, L) =
 	    (NONE, L)
 
-	fun traverseSig' (c'', L) =
-	  if c'' = #1 (I.sgnSize ()) then L
-	  else
-	    (case I.sgnLookup (c'')
-	       of I.ConDec (name, _, _, _, V, I.Type) => 
-		 (case traverseNeg (c'', I.Null, (V, I.id), L) 
-		    of (SOME (wf, d', (P', Q')), L') =>  traverseSig' (c''+1, (P' (Q' wf)) :: L')
-		     | (NONE, L') => traverseSig' (c''+1, L'))
-	     | _ => traverseSig' (c''+1, L))
+	fun traverseSig' (nil, L) = L
+          | traverseSig' (I.ConDec (name, _, _, _, V, I.Type) :: Sig, L) = 
+  	    (case traverseNeg (~1, I.Null, (V, I.id), L) 
+	       of (SOME (wf, d', (P', Q')), L') =>  traverseSig' (Sig, (P' (Q' wf)) :: L'))
       in
-	traverseSig' (0, nil)
+	traverseSig' (Sig, nil)
       end
 
 
@@ -972,7 +967,8 @@ struct
     *)
 
     fun convertPrg Ts = 
-      let 
+      let
+
 	fun convertOnePrg a =
 	  let 
 	    val V = case I.sgnLookup a 
@@ -981,9 +977,9 @@ struct
 	    val mS = case M.modeLookup a
 	               of NONE => raise Error "Mode declaration expected"
 		        | SOME mS => mS
-	
+	    val Sig = Worldify.worldify a
 	    val P = abstract a
-	    val C = traverse (Ts, a)
+	    val C = traverse (Ts, a, Sig)
 	  in
 	    P (T.Case (T.Cases (nil (* C -cs *))))
 	  end
