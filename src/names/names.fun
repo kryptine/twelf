@@ -834,6 +834,7 @@ struct
 	  orelse ctxDefined (G, name)
 	  then IntSyn.ADec (SOME (tryNextName (G, baseOf name)), d)
 	else D
+      | decName' role (G, D as IntSyn.NDec) = D
 
     val decName = decName' Exist
     val decEName = decName' Exist

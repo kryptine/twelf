@@ -841,10 +841,12 @@ exception Error' of Tomega'.For
 	end
       | raisePrg (G, T.PairExp (U, P), T.Ex (I.Dec (_, V), F)) =
 	let 
- 	  val w = S.weaken (G, I.targetFam V)       (* G  |- w  : G'    *)
-	  val iw = Whnf.invert w	(* G' |- iw : G     *)
-	  val G' = Whnf.strengthen (iw, G)
-	  val U' = A.raiseTerm (G', U)
+	  val w = S.weaken (G, I.targetFam V)
+                                                   (* G  |- w  : G'    *)
+	  val iw = Whnf.invert w 	            (* G' |- iw : G     *)
+	  val G' = Whnf.strengthen (iw, G)        (* Psi0, G' |- B'' ctx *)
+
+	  val U' = A.raiseTerm (G', I.EClo (U, iw))
 	  val P' = raisePrg (G, P, F)
 	in
 	  T.PairExp (U', P')
@@ -1152,7 +1154,7 @@ val _ = print "*"
 
 	      val Pat' = transformConc ((a, S), w2)
 
-					(* Psi0, G3', B3' |- Pat' :: For *)
+					(* Psi0, G3, B3' |- Pat' :: For *)
 	      val F4 = Normalize.normalizeFor (F''', T.embedSub z3)
 					(* Psi0, G3 |- F4 for *)
 	      val _ = TomegaTypeCheck.checkCtx (Psi1'')
@@ -1163,29 +1165,38 @@ val _ = print ".\n"
 val _ = print (TomegaPrint.forToString (Psi2, F4) ^ "\n")
 	      val _ = TomegaTypeCheck.checkFor (Psi2, F4)
 		handle _ => raise Error' F4
-val  _ = print "]here"
+val  _ = print "]"
 	      val B3 = deblockify  B3'
 
 
-(* the pattern is wrong.  Pat' might be defined in B3. But we need to remove
- the projections from the inside. It's something to think about *)
-(* Idea 1 : use unification *)
-(* Solutiion use inst *)
-(* remark : use "test ["cpt"]; " as  example *)
+val  _ = print (TomegaPrint.prgToString (T.embedCtx (Names.ctxName 
+				(T.coerceCtx (append (Psi2, T.embedCtx B3')))), Pat'))
 
 
 val sigma3 = blockToIota (T.Shift (I.ctxLength B3), B3')
-					(* Psi2, B3 |- sigma3 : Psi2, B3' *)
+					(* Psi2, B3 |- sigma3 : Psi2,  B3' *)
+              val Pat'' = Normalize.normalizePrg (Pat', sigma3)
 
+(*val  _ = print (TomegaPrint.prgToString (T.embedCtx (Names.ctxName 
+				(T.coerceCtx (append (Psi2, T.embedCtx B3)))), Pat''))
+*)
 
-
-	      val Pat = raisePrg (B3, Normalize.normalizePrg (Pat', sigma3), F4)
+	      val Pat = raisePrg (B3, Pat'', F4)
 		                        (* Psi0, G3 |- Pat :: F4  *)
 		                        (* Here's a commutative diagram
 					   at work which one has to prove 
 					   correct 
                                         *)
 
+
+val  _ = print (TomegaPrint.prgToString (T.embedCtx (Names.ctxName 
+				(T.coerceCtx Psi2)), Pat))
+
+
+val  _ = print "[..."
+(* somthing is wrong with raisePrg.  I have to pay very careful attention *)
+	      val _ = TomegaTypeCheck.checkPrg (Psi2, (Pat, F4))
+val  _ = print "]"
 
 (*	      val s3 = Whnf.invert w3	(* Psi0, G3 |- s3 :  Psi0, G'*) *)
 	      val t = T.Dot (T.Prg Pat, T.embedSub z3)
