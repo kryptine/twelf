@@ -146,8 +146,7 @@ struct
 				     ^ ".\n")
 		else ()
 
-	val g = (Timers.time Timers.compiling Compile.compileGoal) 
-	            (IntSyn.Null, A)
+	val g = (Timers.time Timers.compiling Compile.compileGoal) A
 
 	(* 
 	   the initial success continuation builds the abstractions to we can
@@ -213,8 +212,7 @@ struct
 	     (*
 		val Xs' = if !Global.chatter >= 3 then Names.namedEVars () else Xs
 	     *)
-	     val g = (Timers.time Timers.compiling Compile.compileGoal) 
-	                (IntSyn.Null, A)
+	     val g = (Timers.time Timers.compiling Compile.compileGoal) A
 
 	     (* solutions = ref <n> counts the number of solutions found *)
 	     val solutions = ref 0
@@ -273,8 +271,7 @@ struct
     | qLoops' (S.Cons (query, s')) =
       let
 	val (A, optName, Xs) = TpReconQ.queryToQuery(query) (* times itself *)
-	val g = (Timers.time Timers.compiling Compile.compileGoal) 
-	            (IntSyn.Null, A)
+	val g = (Timers.time Timers.compiling Compile.compileGoal) A
 	fun scInit M =
 	    (print ((Timers.time Timers.printing evarInstToString) Xs ^ "\n");
 	     case optName

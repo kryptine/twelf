@@ -188,6 +188,8 @@
 ;;; Q: Improve tagging for %keyword declarations?
 ;;; Thu Jun 25 08:52:41 1998
 ;;; Finished major revision (version 3.0)
+;;; Fri Oct  2 11:06:15 1998
+;;; Added NT Emacs bug workaround
 
 (require 'comint)
 (require 'auc-menu) 
@@ -317,7 +319,6 @@ This is used by the error message parser.")
     ("Print.length" . limit)
     ("Print.indent" . nat)
     ("Print.width" . nat)
-    ("Compile.optimize" . bool)
     ("Prover.strategy" . strategy)
     ("Prover.maxSplit" . nat)
     ("Prover.maxRecurse" . nat))
@@ -337,15 +338,11 @@ Maintained to present reasonable menus.")
 (defvar twelf-print-implicit "false"
   "Current value of Print.implicit Twelf parameter.")
 
-(defvar twelf-compile-optimize "true"
-  "Current value of Compile.optimize Twelf parameter.")
-
 (defconst *twelf-track-parms*
   '(("chatter" . twelf-chatter)
     ;("trace" . twelf-trace)
     ("doubleCheck" . twelf-double-check)
-    ("Print.implicit" . twelf-print-implicit)
-    ("Compile.optimize" . twelf-compile-optimize))
+    ("Print.implicit" . twelf-print-implicit))
   "Association between Twelf parameters and Emacs tracking variables.")
 
 ;;;----------------------------------------------------------------------
@@ -1087,6 +1084,18 @@ Also updates the error cursor to the current line."
   (twelf-next-error))
 
 ;;;----------------------------------------------------------------------
+;;; NT Emacs bug workaround
+;;;----------------------------------------------------------------------
+
+(defun twelf-convert-standard-filename (filename)
+  "Convert FILENAME to form appropriate for Twelf Server of current OS."
+  (cond ((eq system-type 'windows-nt)
+	 (while (string-match "/" filename)
+	   (setq filename (replace-match "\\" t t filename)))
+	 filename)
+	(t (convert-standard-filename filename))))
+
+;;;----------------------------------------------------------------------
 ;;; Communication with Twelf server
 ;;;----------------------------------------------------------------------
 
@@ -1162,10 +1171,11 @@ With prefix argument also displays Twelf server buffer."
   (if twelf-config-mode
       (twelf-server-configure (buffer-file-name) "Server OK: Reconfigured")
     (let* ((save-file (buffer-file-name))
-	   (check-file (file-relative-name save-file (twelf-config-directory))))
+	   (check-file (file-relative-name save-file (twelf-config-directory)))
+	   (check-file-os (twelf-convert-standard-filename check-file)))
       (twelf-server-sync-config)
       (twelf-focus nil nil)
-      (twelf-server-send-command (concat "loadFile " check-file))
+      (twelf-server-send-command (concat "loadFile " check-file-os))
       (twelf-server-wait displayp))))
 
 (defun twelf-buffer-substring (start end)
@@ -1574,8 +1584,7 @@ created if it doesn't exist."
   (setq twelf-chatter 3)
   ;;(setq twelf-trace 0)
   (setq twelf-double-check "false")
-  (setq twelf-print-implicit "false")
-  (setq twelf-compile-optimize "true"))
+  (setq twelf-print-implicit "false"))
 
 (defun twelf-server (&optional program)
   "Start an Twelf server process in a buffer named *twelf-server*.
@@ -1764,7 +1773,9 @@ Starts a Twelf servers if necessary."
   (let* ((config-file (if (file-directory-p config-file)
                           (concat config-file "sources.cfg")
                         config-file))
+	 (config-file-os (twelf-convert-standard-filename config-file))
          (config-dir (file-name-directory config-file))
+	 (config-dir-os (twelf-convert-standard-filename config-dir))
          (config-buffer (set-buffer (or (get-file-buffer config-file)
                                         (find-file-noselect config-file))))
          config-list)
@@ -1779,14 +1790,14 @@ Starts a Twelf servers if necessary."
             (if (equal default-directory config-dir)
                 nil
               (setq default-directory config-dir)
-              (concat "OS.chDir " config-dir)))
+              (concat "OS.chDir " config-dir-os)))
            (_ (set-buffer config-buffer)))
       (cond ((not (null cd-command))
 	     (twelf-server-send-command cd-command)
 	     (twelf-server-wait nil ""
 				"Server ABORT: Could not change directory")))
       (twelf-server-send-command
-       (concat "Config.read " config-file))
+       (concat "Config.read " config-file-os))
       (twelf-server-wait nil (or ok-message "Server OK")
                        "Server ABORT: Could not be configured")
       ;; *twelf-config-buffer* should still be current buffer here
@@ -1888,12 +1899,6 @@ Used in menus."
   (let ((value (if (string-equal twelf-print-implicit "false")
 		   "true" "false")))
     (twelf-set "Print.implicit" value)))
-
-(defun twelf-toggle-compile-optimize ()
-  "Toggles Compile.optimize parameter of Twelf."
-  (let ((value (if (string-equal twelf-compile-optimize "false")
-		   "true" "false")))
-    (twelf-set "Compile.optimize" value)))
 
 (defun twelf-get (parm)
   "Prints the value of the Twelf parameter PARM.
@@ -2531,9 +2536,6 @@ Mode map
        ["length" (twelf-set-parm "Print.length") t]
        ["indent" (twelf-set-parm "Print.indent") t]
        ["width" (twelf-set-parm "Print.width") t])
-      ("Compile."
-       (, (toggle "optimize" '(twelf-toggle-compile-optimize)
-		  '(string-equal twelf-compile-optimize "true"))))
       ("Prover."
        ["strategy" (twelf-set-parm "Prover.strategy") t]
        ["maxSplit" (twelf-set-parm "Prover.maxSplit") t]
