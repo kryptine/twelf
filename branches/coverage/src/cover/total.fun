@@ -123,7 +123,10 @@ struct
     *)
     fun checkOutCover nil = ()
       | checkOutCover (I.Const(c)::cs) =
-        ( checkClause (I.Null, (I.constType (c), I.id), P.top)
+        ( if !Global.chatter >= 6
+	    then print ("Output coverage: " ^ Names.qidToString (Names.constQid c) ^ "\n")
+	  else () ;
+	  checkClause (I.Null, (I.constType (c), I.id), P.top)
 	     handle Error' (occ, msg) => error (c, occ, msg) ;
           checkOutCover cs )
 
