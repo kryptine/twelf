@@ -282,17 +282,20 @@ struct
 
     (* strenghten (Psi, (a, S), w, m) = (Psi', w')       
      
+       This function traverses the spine, and finds 
+       all variables in a position input/output position
+       (hence strenghten might not be a good name for it, because it is to general.)
+
        Invariant:
        If   |- Psi ctx
        and  |- Psi1 ctx      where Psi1 is a subcontext of Psi
-       and  |- Psi2 ctx
        and  Sigma (a) = {x1:A1} .. {xn:An} type
        and  Psi |- S : m1{x1:A1} .. mn{xn:An} > type
        and  Psi |- w : Psi1 
        and  m mode
        then |- Psi' ctx
        and  Psi |- w' : Psi'
-       where Psi' extends Psi1
+       where Psi' extends Psi1 (but is a subset of Psi?)
     *)
 
     fun strengthen (Psi, (a, S), w, m) =
@@ -548,6 +551,8 @@ struct
       end
     
  
+    fun tranformDec (Psi, (a, S)) = raise Error "not yet implemented"
+
 (*
     (* transformDec (c'', (Psi+-, G0), d, (a, S), w1, w2, t) = (d', w', s', t', Ds)
      
@@ -835,7 +840,7 @@ struct
 	   and  V[v^-1] does not contain Skolem constants
 	   and  c'' is the name of the object constant currently considered
 	   and  L is a list of cases
-	   then L' list of cases and CL' extends CL
+	   then L' list of cases and L' extends L
 	   and  Psi |- w' : Psi'   (Psi' is the context of all variables considered so far)
 	   and  d' is the length of Delta
 	   and  PQ'  is a pair, generating the proof term
@@ -843,29 +848,48 @@ struct
 
 	fun traverseNeg (c'', Psi, (I.Pi ((D as I.Dec (_, V1), I.Maybe), V2), v), L) =
 	    (case traverseNeg (c'', I.Decl (Psi, T.UDec (strengthenDec (D, v))), 
-(*				     (Names.decName (F.makectx Psi, strengthenDec (D, v)))), 
+(*				     (Names.decNambe (F.makectx Psi, strengthenDec (D, v)))), 
 *)			       (V2, I.dot1 v), L)
 	       of (SOME (w', d', PQ'), L') => (SOME (peel w', d', PQ'), L')
 	        | (NONE, L') => (NONE, L'))
 
 	  | traverseNeg (c'', Psi, (I.Pi ((D as I.Dec (_, V1), I.No), V2), v), L) =
 	    (case traverseNeg (c'', Psi, (V2, I.comp (v, I.shift)), L) 
-	       of (SOME (w', d', PQ'), L') => traversePos (c'', Psi, I.Null, 
+	       of (SOME (w', d', PQ'), L') => traversePos (c'', Psi, 
 							   (strengthenExp (V1, v), I.id), 
 							   SOME (w', d', PQ'), L')
-	        | (NONE, L') => traversePos (c'', Psi, I.Null, 
+	        | (NONE, L') => traversePos (c'', Psi, 
 					     (strengthenExp (V1, v), I.id), NONE, L'))
 
 	  | traverseNeg (c'', Psi, (V as I.Root (I.Const c', S) , v), L) = 
 	    let (* Clause head found c = c'' *)
 	      val S' = strengthenSpine (S, v)
+		(* Psi0 |- V : type *)
+		(* Psi  |- V [v-1] : type *)
+		(* Psi corresponds to the context Psi0, in such a way, 
+		   that pi quantified assumptions are in, 
+                   and -> qunatified assumptions are elided
+		   Psi0 |- v : Psi
+		   Psi  |- v^-1 : Psi0
+		   Psi  |- S' valid spine
+		*)		
 	      val (Psi', w') = strengthen (Psi, (c', S'), I.Shift (I.ctxLength Psi), M.Plus)
+		(* Psi  |- w' : Psi' *)
+		(* Psi' is a subcontext of Psi', which contains all those
+		   variables that occur in a M.Plus position *)	 
 	      val (w'', s'') = transformInit (Psi', (c', S'), w')
+		(* Let Sigma (a) = PI{PsiDef} type *)
+		(* Psi+ is a subset of PsiDef, of all the parameters that occur in a 
+		   plus position *)
+		(* Psi+ |- w' : PsiDef *)
+		(* Psi' |-  s'' : Psi+ *)  
+		(* s'' is the substitution in a case *)
+		(* Psi' is the context in a case *) 
 	    in
 	      (SOME (w', 1, (fn p => (Psi', s'', p), fn wf => transformConc ((c', S'), wf))), L)
 	    end
 	  
-	(* traversePos (c, Psi, G, (V, v), [w', d', PQ'], L) =  ([w'', d'', PQ''], L'') 
+	(* traversePos (c, Psi, (V, v), [w', d', PQ'], L) =  ([w'', d'', PQ''], L'') 
 	   
 	   Invariant:
 	   If   Psi, G |- V : type
@@ -882,9 +906,9 @@ struct
 	   and  |Delta''| = d''  for a Delta'
 	   and  PQ'' can genreate the proof term so far in Delta''; Psi2
 	*)
-	and traversePos (c'', Psi, G, (I.Pi ((D as I.Dec (_, V1), I.Maybe), V2), v), 
+	and traversePos (c'', Psi, (I.Pi ((D as I.Dec (_, V1), I.Maybe), V2), v), 
 			 SOME (w, d, PQ), L) = 
-	    (case traversePos (c'', Psi, I.Decl (G, strengthenDec (D, v)), 
+	    (case traversePos (c'', I.Decl (Psi,  T.UDec (strengthenDec (D, v))), 
 			       (V2, I.dot1 v), 
 			       SOME (I.dot1 w, d, PQ), L)
 	       of (SOME (w', d', PQ'), L') => (SOME  (w', d', PQ'), L'))
@@ -896,7 +920,7 @@ struct
 		    of (SOME (w'', d'', (P'', Q'')), L'') => (SOME (w', d', PQ'), (P'' (Q'' w'')) :: L'')
 	             | (NONE, L'') => (SOME (w', d', PQ'), L'')))
 *)
-	  | traversePos (c'', Psi, I.Null, (V, v), SOME (w1, d, (P, Q)), L) = 
+	  | traversePos (c'', Psi, (V, v), SOME (w1, d, (P, Q)), L) = 
 	    let (* Lemma calls (no context block) *)
 	      val I.Root (I.Const a', S) = Whnf.normalize (strengthenExp (V, v), I.id)
 	      val (Psi', w2) = strengthen (Psi, (a', S), w1, M.Minus)
@@ -905,7 +929,9 @@ struct
 			then TypeCheck.typeCheck (T.coerceCtx Psi', (I.Uni I.Type, I.Uni I.Kind))
 		      else ()    (* provide typeCheckCtx from typecheck *)
 	      val w3 = strengthenSub (w1, w2)
-	      val (d4, w4, t4, Ds) = transformDec (Ts, (Psi', I.Null), d, (a', S), w1, w2, w3)
+		
+	      (* val (d4, w4, t4, Ds) = transformDec (Ts, (Psi', I.Null), d, (a', S), w1, w2, w3) *)
+	      val D = transformDec (Psi', (a', S))
 	    in     
 	      (SOME (w2, d4, (fn p => P (T.Let (Ds, 
 				       T.Case (T.Cases [(Psi', t4, p)]))), Q)), L)
@@ -932,11 +958,14 @@ struct
 				       T.Case (T.Cases [(Psi', t4, p)]))), Q)), L)
 	    end
 *)
-	  | traversePos (c'', Psi, G, (I.Pi ((D as I.Dec (_, V1), I.Maybe), V2), v), NONE, L) =
-	      traversePos (c'', Psi, I.Decl (G, strengthenDec (D, v)), 
+(* cannot occur in our setting
+
+	  | traversePos (c'', Psi, (I.Pi ((D as I.Dec (_, V1), I.Maybe), V2), v), NONE, L) =
+	      traversePos (c'',  I.Decl (Psi, T.UDec (strengthenDec (D, v))), 
 			       (V2, I.dot1 v), 
 			       NONE, L)
 
+*)
 (*	  | traversePos (c'', Psi, G, (I.Pi ((D as I.Dec (_, V1), I.No), V2), v), NONE, L) =
 	    (case traversePos (c'', Psi, G, (V2, I.comp (v, I.shift)), NONE, L)
 	       of (NONE, L') => 
@@ -945,8 +974,10 @@ struct
 		    of (SOME (w'', d'', (P'', Q'')), L'') => (NONE, (P'' (Q'' w'')) :: L'')
 	             | (NONE, L'') => (NONE, L'')))
 *)
-	  | traversePos (c'', Psi, G, (V, v), NONE, L) =
-	    (NONE, L)
+(* cannot occur in our design now, can it?
+
+	  | traversePos (c'', Psi, (V, v), NONE, L) =
+	    (NONE, L) *)
 
 	fun traverseSig' (nil, L) = L
           | traverseSig' (I.ConDec (name, _, _, _, V, I.Type) :: Sig, L) = 
