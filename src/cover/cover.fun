@@ -388,11 +388,17 @@ struct
        ms matches for for V = a @ S
        klist <> Covered accumulates mode spines
     *)
+
+    (* why do we we need to carray around s' at all? -cs !!! *)
     fun matchCtx (G, s', I.Null, V, k, ms, klist) = klist
       | matchCtx (G, s', I.Decl(G'', I.Dec(_, V')), V, k, ms, klist) =
         (* will always fail for input coverage *)
         let
-	  val s'' = I.comp (s', I.shift)
+	  (*  G'', V' |- ^ : G''
+	      G |- s' : G'', V'  
+          *)    
+	  val s'' = I.comp (I.shift, s')   (* was the other way around -cs !!! *)
+	  (*  G |- ^ o s' : G'' *)
 	  val cands = CSManager.trail
 	              (fn () => matchClause (G, (V, I.id), (V', s''), ms))
 	in
@@ -402,13 +408,13 @@ struct
         (* will always fail for input coverage *)
         let
 	  val (Gsome, piDecs) = I.constBlock cid	
-	  val s'' = I.comp (s', I.shift)
+	  val s'' = I.comp (I.shift, s')
 	  (* G'' |- s : Gsome,
              G |- s'' : G''
-             G |- s'' o s : Gsome
+             G |- s o s'' : Gsome
              Gsome |- piDecs : ctx
           *)
-	  val klist' = matchBlocks (G, I.comp (s'', s), piDecs, V, k, 1, ms, klist)
+	  val klist' = matchBlocks (G, I.comp (s, s''), piDecs, V, k, 1, ms, klist)
 	in
 	  matchCtx' (G, s'', G'', V, k+1, ms, klist')
 	end
@@ -475,8 +481,7 @@ struct
     (*** Splitting ***)
     (*****************)
 
-    (*
-       In a coverage goal {{G}} a @ S we instantiate each
+    (* In a coverage goal {{G}} a @ S we instantiate each
        declaration in G with a new EVar, then split one of these variables,
        then abstract to obtain a new coverage goal {{G'}} a @ S'
     *)
@@ -731,8 +736,8 @@ struct
 	end
         (* Constraints.Error could be raise by abstract *)
         handle Constraints.Error (constrs) =>
-	  (if !Global.chatter >= 6
-	     then print ("Inactive split:\n" ^ Print.cnstrsToString (constrs))
+	  (if !Global.chatter >= 6	
+     then print ("Inactive split:\n" ^ Print.cnstrsToString (constrs))
 	   else ();
 	     NONE)
 
@@ -817,8 +822,7 @@ struct
        ms is mode spine designating input arguments (+)
     *)
     fun cover (V, wms as (W, ms), ccs, missing) =
-          split (V, selectCand (match (I.Null, V, ms, ccs)), wms, ccs, missing)
-
+          split (V, selectCand (match (I.Null, V, ms, ccs)), wms, ccs, missing) 
     and split (V, NONE, wms, ccs, missing) = 
         (* V is covered: return missing patterns from other cases *)
           missing
