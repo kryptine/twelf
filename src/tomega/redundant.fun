@@ -24,12 +24,13 @@ functor Redundant (structure Opsem : OPSEM) : REDUNDANT  =
 
     fun convert (T.Lam (D, P)) = T.Lam (D, convert P)
       | convert (T.New P) = T.New (convert P)
+      | convert (T.Choose P) = T.Choose (convert P)
       | convert (T.PairExp (M, P)) = T.PairExp (M, convert P)
       | convert (T.PairBlock (rho, P)) = T.PairBlock (rho, convert P)
       | convert (T.PairPrg (P1, P2)) = T.PairPrg (convert P1, convert P2)
       | convert (T.Unit) = T.Unit
 
-      | convert (T.Root (T.Const lemma, S)) = (* lemma converted by Inductive Hypothesis *)
+      | convert (T.Root (T.Const lemma, S)) = (* lemma converted by Induction Hypothesis *)
                                               T.Root (T.Const lemma, convertSpine S)
 
       | convert (T.Root (T.Var v, S)) = T.Root (T.Var v, convertSpine S)
@@ -69,6 +70,76 @@ functor Redundant (structure Opsem : OPSEM) : REDUNDANT  =
       | decEqual ( T.PDec (_, F1), (T.PDec (_, F2), t2) ) = T.convFor ((F1, T.id), (F2, t2))
       | decEqual _ = false
 
+    and caseEqual (((Psi1, t1, P1)::O1), (((Psi2, t2, P2)::O2), tAfter)) =
+            (* Recall that we (Psi2, t2, P2)[tAfter] = (Psi2, (tAfterInv \circ t2), P2) *)
+            let
+	      val t2' = T.comp(T.invertSub(tAfter),t2)
+	      (* Note:  (Psi1 |- t1: Psi0) *)
+	      val t = Opsem.createVarSub(Psi1, Psi2) (* Psi1 |- t: Psi2 *)
+	      val t' = T.comp(t2', t) (* Psi1 |- t' : Psi_0 *)
+	      val doMatch = (Opsem.matchSub (Psi1, t1, t') ; true)
+		handle NoMatch => false
+	    in
+	      if (doMatch) then
+		let
+		  val newT = Normalize.normalizeSub t
+		  val stillMatch = IsSubRenamingOnly(newT)
+		in
+		  (stillMatch andalso prgEqual(P1, (P2, cleanSub(newT))))
+		end
+	      else
+		false
+	    end
+
+      
+      | caseEqual (nil, (nil, t2)) = true
+      | caseEqual _ = false
+
+    and spineEqual ( (T.Nil), (T.Nil, t2) ) = true
+      | spineEqual ( (T.AppExp(E1,S1)), (T.AppExp(E2,S2), t2) ) = (Conv.conv( (E1,I.id), (E2, T.coerceSub(t2)) ) andalso spineEqual(S1,(S2,t2)))
+      | spineEqual ( (T.AppBlock (B1,S1)), (T.AppBlock(B2,S2), t2) ) = (blockEqual( B1, I.blockSub (B2, T.coerceSub t2)) andalso spineEqual(S1,(S2,t2)))
+
+      | spineEqual ( (T.AppPrg (P1,S1)), (T.AppPrg(P2,S2), t2) ) = (prgEqual(P1, (P2, t2)) andalso spineEqual(S1, (S2,t2)))
+
+      | spineEqual ( T.SClo(S,t1), (T.SClo(s,t2a), t2) ) = 
+(* there are no SClo created in converter *) raise Error "SClo should not exist!"
+
+      | spineEqual _ = false
+
+
+    and prgEqual ((T.Lam (D1, P1)), (T.Lam (D2, P2), t2)) = (decEqual(D1, (D2,t2)) andalso prgEqual(P1, (P2, T.dot1 t2)))
+      | prgEqual ((T.New P1), (T.New P2, t2)) = prgEqual(P1, (P2, t2)) 
+      | prgEqual ((T.Choose P1), (T.Choose P2, t2)) = prgEqual(P1, (P2, t2))
+      | prgEqual ((T.PairExp (U1, P1)), (T.PairExp (U2, P2), t2)) = (Conv.conv((U1, I.id),(U2,(T.coerceSub t2))) andalso prgEqual((P1), (P2, t2)))
+      | prgEqual ((T.PairBlock (B1, P1)), (T.PairBlock (B2, P2), t2)) = (blockEqual(B1, (I.blockSub(B2, T.coerceSub t2))) andalso prgEqual(P1,(P2,t2)))
+
+      | prgEqual ((T.PairPrg (P1a, P1b)), (T.PairPrg (P2a, P2b), t2)) = (prgEqual(P1a, (P2a, t2)) andalso prgEqual(P1b, (P2b, t2)))
+
+      | prgEqual ((T.Unit), (T.Unit, t2)) = true
+
+      | prgEqual ((T.Root (H1, S1)), (T.Root (H2, S2), t2)) =
+		(case (H1, H2)
+		   of (T.Const lemma1, T.Const lemma2) => ((lemma1=lemma2) andalso (spineEqual(S1, (S2,t2))))
+		 |  (T.Var x1, T.Var x2) => 
+		           (case getFrontIndex(T.varSub(x2,t2)) of
+			      NONE => false
+			    | SOME i => ((x1 = i) andalso (spineEqual(S1, (S2,t2)))))
+                 |  _ => false)
+
+      | prgEqual ((T.Redex (P1, S1)), (T.Redex (P2, S2), t2)) = (prgEqual(P1, (P2,t2)) andalso spineEqual(S1, (S2,t2)))
+
+      | prgEqual ((T.Rec (D1, P1)), (T.Rec (D2, P2), t2)) = (decEqual(D1, (D2,t2)) andalso prgEqual(P1, (P2,T.dot1 t2)))
+
+      | prgEqual ((T.Case (T.Cases O1)), (T.Case (T.Cases O2), t2)) = caseEqual(O1, (O2, t2))
+
+      | prgEqual ((T.Let (D1, P1a, P1b)), (T.Let (D2, P2a, P2b), t2)) = (decEqual(D1, (D2, t2)) andalso prgEqual(P1a, (P2a, t2)))
+
+      | prgEqual ((T.PClo (P1, t1)), (T.PClo (P2, t2a), t2b)) = (* there are no PClo created in converter *) raise Error "PClo should not exist!"		
+
+      | prgEqual ((T.EVar (Psi1, P1optRef, F1)), (T.EVar (Psi2, P2optref, F2), t2)) = raise Error "No EVARs should exist!"
+
+      | prgEqual _ = false
+
 
     (* convertCases is where the real work comes in *)
     (* will attempt to merge cases together and call convert
@@ -90,7 +161,7 @@ functor Redundant (structure Opsem : OPSEM) : REDUNDANT  =
             let 
 	      val (C''::Cs) = mergeIfNecessary(C, C')
 	      val (C''', rest') = removeRedundancy(C'', rest)
-	    in
+	     in
 	      (C''', Cs @ rest')
 	    end
 
@@ -167,7 +238,10 @@ functor Redundant (structure Opsem : OPSEM) : REDUNDANT  =
 	      raise Error "Spine not equal (AppBlock)"
 
       | mergeSpines ( (T.AppPrg (P1,S1)), (T.AppPrg(P2,S2), t2) ) =
-                  T.AppPrg(mergePrgs(P1, (P2, t2)), mergeSpines(S1, (S2,t2)))
+		if (prgEqual(P1, (P2, t2))) then
+                  T.AppPrg(P1, mergeSpines(S1, (S2,t2)))
+		else
+		  raise Error "Prg (in App) not equal"
 
       | mergeSpines ( T.SClo(S,t1), (T.SClo(s,t2a), t2) ) = 
 (* there are no SClo created in converter *) raise Error "SClo should not exist!"
@@ -176,12 +250,16 @@ functor Redundant (structure Opsem : OPSEM) : REDUNDANT  =
 
 
     and mergePrgs ((T.Lam (D1, P1)), (T.Lam (D2, P2), t2)) = 
-				if decEqual(D1, (D2,t2)) then
-				   T.Lam(D1, mergePrgs((P1), (P2,T.dot1 t2)))
+				if (decEqual(D1, (D2,t2)) andalso prgEqual(P1, (P2, T.dot1 t2)))  then
+				   T.Lam(D1, P1)
 				else
 				    raise Error "Lambda don't match"
 
-      | mergePrgs ((T.New P1), (T.New P2, t2)) = T.New (mergePrgs((P1), (P2, t2)))
+      | mergePrgs ((T.New P1), (T.New P2, t2)) = if (prgEqual(P1, (P2, t2))) then T.New P1 else
+				      raise Error "New don't match"
+
+      | mergePrgs ((T.Choose P1), (T.Choose P2, t2)) = if (prgEqual(P1, (P2, t2))) then T.Choose P1 else
+				      raise Error "Choose don't match"
 
       | mergePrgs ((T.PairExp (U1, P1)), (T.PairExp (U2, P2), t2)) =
 			let
@@ -205,7 +283,10 @@ functor Redundant (structure Opsem : OPSEM) : REDUNDANT  =
 
 
       | mergePrgs ((T.PairPrg (P1a, P1b)), (T.PairPrg (P2a, P2b), t2)) =
-                   T.PairPrg (mergePrgs( (P1a),(P2a, t2) ), (mergePrgs( (P1b),(P2b, t2) )))
+			if (prgEqual(P1a, (P2a, t2))) then
+			  T.PairPrg (P1a, (mergePrgs( (P1b),(P2b, t2) )))
+			else
+			  raise Error "cannot merge PairPrg"
 
       | mergePrgs ((T.Unit), (T.Unit, t2)) = T.Unit
 
@@ -227,15 +308,17 @@ functor Redundant (structure Opsem : OPSEM) : REDUNDANT  =
 
       | mergePrgs ((T.Redex (P1, S1)), (T.Redex (P2, S2), t2)) =
 	let
-	  val newP = mergePrgs (P1, (P2, t2))
 	  val newS = mergeSpines(S1, (S2, t2))
 	in 
-	  T.Redex(newP, newS) 
+	  if (prgEqual (P1, (P2, t2))) then
+	    T.Redex(P1, newS) 
+	  else
+	    raise Error "Redex Prgs don't match"
 	end
 
       | mergePrgs ((T.Rec (D1, P1)), (T.Rec (D2, P2), t2)) = 
-	if decEqual(D1, (D2,t2)) then
-	  T.Rec(D1, mergePrgs((P1), (P2,T.dot1 t2)))
+	if (decEqual(D1, (D2,t2)) andalso prgEqual(P1, (P2,T.dot1 t2)))  then
+	    T.Rec(D1, P1)
 	else
 	  raise Error "Rec's don't match"
 
@@ -258,14 +341,14 @@ functor Redundant (structure Opsem : OPSEM) : REDUNDANT  =
 		
 
       | mergePrgs ((T.Let (D1, P1a, P1b)), (T.Let (D2, P2a, P2b), t2)) =
-		if decEqual(D1, (D2, t2)) then
-		  T.Let(D1, mergePrgs((P1a), (P2a,t2)), mergePrgs((P1b), (P2b,T.dot1 t2)))
+		if (decEqual(D1, (D2, t2)) andalso prgEqual(P1a, (P2a, t2))) then
+		  T.Let(D1, P1a, mergePrgs((P1b), (P2b,T.dot1 t2)))
 		else
 		  raise Error "Let don't match"
 
       | mergePrgs ((T.EVar (Psi1, P1optRef, F1)), (T.EVar (Psi2, P2optref, F2), t2)) = raise Error "No EVARs should exist!"
 
-      | mergePrgs _ = raise Error "Redundancy in cases could not automatically be removed.  Certain cases will be ignored when executed."
+      | mergePrgs _ = raise Error "Redundancy in cases could not automatically be removed."
 
 (*
     (* For debug purposes *)
@@ -288,7 +371,7 @@ functor Redundant (structure Opsem : OPSEM) : REDUNDANT  =
        Invariant:
        If   G |- s : G'    (and s patsub)
        then G' |- s' : G
-       s.t. s o s' = id  
+       s.t. s o s' = id 
     *)
     and invertSub s =
       let 
@@ -371,7 +454,7 @@ functor Redundant (structure Opsem : OPSEM) : REDUNDANT  =
 	    val newT = Normalize.normalizeSub t
 	    val stillMatch = IsSubRenamingOnly(newT)
 	  in
-	    if (IsSubRenamingOnly(newT)) then
+	    if (stillMatch) then
 	  (* Since the case matches, lets continue the merge on P1 and P2
 	   * Note that removing the redundancy of other case statements
 	   * is handled recursively ... see convertCases
