@@ -1,51 +1,110 @@
 (* Linear Substitution Tree indexing *)
 (* Linearity: Any variables occurring inside the substitution tree are linear *)
 (* Any term we insert into the substitution tree is in normalform ! *)
+(* Instance Checking *)
 (* Author: Brigitte Pientka *)
 
 functor MemoTable (structure IntSyn' : INTSYN
-		   structure CompSyn' : COMPSYN
-		     sharing CompSyn'.IntSyn = IntSyn'
-		   structure Conv: CONV
-		     sharing Conv.IntSyn = IntSyn'
-		   structure TableParam : TABLEPARAM
-		     sharing TableParam.IntSyn = IntSyn'
-		     sharing TableParam.CompSyn = CompSyn'
-	           structure AbstractTabled : ABSTRACTTABLED
-		     sharing AbstractTabled.IntSyn = IntSyn'
-		   structure Print : PRINT
-		     sharing Print.IntSyn = IntSyn'
- 	           structure RBSet : RBSET)
+		       structure CompSyn' : COMPSYN
+		       sharing CompSyn'.IntSyn = IntSyn'
+		       structure Conv: CONV
+		       sharing Conv.IntSyn = IntSyn'
+		       structure Whnf : WHNF
+		       sharing Whnf.IntSyn = IntSyn'
+		       structure RBSet : RBSET
+		       structure TableParam : TABLEPARAM
+		       sharing TableParam.IntSyn = IntSyn'
+		       sharing TableParam.CompSyn = CompSyn'
+		       sharing TableParam.RBSet = RBSet
+		       structure AbstractTabled : ABSTRACTTABLED
+		       sharing AbstractTabled.IntSyn = IntSyn'			 
+		       structure Print : PRINT
+		       sharing Print.IntSyn = IntSyn')
   : MEMOTABLE =
-struct
+  struct
   structure IntSyn = IntSyn'
   structure CompSyn = CompSyn'
   structure AbstractTabled = AbstractTabled
   structure TableParam = TableParam
     
   (* ---------------------------------------------------------------------- *)
-  
 
   (* Linear substitution tree for linear terms *)
 
   (* normalSubsts: key = int = nvar *)
   (* property: linear *)
-  type normalSubsts =  IntSyn.Exp RBSet.ordSet 
 
-  val nid : unit -> normalSubsts = RBSet.new 
+  type normalSubsts  = IntSyn.Exp RBSet.ordSet 
+
+  type exSubsts  = IntSyn.Exp RBSet.ordSet 
+
+  val nid : unit -> normalSubsts = RBSet.new
+
+  val aid = TableParam.aid
+
+  val existId : unit -> normalSubsts = RBSet.new
+
 
   fun isId s = RBSet.isEmpty s
 
+  (* ---------------------------------------------------------------------- *)
+  type ctx = ((int * IntSyn.Dec) list) ref
+
+  fun emptyCtx () :  ctx = ref []
+
+  fun copy L : ctx = ref (!L)
+
+  (* destructively updates L *)
+  fun delete (x, L : ctx ) = 
+      let 		  
+	fun del (x, [], L) = NONE
+	  | del (x, ((H as (y,E))::L), L') = if x = y then SOME((y,E), (rev L')@ L) else del(x, L, H::L')
+      in 
+	case del (x, (!L), [])
+	  of NONE => NONE
+	    | SOME((y,E), L') => (L := L'; SOME((y,E)))
+      end 
+
+  fun member (x, L:ctx) = 
+    let
+      fun memb (x, []) = NONE
+	| memb (x, (H as (y,E)::L)) = if x = y then SOME((y,E)) else memb(x, L)
+    in 
+      memb (x, (!L))
+    end 
+
+  fun insertList (E, L) = (L := (E::(!L)); L)
+
+ (* ---------------------------------------------------------------------- *)
+
   (* Substitution Tree *)
+  (* it is only possible to distribute the evar-ctx because
+     all evars occur exactly once! -- linear 
+     this allows us to maintain invariant, that every occurrence of an evar is 
+     defined in its evar-ctx
+  *)
   datatype Tree =  
-      Leaf of normalSubsts * ((IntSyn.dctx * IntSyn.dctx * IntSyn.dctx * 
-			       TableParam.ResEqn * TableParam.answer * int) list) ref
-    | Node of normalSubsts * (Tree ref) list
+      Leaf of (ctx *  normalSubsts) * 
+      (((int (* #EVar *)* int (* #G *)) * IntSyn.dctx (* G *) * 
+	TableParam.ResEqn * TableParam.answer * int) list) ref
+    | Node of (ctx *  normalSubsts) * (Tree ref) list
 
-  fun makeTree () = ref (Node (nid (), []))  
-
+  fun makeTree () = ref (Node ((emptyCtx(), nid ()), []))  
 
   fun noChildren C = (C=[])
+
+  datatype Retrieval = 
+      Variant of ((normalSubsts -> unit) * IntSyn.Exp)
+    | Instance of ((normalSubsts -> unit) * IntSyn.Exp)
+    | NotCompatible 
+
+  datatype CompSub = 
+      SplitSub of ((ctx * normalSubsts (* sigma *)) * 
+		   (ctx * normalSubsts (* rho1 *)) * 
+		   (ctx * normalSubsts (* rho2 *)))
+    | InstanceSub of (normalSubsts * (ctx * normalSubsts (* rho2 *)))
+    | VariantSub of  (normalSubsts * (ctx * normalSubsts (* rho2 *)))
+    | NoCompatibleSub 
 
   (* Index array                             
    
@@ -59,11 +118,12 @@ struct
   
   local
 
-    structure I = IntSyn
-    structure C = CompSyn
-    structure S = RBSet
-    structure A = AbstractTabled
-    structure T = TableParam 
+    structure I   = IntSyn
+    structure C   = CompSyn
+    structure S   = RBSet
+    structure A   = AbstractTabled
+    structure T   = TableParam 
+
       
     exception Assignment of string
     
@@ -80,8 +140,8 @@ struct
   type bdepth = int    (* depth of locally bound variables *)
 
     
-    (* ------------------------------------------------------ *)      
-    (* Auxiliary functions *)
+  (* ------------------------------------------------------ *)      
+  (* Auxiliary functions *)
 
     fun cidFromHead (I.Const c) = c
       | cidFromHead (I.Def c) = c
@@ -97,50 +157,6 @@ struct
 
     fun raiseType (I.Null, U) = U
       | raiseType (I.Decl(G, D), U) = I.Lam(D, raiseType (G, U))
-
-    (* ------------------------------------------------------ *)      
-    fun printSub (D, G, nsub_e) = 
-      (S.forall nsub_e (fn (k, e) => 
-			print (Int.toString k ^ " = " ^ 
-			       Print.expToString (I.Null, A.raiseType(D, A.raiseType(G, e))) 
-			       ^ ",  ")))
-
-    fun printResEqn (G, T.Trivial) = print "Trivial\n"
-      | printResEqn (G, T.Unify(G', U, N, eqn)) = 
-        let
-	  val (G'') = compose(G', G)
-	  val s1 = shift (G', I.id) 
-	  val _ = case s1 of I.Shift 0 => () | _ => print "s =/= id\n"
-	in 
-	  (print "Unify "; print (Print.expToString (I.Null, A.raiseType(G'', I.EClo(U, s1)))); print " = ";
-	   print (Print.expToString (G'', I.EClo(N, s1)) ^ "\n");
-	   printResEqn (G, eqn))
-	  end 
-
-    fun printChildrenSub (D, G, Children) =
-      let
-	fun printChild (N as Leaf(nsub_t, GList)) = (printSub(D, G, nsub_t) handle _ => print ", unprintable ")
-          | printChild (N as Node(nsub_t, _)) = (printSub(D, G, nsub_t) handle _ => print ", unprintable " )
-	
-      fun forall ([]) = print "\n"
-	| forall (Child::CList)  = 
-	  (printChild (!Child);
-	   forall CList)
-    in 
-      forall Children
-    end 
-
-(*    fun printResEqn (G, D, T.Trivial) = print "Trivial\n"
-      | printResEqn (G, D, T.Unify(G', p1, N, eqn)) = 
-        (print (Print.expToString (I.Null, A.raiseType(D, A.raiseType(compose(G', G), p1))) ^ " = ");
-	 print (Print.expToString (I.Null, A.raiseType(D, A.raiseType(compose(G', G), N))) ^ "\n"); 
-	 printResEqn (G, D, eqn))
-*)
-    fun printResEqnSub (G, D', T.Trivial, s) = print "Trivial\n"
-      | printResEqnSub (G, D', T.Unify(G', p1, N, eqn), s) = 
-        (print (Print.expToString (I.Null, A.raiseType(D', I.EClo(A.raiseType(compose(G', G), p1), shift(G', s)))) ^ " = ");
-	 print (Print.expToString (I.Null, A.raiseType(D', I.EClo(A.raiseType(compose(G', G), N),shift(G', s)))) ^ "\n"); 
-	 printResEqnSub (G, D', eqn, s))
 
     (* ------------------------------------------------------ *)      
 
@@ -202,13 +218,10 @@ struct
    fun newNVar () =
      (nctr := !nctr + 1; 
       I.NVar(!nctr))
-     
-     
-   fun eqHeads (I.Const k, I.Const k') =  (k = k')
-     | eqHeads (I.BVar k, I.BVar k') = (k = k')
-     | eqHeads (I.Def k, I.Def k') = (k = k')
-     | eqHeads (_, _) = false
 
+   fun equalDec (I.Dec(_, U), I.Dec(_, U')) = Conv.conv ((U, I.id), (U', I.id))
+     | equalDec (I.ADec(_, d), I.ADec(_, d')) = (d = d')
+     
     (* too restrictive if we require order of both eqn must be the same ? 
      Sun Sep  8 20:37:48 2002 -bp *) 
     (* s = s' = I.id *)
@@ -238,11 +251,24 @@ struct
 
     fun equalCtx' (I.Null, I.Null) = true
       | equalCtx' (I.Decl(Dk, I.Dec(_, A)), I.Decl(D1, I.Dec(_, A1))) = 
-        (Conv.conv ((A, I.id), (A1, I.id)) andalso equalCtx'(Dk, D1))
+      (Conv.conv ((A, I.id), (A1, I.id)) andalso equalCtx'(Dk, D1))
       | equalCtx' (I.Decl(Dk, I.ADec(_, d')), I.Decl(D1, I.ADec(_, d))) = 	
         ((d = d') andalso equalCtx'(Dk, D1))
       | equalCtx' (_, _) = false
 
+
+   (* ---------------------------------------------------------------*)   
+
+    fun subsumesCtx (G, G') = equalCtx' (G, G')
+
+    (* potential for forward and backward subsumption here ? *)
+
+   (* ---------------------------------------------------------------*)   
+    fun compareCtx (G, G') = equalCtx' (G, G')
+(*      (case TableParam.Strategy (H1 as I.BVar k, S1)
+	 of TableParam.Variant => equalCtx' (G, G')
+	   | TableParam.Subsumption => subsumesCtx (G, G')
+*)
    (* ---------------------------------------------------------------*)   
    (* most specific linear common generalization *)
 
@@ -253,43 +279,226 @@ struct
    then 
        T'[rho_u] = U and T'[rho_t] = T 
    *)
-   fun compatible (T, U, rho_t, rho_u) = 
-     let
-       fun genExp (b, T as I.NVar n, U as I.Root(H, S)) =  
-	 (S.insert rho_u (n, U); T)
-	 | genExp (b, T as I.Root(H1, S1), U as I.Root(H2, S2)) =  
-	 if eqHeads(H1, H2) 
-	   then
-	     I.Root(H1, genSpine(false, S1, S2))
-	  else
-	    (if b 
-	       then 
-		 raise Generalization "Top-level function symbol not shared"
-	     else 
-	       (S.insert rho_t (!nctr+1, T);
-		S.insert rho_u (!nctr+1, U);
-		newNVar()))
-	 | genExp (b, I.Lam(D1 as I.Dec(_,A1), T1), I.Lam(D2 as I.Dec(_, A2), U2)) = 
-	   (* by invariant A1 = A2 *)
-	     I.Lam(D1, genExp (false, T1,  U2)) 
-	
-	 | genExp (b, T, U) =
-         if b 
-	   then 
-	     raise Generalization "Top-level function symbol not shared"
-	 else 
-	   (* U = EVar, EClo *)
-	   (S.insert rho_t (!nctr+1, T);
-	    S.insert rho_u (!nctr+1, U);
-	    newNVar ())
-       and genSpine (b, I.Nil, I.Nil) = I.Nil
-	 | genSpine (b, I.App(T, S1), I.App(U, S2)) = 
-	 I.App(genExp (false, T, U), genSpine (false, S1, S2))
-    in 
-      SOME(genExp (true, T, U))
-      handle Generalization msg =>  NONE
-    end 
 
+    (* lowerEVar' (G, V[s]) = (X', U), see lowerEVar *)
+    fun lowerEVar' (X, G, (I.Pi ((D',_), V'), s')) =
+        let
+	  val D'' = I.decSub (D', s')
+	  val (X', U) = lowerEVar' (X, I.Decl (G, D''), Whnf.whnf (V', I.dot1 s'))
+	in
+	  (X', I.Lam (D'', U))
+	end
+      | lowerEVar' (X, G, Vs') =
+        let
+	  val X' = X
+	in
+	  (X', X')
+	end
+    (* lowerEVar1 (X, V[s]), V[s] in whnf, see lowerEVar *)
+    and (* lowerEVar1 (X, I.EVar (r, G, _, _), (V as I.Pi _, s)) = *)
+      lowerEVar1 (X, I.EVar (r, G, _, _), (V as I.Pi _, s)) =
+        let 
+	  val (X', U) = lowerEVar' (X, G, (V,s))
+	in
+	  I.EVar(ref (SOME(U)), I.Null, V, ref nil)
+	end
+      | lowerEVar1 (_, X, _) = X
+
+    (* lowerEVar (X) = X'
+
+       Invariant:
+       If   G |- X : {{G'}} P
+            X not subject to any constraints
+       then G, G' |- X' : P
+
+       Effect: X is instantiated to [[G']] X' if G' is empty
+               otherwise X = X' and no effect occurs.
+    *)
+    and 
+      lowerEVar (E, X as I.EVar (r, G, V, ref nil)) = lowerEVar1 (E, X, Whnf.whnf (V, I.id))
+      | lowerEVar (E, I.EVar _) =
+        (* It is not clear if this case can happen *)
+        (* pre-Twelf 1.2 code walk, Fri May  8 11:05:08 1998 *)
+        raise Error "abstraction : LowerEVars: Typing ambiguous -- constraint of functional type cannot be simplified"
+
+
+(* n = #evars , d = index for the next evar*)
+  fun convAssSub' (n, idx_k, D, asub, d) =  
+    (case (RBSet.lookup asub d)  
+       of NONE => (case member (d, D) 
+		      of NONE => IntSyn.Shift (n)
+		    | SOME(x, Dec) => (I.Dot(I.Idx (idx_k), convAssSub' (n, idx_k + 1, D, asub, d+1))))
+       
+     | SOME (U) => IntSyn.Dot(IntSyn.Exp(Whnf.normalize(U, I.id)), (* normalization necessary? *)
+			      convAssSub'(n, idx_k + 1, D, asub, d+1)))
+
+  fun convAssSub (D, n, asub, d) = convAssSub' (n, 1, D, asub, d)
+
+   fun assign (d, Dec1 as I.Dec(n, V), E1 as I.Root(I.BVar k, S1), U, asub) = 
+     (* it is an evar -- (k-d, EVar (SOME(U), V)) *)
+     let
+       val E as I.EVar(r, _, _ , cnstr) = I.newEVar (I.Null, V)
+       val X = lowerEVar1 (E, I.EVar(r, I.Null, V, cnstr), Whnf.whnf(V, I.id))  
+       val _ = (r := SOME(U))
+     in
+       S.insert asub (k - d, X)
+(*       S.insert asub (k - d, U)*)
+     end
+     | assign (d, Dec1 as I.ADec(n, d'), E1 as I.Root(I.BVar k, S1), U, asub) = 
+       (* it is an Avar and d = d' (k-d, AVar(SOME(U)) ? *)
+       let
+	 val A as I.AVar(r) = I.newAVar ()
+	 val _ = (r := SOME(U))
+       in 
+(*	 S.insert asub (k - d, (I.EClo(U, I.Shift(~d'))))*)
+	 S.insert asub (k - d, (I.EClo(A, I.Shift(~d'))))
+      end 
+
+   fun isExists (d, I.BVar k, D) = member (k-d, D)
+
+   fun compHeads ((D_1, I.Const k), (D_2, I.Const k')) = (k = k')
+     | compHeads ((D_1, I.BVar k), (D_2, I.BVar k')) = 
+       (case isExists (0, I.BVar k, D_1) 
+	  of NONE => (k = k')
+	| SOME(x,Dec) => true)
+     | compHeads ((D_1, I.BVar k), (D_2, H2)) = 
+	(case isExists (0, I.BVar k, D_1) 
+	  of NONE => false
+	| SOME(x,Dec) => true)
+     | compHeads ((D_1, H1), (D_2, H2)) = false
+       
+
+   fun compatible' ((D_t, T), (D_u, U), Ds, rho_t, rho_u) = 
+   let 	             
+     val instance = ref false
+     fun genNVar ((rho_t, T), (rho_u, U)) = 
+       (S.insert rho_t (!nctr+1, T);
+	S.insert rho_u (!nctr+1, U);
+	newNVar())
+	  
+
+     fun genRoot (depth, T as I.Root(H1 as I.Const k, S1), U as I.Root(I.Const k', S2), f) = 
+       if (k = k') then 
+	 let
+	   val (f', S') = genSpine(depth, S1, S2, f)
+	 in 
+	   (f', I.Root(H1, S'))
+	 end 
+       else 
+	 (f, genNVar ((rho_t, T), (rho_u, U)))
+       | genRoot (d,  T as I.Root(H1 as I.BVar k, S1), U as I.Root(I.BVar k', S2), f) = 
+	 if (k > d) andalso (k' > d)
+	   then (* globally bound variable *)
+	     let
+	       val k1 = (k - d)
+	       val k2 = (k' - d)
+	     in 
+	       case (member (k1, D_t), member(k2, D_u))
+		 of (NONE, NONE) =>  
+		   if (k1 = k2) 
+		     then 
+		       let 
+			 val (f', S') = genSpine(d, S1, S2, f)
+		       in 
+			 (f', I.Root(H1, S'))
+		       end 
+		   else 
+		     (f, genNVar ((rho_t, T), (rho_u, U)))
+	       | (SOME(x, Dec1), SOME(x', Dec2)) => 
+		 (* k, k' refer to the existential *)
+		 if ((k1 = k2) andalso equalDec(Dec1, Dec2)) 
+		   then (* they refer to the same existential variable *)
+		     let
+		       (* this is unecessary -- since existential variables have the same type
+			and need to be fully applied in order, S1 = S2 *)
+(*		       val _ = print ("refers to existential " ^ Int.toString (k1) ^ " \n")*)
+		       val (f', S') = genSpine(d, S1, S2, f) 
+		     in 
+		       (delete (x, D_t) ; 
+			delete (x', D_u); 
+			insertList ((x, Dec1), Ds); 
+			((fn asub => (f' asub; assign (d, Dec1, T, U, asub))), I.Root(H1, S')))
+		     end 
+		 else  
+		   (* variant checking only *)
+		   (f, genNVar ((rho_t, T), (rho_u, U)))
+		   (* instance checking only Sun Oct 27 12:16:10 2002 -bp 
+		    instance := true;
+		    ((fn asub => (f asub; assign (d, Dec1, T, U, asub))), T)*)
+		       
+	       (* instance checking only Sun Oct 27 12:18:53 2002 -bp 
+	       | (SOME(x, Dec1), NONE) => 
+		 (print ("assign X_1 = BV " ^ Int.toString x ^ "\n");
+		    instance := true;
+		    ((fn asub => (f asub; assign (d, Dec1, T, U, asub))), T)) *)
+	       | (_, _) => 
+		 (f, genNVar ((rho_t, T), (rho_u, U)))
+	     end 
+	 else (* locally bound variables *)
+	   if (k = k') then 
+	     let
+	       val (f', S') = genSpine(d, S1, S2, f)
+	     in 
+	       (f', I.Root(H1, S'))
+	     end 
+	   else 
+	     ( (f, genNVar ((rho_t, T), (rho_u, U))))
+       | genRoot (d, T as I.Root (H1 as I.BVar k, S1), U as I.Root(I.Const k', S2), f) = 
+	 (f, genNVar ((rho_t, T), (rho_u, U)))
+	 (* this case only should happen during instance checking *)
+	 (* (case isExists (d, I.BVar k, D_t)
+	    of NONE => (f, genNVar ((rho_t, T), (rho_u, U)))
+             | SOME(x, Dec1) => (print ("assign X = Const\n"); 
+				 instance := true ; 
+				 ((fn asub => (f asub; assign (d, Dec1, T, U, asub))), T)))*)
+	       
+       | genRoot (d, T as I.Root(H1, S1), U as I.Root(H2, S2), f) = (f, genNVar ((rho_t, T), (rho_u, U)))
+	       
+     and genExp (d, T as I.NVar n, U as I.Root(H, S), f) =  
+       (S.insert rho_u (n, U); 
+	(f, T))
+       | genExp (d, T as I.Root(H1, S1), U as I.Root(H2, S2), f) =  
+           genRoot(d, I.Root(H1, S1), I.Root(H2, S2), f)
+       | genExp (d, I.Lam(D1 as I.Dec(_,A1), T1), I.Lam(D2 as I.Dec(_, A2), U2), f) = 
+       (* by invariant A1 = A2 *) 
+       let 
+	 val (f', E) = genExp (d+1, T1,  U2, f) 		 
+       in 
+	 (f', I.Lam(D1, E))
+       end 
+       | genExp (d, T, U, f) = 
+	       (* U = EVar, EClo -- can't happen -- Sun Oct 20 13:41:25 2002 -bp *) 
+       (print "genExp -- falls through?\n";
+	(f, genNVar ((rho_t, T), (rho_u, U))))
+       
+     and genSpine (d, I.Nil, I.Nil, f) = (f, I.Nil)
+       | genSpine (d, I.App(T, S1), I.App(U, S2), f) = 
+       let 
+	 val (f', E) = genExp (d, T, U, f)
+	 val (f'', S') = genSpine (d, S1, S2, f')
+       in 
+	 (f'', I.App(E, S'))
+       end 
+     val (f, E) = genExp (0, T, U, (fn asub => ()))
+(*     val _ = print "genExp -- done\n"*)
+   in	 
+     if (!instance) 
+       then Instance(f, E)
+     else 
+       Variant (f, E)
+       
+   end 
+
+     
+   fun compatible ((D_t, T as I.Root(H1, S1)), (D_u, U as I.Root (H2, S2)), Ds, rho_t, rho_u) = 
+     if compHeads ((D_t, H1), (D_u, H2))
+       then 
+	 compatible' ((D_t, T), (D_u, U), Ds, rho_t, rho_u)
+     else NotCompatible
+     |compatible ((D_t, T), (D_u, U), Ds, rho_t, rho_u) = 
+       compatible' ((D_t, T), (D_u, U), Ds, rho_t, rho_u)
+
+   (* ---------------------------------------------------------------*)   
   (* compatibleSub(nsub_t, nsub_u) = (sigma, rho_t, rho_u) opt  
    
    if DOM(nsub_t) <= DOM(nsub_u) 
@@ -304,9 +513,14 @@ struct
     Glocal_e ~ Glocal_t  (have "approximately" the same type)
 
    *)
-  fun compatibleSub (nsub_t, nsub_u) = 
+  fun compatibleSub ((D_t, nsub_t), (D_u, nsub_u), asub) = 
     let
       val (sigma, rho_t, rho_u) = (nid(), nid (), nid ()) 
+      val Dsigma = emptyCtx ()
+      val D_r1 = copy D_t
+      val D_r2 = copy D_u
+      val choose = ref (fn match : bool => ())
+      val inst = ref false
 (*      val (sigma, rho_u, rho_t) = S.splitSets nsub_e nsub_t  	
 	(fn U => fn T => compatible (T, U, rho_t', rho_u'))
 *)
@@ -315,85 +529,113 @@ struct
 	(fn (nv, U) => 
 	 (case (S.lookup nsub_t nv)
 	    of SOME (T) =>     (* note by invariant Glocal_e ~ Glocal_t *) 
-	      (case compatible (T, U, rho_t, rho_u)
-		 of NONE => (S.insert rho_t (nv, T);
-			     S.insert rho_u (nv, U))
-	       | SOME(T') => S.insert sigma (nv, T')) 
-	        (* here Glocal_t will be only approximately correct! *)
+	      (case compatible ((D_r1, T), (D_r2, U), Dsigma, rho_t, rho_u)
+		 of NotCompatible => (S.insert rho_t (nv, T);
+				      S.insert rho_u (nv, U))
+	          | Variant(assign, T') => 
+		   let 
+		     val restc = (!choose) 
+		   in 
+		     (S.insert sigma (nv, T');
+		     choose := (fn match => (restc match; if match then assign asub else ())))
+		     end
+
+(*		     S.insert sigma (nv, T')*)
+		  | Instance(assign, T') => (inst := true; 
+					     let val restc = (!choose) in 
+					       choose := (fn match => 
+						  (restc match;
+						  if match then (assign asub ; S.insert sigma (nv, T'))
+						  else (S.insert rho_t (nv, T);
+							S.insert rho_u (nv, U)))) end ))
+	  (* here Glocal_t will be only approximately correct! *)
 	  | NONE => S.insert rho_u (nv, U)))
     in 
-      if isId(sigma)
-	then NONE
-      else 	
-(*	 SOME(sigma, S.union rho_t rho_t', S.union rho_e rho_e') *)
-	 SOME(sigma, rho_t, rho_u)
+      (* print "compatible Sub done\n";*)
+      if isId (rho_t) 
+	then 
+	  (* perfect match under asub and rho_t = nsub_t 
+	   sigma = rho_t and sigma o asub = rho_u *)
+	  ((*print "perfect match under asub\n";*)
+	   (!choose) true ;
+	   if !inst then InstanceSub (asub, (D_r2, rho_u)) else VariantSub(asub, (D_r2, rho_u)))
+      else 
+	((* print "split -- asub is unchanged\n";*)
+	 (!choose) false ; 
+	 if isId(sigma) 
+	   then NoCompatibleSub
+	 else 
+	   SplitSub((Dsigma, sigma), (D_r1, rho_t), (D_r2, rho_u)))
+    (*	 SOME(sigma, S.union rho_t rho_t', S.union rho_e rho_e') *)
+    (* Dsigma |~ sigma, D_r1 |~ rho_t, D_r1 |~ rho_u *)
     end
 
 
  (* ---------------------------------------------------------------------- *)
 
-  fun mkLeaf (s, GR, n) = Leaf (s, GR)
+  fun mkLeaf (Ds, GR, n) = Leaf (Ds, GR)
 
-  fun mkNode (Node(_, Children), sigma, rho1, GR, rho2) = 
-       Node(sigma, [ref (Leaf(rho2, ref [GR])), ref (Node(rho1, Children))])
+  fun mkNode (Node(_, Children), Dsigma, Drho1, GR, Drho2) = 
+       Node(Dsigma, [ref (Leaf(Drho2, ref [GR])), ref (Node(Drho1, Children))])
 
-    | mkNode (Leaf(c, GRlist), sigma, rho1, GR2, rho2) = 
-       Node(sigma,[ref(Leaf(rho2, ref [GR2])), ref(Leaf(rho1, GRlist))])
-
+    | mkNode (Leaf(c, GRlist), Dsigma, Drho1, GR2, Drho2) = 
+       Node(Dsigma,[ref(Leaf(Drho2, ref [GR2])), ref(Leaf(Drho1, GRlist))])
 
   (* ---------------------------------------------------------------------- *)
 
-  fun compatibleCtx ((DAVars, DEVars, G, eqn), []) = NONE
-    | compatibleCtx ((DAVars, DEVars, G, eqn), ((DAVars', DEVars', G', eqn', answRef', _)::GRlist)) = 
+  fun compatibleCtx ((G, eqn), []) = NONE
+    | compatibleCtx ((G, eqn), ((l', G', eqn', answRef', _)::GRlist)) = 
        (* we may not need to check that the DAVars are the same *)
-      (if (equalCtx'(DAVars, DAVars') andalso equalCtx'(DEVars, DEVars') 
-	   andalso equalCtx' (G, G') andalso equalEqn(eqn, eqn'))
-	 then SOME(answRef')
+      (if (equalCtx' (G, G') andalso equalEqn(eqn, eqn'))
+	 then SOME(l', answRef')
        else 
-	 compatibleCtx((DAVars, DEVars, G, eqn), GRlist))
+	 compatibleCtx((G, eqn), GRlist))
 
-  fun compChild (DAVars, DEVars, G, N as Leaf(nsub_t, GList), nsub_e) = 
-    ((* print ("\nnsub_e "); printSub(D, G, nsub_e); print "\n";
-     (print ("sub at Leaf  : "); printSub(D, G, nsub_t); print "\n") handle _ => print "unprintable\n";*)
-     (case compatibleSub (nsub_t, nsub_e) 
-       of NONE => NONE
-     | SOME(sigma, rho1, rho2) => 
-	((*print ("sg "); (printSub(D, G, sigma); print "\n") handle _ => print "unprintable\n";
-	 print ("rho1 "); (printSub(D, G, rho1); print "\n") handle _ => print "unprintable\n";
-	 print ("rho2 "); (printSub(D, G, rho2); print "\n") handle _ => print "unprintable\n"; *)
-	 SOME(sigma, rho1, rho2))))
-       
-    | compChild (DAVars, DEVars, G, N as Node(nsub_t, Children'), nsub_e) = 
-       ((* print ("\nnsub_e "); printSub(D, G, nsub_e); print "\n";
-	(print ("sub at node  : "); printSub(D, G, nsub_t); print "\n") handle _ => print "unprintable\n";*)
-	(case compatibleSub (nsub_t, nsub_e) 
-	  of NONE => NONE
-	| SOME(sigma, rho1, rho2) => 
-	  ((* print ("sg "); (printSub(D, G, sigma); print "\n") handle _ => print "unprintable\n";
-	   print ("rho1 "); (printSub(D, G, rho1); print "\n") handle _ => print "unprintable\n";
-	   print ("rho2 "); (printSub(D, G, rho2); print "\n") handle _ => print "unprintable\n";   *)
-	   SOME(sigma, rho1, rho2))))
+  fun compChild (N as Leaf((D_t, nsub_t), GList), (D_e, nsub_e), asub) = 
+        compatibleSub ((D_t, nsub_t), (D_e,  nsub_e), asub)
+    | compChild (N as Node((D_t, nsub_t), Children'), (D_e, nsub_e), asub) = 
+	compatibleSub ((D_t, nsub_t), (D_e, nsub_e), asub)
 
-
-  fun findAllCandidates (DAVars, DEVars, G, nil, sub_u, VList, SList) = (VList, SList)
-    | findAllCandidates (DAVars, DEVars, G, (x::L), sub_u, VList, SList) = 
-      case compChild (DAVars, DEVars, G, !x, sub_u)
-	of NONE => findAllCandidates (DAVars, DEVars, G, L, sub_u, VList, SList)
-      | SOME(sigma, rho1, rho2) => 
-	  if isId(rho1)
-	    then (* rho2 + sub = sub_x *)
-	      findAllCandidates (DAVars, DEVars, G, L, sub_u, ((x, rho2)::VList), SList)
-	  else 
-	    findAllCandidates (DAVars, DEVars, G, L, sub_u, VList, ((x, (sigma, rho1, rho2))::SList))
-
- (* ---------------------------------------------------------------------- *)	      	       
-  fun divergingCtx (stage, D, G, GRlistRef) = 
+  fun findAllCandidates (G_r, children, Ds, asub) = 
     let
-      val l = I.ctxLength(D) + I.ctxLength(G)
+      fun findAllCands (G_r, nil, (D_u, sub_u), asub, VList, IList, SList) = (VList, IList, SList)
+	| findAllCands (G_r, (x::L), (D_u, sub_u), asub, VList, IList, SList) = 
+	let
+	  val k = S.size asub
+	  val asub' = S.copy asub
+	in 
+	  case compChild (!x, (D_u, sub_u), asub')
+	    of NoCompatibleSub => ((* print "Not compatible\n" ; *)
+				   findAllCands (G_r, L, (D_u, sub_u), asub, VList, IList, SList))
+	    | SplitSub (Dsigma, Drho1, Drho2) =>
+	      ((* print "Split \n";*)
+	      findAllCands (G_r, L, (D_u, sub_u), asub, VList, IList, 
+			    ((x, (Dsigma, Drho1, Drho2))::SList)))
+	    | InstanceSub (asub'', Drho2 as (D_r2, rho2)) => 
+	      (* real instance *)
+	      ((* print "instance \n";*)
+		   findAllCands (G_r, L, (D_u, sub_u), asub', VList, ((x, Drho2, asub'')::IList), SList))
+	    | VariantSub (asub'', Drho2 as (D_r2, rho2)) => 
+ 	     ((* print "variant \n";*)
+	      findAllCands (G_r, L, (D_u, sub_u), asub', ((x, Drho2, asub')::VList), IList, SList))
+
+	end 
     in 
-    List.exists (fn (_, D', G', _, _, stage') => (stage = stage' andalso (l > (I.ctxLength(G')+I.ctxLength(D')))))
+      findAllCands (G_r, children, Ds, asub, nil, nil, nil)
+    end 
+ (* ---------------------------------------------------------------------- *)	      	       
+  fun divergingCtx (stage, G, GRlistRef) = 
+    let
+      val l = I.ctxLength(G)
+    in 
+    List.exists (fn ((evar, l), G', _, _, stage') => (stage = stage' andalso (l > (I.ctxLength(G')))))
     (!GRlistRef)
     end 
+
+  fun eqHeads (I.Const k, I.Const k') =  (k = k')
+    | eqHeads (I.BVar k, I.BVar k') =  (k = k') 
+	 | eqHeads (I.Def k, I.Def k') = (k = k')
+	 | eqHeads (_, _) = false
 
  (* eqTerm (t2, (t, rho1)) = bool
     returns true iff t2 = t[rho1] 
@@ -414,26 +656,23 @@ struct
      eqTerm (T2, (T, rho1))
    | eqTerm (_, (_, _)) = false
 
-and eqSpine (I.Nil, (I.Nil, rho1)) = true
+ and eqSpine (I.Nil, (I.Nil, rho1)) = true
   | eqSpine (I.App(T2, S2), (I.App(T, S), rho1)) = 
     eqTerm (T2, (T, rho1)) andalso eqSpine (S2, (S, rho1))
 
- fun divergingSub (sigma, rho1, rho2) = 
+ fun divergingSub ((Ds, sigma), (Dr1, rho1), (Dr2, rho2)) = 
     S.exists rho2 (fn (n2, t2) => S.exists sigma (fn (_,t) => eqTerm (t2, (t, rho1))))
 
-(*
-  fun divergingProof (stage, Skel, GRlistRef) = 
-    List.exists (fn (Skel') => 
-    (!GRlistRef)
-    end 
-*)
+  (* ---------------------------------------------------------------------- *)
+  (* Insert via variant checking *)
 
-  fun insert (Nref, nsub_u, GR) = 
+  fun insert (Nref, (D_u, nsub_u), asub, GR) = 
     let    
-      fun insert' (N as Leaf (_, GRlistRef), nsub_u (* = id *), GR as (DAVars, DEVars, G, eqn, answRef, stage)) = 
-	(case compatibleCtx ((DAVars, DEVars, G, eqn), (!GRlistRef))
+      fun insert' (N as Leaf ((D,  _), GRlistRef), (D_u, nsub_u), asub, GR as ((evarl,l), G_r, eqn, answRef, stage)) = 
+	(* need to compare D and D_u *)
+	(case compatibleCtx ((G_r, eqn), (!GRlistRef))
 	   of NONE => ((* compatible path -- but different ctx! *)		  
-		       if ((!TableParam.divHeuristic) andalso divergingCtx (stage, DEVars, G, GRlistRef))
+		       if ((!TableParam.divHeuristic) andalso divergingCtx (stage, G_r, GRlistRef))
 			 then
 			   (print "ctx are diverging --- force suspension \n";
 			    (fn () => (GRlistRef := (GR::(!GRlistRef));   
@@ -444,51 +683,61 @@ and eqSpine (I.Nil, (I.Nil, rho1)) = true
 			  (fn () => (GRlistRef := (GR::(!GRlistRef)); 
 				    answList := (answRef :: (!answList))), 
 			  T.NewEntry(answRef))))
-	 | SOME(answRef') => ((* compatible path -- SAME ctx *)
-			      (* print "compatible path --- same ctx\n";*)
-			      ((fn () => ()), T.RepeatedEntry(answRef'))))
+	 | SOME((evarl', Glength), answRef') => ((* compatible path -- SAME ctx *)
+						 (* print "compatible path --- same ctx\n";*)
+				((fn () => ()), T.RepeatedEntry(convAssSub(D_u, evarl', asub, Glength), answRef'))
+				))
 
        
-      | insert' (N as Node(sub, children), nsub_u, GR as (DAVars, DEVars, G, eqn, answRef, stage)) = 
+      | insert' (N as Node((D, sub), children), (D_u, nsub_u), asub, GR as (l, G_r, eqn, answRef, stage)) = 
 	let
-	  val (VCand, SCand) = findAllCandidates (DAVars, DEVars, G, children, nsub_u, nil, nil)
+	  val (VariantCand, InstCand, SplitCand) = findAllCandidates (G_r, children, (D_u, nsub_u), asub)
 	    
-	  fun checkVCandidates (nil, nil) = 
+	  fun checkCandidates (nil, nil, nil) = 
 	    ((* no child is compatible with nsub_u *)
-	     (* print "no child compatible \n";*)
-	     (fn () => (Nref := Node(sub, (ref (Leaf(nsub_u, ref [GR])))::children); 
+	     (fn () => (Nref := Node((D, sub), (ref (Leaf((D_u, nsub_u), ref [GR])))::children); 
 			answList := (answRef :: (!answList))),
-	      T.NewEntry(answRef))) 
+	      T.NewEntry(answRef)))
 
-	    | checkVCandidates (nil, ((ChildRef, (sigma, rho1, rho2))::_)) = 
-	    (* split an existing node *)
-	      if ((!TableParam.divHeuristic) andalso divergingSub (sigma, rho1, rho2))
+	    | checkCandidates (nil, nil, ((ChildRef, (Dsigma, Drho1, Drho2))::_)) = 
+	      (* split an existing node *)
+	      if ((!TableParam.divHeuristic) andalso 
+		  divergingSub (Dsigma, Drho1, Drho2))
 	       then 	       
-		 ((* print "substree divering -- splitting node\n";*)
-		  (fn () => (ChildRef :=  mkNode((!ChildRef), sigma, rho1, GR, rho2); 
+		 ((* substree divering -- splitting node *)
+		  (fn () => (ChildRef :=  mkNode((!ChildRef), Dsigma, Drho1, GR, Drho2); 
 			     answList := (answRef :: (!answList))),
 		   T.DivergingEntry(answRef)))
 	     else 
-		((* print "split existing node\n";*)
-		 (fn () => (ChildRef :=  mkNode((!ChildRef), sigma, rho1, GR, rho2); 
+		((* split existing node *)
+		 (fn () => (ChildRef :=  mkNode((!ChildRef), Dsigma, Drho1, GR, Drho2); 
 			    answList := (answRef :: (!answList))),
 		 T.NewEntry(answRef)))
-	    | checkVCandidates (((ChildRef, rho2)::nil), _) = 
-	    (* there is a unique "perfect" candidate *)
-	    insert (ChildRef, rho2, GR)
-	    | checkVCandidates (((ChildRef, rho2)::L), SList) = 
-	    (case (insert (ChildRef, rho2, GR))
-	       of (_, T.NewEntry(answRef)) => 
-		 checkVCandidates (L, SList)
-	     | (f, T.RepeatedEntry(answRef)) => ((f, T.RepeatedEntry(answRef)))
-	     | (f, T.DivergingEntry(answRef)) => ((f, T.DivergingEntry(answRef))))
+
+	    | checkCandidates (((ChildRef, Drho2, asub)::nil), nil, _) = 
+	      (* unique "perfect" candidate (left) *)		
+		insert (ChildRef, Drho2, asub, GR)
+
+
+	    | checkCandidates (((ChildRef, Drho2, asub)::L), nil, SCands) = 
+	      (* there are several "perfect" candidates *)
+	      (case (insert (ChildRef, Drho2, asub, GR))
+		 of (_, T.NewEntry(answRef)) =>  checkCandidates (L, nil, SCands)
+	       | (f, T.RepeatedEntry(asub, answRef)) => ((f, T.RepeatedEntry(asub, answRef)))
+	       | (f, T.DivergingEntry(answRef)) => ((f, T.DivergingEntry(answRef))))
+
+ 	    | checkCandidates (VarCands, ((ChildRef, Drho2, asub)::ICands), SCands) = 
+	      (* there are some "quite perfect" one *)
+	      (case insert (ChildRef, Drho2, asub, GR)
+		 of (_, T.NewEntry (answRef)) => checkCandidates (VarCands, ICands, SCands)
+	       | (f, T.RepeatedEntry(asub, answRef)) => ((f, T.RepeatedEntry(asub, answRef)))
+	       | (f, T.DivergingEntry(answRef)) => ((f, T.DivergingEntry(answRef))))
 	in 
-	  checkVCandidates (VCand, SCand)
+	  checkCandidates (VariantCand, InstCand, SplitCand)
 	end 
   in 
-    insert' (!Nref, nsub_u, GR)
+    insert' (!Nref, (D_u, nsub_u), asub, GR)
   end 
-
 
     (* ---------------------------------------------------------------------- *)
     (* answer check and insert 
@@ -510,8 +759,6 @@ and eqSpine (I.Nil, (I.Nil, rho1)) = true
      *) 
     fun answCheckVariant (G', U', s', answRef, O) =  
       let 
-(*	val {T.solutions = S, T.lookup = i} = !answRef*)
-
 	fun member ((D, sk), []) = false
 	  | member ((D, sk), (((D1, s1),_)::S)) = 
 	    if equalSub (sk,s1) andalso equalCtx'(D, D1) then   
@@ -520,10 +767,6 @@ and eqSpine (I.Nil, (I.Nil, rho1)) = true
 	      member ((D, sk), S)
 	
 	val (DEVars, sk) = A.abstractAnswSub (G', s')
-	val Dk = compose(G', DEVars)
-(*	val _ = print "Abstracted solution : "
-	val _ = print (Print.expToString (I.Null, A.raiseType(DAVars, A.raiseType(DEVars, I.EClo(A.raiseType(G', U'), sk)))) ^ "\n")
-	val _ = (print "Res. eqn "; printResEqn(Dk, eqnk))*)
       in 	
 	if member ((DEVars, sk), T.solutions answRef) then  
 	  T.repeated
@@ -541,46 +784,53 @@ and eqSpine (I.Nil, (I.Nil, rho1)) = true
 				      added := false;
 				      (n, Tree))) indexArray)
 
+    fun makeCtx (n, I.Null, DEVars : ctx) = n
+      | makeCtx (n, I.Decl(G, D), DEVars : ctx) = 
+        (insertList ((n, D), DEVars); 
+	 makeCtx (n+1, G, DEVars))
+      
     fun callCheck (a, DAVars, DEVars, G , U, eqn) = 
       let 
 	val (n, Tree) = Array.sub (indexArray, a)     
 	val nsub_goal = S.new()             
+	val DAEVars = compose (DEVars, DAVars)
+	val D = emptyCtx()
+	val n = I.ctxLength(G)
+	val _ = makeCtx (n+1, DAEVars, D:ctx)
+	val l = I.ctxLength(DAEVars)
 	val _ = S.insert nsub_goal (1, U) 
-	val result = insert (Tree, nsub_goal, (DAVars, DEVars, G, eqn, emptyAnswer(), !TableParam.stageCtr))
+	val result =  insert (Tree, (D, nsub_goal), nid() (* assignable subst *), 
+			      ((l, n+1), G, eqn, emptyAnswer(), !TableParam.stageCtr))
       in       
 	case result 
-	  of (sf, T.NewEntry(answRef)) => (sf(); added := true;  (* print "Add goal \n";  *)
-					 T.NewEntry(answRef))
-	  | (_, T.RepeatedEntry(answRef)) =>  ((* print "Suspend goal\n";*)
-					     T.RepeatedEntry(answRef))
+	  of (sf, T.NewEntry(answRef)) => (sf(); added := true; (* print "Add goal \n"; *) 
+					   T.NewEntry(answRef))
+	  | (_, T.RepeatedEntry(asub, answRef)) =>  ((* print "Suspend goal\n";*)
+						     T.RepeatedEntry(asub, answRef))
 	  | (sf, T.DivergingEntry(answRef)) => (sf(); added := true;  print "Add diverging goal\n";
 					     T.DivergingEntry(answRef))
       end 
 
- 
-    fun answCheck (G', U', s', answRef, O) = 
-      case (!TableParam.strategy) of
-	TableParam.Variant => 
-	  answCheckVariant (G', U', s', answRef, O)
-      | TableParam.Subsumption => raise Error "Subsumption is missing currently\n"
 
-(*    fun solutions {T.solutions = S, T.lookup = i} = S
-    fun lookup {T.solutions = S, T.lookup = i} = i
+    fun answCheck (G', U', s', answRef, O) = answCheckVariant (G', U', s', answRef, O)
+(*      case (!TableParam.strategy) of
+	TableParam.Variant => answCheckVariant (G', U', s', answRef, O)
 
+      | TableParam.Subsumption => answCheckVariant (G', U', s', answRef, O) 
+	                          (* no answer subsumption currently *)
 *)
+
 
     fun updateTable () = 
       let
 	fun update [] Flag = Flag
 	  | update (answRef::AList) Flag = 
 	    (let
-(*	      val {T.solutions = S, T.lookup = i} = !answRef*)
-	      val l = length(T.solutions(answRef)) 
-	    in 
-	      if (l = T.lookup(answRef)) then 
-		(* no new solutions were added in the previous stage *) 	      
-		((* answRef := T.updateAnswLookup (l, !answRef) (* {T.solutions = S, T.lookup = l}*);*)
-		 update AList Flag)
+	       val l = length(T.solutions(answRef)) 
+	     in 
+	       if (l = T.lookup(answRef)) then 
+		 (* no new solutions were added in the previous stage *) 	      
+		 update AList Flag
 	      else 
 		(* new solutions were added *)
 		(T.updateAnswLookup (l, answRef);
@@ -594,15 +844,18 @@ and eqSpine (I.Nil, (I.Nil, rho1)) = true
       end 
   
   in
-
     val reset = reset
-    val callCheck = (fn (DAVars, DEVars, G, U, eqn) => callCheck(cidFromHead(I.targetHead U), DAVars, DEVars, G, U, eqn))
+    val callCheck = (fn (DAVars, DEVars, G, U, eqn) => 
+		        callCheck(cidFromHead(I.targetHead U), DAVars, DEVars, G, U, eqn))
+
+(*
+    val findAll (DAVars, DEVars, G, U, eqn) = 
+    returns (asub * answRef) list which contains all possible entries in the tree 
+    open question: do we need all entries?
+
+*)
   
     val answerCheck = answCheck
-(*    val solutions = (fn answRef => solutions (!answRef))
-    val lookup = (fn answRef => lookup (!answRef))*)
-(*    val noAnswers = (fn answRef => noAnswers (!answRef))*)
-
     val updateTable = updateTable
 
     val tableSize = (fn () => (length(!answList)))

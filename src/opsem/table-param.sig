@@ -5,6 +5,7 @@ signature TABLEPARAM =
 sig
   structure IntSyn : INTSYN
   structure CompSyn : COMPSYN
+  structure RBSet : RBSET
 
   exception Error of string
 
@@ -32,9 +33,13 @@ sig
  val noAnswers : answer -> bool
 
 (* ---------------------------------------------------------------------- *)
+ type asub  = IntSyn.Exp RBSet.ordSet 
+
+ val aid : unit -> asub
+
  datatype callCheckResult = 
     NewEntry of answer 
-  | RepeatedEntry of answer
+  | RepeatedEntry of (IntSyn.Sub * answer)
   | DivergingEntry of answer
 
 

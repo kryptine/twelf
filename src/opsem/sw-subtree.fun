@@ -3,7 +3,7 @@ functor SwMemoTable (structure TableParam : TABLEPARAM
 		     structure MemoTableInst : MEMOTABLE
 		     sharing MemoTableInst.IntSyn = MemoTable.IntSyn
 		     sharing MemoTableInst.CompSyn = MemoTable.CompSyn
-		       sharing MemoTableInst.TableParam = MemoTable.TableParam
+		     sharing MemoTableInst.TableParam = MemoTable.TableParam
 		       ) : MEMOTABLE =
 struct
 

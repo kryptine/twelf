@@ -21,7 +21,8 @@ structure PtRecon =
 
 structure TableParam =
  TableParam (structure IntSyn' = IntSyn
-	    structure CompSyn' = CompSyn)
+	    structure CompSyn' = CompSyn
+	    structure RBSet = RBSet)
 
 structure AbstractTabled =
   AbstractTabled (structure IntSyn' = IntSyn
@@ -36,6 +37,7 @@ structure MemoTable =
  MemoTable (structure IntSyn' = IntSyn
 	    structure Conv = Conv
 	    structure CompSyn' = CompSyn
+	    structure Whnf = Whnf
 	    structure Print = Print
 	    structure TableParam = TableParam
 	    structure AbstractTabled = AbstractTabled
@@ -45,13 +47,14 @@ structure MemoTable =
 
 structure MemoTableInst =
  MemoTableInst (structure IntSyn' = IntSyn
-	    structure Conv = Conv
-	    structure CompSyn' = CompSyn
-	    structure Print = Print
-	    structure TableParam = TableParam
-	    structure AbstractTabled = AbstractTabled
-	    structure Table = IntRedBlackTree
-	    structure RBSet = RBSet)
+		structure Conv = Conv
+		structure CompSyn' = CompSyn
+		structure Whnf = Whnf
+		structure Print = Print
+		structure TableParam = TableParam
+		structure AbstractTabled = AbstractTabled
+		structure Table = IntRedBlackTree
+		structure RBSet = RBSet)
 
 
 structure SwMemoTable =
