@@ -273,9 +273,15 @@ struct
       (* missing case Fri Nov 23 11:39:07 2001 -fp
          added -cs *)
 
-    and collectBlock (G, I.Bidx _, K) = K
-      | collectBlock (G, I.LVar (_, (l, s)), K) = 
-          collectSub (G, s, K)
+    and collectBlock (G, L as I.LVar (_, (l, s)), K) = 
+        (* was: collectSub (G, s, K) *)
+	(* bug: did not collect LVar itself *)
+	(* Sun Dec  2 12:20:31 2001 !!! -fp *)
+        if exists (eqLVar L) K
+	  then collectSub (G, s, K)
+	else I.Decl (collectSub (G, s, K), LV L)
+    (* collectBlock (G, I.Bidx _, K) = K *)
+    (* should be impossible: Fronts of substitutions are never Bidx *)
 
     (* collectCtx (G0, G, K) = (G0', K')
        Invariant:
@@ -445,31 +451,33 @@ struct
     and abstractDec (K, depth, (I.Dec (x, V), s)) =
 	  I.Dec (x, abstractExp (K, depth, (V, s)))
 
-
-
     (* abstractSOME (K, s) = s'
        s' = {{s}}_K
 
        Invariant:
-       If    . |- s : G    
+       If    . |- s : Gsome    
        and   K is internal context in dependency order
        and   K ||- s
-       then  {{K}} |- s' : G'
+       then  {{K}} |- s' : Gsome  --- not changing domain of s'
     *)
-    fun abstractSOME (K, I.Shift n) = I.Shift n
+    fun abstractSOME (K, I.Shift n) =
+        (* fixed this case Sun Dec  2 12:53:48 2001 -fp !!! *)
+        (* was I.Shift (n) *)
+          I.Shift (n+I.ctxLength(K))
       | abstractSOME (K, I.Dot (I.Idx k, s)) = 
           I.Dot (I.Idx k, abstractSOME (K, s))
       | abstractSOME (K, I.Dot (I.Exp U, s)) =
 	  I.Dot (I.Exp (abstractExp (K, 0, (U, I.id))), abstractSOME (K, s))
-      | abstractSOME (K, I.Dot (I.Block (I.Bidx k), s)) =
-	  I.Dot (I.Block (I.Bidx k), abstractSOME (K, s))  
-                (* Added Nov 27 13:56:56 EST 2001 -cs *)
       | abstractSOME (K, I.Dot (I.Block (L as I.LVar _), s)) =
 	  I.Dot (I.Block (abstractLVar (K, 0, L)), abstractSOME (K, s))
                 (* Added Nov 27 13:56:56 EST 2001 -cs *)
 		(* by invariant the second argument should be 0 to abstractLVar 
 		   true? -cs !!!  Introduces a loop? *)
-
+      (* I.Block (I.Bidx _) should be impossible as head of substitutions *)
+      (* Sun Dec  2 11:53:42 2001 -fp *)
+      (* | abstractSOME (K, I.Dot (I.Block (I.Bidx k), s)) =
+           I.Dot (I.Block (I.Bidx k), abstractSOME (K, s)) *)
+           (* Added Nov 27 13:56:56 EST 2001 -cs *)
 
     (* abstractCtx (K, depth, G) = (G', depth')
        where G' = {{G}}_K

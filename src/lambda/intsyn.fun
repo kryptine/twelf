@@ -366,6 +366,8 @@ struct
      then G |- B' block
      and  B [s] == B' 
   *)
+  (* in front of substitutions, first case is irrelevant *)
+  (* Sun Dec  2 11:56:41 2001 -fp *)
   and blockSub (Bidx k, s) =
       (case bvarSub (k, s)
 	 of Idx k' => Bidx k'
@@ -490,7 +492,7 @@ struct
   *)
   fun newTypeVar (G) = EVar(ref NONE, G, Uni(Type), ref nil)
 
-  (* newLVar (l, s) = (l:s) *)
+  (* newLVar (l, s) = (l[s]) *)
   fun newLVar (cid, s) = LVar (ref NONE, (cid, s))
 
   (* Type related functions *)

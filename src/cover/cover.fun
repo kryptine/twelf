@@ -499,6 +499,8 @@ struct
 	  instEVars ((V2, I.Dot (I.Exp (X1), s)), SOME(X1)::XsRev)
 	end
       | instEVarsW ((I.Pi ((I.BDec (_, (l, t)), _), V2), s), XsRev) =
+        (* G0 |- t : Gsome *)
+	(* . |- s : G0 *)
 	let
 	  val L1 = I.newLVar (l, I.comp(t, s))
 	in
@@ -706,10 +708,13 @@ struct
      *)
     fun abstract (V, s) = 
         let
+	  val _ = print ("%- " ^ Print.expToString (I.Null, I.EClo (V, s)) ^ "\n")
 	  val (i, V') = Abstract.abstractDecImp (I.EClo (V, s))
+	  val _ = print ("!- " ^ Print.expToString (I.Null, V') ^ "\n")
 	  val _ = if !Global.doubleCheck
 		    then TypeCheck.typeCheck (I.Null, (V', I.Uni(I.Type)))
 		  else ()
+	  val _ = print ("+\n")
 	in
 	  V'
 	end
