@@ -37,6 +37,7 @@ struct
     structure T = Tomega
 
 
+
     fun chatter chlev f =
         if !Global.chatter >= chlev
 	  then print (f ())
@@ -174,9 +175,6 @@ struct
 	let 
 	  val _ = chatter 4 (fn () => "[pair [e]")
 	  val G = T.coerceCtx Psi
-	  val _ = print (Print.expToString (G, M))
-	  val _ = print ":"
-	  val _ = print (Print.expToString (G, I.EClo (A, T.coerceSub(t))))
 	  val _ = TypeCheck.typeCheck(G, (M, I.EClo (A, T.coerceSub(t))))
 	  val _ = chatter 4 (fn () => "]")
 	in 
@@ -209,11 +207,21 @@ struct
 	    checkPrg (I.Decl(Psi, D), (P, (F', t)))
 	end
       | checkPrgW (Psi, (T.Let (D as T.PDec(_, F1), P1, P2), (F2, t))) = 
+					(* Psi |- let xx :: F1 = P1 in P2 : F2' *)
+	                                (* Psi |- t : Psi' *)
+					(* Psi' |- F2 for *)
+					(* Psi |- F2' = F2[t] *)
+					(* Psi |- F1 :: for *)
+					(* Psi |- P1 :: F1' *)
+	                                (* Psi, D |- P2 :: (F2' [^]) *)
+					(* Psi' |- F2' :: for *)
+					(* Psi, D |- t o ^ :: Psi' *)
 	let 
 	  val _ = chatter 4 (fn () => "[let")
 	  val _ = checkPrg (Psi, (P1, (F1, T.id)))
+					(* Psi |- F1 == F1' for *)
 	  val _ = chatter 4 (fn () => ".")
-	  val _ = checkPrg (I.Decl (Psi, D), (P2, (F2, t)))
+	  val _ = checkPrg (I.Decl (Psi, D), (P2, (F2, T.comp (t, T.shift))))
 	  val _ = chatter 4 (fn () => "]\n")
 	in
 	  ()
@@ -242,12 +250,13 @@ struct
       | checkCases (Psi, (T.Cases ((Psi', t', P) :: Omega), (F2, t2))) =
 	let 
 					(* Psi' |- t' :: Psi *)
-	  val _ = chatter 4 (fn () => "[case: ")
-	  val _ = chatter 4 (fn () => "sub ... ")
+	  val _ = chatter 4 (fn () => "[case... ")
+	  val _ = chatter 4 (fn () => "sub... ")
 	  val _ = checkSub(Psi', t', Psi)
-	  val _ = chatter 4 (fn () => "prg ... [")
+	  val _ = chatter 4 (fn () => "prg... ")
 	  val t2' = T.comp(t2, t')
-	  val _ = TextIO.print (TomegaPrint.forToString (I.Null, Normalize.normalizeFor (F2, t2')) ^ "\n")
+	  val _ = checkCtx Psi
+	  val _ = checkCtx Psi'
 	  val _ = chatter 4 (fn () => "]")
 	  val _ = checkPrg (Psi', (P, (F2, t2')))
 	  val _ = chatter 4 (fn () => "]\n")
@@ -432,7 +441,27 @@ struct
 	end
       
     and convValue (G, P1, P2, F) = ()
-    and checkFor (G, F)= ()
+    and checkFor (Psi, (T.True, _)) = ()
+      | checkFor (Psi, (T.All (D as T.PDec (_ ,F1), F2), t)) = 
+          (checkFor (Psi, (F1, t)); checkFor (I.Decl (Psi, D), (F2, T.dot1 t)))
+      | checkFor (Psi, (T.All (D' as T.UDec D, F), t)) =
+	  (TypeCheck.checkDec (T.coerceCtx Psi, (D, T.coerceSub t));
+	   checkFor (I.Decl (Psi, D'), (F, T.dot1 t)))
+      | checkFor (Psi, (T.Ex  (D, F), t)) =
+	  (TypeCheck.checkDec (T.coerceCtx Psi, (D, T.coerceSub t));
+	   checkFor (I.Decl (Psi, T.UDec D), (F, T.dot1 t)))
+      | checkFor (Psi, (T.And (F1, F2), t)) = 
+	  (checkFor (Psi, (F1, t)); checkFor (Psi, (F2, t)))
+	   
+
+
+    and checkCtx (I.Null) = ()
+      | checkCtx (I.Decl (Psi, T.UDec D)) = 
+          (checkCtx (Psi); 
+	   TypeCheck.checkDec (T.coerceCtx Psi, (D, I.id)))
+      | checkCtx (I.Decl (Psi, T.PDec (_, F))) =
+	  (checkCtx (Psi);
+	   checkFor (Psi, (F, T.id)))
 
 
     (* checkSub (Psi, t, Psi') = () 
@@ -480,7 +509,8 @@ struct
 	in
 	    TypeCheck.typeCheck (T.coerceCtx G, (M, I.EClo(A, T.coerceSub(s))))
 	end
-      | checkSub (G, T.Dot (T.Block (I.Bidx v), s), I.Decl(G', T.UDec (I.BDec(l2, (_, s2))))) = (* Unexpected in LF level? -- Yu Liao *) (* What does v in I.Bidx v mean??? *)
+      | checkSub (G, T.Dot (T.Block (I.Bidx v), s), I.Decl(G', T.UDec (I.BDec(l2, (_, s2))))) = 
+	(* Unexpected in LF level? -- Yu Liao *) (* What does v in I.Bidx v mean??? *)
 	let 
  	    val _ = checkSub (G, s, G')
 	    val T.UDec (I.BDec(l1, (_, s1))) = T.ctxDec (G, v)
@@ -518,13 +548,6 @@ struct
     fun check (Psi, (P, F)) = checkPrg (Psi, (P, (F, T.id)))
     fun checkSub (Psi, t, Psi') = checkSub (Psi, t, Psi')
 
-    fun checkCtx (I.Null) = ()
-      | checkCtx (I.Decl (Psi, T.UDec D)) = 
-          (checkCtx (Psi); 
-	   TypeCheck.checkDec (T.coerceCtx Psi, (D, I.id)))
-      | checkCtx (I.Decl (Psi, T.PDec (_, F))) =
-	  (checkCtx (Psi);
-	   checkFor (Psi, (F, T.id)))
 
 
   in
