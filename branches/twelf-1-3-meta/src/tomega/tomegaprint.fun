@@ -76,6 +76,12 @@ struct
 	end
 
 
+    fun constName c = I.conDecName (I.sgnLookup c)
+
+    fun formatWorld nil = []
+      | formatWorld [c] = [Fmt.String (constName c)]
+      | formatWorld (c :: cids) = [Fmt.String (constName c), Fmt.String ",", Fmt.Break] @ formatWorld cids
+
     (* formatFor' (G, (F, s)) = fmts'
      
        Invariant:
@@ -100,7 +106,7 @@ struct
 	  val G = T.coerceCtx Psi
 	  val D' = Names.decName (G, D)
 	in
-	  [Fmt.String "Ex [", P.formatDec (G,  D'), Fmt.String "]", Fmt.Break] @
+	  [Fmt.String "Ex {", P.formatDec (G,  D'), Fmt.String "}", Fmt.Break] @
 	  formatFor' (I.Decl (Psi, T.UDec D'), F)
 	end
       | formatFor' (Psi, T.And (F1, F2)) = 
@@ -111,6 +117,10 @@ struct
 	   Fmt.String ")"]
       | formatFor' (Psi, T.True) = 
 	[Fmt.String "True"]
+      | formatFor' (Psi, T.World (T.Worlds L, F)) =
+	  [Fmt.String "World (", Fmt.HVbox (formatWorld L), Fmt.String ")", Fmt.Break] @
+	  formatFor' (Psi, F)
+	
 	
 
     fun formatFor (G, F) = Fmt.HVbox (formatFor' (G, Normalize.normalizeFor (F, T.id))) 

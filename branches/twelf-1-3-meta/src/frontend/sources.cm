@@ -13,6 +13,7 @@ Library
   signature TOMEGA
   structure Tomega
   structure ParseTerm
+  structure ReconTerm
 is
 #if defined(NEW_CM)
   $/basis.cm
