@@ -67,6 +67,21 @@ struct
                                         Origins.linesInfoLookup (fileName),
                                         msg)))
 
+    (* G is unused here *)
+    fun checkDynOrder (G, Vs, 0, occ) =
+        raise Error' (occ, "Output coverage for clauses of order >= 3 not yet implemented")
+      | checkDynOrder (G, Vs, n, occ) = (* n > 0 *)
+	  checkDynOrderW (G, Whnf.whnf Vs, n, occ)
+    and checkDynOrderW (G, (I.Root _, s), n, occ) = ()
+        (* atomic subgoal *)
+      | checkDynOrderW (G, (I.Pi ((D1 as I.Dec (_, V1), I.No), V2), s), n, occ) =
+        (* dynamic (= non-dependent) assumption --- calculate dynamic order of V1 *)
+          ( checkDynOrder (G, (V1, s), n-1, P.label occ) ;
+            checkDynOrder (I.Decl (G, D1), (V2, I.dot1 s), n, P.body occ) )
+      | checkDynOrderW (G, (I.Pi ((D1, I.Maybe), V2), s), n, occ) =
+	(* static (= dependent) assumption --- consider only body *)
+	  checkDynOrder (I.Decl (G, D1), (V2, I.dot1 s), n, P.body occ)
+
     (* checkClause (G, (V, s), occ) = ()
        checkGoal (G, (V, s), occ) = ()
        iff local output coverage for V is satisfied
@@ -103,6 +118,8 @@ struct
 		    then raise Error' (occ, "Subgoal " ^ Names.qidToString (Names.constQid a)
 				       ^ " not declared to be total")
 		  else ()
+	  val _ = checkDynOrderW (G, (V, s), 2, occ)
+	         (* can raise Cover.Error for third-order clauses *)
 	  (* need to implement recursive output coverage checking here *)
 	  (* Tue Dec 18 20:44:48 2001 -fp !!! *)
           (*
