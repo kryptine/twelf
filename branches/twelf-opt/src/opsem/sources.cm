@@ -1,0 +1,26 @@
+Group is
+  ../lambda/sources.cm
+  ../print/sources.cm
+  ../formatter/sources.cm  
+  ../index/sources.cm
+  ../typecheck/sources.cm
+  ../solvers/sources.cm
+  ../subordinate/sources.cm
+  ../tabling/sources.cm
+  ../compile/sources.cm
+  abstract.sig  
+  abstract.fun
+  index.sig
+  index.fun  
+  tabled.sig
+  tabled.fun     
+
+  absmachine.sig
+  absmachine.fun
+  ptrecon.sig
+  ptrecon.fun
+  trace.sig
+  trace.fun
+  tmachine.fun
+  swmachine.fun
+  opsem.sml
