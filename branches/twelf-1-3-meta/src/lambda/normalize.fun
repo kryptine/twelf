@@ -2,21 +2,21 @@
 (* Author: Carsten Schuermann *)
 
 functor Normalize 
-  (structure IntSyn' : INTSYN
-   structure Tomega' : TOMEGA
-     sharing Tomega'.IntSyn = IntSyn'
+  ((*! structure IntSyn' : INTSYN !*)
+   (*! structure Tomega' : TOMEGA !*)
+   (*! sharing Tomega'.IntSyn = IntSyn' !*)
    structure Whnf : WHNF
-     sharing Whnf.IntSyn = IntSyn'
+   (*! sharing Whnf.IntSyn = IntSyn' !*)
 ) : NORMALIZE = 
 struct
-  structure IntSyn = IntSyn'
-  structure Tomega = Tomega'
+  (*! structure IntSyn = IntSyn' !*)
+  (*! structure Tomega = Tomega' !*)
   
   exception Error of string
 
   local
-    structure I = IntSyn'
-    structure T = Tomega'
+    structure I = IntSyn
+    structure T = Tomega
   
     fun normalizeFor (T.All (D, F), t) = 
           T.All (T.decSub (D, t),  

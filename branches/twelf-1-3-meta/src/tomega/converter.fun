@@ -4,44 +4,45 @@
 
 functor Converter 
   (structure Global : GLOBAL
-   structure IntSyn' : INTSYN
-   structure Tomega' : TOMEGA
-     sharing Tomega'.IntSyn = IntSyn'
+   (*! structure IntSyn' : INTSYN !*)
+   (*! structure Tomega' : TOMEGA !*)
+   (*! sharing Tomega'.IntSyn = IntSyn' !*)
    structure Abstract : ABSTRACT
-     sharing Abstract.IntSyn = IntSyn'
+   (*! sharing Abstract.IntSyn = IntSyn' !*)
    structure ModeSyn : MODESYN
-     sharing ModeSyn.IntSyn = IntSyn'
+   (*! sharing ModeSyn.IntSyn = IntSyn' !*)
    structure Names : NAMES
-     sharing Names.IntSyn = IntSyn'
+   (*! sharing Names.IntSyn = IntSyn' !*)
    structure Unify : UNIFY
-     sharing Unify.IntSyn = IntSyn'
+   (*! sharing Unify.IntSyn = IntSyn' !*)
    structure Whnf : WHNF
-     sharing Whnf.IntSyn = IntSyn'
+   (*! sharing Whnf.IntSyn = IntSyn' !*)
    structure Print : PRINT
-     sharing Print.IntSyn = IntSyn'
+   (*! sharing Print.IntSyn = IntSyn' !*)
    structure Normalize : NORMALIZE
-     sharing Normalize.IntSyn = IntSyn'
-     sharing Normalize.Tomega = Tomega'
+   (*! sharing Normalize.IntSyn = IntSyn' !*)
+   (*! sharing Normalize.Tomega = Tomega' !*)
    structure TomegaPrint : TOMEGAPRINT
-     sharing TomegaPrint.IntSyn = IntSyn'
-     sharing TomegaPrint.Tomega = Tomega'
+   (*! sharing TomegaPrint.IntSyn = IntSyn' !*)
+   (*! sharing TomegaPrint.Tomega = Tomega' !*)
    structure WorldSyn : WORLDSYN
-     sharing WorldSyn.IntSyn = IntSyn'
-     sharing WorldSyn.Tomega = Tomega'
+   (*! sharing WorldSyn.IntSyn = IntSyn' !*)
+   (*! sharing WorldSyn.Tomega = Tomega' !*)
    structure Worldify : WORLDIFY
-     sharing Worldify.IntSyn = IntSyn'
-     sharing Worldify.Tomega = Tomega'
+   (*! sharing Worldify.IntSyn = IntSyn' !*)
+   (*! sharing Worldify.Tomega = Tomega' !*)
    structure TomegaTypeCheck : TOMEGATYPECHECK
-     sharing TomegaTypeCheck.IntSyn = IntSyn'
-     sharing TomegaTypeCheck.Tomega = Tomega'
+   (*! sharing TomegaTypeCheck.IntSyn = IntSyn' !*)
+   (*! sharing TomegaTypeCheck.Tomega = Tomega' !*)
    structure Subordinate : SUBORDINATE
-     sharing Subordinate.IntSyn = IntSyn'
+   (*! sharing Subordinate.IntSyn = IntSyn' !*)
    structure TypeCheck : TYPECHECK
-     sharing TypeCheck.IntSyn = IntSyn')
+   (*! sharing TypeCheck.IntSyn = IntSyn' !*)
+       )
      : CONVERTER = 
 struct
-  structure IntSyn = IntSyn'
-  structure Tomega = Tomega'
+  (*! structure IntSyn = IntSyn' !*)
+  (*! structure Tomega = Tomega' !*)
 
   exception Error of string 
 

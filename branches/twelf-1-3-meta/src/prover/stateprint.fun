@@ -3,35 +3,35 @@
 
 functor StatePrint 
   (structure Global : GLOBAL
-   structure IntSyn' : INTSYN
-   structure Tomega' : TOMEGA
-     sharing Tomega'.IntSyn = IntSyn'
+   (*! structure IntSyn' : INTSYN !*)
+   (*! structure Tomega' : TOMEGA !*)
+   (*! sharing Tomega'.IntSyn = IntSyn' !*)
    structure State'  : STATE
-     sharing State'.IntSyn = IntSyn'
-     sharing State'.Tomega = Tomega'
+   (*! sharing State'.IntSyn = IntSyn' !*)
+   (*! sharing State'.Tomega = Tomega' !*)
    structure Names : NAMES
-     sharing Names.IntSyn = IntSyn'
+   (*! sharing Names.IntSyn = IntSyn' !*)
    structure Formatter' : FORMATTER
    structure Print : PRINT
      sharing Print.Formatter = Formatter'
-     sharing Print.IntSyn = IntSyn'
+     (*! sharing Print.IntSyn = IntSyn' !*)
    structure TomegaPrint : TOMEGAPRINT
-     sharing TomegaPrint.IntSyn = IntSyn'
-     sharing TomegaPrint.Tomega = Tomega'
+   (*! sharing TomegaPrint.IntSyn = IntSyn' !*)
+   (*! sharing TomegaPrint.Tomega = Tomega' !*)
      sharing TomegaPrint.Formatter = Formatter')
      : STATEPRINT =
 struct
   structure Formatter = Formatter'
-  structure IntSyn = IntSyn'
-  structure Tomega = Tomega'
+  (*! structure IntSyn = IntSyn' !*)
+  (*! structure Tomega = Tomega' !*)
   structure State = State'
     
 
   exception Error of string 
 
   local
-    structure I = IntSyn'
-    structure T = Tomega'
+    structure I = IntSyn
+    structure T = Tomega
     structure S = State'
     structure N = Names
     structure Fmt = Formatter

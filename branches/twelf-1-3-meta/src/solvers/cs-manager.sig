@@ -3,13 +3,13 @@
 
 signature CS_MANAGER =
 sig
-  structure IntSyn  : INTSYN
+  (* structure IntSyn : INTSYN *)
   structure Fixity  : FIXITY
   structure ModeSyn : MODESYN
 
   type sigEntry = (* global signature entry *)
     (* constant declaration plus optional precedence and mode information *)
-    IntSyn.ConDec * Fixity.fixity option * ModeSyn.ModeSpine option
+    IntSyn.ConDec * Fixity.fixity option * ModeSyn.ModeSpine list
 
   type fgnConDec = (* foreign constant declaration *)
     {
@@ -35,7 +35,7 @@ sig
       mark : unit -> unit,
       unwind : unit -> unit
     }
-
+  
   exception Error of string
 
   (* solver handling functions *)

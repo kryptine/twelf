@@ -1,16 +1,17 @@
-functor Trace (structure IntSyn' : INTSYN
+functor Trace ((*! structure IntSyn' : INTSYN !*)
 	       structure Names : NAMES
-		 sharing Names.IntSyn = IntSyn'
+	       (*! sharing Names.IntSyn = IntSyn' !*)
 	       structure Whnf : WHNF
-		 sharing Whnf.IntSyn = IntSyn'
+	       (*! sharing Whnf.IntSyn = IntSyn' !*)
 	       structure Abstract : ABSTRACT
-		 sharing Abstract.IntSyn = IntSyn'
+	       (*! sharing Abstract.IntSyn = IntSyn' !*)
 	       structure Print : PRINT
-		 sharing Print.IntSyn = IntSyn')
+	       (*! sharing Print.IntSyn = IntSyn' !*)
+		 )
   : TRACE =
 struct
 
-  structure IntSyn = IntSyn'
+  (*! structure IntSyn = IntSyn' !*)
 
   local
     structure I = IntSyn
@@ -22,6 +23,7 @@ struct
     (* Printing Utilities *)
 
     fun headToString (G, I.Const (c)) = N.qidToString (N.constQid c)
+      | headToString (G, I.Def (d)) = N.qidToString (N.constQid d)
       | headToString (G, I.BVar(k)) = N.bvarName (G, k)
     fun expToString (GU) = P.expToString (GU) ^ ". "
     fun decToString (GD) = P.decToString (GD) ^ ". "
@@ -201,6 +203,7 @@ struct
 
     | SolveGoal of goalTag * IntSyn.Head * IntSyn.Exp
     | SucceedGoal of goalTag * (IntSyn.Head * IntSyn.Head) * IntSyn.Exp
+    | CommitGoal of goalTag * (IntSyn.Head * IntSyn.Head) * IntSyn.Exp
     | RetryGoal of goalTag * (IntSyn.Head * IntSyn.Head) * IntSyn.Exp (* clause c failed, fam a *)
     | FailGoal of goalTag * IntSyn.Head * IntSyn.Exp
 
@@ -227,6 +230,8 @@ struct
 	"% Goal " ^ Int.toString tag ^ ":\n" ^ expToString (G, V)
       | eventToString (G, SucceedGoal (SOME(tag), _, V)) =
 	"% Goal " ^ Int.toString tag ^ " succeeded"
+      | eventToString (G, CommitGoal (SOME(tag), _, V)) =
+        "% Goal " ^ Int.toString tag ^ " committed to first solution"
       | eventToString (G, RetryGoal (SOME(tag), (Hc, Ha), V)) =
 	"% Backtracking from clause " ^ headToString (G, Hc) ^ "\n"
 	^ "% Retrying goal " ^ Int.toString tag ^ ":\n" ^ expToString (G, V)
@@ -243,6 +248,7 @@ struct
     fun traceEvent (G, e) = print (eventToString (G, e))
 
     fun monitorHead (cids, I.Const(c)) = List.exists (fn c' => c = c') cids
+      | monitorHead (cids, I.Def(d)) = List.exists (fn c' => d = c') cids
       | monitorHead (cids, I.BVar(k)) = false
 
     fun monitorHeads (cids, (Hc, Ha)) =
@@ -260,6 +266,8 @@ struct
       | monitorEvent (cids, SolveGoal (_, H, V)) =
           monitorHead (cids, H)
       | monitorEvent (cids, SucceedGoal (_, (Hc, Ha), _)) =
+	  monitorHeads (cids, (Hc, Ha))
+      | monitorEvent (cids, CommitGoal (_, (Hc, Ha), _)) =
 	  monitorHeads (cids, (Hc, Ha))
       | monitorEvent (cids, RetryGoal (_, (Hc, Ha), _)) =
 	  monitorHeads (cids, (Hc, Ha))
@@ -314,6 +322,7 @@ struct
            | SOME(t) => (case e
 	                   of SolveGoal (SOME(t'), _, _) => (t' = t)
 			    | SucceedGoal (SOME(t'), _, _) => (t' = t)
+			    | CommitGoal (SOME(t'), _, _) => (t' = t)
 			    | RetryGoal (SOME(t'), _, _) => (t' = t)
 			    | FailGoal (SOME(t'), _, _) => (t' = t)
 			    | _ => false)

@@ -2,20 +2,20 @@
 (* Author: Frank Pfenning *)
 
 functor ParseConDec
-  (structure Parsing' : PARSING
+  ((*! structure Parsing' : PARSING !*)
    structure ExtConDec' : EXTCONDEC
    structure ParseTerm : PARSE_TERM
-     sharing ParseTerm.Parsing.Lexer = Parsing'.Lexer
+   (*! sharing ParseTerm.Lexer = Parsing'.Lexer !*)
      sharing ParseTerm.ExtSyn = ExtConDec'.ExtSyn)
      : PARSE_CONDEC =
 struct
 
-  structure Parsing = Parsing'
+  (*! structure Parsing = Parsing' !*)
   structure ExtConDec = ExtConDec'
 
   local
-    structure L = Parsing.Lexer
-    structure LS = Parsing.Lexer.Stream  
+    structure L = Lexer
+    structure LS = Lexer.Stream  
 
     (* parseConDec3  "U" *)
     fun parseConDec3 (optName, optTm, s) =
@@ -89,9 +89,12 @@ struct
     (* parseConDec --- currently not exported *)
     fun parseConDec (s) = parseConDec' (LS.expose s)
     fun parseAbbrev' (LS.Cons ((L.ABBREV, r), s)) = parseConDec (s) 
+    fun parseClause' (LS.Cons ((L.CLAUSE, r), s)) = parseConDec (s) (* -fp *)
+
   in
     val parseConDec' = parseConDec'
     val parseAbbrev' = parseAbbrev'
+    val parseClause' = parseClause'
   end  (* local ... in *)
 
 end;  (* functor ParseConDec *)

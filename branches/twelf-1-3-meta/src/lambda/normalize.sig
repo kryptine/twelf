@@ -3,8 +3,8 @@
 
 signature NORMALIZE = 
 sig
-  structure IntSyn : INTSYN
-  structure Tomega : TOMEGA
+  (*! structure IntSyn : INTSYN !*)
+  (*! structure Tomega : TOMEGA !*)
 
   val normalizeFor : (Tomega.For * Tomega.Sub) -> Tomega.For
   val normalizePrg : (Tomega.Prg * Tomega.Sub) -> Tomega.Prg 

@@ -1,6 +1,6 @@
 structure TomegaPrint = TomegaPrint
-  (structure IntSyn' = IntSyn
-   structure Tomega' = Tomega
+  ((*! structure IntSyn' = IntSyn !*)
+   (*! structure Tomega' = Tomega !*)
    structure Normalize = Normalize
    structure Formatter = Formatter
    structure Names = Names
@@ -8,9 +8,9 @@ structure TomegaPrint = TomegaPrint
 
 structure TomegaTypeCheck = TomegaTypeCheck
   (structure Global = Global
-   structure IntSyn' = IntSyn
+   (*! structure IntSyn' = IntSyn !*)
    structure Abstract = Abstract
-   structure Tomega' = Tomega
+   (*! structure Tomega' = Tomega !*)
    structure TypeCheck = TypeCheck
    structure Normalize = Normalize
    structure Conv = Conv
@@ -22,9 +22,9 @@ structure TomegaTypeCheck = TomegaTypeCheck
 
 structure TomegaUnify = TomegaUnify
   (structure Global = Global
-   structure IntSyn' = IntSyn
+   (*! structure IntSyn' = IntSyn !*)
    structure Abstract = Abstract
-   structure Tomega' = Tomega
+   (*! structure Tomega' = Tomega !*)
    structure TypeCheck = TypeCheck
    structure Normalize = Normalize
    structure Conv = Conv

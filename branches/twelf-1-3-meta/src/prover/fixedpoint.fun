@@ -2,24 +2,25 @@
 (* Author: Carsten Schuermann *)
 
 functor FixedPoint 
-  (structure IntSyn' : INTSYN
-   structure Tomega' : TOMEGA
-     sharing Tomega'.IntSyn = IntSyn'
+  ((*! structure IntSyn' : INTSYN !*)
+   (*! structure Tomega' : TOMEGA !*)
+   (*! sharing Tomega'.IntSyn = IntSyn' !*)
    structure State' : STATE
-     sharing State'.IntSyn = IntSyn'
-     sharing State'.Tomega = Tomega'
+   (*! sharing State'.IntSyn = IntSyn' !*)
+   (*! sharing State'.Tomega = Tomega' !*)
    structure Normalize : NORMALIZE
-     sharing Normalize.IntSyn = IntSyn'
-     sharing Normalize.Tomega = Tomega') : FIXEDPOINT  =
+   (*! sharing Normalize.IntSyn = IntSyn' !*)
+   (*! sharing Normalize.Tomega = Tomega' !*)
+       ) : FIXEDPOINT  =
 struct
-  structure IntSyn = IntSyn'
-  structure Tomega = Tomega'
+  (*! structure IntSyn = IntSyn' !*)
+  (*! structure Tomega = Tomega' !*)
   structure State = State'
 
   local 
   structure S = State'
-  structure T = Tomega'
-  structure I = IntSyn'
+  structure T = Tomega
+  structure I = IntSyn
 
     exception Error = S.Error
     type operator = S.State

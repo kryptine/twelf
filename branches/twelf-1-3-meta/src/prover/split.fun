@@ -3,42 +3,43 @@
 
 functor Split 
   (structure Global : GLOBAL
-   structure IntSyn' : INTSYN
-   structure Tomega' : TOMEGA
-     sharing Tomega'.IntSyn = IntSyn'
+   (*! structure IntSyn' : INTSYN !*)
+   (*! structure Tomega' : TOMEGA !*)
+   (*! sharing Tomega'.IntSyn = IntSyn' !*)
    structure State' : STATE
-     sharing State'.IntSyn = IntSyn'
-     sharing State'.Tomega = Tomega'
+   (*! sharing State'.IntSyn = IntSyn' !*)
+   (*! sharing State'.Tomega = Tomega' !*)
    structure Normalize : NORMALIZE
-     sharing Normalize.Tomega = Tomega'
+   (*! sharing Normalize.Tomega = Tomega' !*)
    structure Whnf : WHNF
-     sharing Whnf.IntSyn = IntSyn'
+   (*! sharing Whnf.IntSyn = IntSyn' !*)
    structure Unify : UNIFY
-     sharing Unify.IntSyn = IntSyn'
+   (*! sharing Unify.IntSyn = IntSyn' !*)
    structure Constraints : CONSTRAINTS
-     sharing Constraints.IntSyn = IntSyn'
+   (*! sharing Constraints.IntSyn = IntSyn' !*)
    structure Abstract : ABSTRACT
-     sharing Abstract.IntSyn = IntSyn'
-     sharing Abstract.Tomega = Tomega'
+   (*! sharing Abstract.IntSyn = IntSyn' !*)
+   (*! sharing Abstract.Tomega = Tomega' !*)
    structure Index : INDEX
-     sharing Index.IntSyn = IntSyn'
+   (*! sharing Index.IntSyn = IntSyn' !*)
    structure Print : PRINT
-     sharing Print.IntSyn = IntSyn'
+   (*! sharing Print.IntSyn = IntSyn' !*)
    structure TypeCheck : TYPECHECK
-     sharing TypeCheck.IntSyn = IntSyn'
+   (*! sharing TypeCheck.IntSyn = IntSyn' !*)
    structure Subordinate : SUBORDINATE
-     sharing Subordinate.IntSyn = IntSyn') : SPLIT =
+   (*! sharing Subordinate.IntSyn = IntSyn' !*)
+       ) : SPLIT =
 
 struct
-  structure IntSyn = IntSyn'
-  structure Tomega = Tomega'
+  (*! structure IntSyn = IntSyn' !*)
+  (*! structure Tomega = Tomega' !*)
   structure State = State'
 
   exception Error of string
 
   local 
-    structure T = Tomega'
-    structure I = IntSyn'
+    structure T = Tomega
+    structure I = IntSyn
     structure S = State'
       
     datatype Operator = 

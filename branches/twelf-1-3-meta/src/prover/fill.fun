@@ -3,31 +3,32 @@
 
 functor Fill 
   (structure MTPGlobal : MTPGLOBAL
-   structure IntSyn' : INTSYN
-   structure Tomega' : TOMEGA
-     sharing Tomega'.IntSyn = IntSyn'
+   (*! structure IntSyn' : INTSYN !*)
+   (*! structure Tomega' : TOMEGA !*)
+   (*! sharing Tomega'.IntSyn = IntSyn' !*)
    structure State' : STATE
-     sharing State'.IntSyn = IntSyn'
-     sharing State'.Tomega = Tomega'
+   (*! sharing State'.IntSyn = IntSyn' !*)
+   (*! sharing State'.Tomega = Tomega' !*)
    structure Abstract : ABSTRACT
-     sharing Abstract.IntSyn = IntSyn'
-     sharing Abstract.Tomega = Tomega'
+   (*! sharing Abstract.IntSyn = IntSyn' !*)
+   (*! sharing Abstract.Tomega = Tomega' !*)
    structure TypeCheck : TYPECHECK
-     sharing TypeCheck.IntSyn = IntSyn'
+   (*! sharing TypeCheck.IntSyn = IntSyn' !*)
    structure MTPData : MTPDATA
    structure Search  : SEARCH
-     sharing Search.IntSyn = IntSyn'
-     sharing Search.Tomega = Tomega'
+   (*! sharing Search.IntSyn = IntSyn' !*)
+   (*! sharing Search.Tomega = Tomega' !*)
      sharing Search.State = State'
    structure Normalize : NORMALIZE
-     sharing Normalize.IntSyn = IntSyn'
-     sharing Normalize.Tomega = Tomega'
+   (*! sharing Normalize.IntSyn = IntSyn' !*)
+   (*! sharing Normalize.Tomega = Tomega' !*)
    structure Whnf : WHNF
-     sharing Whnf.IntSyn = IntSyn')
+   (*! sharing Whnf.IntSyn = IntSyn' !*)
+       )
      : FILL =
 struct
-  structure IntSyn = IntSyn'
-  structure Tomega = Tomega'
+  (*! structure IntSyn = IntSyn' !*)
+  (*! structure Tomega = Tomega' !*)
   structure State = State'
 
   exception Error of string

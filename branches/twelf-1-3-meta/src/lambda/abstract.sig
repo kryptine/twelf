@@ -3,8 +3,9 @@
 
 signature ABSTRACT =
 sig
-  structure IntSyn : INTSYN
-  structure Tomega : TOMEGA
+
+  (*! structure IntSyn : INTSYN !*)
+  (*! structure Tomega : TOMEGA !*)
 
   exception Error of string
 

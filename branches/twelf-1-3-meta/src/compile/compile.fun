@@ -3,33 +3,35 @@
 (* Modified: Jeff Polakow, Carsten Schuermann, Larry Greenfield, 
              Roberto Virga, Brigitte Pientka *)
 
-functor Compile (structure IntSyn' : INTSYN
-		 structure Tomega' : TOMEGA
-		   sharing Tomega'.IntSyn = IntSyn'
-		 structure CompSyn' : COMPSYN
-		   sharing CompSyn'.IntSyn = IntSyn'
+functor Compile ((*! structure IntSyn' : INTSYN !*)
+                 (*! structure Tomega' !*)
+		 (*! sharing Tomega'.IntSyn = IntSyn' !*)
+                 (*! structure CompSyn' : COMPSYN !*)
+		 (*! sharing CompSyn'.IntSyn = IntSyn' !*)
+
 		 structure Whnf : WHNF
-		   sharing Whnf.IntSyn = IntSyn'
+		 (*! sharing Whnf.IntSyn = IntSyn' !*)
  		 structure TypeCheck : TYPECHECK
-		   sharing TypeCheck.IntSyn = IntSyn'
+		 (*! sharing TypeCheck.IntSyn = IntSyn' !*)
 
 		    (* CPrint currently unused *)
 		 structure CPrint : CPRINT 
-		   sharing CPrint.IntSyn = IntSyn'
-		   sharing CPrint.CompSyn = CompSyn'
+		 (*! sharing CPrint.IntSyn = IntSyn' !*)
+		 (*! sharing CPrint.CompSyn = CompSyn' !*)
 
 		   (* CPrint currently unused *)
 		 structure Print : PRINT 
-		   sharing Print.IntSyn = IntSyn'
+		 (*! sharing Print.IntSyn = IntSyn' !*)
 
 		 structure Names : NAMES
-		   sharing Names.IntSyn = IntSyn')
+		 (*! sharing Names.IntSyn = IntSyn' !*)
+		   )
   : COMPILE =
 struct
 
-  structure IntSyn = IntSyn'
-  structure CompSyn = CompSyn'
-  structure Tomega = Tomega'
+  (*! structure IntSyn = IntSyn' !*)
+  (*! structure CompSyn = CompSyn' !*)
+  (*! structure Tomega = Tomega' !*)
 
   (* FIX: need to associate errors with occurrences -kw *)
   exception Error of string
@@ -40,8 +42,10 @@ struct
     structure C = CompSyn
   in
 
+    fun notCS (I.FromCS) = false
+      | notCS _ = true
 
-    datatype Duplicates = BVAR of int | FGN
+    datatype Duplicates = BVAR of int | FGN | DEF of int
 
     val optimize = ref true  
 
@@ -125,7 +129,8 @@ struct
 	 else 
 	   collectSpine (S, K', Vars', depth)
        end
-
+     | collectExp (U as I.Root(I.Def k, S), K, Vars, depth) = 
+       ((depth, DEF k)::K, Vars)
      (* h is either const, skonst or def *)
      | collectExp (I.Root(h, S), K, Vars, depth) =   
          collectSpine (S, K, Vars, depth)
@@ -204,8 +209,6 @@ struct
 	 (left, Vars, h, false)
      | linearHead(G, (h as I.Const k), S, left, Vars, depth, total) = 
 	 (left, Vars, h, false)
-     | linearHead(G, (h as I.Def k), S, left, Vars, depth, total) = 
-	 (left, Vars, h, false)
      (*
      | linearHead(G, (h as I.NSDef k), s, S, left, Vars, depth, total) = 
 	 (left, Vars, h, false)
@@ -215,6 +218,7 @@ struct
 
      | linearHead(G, (h as I.Skonst k) , S, left, Vars, depth, total) = 
 	 (left, Vars, h, false)
+     (* Def cannot occur *)
 
   (* linearExp (Gl, U, left, Vars, depth, total, eqns) = (left', Vars', N, Eqn)
 
@@ -227,7 +231,14 @@ struct
 
      "For any U', U = U' iff (N = U' and Eqn)"
   *)
-   fun linearExp (Gl, U as I.Root(h, S), left, Vars, depth, total, eqns) = 
+   fun linearExp (Gl, U as I.Root(h as I.Def k, S), left, Vars, depth, total, eqns) = 
+       let
+	 val N = I.Root(I.BVar(left + depth), I.Nil)
+	 val U' = shiftExp(U, depth, total)  
+       in
+	 (left-1, Vars, N, C.UnifyEq(Gl, U', N, eqns))
+       end 
+     | linearExp (Gl, U as I.Root(h, S), left, Vars, depth, total, eqns) = 
        let
 	 val (left', Vars', h', replaced) =  linearHead (Gl, h, S, left, Vars, depth, total)
        in 
@@ -261,7 +272,7 @@ struct
 	 (left', Vars', I.Lam(D', U'), eqns')
        end
    | linearExp (Gl, U as I.FgnExp (cs, ops), left, Vars, depth, total, eqns) = 
-       let
+       let 
 	 val N = I.Root(I.BVar(left + depth), I.Nil)
 	 val U' = shiftExp(U, depth, total)  
        in
@@ -302,20 +313,6 @@ struct
 
 	  val r = convertKRes(C.Assign(R', Eqs), List.rev K, left)
 	in 
-	  (* 
-	     this sometimes fails because G does not assign names
-	     to all declaratons.
-	     Fri May  3 19:49:45 2002 -fp
-	  *)
-	  (*
-	  (if (!Global.chatter) >= 6 then
-	     (print ("\nClause Eqn" );
-	      print (CPrint.clauseToString "\t" (G, r));	 
-	      print "\n";
-	      print ("Clause orig \t" ^ Print.expToString(G, R) ^ "\n"))
-	   else 
-	     ());
-	  *)
 	     r
 	end
 
@@ -348,7 +345,7 @@ struct
       end
     | compileGoalN fromCS (G, I.Pi((D as I.Dec (_, A1), I.Maybe), A2)) =
       (* A = {x:A1} A2 *)
-       if not fromCS andalso isConstraint (head (A1))
+       if notCS fromCS andalso isConstraint (head (A1))
        then raise Error "Constraint appears in dynamic clause position"
        else C.All (D, compileGoalN fromCS (I.Decl(G, D), A2))
   (*  compileGoalN _ should not arise by invariants *)
@@ -370,7 +367,7 @@ struct
       if opt andalso !optimize then
 	compileHead(G, R) (* C.Eq(R) *)
       else    
-        if not fromCS andalso isConstraint (h)
+        if notCS fromCS andalso isConstraint (h)
         then raise Error "Constraint appears in dynamic clause position"
         else C.Eq(R)
     | compileClauseN fromCS opt (G, I.Pi((D as (I.Dec(_,A1)),I.No), A2)) =
@@ -387,8 +384,8 @@ struct
     (*  compileClauseN _ should not arise by invariants *)
 
   fun compileClause opt (G, A) = 
-        compileClauseN false opt (G, Whnf.normalize (A, I.id))
-  fun compileGoal (G, A) = compileGoalN false (G, Whnf.normalize (A, I.id))
+        compileClauseN I.Ordinary opt (G, Whnf.normalize (A, I.id))
+  fun compileGoal (G, A) = compileGoalN I.Ordinary (G, Whnf.normalize (A, I.id))
 
   (* compileCtx G = (G, dPool)
 
@@ -519,6 +516,8 @@ struct
         C.sProgInstall (a, C.SClause (compileClauseN fromCS true (I.Null, A)))
     | compileConDec fromCS (a, I.SkoDec(_, _, _, A, I.Type)) =
         C.sProgInstall (a, C.SClause (compileClauseN fromCS true (I.Null, A)))
+    | compileConDec I.Clause (a, I.ConDef(_, _, _, _, A, I.Type)) =
+	C.sProgInstall (a, C.SClause (compileClauseN I.Clause true (I.Null, A)))
     | compileConDec _ _ = ()
 
   fun install fromCS (cid) = compileConDec fromCS (cid, I.sgnLookup cid)

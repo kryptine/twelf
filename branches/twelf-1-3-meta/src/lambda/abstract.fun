@@ -2,30 +2,31 @@
 (* Author: Frank Pfenning, Carsten Schuermann *)
 (* Modified: Roberto Virga *)
 
-functor Abstract (structure IntSyn' : INTSYN
-		  structure Tomega'  : TOMEGA
-		    sharing Tomega'.IntSyn = IntSyn'
+functor Abstract ((*! structure IntSyn' : INTSYN !*)
+		  (*! structure Tomega'  : TOMEGA !*)
+		  (*! sharing Tomega'.IntSyn = IntSyn' !*)
 		  structure Whnf    : WHNF
-		    sharing Whnf.IntSyn = IntSyn'
+		  (*! sharing Whnf.IntSyn = IntSyn' !*)
 		  structure Unify   : UNIFY
-		    sharing Unify.IntSyn = IntSyn'
+		  (*! sharing Unify.IntSyn = IntSyn' !*)
 		  structure Constraints : CONSTRAINTS
-		    sharing Constraints.IntSyn = IntSyn'
+		  (*! sharing Constraints.IntSyn = IntSyn' !*)
 		  structure Normalize : NORMALIZE
-		    sharing Normalize.IntSyn = IntSyn'
-		    sharing Normalize.Tomega = Tomega')
+		  (*! sharing Normalize.IntSyn = IntSyn' !*)
+		  (*! sharing Normalize.Tomega = Tomega' !*)
+		    )
   : ABSTRACT =
 struct
 
-  structure IntSyn = IntSyn'
-  structure Tomega = Tomega'
+  (*! structure IntSyn = IntSyn' !*)
+  (*! structure Tomega = Tomega' !*)
     
   exception Error of string
     
   local
 
     structure I = IntSyn
-    structure T = Tomega'
+    structure T = Tomega
     structure C = Constraints
       
     (* Intermediate Data Structure *)

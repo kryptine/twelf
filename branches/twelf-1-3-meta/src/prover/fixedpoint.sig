@@ -3,8 +3,8 @@
 
 signature FIXEDPOINT = 
 sig
-  structure IntSyn : INTSYN
-  structure Tomega : TOMEGA
+  (*! structure IntSyn : INTSYN !*)
+  (*! structure Tomega : TOMEGA !*)
   structure State : STATE
 
   exception Error of string

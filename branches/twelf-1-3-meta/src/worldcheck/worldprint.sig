@@ -4,7 +4,7 @@
 signature WORLDPRINT =
 sig
   structure Formatter : FORMATTER
-  structure Tomega : TOMEGA
+  (*! structure Tomega : TOMEGA !*)
 
   exception Error of string 
 

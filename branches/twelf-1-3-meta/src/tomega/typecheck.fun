@@ -3,37 +3,38 @@
 (* Modified: Yu Liao *)
 
 functor TomegaTypeCheck
-  (structure IntSyn' : INTSYN
-   structure Tomega' : TOMEGA
-     sharing Tomega'.IntSyn = IntSyn'
+  ((*! structure IntSyn' : INTSYN !*)
+   (*! structure Tomega' : TOMEGA !*)
+   (*! sharing Tomega'.IntSyn = IntSyn' !*)
    structure Abstract : ABSTRACT
-     sharing Abstract.IntSyn = IntSyn'
+   (*! sharing Abstract.IntSyn = IntSyn' !*)
    structure TypeCheck : TYPECHECK
-     sharing TypeCheck.IntSyn = IntSyn'
+   (*! sharing TypeCheck.IntSyn = IntSyn' !*)
    structure Conv : CONV
-     sharing Conv.IntSyn = IntSyn'
+   (*! sharing Conv.IntSyn = IntSyn' !*)
    structure Normalize : NORMALIZE
-     sharing Normalize.IntSyn = IntSyn'
-     sharing Normalize.Tomega = Tomega'
+   (*! sharing Normalize.IntSyn = IntSyn' !*)
+   (*! sharing Normalize.Tomega = Tomega' !*)
    structure Whnf : WHNF
-     sharing Whnf.IntSyn = IntSyn'
+   (*! sharing Whnf.IntSyn = IntSyn' !*)
    structure Print : PRINT
-     sharing Print.IntSyn = IntSyn'
+   (*! sharing Print.IntSyn = IntSyn' !*)
    structure TomegaPrint : TOMEGAPRINT
-     sharing TomegaPrint.IntSyn = IntSyn'
-     sharing TomegaPrint.Tomega = Tomega'
+   (*! sharing TomegaPrint.IntSyn = IntSyn' !*)
+   (*! sharing TomegaPrint.Tomega = Tomega' !*)
    structure Subordinate : SUBORDINATE
-     sharing Subordinate.IntSyn = IntSyn'
+   (*! sharing Subordinate.IntSyn = IntSyn' !*)
    structure Weaken : WEAKEN
-     sharing Weaken.IntSyn = IntSyn') : TOMEGATYPECHECK= 
+   (*! sharing Weaken.IntSyn = IntSyn' !*)
+       ) : TOMEGATYPECHECK = 
 struct
-  structure IntSyn = IntSyn'
-  structure Tomega = Tomega'
+  (*! structure IntSyn = IntSyn' !*)
+  (*! structure Tomega = Tomega' !*)
 
   exception Error of string 
   
   local 
-    structure I = IntSyn'
+    structure I = IntSyn
     structure T = Tomega
     structure S = Subordinate    
 

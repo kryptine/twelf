@@ -3,7 +3,7 @@
 
 signature TOMEGA = 
 sig
-  structure IntSyn : INTSYN
+  (*! structure IntSyn : INTSYN !*)
 
   (* make abstract *)
   type label = int      

@@ -3,12 +3,13 @@
 (* Modified: Brigitte Pientka *)
 
 functor Lexer (structure Stream' : STREAM
-               structure Paths' : PATHS)
+               (*! structure Paths' : PATHS !*)
+		 )
   : LEXER =
 struct
 
   structure Stream = Stream'
-  structure Paths = Paths'
+  (*! structure Paths = Paths' !*)
 
   local
     structure P = Paths
@@ -53,6 +54,7 @@ struct
     | ABBREV				(* `%abbrev' *)
     | FREEZE                            (* `%freeze' *)
     | DETERMINISTIC                     (* `%deterministic' *) (* -rv 11/27/01 *)
+    | CLAUSE				(* `%clause' *) (* -fp 8/9/02 *)
     | SIG                               (* `%sig' *)
     | STRUCT                            (* `%struct' *)
     | WHERE                             (* `%where' *)
@@ -233,6 +235,7 @@ struct
       | lexPragmaKey (ID(_, "querytabled"), r) = (QUERYTABLED, r)
       | lexPragmaKey (ID(_, "freeze"), r) = (FREEZE, r)
       | lexPragmaKey (ID(_, "deterministic"), r) = (DETERMINISTIC, r) (* -rv 11/27/01 *)
+      | lexPragmaKey (ID(_, "clause"), r) = (CLAUSE, r) (* -fp 08/09/02 *)
       | lexPragmaKey (ID(_, "sig"), r) = (SIG, r)
       | lexPragmaKey (ID(_, "struct"), r) = (STRUCT, r)
       | lexPragmaKey (ID(_, "where"), r) = (WHERE, r)
@@ -354,6 +357,7 @@ struct
     | toString' (ABBREV) = "%abbrev"
     | toString' (FREEZE) = "%freeze"
     | toString' (DETERMINISTIC) = "%deterministic"  (* -rv 11/27/01. *)
+    | toString' (CLAUSE) = "%clause" (* -fp 08/09/02 *)
     | toString' (SIG) = "%sig"
     | toString' (STRUCT) = "%struct"
     | toString' (WHERE) = "%where"
@@ -402,3 +406,8 @@ struct
   end  (* local ... *)
 
 end;  (* functor Lexer *)
+
+structure Lexer =
+  Lexer (structure Stream' = Stream
+	 (*! structure Paths' = Paths !*)
+	   );

@@ -1,4 +1,10 @@
-Group is
+Library
+  signature INTERACTIVE
+  structure Interactive
+is
+#if defined(NEW_CM)
+  $/basis.cm
+#endif
   ../tomega/sources.cm
   ../lambda/sources.cm
   state.sig       (* central data structure for states *)

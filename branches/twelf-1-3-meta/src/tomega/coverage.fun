@@ -2,29 +2,30 @@
 (* Author: Carsten Schuermann *)
 
 functor TomegaCoverage
-  (structure IntSyn' : INTSYN
-   structure Tomega' : TOMEGA
-     sharing Tomega'.IntSyn = IntSyn'
+  ((*! structure IntSyn' : INTSYN !*)
+   (*! structure Tomega' : TOMEGA !*)
+   (*! sharing Tomega'.IntSyn = IntSyn' !*)
    structure Normalize : NORMALIZE
-     sharing Normalize.IntSyn = IntSyn'
-     sharing Normalize.Tomega = Tomega'
+   (*! sharing Normalize.IntSyn = IntSyn' !*)
+   (*! sharing Normalize.Tomega = Tomega' !*)
    structure TomegaPrint : TOMEGAPRINT
-     sharing TomegaPrint.IntSyn = IntSyn'
-     sharing TomegaPrint.Tomega = Tomega'
+   (*! sharing TomegaPrint.IntSyn = IntSyn' !*)
+   (*! sharing TomegaPrint.Tomega = Tomega' !*)
    structure TomegaTypeCheck : TOMEGATYPECHECK
-     sharing TomegaTypeCheck.IntSyn = IntSyn'
-     sharing TomegaTypeCheck.Tomega = Tomega'
+   (*! sharing TomegaTypeCheck.IntSyn = IntSyn' !*)
+   (*! sharing TomegaTypeCheck.Tomega = Tomega' !*)
    structure Cover : COVER
-     sharing Cover.IntSyn = IntSyn'
-     sharing Cover.Tomega = Tomega') : TOMEGACOVERAGE = 
+   (*! sharing Cover.IntSyn = IntSyn' !*)
+   (*! sharing Cover.Tomega = Tomega' !*)
+     ) : TOMEGACOVERAGE = 
 struct
-  structure IntSyn = IntSyn'
-  structure Tomega = Tomega'
+  (*! structure IntSyn = IntSyn' !*)
+  (*! structure Tomega = Tomega' !*)
 
   exception Error of string 
   
   local 
-    structure I = IntSyn'
+    structure I = IntSyn
     structure T = Tomega
       
 

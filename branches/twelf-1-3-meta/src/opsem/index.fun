@@ -3,31 +3,33 @@
 
 functor TableIndex (structure Global : GLOBAL
 		    structure Queue : QUEUE
-		    structure IntSyn': INTSYN
-		    structure CompSyn': COMPSYN
-		      sharing CompSyn'.IntSyn = IntSyn'
+		    (*! structure IntSyn' : INTSYN !*)
+		    (*! structure CompSyn': COMPSYN !*)
+		    (*! sharing CompSyn'.IntSyn = IntSyn' !*)
 		    structure Subordinate : SUBORDINATE
-		      sharing Subordinate.IntSyn = IntSyn'		      
+		    (*! sharing Subordinate.IntSyn = IntSyn'		       !*)
 		    structure Conv: CONV
-		      sharing Conv.IntSyn = IntSyn'
+		    (*! sharing Conv.IntSyn = IntSyn' !*)
 		    structure Unify : UNIFY
-		      sharing Unify.IntSyn = IntSyn'
+		    (*! sharing Unify.IntSyn = IntSyn' !*)
 		    structure AbstractTabled : ABSTRACTTABLED
-		      sharing AbstractTabled.IntSyn = IntSyn'
+		    (*! sharing AbstractTabled.IntSyn = IntSyn' !*)
 		    structure Whnf : WHNF
-		      sharing Whnf.IntSyn = IntSyn'
+		    (*! sharing Whnf.IntSyn = IntSyn' !*)
 		    structure Print : PRINT 
- 		      sharing Print.IntSyn = IntSyn'
+		    (*! sharing Print.IntSyn = IntSyn' !*)
 		    structure CPrint : CPRINT 
-                      sharing CPrint.IntSyn = IntSyn'
-                      sharing CPrint.CompSyn = CompSyn'
+		    (*! sharing CPrint.IntSyn = IntSyn' !*)
+		    (*! sharing CPrint.CompSyn = CompSyn' !*)
+		    structure Names : NAMES 
+		    (*! sharing Names.IntSyn = IntSyn' !*)
 		    structure TypeCheck : TYPECHECK
-		      sharing TypeCheck.IntSyn = IntSyn'
+		    (*! sharing TypeCheck.IntSyn = IntSyn' !*)
 		 )
   : TABLEINDEX =
 struct
-  structure IntSyn = IntSyn'
-  structure CompSyn = CompSyn'
+  (*! structure IntSyn = IntSyn' !*)
+  (*! structure CompSyn = CompSyn' !*)
   structure Conv = Conv
 
 
@@ -123,9 +125,11 @@ struct
       let 
         fun proofTerms (G, D, U, []) = print ""
 	  | proofTerms (G, D, U, (((D', s'), _)::S)) = 
-          ((print (Print.expToString (I.Null, A.raiseType(concat(G,D'), I.EClo(U, s'))))
-(*           (print (Print.expToString (I.Null, A.raiseType(D',
-			I.EClo(A.raiseType(G, U), s')))) *)
+          ((* (print (Print.expToString (I.Null,  *)
+(* 		A.raiseType(Names.ctxName(concat(G,D')), I.EClo(U, s')))) *)
+
+           (print (Print.expToString (I.Null, A.raiseType(Names.ctxName(D'),
+			I.EClo(A.raiseType(Names.ctxName(G), U), s')))) 
 	    handle _ => print "EXCEPTION" );	    
 	   (* do not print pskeletons *)
 	   print ", \n\t";
@@ -470,6 +474,14 @@ struct
       end
 
     (* ---------------------------------------------------------------------- *)
+    fun member ((Dk, sk), []) = false
+      | member ((Dk, sk), (((D1, s1),_)::S)) =       
+      (* do we really need to compare Gus and Gs1 ?  *)
+      if equalSub (sk,s1) andalso equalCtx (Dk, D1) then   
+	true
+      else 
+	member ((Dk, sk), S)
+
     (* answer check and insert 
       
       if     G |- U[s]
@@ -500,22 +512,14 @@ struct
 		   print (Print.expToString (I.Null,  Upi) ^ "\n"))
 		else 
 		  ()
-
-	fun member ((Dk, sk), []) = false
-	  | member ((Dk, sk), (((D1, s1),_)::S)) = 
-
-	  (* do we really need to compare Gus and Gs1 ?  *)
-	  if equalSub (sk,s1) andalso equalCtx (Dk, D1) then   
-	    true
-	  else 
-	    member ((Dk, sk), S)
-	
+		  	
 	fun lookup  (G, D, U, s) [] T = 
 	  (* cannot happen ! *) 
 	  (print (Print.expToString(I.Null, I.EClo(A.raiseType(G,U),s))  
 		  ^ " call should always be already in the table !\n") ; 
 	   Repeated)
-	  | lookup (G, D, U, s) ((H as ((k, G', D',U'), {solutions = S, lookup = i}))::T) T' = 
+	  | lookup (G, D, U, s) ((H as ((k, G', D',U'), 
+		    {solutions = S, lookup = i}))::T) T' = 
 	  if variant ((Upi, I.id),
 		      (A.raiseType(concat(G', D'), U'), I.id))
 	    then 
@@ -531,8 +535,13 @@ struct
 					lookup = i})::T); 
 		   
 		   (if (!Global.chatter) >= 5 then 
-		      (print ("\n solution added  -- " ); 
-		       print (Print.expToString(I.Null, A.raiseType(Dk, I.EClo(A.raiseType(G', U'), sk)))))
+		      (print ("\n Add solution  -- " ); 
+		       print (Print.expToString(I.Null, 
+				I.EClo(A.raiseType(G', U'), s)));
+		       print ("\n solution added  -- " ); 
+		       print (Print.expToString(I.Null, 
+			A.raiseType(Names.ctxName(Dk),
+				    I.EClo(A.raiseType(G', U'), sk)))))
 		    else 
 		      ());
 		   New)

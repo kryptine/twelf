@@ -72,7 +72,6 @@ struct
     
   and Head =				(* Heads:                     *)
     BVar  of int			(* H ::= k                    *)
-  | NVar  of int			(*     | n                -bp *)
   | Const of cid			(*     | c                    *)
   | Proj  of Block * int		(*     | #k(b)                *)
   | Skonst of cid			(*     | c#                   *)
@@ -93,7 +92,6 @@ struct
   and Front =				(* Fronts:                    *)
     Idx of int				(* Ft ::= k                   *)
   | Exp of Exp				(*     | U                    *)
-  | Axp of Exp				(*     | U (assignable)       *)
   | Block of Block			(*     | _x                   *)
   | Undef				(*     | _                    *)
 
@@ -158,6 +156,12 @@ struct
 
   datatype StrDec =                     (* Structure declaration      *)
       StrDec of string * mid option
+
+  (* Form of constant declaration *)
+  datatype ConDecForm =
+    FromCS				(* from constraint domain *)
+  | Ordinary				(* ordinary declaration *)
+  | Clause				(* %clause declaration *)
 
   (* Type abbreviations *)
   type dctx = Dec Ctx			(* G = . | G,D                *)
@@ -236,7 +240,8 @@ struct
 
   local
     val maxCid = Global.maxCid
-    val sgnArray = Array.array (maxCid+1, ConDec("", NONE, 0, Normal, Uni (Kind), Kind))
+    val dummyEntry = ConDec("", NONE, 0, Normal, Uni (Kind), Kind)
+    val sgnArray = Array.array (maxCid+1, dummyEntry)
       : ConDec Array.array
     val nextCid  = ref(0)
 
@@ -253,7 +258,14 @@ struct
     (* If Const(cid) is valid, then sgnArray(cid) = ConDec _ *)
     (* If Def(cid) is valid, then sgnArray(cid) = ConDef _ *)
 
-    fun sgnReset () = (nextCid := 0; nextMid := 0)
+    fun sgnClean (i) = if i >= !nextCid then ()
+                       else (Array.update (sgnArray, i, dummyEntry);
+			     sgnClean (i+1))
+
+    fun sgnReset () = ((* Fri Dec 20 12:04:24 2002 -fp *)
+		       (* this circumvents a space leak *)
+		       sgnClean (0);
+		       nextCid := 0; nextMid := 0)
     fun sgnSize () = (!nextCid, !nextMid)
 
     fun sgnAdd (conDec) = 
@@ -354,29 +366,6 @@ struct
     | comp (Shift (n), Shift (m)) = Shift (n+m)
     | comp (Dot (Ft, s), s') = Dot (frontSub (Ft, s'), comp (s, s'))
 
-
-  (* Fri Apr  5 15:35:09 2002 -bp  *)
-  and axpSub (Root(H as Const k, S), s) = 
-        Root(H, axpSubS(S, s))
-    | axpSub (Root(H as BVar k, S), s) = 
-	Root(H, axpSubS(S, s))
-    | axpSub (Root(H as NVar n, Nil), s) = 
-	(case bvarSub(n, s) 
-	   of Axp(U) => U)
-    (* Root(NVar, S) and S =/= nil should not happen *)
-    (* to be added FgnConst, Skonst *)
-    (* Def cannot happen, Def are in expanded form *)
-    | axpSub(Lam(D, U), s) = 
-	Lam(D, axpSub(U, s))
-    (* FgnExp to be added *)
-    (* EVar cannot happen, U always closed when used *)
-    (* EClo cannot happen *)
-
-  and axpSubS (Nil, s) = Nil
-    | axpSubS (App(U, S), s) = App(axpSub(U, s), axpSubS(S, s))
-    (* SClo cannot happen *)
-
-
   (* bvarSub (n, s) = Ft'
    
       Invariant: 
@@ -431,7 +420,6 @@ struct
     | frontSub (Exp (U), s) = Exp (EClo (U, s))
     | frontSub (Undef, s) = Undef
     | frontSub (Block (B), s) = Block (blockSub (B, s))
-    | frontSub (Axp (U), s) = Axp (axpSub (U, s))
 
   (* decSub (x:V, s) = D'
 
@@ -585,3 +573,6 @@ struct
   fun targetFam (A) = valOf (targetFamOpt A)
                       
 end;  (* functor IntSyn *)
+
+structure IntSyn :> INTSYN =
+  IntSyn (structure Global = Global);

@@ -3,48 +3,48 @@
 
 functor Interactive 
   (structure Global : GLOBAL
-   structure IntSyn' : INTSYN
-   structure Tomega' : TOMEGA
-     sharing Tomega'.IntSyn = IntSyn'
+   (*! structure IntSyn' : INTSYN !*)
+   (*! structure Tomega' : TOMEGA !*)
+   (*! sharing Tomega'.IntSyn = IntSyn' !*)
    structure State' : STATE
-     sharing State'.IntSyn = IntSyn'
-     sharing State'.Tomega = Tomega'
+   (*! sharing State'.IntSyn = IntSyn' !*)
+   (*! sharing State'.Tomega = Tomega' !*)
    structure Formatter : FORMATTER
    structure Ring : RING
    structure Names : NAMES
-     sharing Names.IntSyn = IntSyn'
+   (*! sharing Names.IntSyn = IntSyn' !*)
    structure Weaken : WEAKEN
-     sharing Weaken.IntSyn = IntSyn'
+   (*! sharing Weaken.IntSyn = IntSyn' !*)
    structure ModeSyn : MODESYN
-     sharing ModeSyn.IntSyn = IntSyn'
+   (*! sharing ModeSyn.IntSyn = IntSyn' !*)
    structure WorldSyn : WORLDSYN
-     sharing WorldSyn.IntSyn = IntSyn'
-     sharing WorldSyn.Tomega = Tomega'
+   (*! sharing WorldSyn.IntSyn = IntSyn' !*)
+   (*! sharing WorldSyn.Tomega = Tomega' !*)
    structure StatePrint : STATEPRINT 
      sharing StatePrint.Formatter = Formatter
-     sharing StatePrint.IntSyn = IntSyn'
-     sharing StatePrint.Tomega = Tomega'
+     (*! sharing StatePrint.IntSyn = IntSyn' !*)
+     (*! sharing StatePrint.Tomega = Tomega' !*)
      sharing StatePrint.State = State'
    structure Introduce : INTRODUCE
-     sharing Introduce.IntSyn = IntSyn'
-     sharing Introduce.Tomega = Tomega'
+   (*! sharing Introduce.IntSyn = IntSyn' !*)
+   (*! sharing Introduce.Tomega = Tomega' !*)
      sharing Introduce.State = State'
    structure Split : SPLIT
-     sharing Split.IntSyn = IntSyn'
-     sharing Split.Tomega = Tomega'
+   (*! sharing Split.IntSyn = IntSyn' !*)
+   (*! sharing Split.Tomega = Tomega' !*)
      sharing Split.State = State'
    structure FixedPoint : FIXEDPOINT
-     sharing FixedPoint.IntSyn = IntSyn'
-     sharing FixedPoint.Tomega = Tomega'
+   (*! sharing FixedPoint.IntSyn = IntSyn' !*)
+   (*! sharing FixedPoint.Tomega = Tomega' !*)
      sharing FixedPoint.State = State'
    structure Fill : FILL
-     sharing Fill.IntSyn = IntSyn'
-     sharing Fill.Tomega = Tomega'
+   (*! sharing Fill.IntSyn = IntSyn' !*)
+   (*! sharing Fill.Tomega = Tomega' !*)
      sharing Fill.State = State') 
   : INTERACTIVE =
 struct
-  structure IntSyn = IntSyn'
-  structure Tomega = Tomega'
+  (*! structure IntSyn = IntSyn' !*)
+  (*! structure Tomega = Tomega' !*)
   structure State = State'
 
   exception Error = State'.Error

@@ -1,13 +1,14 @@
 (* Internal syntax for functional proof term calculus *)
 (* Author: Carsten Schuermann *)
 
-functor Tomega (structure IntSyn' : INTSYN
+functor Tomega ((*! structure IntSyn' : INTSYN !*)
 		structure Whnf : WHNF
-		  sharing Whnf.IntSyn = IntSyn'
+		(*! sharing Whnf.IntSyn = IntSyn' !*)
 		structure Conv : CONV
-		  sharing Conv.IntSyn = IntSyn') : TOMEGA= 
+		(*! sharing Conv.IntSyn = IntSyn' !*)
+		    ) : TOMEGA = 
 struct
-  structure IntSyn = IntSyn'
+  (*! structure IntSyn = IntSyn' !*)
 
   exception Error of string 
 
@@ -612,4 +613,4 @@ struct
     val revCoerceSub = revCoerceSub
     val revCoerceCtx = revCoerceCtx
   end
-end (* functor FunSyn *)
+end;  (* functor FunSyn *)

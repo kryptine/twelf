@@ -1,17 +1,17 @@
 (* Assignment *)
 (* Author: Brigitte Pientka *)
 
-functor Assign (structure IntSyn' : INTSYN
+functor Assign ((*! structure IntSyn' : INTSYN !*)
 		structure Whnf : WHNF
-		  sharing Whnf.IntSyn = IntSyn'
+		(*! sharing Whnf.IntSyn = IntSyn' !*)
 		structure Unify : UNIFY
-		  sharing Unify.IntSyn = IntSyn'
+		(*! sharing Unify.IntSyn = IntSyn' !*)
 		structure Print : PRINT
-		  sharing Print.IntSyn = IntSyn'
+		(*! sharing Print.IntSyn = IntSyn' !*)
 		      )
   : ASSIGN =
 struct
-  structure IntSyn = IntSyn'
+  (*! structure IntSyn = IntSyn' !*)
     
   exception Assignment of string
 
@@ -37,7 +37,8 @@ struct
 
      invariant:
      G |- s1 : G1    G1 |- U1 : V1   (U1, s1) in whnf
-     G |- s2 : G2    G2 |- U2 : V2   (U2, s2) is template *)
+     G |- s2 : G2    G2 |- U2 : V2   (U2, s2) is template 
+  *)   
     fun assignExpW (G, (Uni L1, _), (Uni L2, _), cnstr) = (* L1 = L2 by invariant *)
           cnstr
       | assignExpW (G, Us1 as (Root (H1, S1), s1), Us2 as (Root (H2, S2), s2), cnstr) =
@@ -55,15 +56,20 @@ struct
 	       else raise Assignment "Skolem constant clash"
 
 	  | (Def (d1), Def (d2)) =>
+	    (* cannot occur by invariant; all definitions in clause heads have been 
+               replaced by AVars Tue Jun 18 19:47:39 2002 -bp *)
 	       if (d1 = d2) then (* because of strict *) 
 		 assignSpine (G, (S1, s1), (S2, s2), cnstr)
 	       else assignExp (G, Whnf.expandDef (Us1), Whnf.expandDef (Us2), cnstr)
 	  | (Def d1, _) => 
 		  assignExp (G, Whnf.expandDef Us1, Us2, cnstr)
-	  | (_, Def(d2)) => assignExp (G, Us1, Whnf.expandDef Us2, cnstr)
+	  | (_, Def(d2)) => 
+	    (* cannot occur by invariant; all definitions in clause heads have been 
+               replaced by AVars Tue Jun 18 19:47:44 2002 -bp *)
+  	    assignExp (G, Us1, Whnf.expandDef Us2, cnstr)
 
-           | (FgnConst (cs1, ConDec (n1, _, _, _, _, _)), FgnConst (cs2, ConDec (n2, _, _, _, _, _))) =>
-               (* we require unique string representation of external constants *)
+          | (FgnConst (cs1, ConDec (n1, _, _, _, _, _)), FgnConst (cs2, ConDec (n2, _, _, _, _, _))) =>
+            (* we require unique string representation of external constants *)
                if (cs1 = cs2) andalso (n1 = n2) then cnstr
                else raise Assignment "Foreign Constant clash"
 
@@ -76,7 +82,7 @@ struct
                assignExp (G, (W1, s1), Us2, cnstr)
 
            | (_, FgnConst (_, ConDef (_, _, _, W2, _, _))) =>
-               assignExp (G, Us1, (W2, s2), cnstr)              
+               assignExp (G, Us1, (W2, s2), cnstr)               
 
 	  | _ => (raise Assignment ("Head mismatch ")))
 
@@ -149,6 +155,7 @@ struct
         (Unify.unifiable(G, (U1, id), (U2, id)) andalso solveCnstr Cnstr)
 	
     fun unifyW (G, (Xs1 as AVar(r as ref NONE), s), Us2) = 
+        (* s = id *)
           r := SOME(EClo(Us2))
       | unifyW (G, Xs1, Us2) = 
 	  (* Xs1 should not contain any uninstantiated AVar anymore *)
