@@ -206,13 +206,24 @@ exception Error' of Tomega.Sub
 	end
 
 
-    fun validMode (M.Mnil) = true
+    fun validMode (M.Mnil) = ()
       | validMode (M.Mapp (M.Marg (M.Plus, _), mS)) = 
           validMode mS
       | validMode (M.Mapp (M.Marg (M.Minus, _), mS)) = 
           validMode mS
       | validMode (M.Mapp (M.Marg (M.Star, _), mS)) = 
           raise Error "+ or - mode expected, * found"
+
+    fun validSig (Psi0, nil) = ()
+      | validSig (Psi0, (G, V) :: Sig) =
+        let 
+	  fun append (G, I.Null) = G
+	    | append (G, I.Decl (G', D)) = I.Decl (append (G, G'), D)
+
+	in
+          (TypeCheck.typeCheck (T.coerceCtx (append (Psi0, T.embedCtx G)), 
+				(V, I.Uni I.Type)); validSig (Psi0, Sig))
+	end
 
 
     fun convertOneFor cid =
@@ -1229,7 +1240,9 @@ exception Error' of Tomega.Sub
 	      in
 		(cid' :: cids'', fn c => if c = cid then cid' else wmap c)
 	      end
+
 	  val (cids', wmap) = transformWorlds' (cids)
+
 	in
           (T.Worlds cids', wmap)
 	end
@@ -1245,7 +1258,7 @@ exception Error' of Tomega.Sub
        and  |- Psi0, Gi ctx
        and  Psi, Gi |- Vi : type.
     *)
-    fun dynamicSig (Psi0, fams, T.Worlds cids) = 
+    fun dynamicSig (Psi0, a, T.Worlds cids) = 
         let
 
 
@@ -1261,8 +1274,7 @@ exception Error' of Tomega.Sub
 	      let 
 		val (D' as I.Dec (x, V')) = I.decSub (D, w)
 		val b = I.targetFam V'
-		val Sig' = if List.exists (fn a => b = a) fams 
-			     then  (G, Whnf.normalize (V',I.id)) :: Sig
+		val Sig' = if b = a then  (G, Whnf.normalize (V',I.id)) :: Sig
 			   else Sig
 	      in
 		findDec (G, n+1, L, I.Dot (I.Exp (I.Root (I.Proj (I.Bidx 1, n), I.Nil)), w), Sig')
@@ -1367,13 +1379,18 @@ exception Error' of Tomega.Sub
 	    val mS = modeSpine a	(* |- mS : {x1:V1} ... {xn:Vn} > type *)
 	    val Sig = Worldify.worldify a
 					(* Sig in LF(reg)   *)
-	    val dynSig = dynamicSig (Psi0, L, W)
+	    val dynSig = dynamicSig (Psi0, a, W)
 (*	    val _ = map (fn GV => print (Print.expToString GV ^ "\n")) dynSig *)
 	    val statSig = staticSig (Psi0, Sig)
-(*	    val _ = print "\nSummary of collecting static cases\n"
+	    val _ = print "\nSummary of collecting static cases\n"
 	    val _ = map (fn GV => print (Print.expToString GV ^ "\n")) statSig
-*)
+
 	    val _ = map (fn (I.ConDec (_, _,_,_,U,V)) => TypeCheck.check (U, I.Uni  V)) Sig
+	    val _ = print "[Signatures: static ..."
+	    val _ = validSig (Psi0, statSig)
+	    val _ = print " dynamic ..."
+	    val _ = validSig (Psi0, dynSig)
+	    val _ = print "]"
 
 (*	    val C0 = blockCases (Psi0, a, L, Sig, wmap) *)
 	    val C0 = traverse (Psi0, L, dynSig, wmap) 
