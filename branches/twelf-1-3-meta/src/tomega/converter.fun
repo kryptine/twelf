@@ -43,6 +43,8 @@ struct
 
   exception Error of string 
 
+exception Error' of Tomega'.For
+
   local
     structure T = Tomega
     structure I = IntSyn 
@@ -94,6 +96,9 @@ struct
     *)
     fun strengthenDec (I.Dec (name, V), s) = I.Dec (name, strengthenExp (V, s))
       | strengthenDec (I.BDec (name, (L, t)), s) = 
+					(* G0 |- t : Gsome *)
+                                        (* G0  |- s : G' *)
+					(* to show  G' |- t o s^1 : Gsome *)
           I.BDec (name, (L, strengthenSub (t, s)))
 
     (* strengthenCtx (G, s) = (G', s')
@@ -347,8 +352,13 @@ struct
     fun peeln (0, w) = w
       | peeln (n, w) = peeln (n-1, peel w)
     
-    fun popn (0, Psi) = Psi
-      | popn (n, I.Decl (Psi, _)) = popn (n-1, Psi)
+    fun popn (0, Psi) = (Psi, I.Null)
+      | popn (n, I.Decl (Psi, T.UDec D)) =
+        let 
+	  val (Psi', G') = popn (n-1, Psi)
+	in
+	  (Psi', I.Decl (G', D))
+	end
 
 
     (* domain (G2, w) = n'
@@ -717,7 +727,7 @@ struct
 	  T.PairExp (U', P')
 	end
     
-    (* deblockify G = G'
+    (* deblockify L = G'
      
        Invariant:
        If   |- G is a block ctx
@@ -725,7 +735,7 @@ struct
        and  |- G' is an LF context
     *)
     fun deblockify (I.Null) = I.Null
-      | deblockify (I.Decl (G,(I.BDec (x, (c, s))))) = 
+      | deblockify (I.Decl (G, I.BDec (x, (c, s)))) = 
         let
 	  val G' = deblockify G
           val (_, L) = I.constBlock c
@@ -872,6 +882,11 @@ val  _ = print "["
 	      val w1' = peeln (b, w1)	(* Psi0, G |- w1' : Psi0, G' *)
 	      val (B', _) = strengthenCtx (B, w1')
 					(* |- Psi0, G', B' ctx *)
+	      val _ = TomegaTypeCheck.checkCtx (Psi1)
+val _ = print "."
+	      val _ = TomegaTypeCheck.checkCtx (append (append (Psi0, G), 
+							T.embedCtx (deblockify B)))
+val _ = print "."
 	     
 	      val P''' = lift (B', P'') (* Psi0, G' |- P''' :: F''' *)
 	      val B4 = deblockify B'    (* Psi0, G' |- B4 ctx *)
@@ -888,16 +903,22 @@ val  _ = print "["
 					(* Psi0, G, B |- w2 : Psi0, G3, B3 *)
 	      val w3 = peeln (b, w2)	(* Psi0, G |- w3 : Psi0, G3 *)
 	      val z3 = peeln (b, z2)	(* Psi0, G3 |-  z3 : Psi0, G' *)
-	      val Psi2 = popn (b, Psi1'') 
+	      val (Psi2, B3') = popn (b, Psi1'') 
 					(* Psi2 = Psi0, G3 *)
 
 	      val Pat' = transformConc ((a, S), w2)
 					(* Psi0, G3, B3 |- Pat' :: For *)
 	      val F4 = Normalize.normalizeFor (F''', T.embedSub z3)
 					(* Psi0, G3 |- F4 for *)
+	      val _ = TomegaTypeCheck.checkCtx (Psi1'')
+val _ = print "."
+	      val _ = TomegaTypeCheck.checkCtx (append (Psi2, T.embedCtx B3'))
+val _ = print ".\n"
+val _ = print (TomegaPrint.forToString (Psi2, F4) ^ "\n")
 	      val _ = TomegaTypeCheck.checkFor (Psi2, F4)
+		handle _ => raise Error' F4
+val  _ = print "]"
 
-	      val (B3', _) = strengthenCtx  (B, w3)
 	      val B3 = deblockify B3'
 	      val Pat = raisePrg (B3, Pat', F4)
 		                        (* Psi0, G3 |- Pat :: F4  *)
@@ -910,7 +931,6 @@ val  _ = print "["
 (*	      val s3 = Whnf.invert w3	(* Psi0, G3 |- s3 :  Psi0, G'*) *)
 	      val t = T.Dot (T.Prg Pat, T.embedSub z3)
                                         (* Psi0, G3 |- t :: Psi0, G', x :: F4  *)
-val  _ = print "]"
 
 		
 	    in     
