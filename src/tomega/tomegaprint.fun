@@ -15,6 +15,7 @@ functor TomegaPrint
      sharing Print.Formatter = Formatter
      sharing Print.IntSyn = IntSyn') 
   : TOMEGAPRINT =
+
 struct
   structure IntSyn = IntSyn'
   structure Tomega = Tomega'

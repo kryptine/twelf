@@ -170,7 +170,7 @@ struct
       | revCoerceSub (I.Dot (Ft, t)) = Dot(revCoerceFront Ft, revCoerceSub t)
 
 
-
+ 
     (* coerceCtx (Psi) = G
 
        Invariant:
@@ -183,26 +183,8 @@ struct
 (*            I.Decl (coerceCtx (Psi), I.BDec (NONE, (L, coerceSub t))) *)
       (* all other cases impossible by invariant *)
 
-    (* coerceCtx (Psi) = G
 
-       Invariant:
-       If   |- Psi ctx[block] 
-       then |- G lf-ctx[block]
-       and  |- Psi == G
-    *)
-    fun coerceCtx I.Null = I.Null
-      | coerceCtx (I.Decl (Psi, UDec D)) = 
-          I.Decl (coerceCtx Psi, D)
-      | coerceCtx (I.Decl (Psi, PDec _)) = 
-	  I.Decl (coerceCtx Psi, I.Dec (NONE, I.Root (I.Const ~1, I.Nil)))   (* dummy declaration -cs *)
-      (* all other cases impossible by invariant *)
-    (* -- Yu Liao Why? there're 3 possible Dec's in context, x:F x:A x:(L,s) *)
 
-(*    fun revCoerceCtx I.Null = I.Null
-      | revCoerceCtx (I.Decl (Psi, I.BDec (_, (L, t)))) = 
-          I.Decl (revCoerceCtx (Psi), BDec (L, revCoerceSub t)) 
--- why does the type checker need this?  -- carsten
-*)
 
 
     (* embedCtx G = Psi
@@ -281,7 +263,82 @@ struct
     fun dot1 (t as Shift (0)) = t
       | dot1 t = Dot (Idx(1), comp(t, Shift 1))
 
+    val id = Shift 0
+    val shift = Shift 1
 
+    (* weakenSub (Psi) = w
+
+       Invariant:
+       If   Psi is a context
+       then G is embed Psi
+       and  Psi |- w : G
+    *)
+    fun weakenSub (I.Null) = id
+      | weakenSub (I.Decl (Psi, D as UDec _)) =
+	  dot1 (weakenSub Psi)
+      | weakenSub (I.Decl (Psi, D as PDec _)) =
+	  comp (weakenSub Psi, shift)
+
+
+
+    (* invertSub s = s'
+
+       Invariant:
+       If   G |- s : G'    (and s patsub)
+       then G' |- s' : G
+       s.t. s o s' = id  
+    *)
+    fun invertSub s =
+      let 
+	fun lookup (n, Shift _, p) = NONE
+	  | lookup (n, Dot (Undef, s'), p) = lookup (n+1, s', p)
+	  | lookup (n, Dot (Idx k, s'), p) = 
+	    if k = p then SOME n 
+	    else lookup (n+1, s', p)
+	
+	fun invertSub'' (0, si) = si
+	  | invertSub'' (p, si) = 
+	    (case (lookup (1, s, p))
+	       of SOME k => invertSub'' (p-1, Dot (Idx k, si))
+	        | NONE => invertSub'' (p-1, Dot (Undef, si)))
+	       
+	fun invertSub' (n, Shift p) = invertSub'' (p, Shift n)
+	  | invertSub' (n, Dot (_, s')) = invertSub' (n+1, s')
+      in
+	invertSub' (0, s)
+      end
+  
+    
+    (* coerceCtx (Psi) = G
+
+       Invariant:
+       If   |- Psi ctx[block] 
+       then |- G lf-ctx[block]
+       and  |- Psi == G
+    *) 
+    fun coerceCtx I.Null = I.Null
+      | coerceCtx (I.Decl (Psi, UDec D)) = 
+          I.Decl (coerceCtx Psi, D)
+      | coerceCtx (I.Decl (Psi, PDec _)) = 
+	  coerceCtx Psi
+
+    
+
+    (* coerceCtx (Psi) = (G, s)
+
+       Invariant:
+       If   |- Psi ctx[block] 
+       then |- G lf-ctx[block]
+       and  |- Psi == G
+       and  G |- s : Psi
+    *) 
+    fun strengthenCtx Psi = 
+        let 
+	  val w = weakenSub Psi
+	  val s = invertSub w
+	in
+	  (coerceCtx Psi, w, s)
+	end
 
     (* convFor ((F1, t1), (F2, t2)) = B
 
@@ -477,12 +534,16 @@ temorarily removed --Carsten
 
     val coerceSub = coerceSub
     val coerceCtx = coerceCtx
+    val strengthenCtx = strengthenCtx
     val embedCtx = embedCtx
-    val id = Shift 0
+    val id = id
+    val shift = shift
     val comp = comp
     val dot1 = dot1
     val varSub = varSub
     val decSub = decSub
+    val weakenSub = weakenSub
+    val invertSub = invertSub
 
 (*    val mdecSub = mdecSub
     val makectx = makectx
