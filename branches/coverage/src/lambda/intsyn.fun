@@ -321,54 +321,10 @@ struct
   *)
   val invShift = Dot(Undef, id)
 
-  (* bvarSub (n, s) = Ft'
-   
-      Invariant: 
-     If    G |- s : G'    G' |- n : V
-     then  Ft' = Ftn         if  s = Ft1 .. Ftn .. ^k
-       or  Ft' = ^(n+k)     if  s = Ft1 .. Ftm ^k   and m<n
-     and   G |- Ft' : V [s]
-  *)
-  fun bvarSub (1, Dot(Ft, s)) = Ft
-    | bvarSub (n, Dot(Ft, s)) = bvarSub (n-1, s)
-    | bvarSub (n, Shift(k))  = Idx (n+k)
 
-  (* frontSub (Ft, s) = Ft'
 
-     Invariant:
-     If   G |- s : G'     G' |- Ft : V
-     then Ft' = Ft [s]
-     and  G |- Ft' : V [s]
 
-     NOTE: EClo (U, s) might be undefined, so if this is ever
-     computed eagerly, we must introduce an "Undefined" exception,
-     raise it in whnf and handle it here so Exp (EClo (U, s)) => Undef
-  *)
-  and frontSub (Idx (n), s) = bvarSub (n, s)
-    | frontSub (Exp (U), s) = Exp (EClo (U, s))
-    | frontSub (Undef, s) = Undef
-  (* omitted case?  -cs !!! *)
-  (*| frontSub (Block (B), s) = Block (BClo (B, s)) *)  
 
-  (* decSub (x:V, s) = D'
-
-     Invariant:
-     If   G  |- s : G'    G' |- V : L
-     then D' = x:V[s]
-     and  G  |- V[s] : L
-  *)
-  (* First line is an optimization suggested by cs *)
-  (* D[id] = D *)
-  (* Sat Feb 14 18:37:44 1998 -fp *)
-  (* seems to have no statistically significant effect *)
-  (* undo for now Sat Feb 14 20:22:29 1998 -fp *)
-  (*
-  fun decSub (D, Shift(0)) = D
-    | decSub (Dec (x, V), s) = Dec (x, EClo (V, s))
-  *)
-  fun decSub (Dec (x, V), s) = Dec (x, EClo (V, s))
-
-      
   (* comp (s1, s2) = s'
 
      Invariant:
@@ -388,6 +344,72 @@ struct
     | comp (Shift (n), Dot (Ft, s)) = comp (Shift (n-1), s)
     | comp (Shift (n), Shift (m)) = Shift (n+m)
     | comp (Dot (Ft, s), s') = Dot (frontSub (Ft, s'), comp (s, s'))
+
+
+  (* bvarSub (n, s) = Ft'
+   
+      Invariant: 
+     If    G |- s : G'    G' |- n : V
+     then  Ft' = Ftn         if  s = Ft1 .. Ftn .. ^k
+       or  Ft' = ^(n+k)     if  s = Ft1 .. Ftm ^k   and m<n
+     and   G |- Ft' : V [s]
+  *)
+  and bvarSub (1, Dot(Ft, s)) = Ft
+    | bvarSub (n, Dot(Ft, s)) = bvarSub (n-1, s)
+    | bvarSub (n, Shift(k))  = Idx (n+k)
+
+  (* blockSub (B, s) = B' 
+    
+     Invariant:
+     If   G |- s : G'   
+     and  G' |- B block
+     then G |- B' block
+     and  B [s] == B' 
+  *)
+  and blockSub (Bidx k, s) =
+      (case bvarSub (k, s)
+	 of Idx k' => Bidx k'
+          | Block B => B)
+    | blockSub (LVar (r, l, s), t) = 
+      LVar (r, l, comp (s, t)) 
+
+
+  (* frontSub (Ft, s) = Ft'
+
+     Invariant:
+     If   G |- s : G'     G' |- Ft : V
+     then Ft' = Ft [s]
+     and  G |- Ft' : V [s]
+
+     NOTE: EClo (U, s) might be undefined, so if this is ever
+     computed eagerly, we must introduce an "Undefined" exception,
+     raise it in whnf and handle it here so Exp (EClo (U, s)) => Undef
+  *)
+  and frontSub (Idx (n), s) = bvarSub (n, s)
+    | frontSub (Exp (U), s) = Exp (EClo (U, s))
+    | frontSub (Undef, s) = Undef
+    | frontSub (Block (B), s) = Block (blockSub (B, s))
+  (* inserted case?  -cs !!! *)
+
+  (* decSub (x:V, s) = D'
+
+     Invariant:
+     If   G  |- s : G'    G' |- V : L
+     then D' = x:V[s]
+     and  G  |- V[s] : L
+  *)
+  (* First line is an optimization suggested by cs *)
+  (* D[id] = D *)
+  (* Sat Feb 14 18:37:44 1998 -fp *)
+  (* seems to have no statistically significant effect *)
+  (* undo for now Sat Feb 14 20:22:29 1998 -fp *)
+  (*
+  fun decSub (D, Shift(0)) = D
+    | decSub (Dec (x, V), s) = Dec (x, EClo (V, s))
+  *)
+  fun decSub (Dec (x, V), s) = Dec (x, EClo (V, s))
+    | decSub (BDec (l, t), s) = BDec (l, comp (t, s))   (* Nov 26 11:36:38 EST 2001 -cs !!! *)
+      
 
   (* dot1 (s) = s'
 
@@ -415,21 +437,6 @@ struct
   *)
   fun invDot1 (s) = comp (comp(shift, s), invShift)
 
-  (* blockSub (B, s) = B' 
-    
-     Invariant:
-     If   G |- s : G'   
-     and  G' |- B block
-     then G |- B' block
-     and  B [s] == B' 
-  *)
-
-  fun blockSub (Bidx k, s) =
-      (case bvarSub (k, s)
-	 of Idx k' => Bidx k'
-          | Block B => B)
-    | blockSub (LVar (r, l, s), t) = 
-      LVar (r, l, comp (s, t)) 
 
   (* Declaration Contexts *)
 

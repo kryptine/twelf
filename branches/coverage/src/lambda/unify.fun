@@ -305,6 +305,8 @@ struct
 	   of Undef => raise Unify "Parameter dependency"
 	    | Idx k' => BVar k')
       | pruneHead (G, H as Const _, ss, rOccur, prunable) = H
+      | pruneHead (G, H as Proj (Bidx k, i), ss, rOccur, pruneable) = H 
+         (* added this case Nov 26 11:28:36 EST 2001 -cs !!! *)
       | pruneHead (G, Proj (LVar (r, l, s), i), ss, rOccur, prunable) = 
 	   Proj (LVar (r, l, pruneSub (G, s, ss, rOccur, prunable)), i)
       | pruneHead (G, H as Skonst _, ss, rOccur, prunable) = H
