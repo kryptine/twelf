@@ -10,6 +10,8 @@ sig
   exception Error of string
   exception Error' of Tomega.Sub
 
+  val deblockify : IntSyn.Dec IntSyn.Ctx -> (IntSyn.Dec IntSyn.Ctx * Tomega.Sub) 
+
   val convertFor : IntSyn.cid list -> Tomega.For
 (*  val installFor : IntSyn.cid list -> unit *)
   val convertPrg : IntSyn.cid list -> Tomega.Prg 

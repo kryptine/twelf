@@ -122,6 +122,7 @@ struct
 	  val iw = Whnf.invert w 	            (* G' |- iw : G     *)
 	  val G' = Whnf.strengthen (iw, G)        (* Psi0, G' |- B'' ctx *)
 
+	  val _ = print "*"
 	  val U' = A.raiseTerm (G', I.EClo (U, iw))
 	  val P' = raisePrg (G, P)
 	in
@@ -172,21 +173,28 @@ struct
 
    (* Let case *)
       | evalPrg (Psi, (T.Let (D, P1, P2), t)) =
-	  let val V = evalPrg (Psi, (P1, t))
-	      val _ = print (TomegaPrint.prgToString (Psi, V))
+	  let
+	    val _ = print "Let ["
+	    val V = evalPrg (Psi, (P1, t))
+	    val _ = print "... {" 
+	    val _ = print (TomegaPrint.prgToString (Psi, V))
+	    val P' =evalPrg (Psi, (P2, T.Dot (T.Prg V, t)))
+	    val _ = print "}]"
 	  in 
-
-	    evalPrg (Psi, (P2, T.Dot (T.Prg V, t)))
+	    P'
 	  end
 
       | evalPrg (Psi, (T.New (T.Lam (D, P)), t)) = 
 	  (* abp 	  raise Domain    *)
-	  ( print "\nNew" ; 
+	  ( print "\nNew [" ; 
 	   let 
 	     val D' = T.decSub (D, t)
+	     val T.UDec (I.BDec _) = D'
 	     val V = evalPrg (I.Decl (Psi, D'), (P, T.dot1 t))
-	       (* Carsten to fix..  Formula is set to T.True..  not so good *)
-	     val newP = raisePrg (T.coerceCtx (I.Decl (I.Null, D')), V)
+	     val B = T.coerceCtx (I.Decl (I.Null, D'))
+	     val (G, t) = Converter.deblockify B
+	     val newP = raisePrg (G, Normalize.normalizePrg (V, t))
+	     val _ = print "]"
 	   in 
 	     newP
 	   end )

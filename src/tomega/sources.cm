@@ -7,6 +7,9 @@ Library
   structure TomegaCoverage
   signature TOMEGATYPECHECK
   structure TomegaTypeCheck
+
+  signature OPSEM
+  structure Opsem
 is
 #if defined(NEW_CM)
   $/basis.cm
