@@ -65,6 +65,12 @@ functor Twelf
      sharing Cover.IntSyn = IntSyn'
      sharing Cover.ModeSyn = ModeSyn
 
+   structure Converter : CONVERTER
+     sharing Converter.IntSyn = IntSyn'
+     sharing Converter.Tomega = Tomega
+   structure TomegaPrint : TOMEGAPRINT
+     sharing TomegaPrint.IntSyn = IntSyn'
+     sharing TomegaPrint.Tomega = Tomega
    structure Total : TOTAL
      sharing Total.IntSyn = IntSyn'
 
@@ -586,6 +592,15 @@ struct
 	let
 	  val (T, rrs as (r,rs)) = ReconThm.tdeclTotDecl lterm
 	  val La = Thm.installTotal (T, rrs)
+(* ******************************************* *)
+	  val lemma = Converter.installPrg La
+	  val P = Tomega.lemmaDef lemma
+	  val _ = if !Global.chatter >= 6
+		    then print (TomegaPrint.funToString P ^ "\n")
+		  else ()
+(*	  val _ = TomegaCoverage.coverageCheckPrg (I.Null, P) *)
+(* ******************************************* *)
+
 	  val _ = map Total.install La	(* pre-install for recursive checking *)
 	  val _ = map Total.checkFam La
 	          handle Total.Error (msg) => raise Total.Error (msg) (* include region and file *)
