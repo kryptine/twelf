@@ -25,7 +25,7 @@ in
       val _ = Names.varReset IntSyn.Null 
       val Ss = map Worldify.worldify a
       val S = foldr op@ nil Ss
-(*      val _ = printS S *)
+      val _ = printS S
       val _ = print "[tomega] "
       val P = Converter.convertPrg a
       val _ = print "Checking: "

@@ -865,6 +865,8 @@ val  _ = print "["
 					(* Psi0, G', B' |- P'' :: F'' *)
 
 
+
+
 	      (* lift (B, (P, F)) = (P', F')
 	        
 	         Invariant:
@@ -873,10 +875,19 @@ val  _ = print "["
 		 and  P' =  (lam B. P)
 		 and  F' = raiseFor (B, F)
 	      *)
-	      fun lift (I.Null, P) = P
-		| lift (I.Decl (G, D), P) = 
-		    lift (G, (T.New (T.Lam (T.UDec D, P))))
-
+	      fun lift (I.Null, (P, F)) = (P, F)
+		| lift (I.Decl (G, D as I.BDec (_, (c, s))), (P, F)) = 
+		  let 
+		    fun listToCtx (G, s, nil) = G
+		      | listToCtx (G, s, D :: Ds) = 
+		          listToCtx (I.Decl (G, I.decSub (D, s)), I.dot1 s, Ds)
+		      
+		    val  (_, Lblock) = I.constBlock c
+		    val Gblock = listToCtx (I.Null, s, Lblock)
+		    val F' = raiseFor (Gblock, F)
+		  in
+		    lift (G, (T.New (T.Lam (T.UDec D, P)), F'))
+		  end
 		    
 	      val b = I.ctxLength B     (* b = |B| = |B'| *)
 	      val w1' = peeln (b, w1)	(* Psi0, G |- w1' : Psi0, G' *)
@@ -888,9 +899,7 @@ val _ = print "."
 							T.embedCtx (deblockify B)))
 val _ = print "."
 	     
-	      val P''' = lift (B', P'') (* Psi0, G' |- P''' :: F''' *)
-	      val B4 = deblockify B'    (* Psi0, G' |- B4 ctx *)
-	      val F''' = raiseFor (B4, F'')
+	      val (P''', F''') = lift (B', (P'', F'')) (* Psi0, G' |- P''' :: F''' *)
 					(* Psi0, G' |- F''' for *)
 
 
@@ -907,6 +916,7 @@ val _ = print "."
 					(* Psi2 = Psi0, G3 *)
 
 	      val Pat' = transformConc ((a, S), w2)
+
 					(* Psi0, G3, B3 |- Pat' :: For *)
 	      val F4 = Normalize.normalizeFor (F''', T.embedSub z3)
 					(* Psi0, G3 |- F4 for *)
@@ -918,6 +928,12 @@ val _ = print (TomegaPrint.forToString (Psi2, F4) ^ "\n")
 	      val _ = TomegaTypeCheck.checkFor (Psi2, F4)
 		handle _ => raise Error' F4
 val  _ = print "]"
+
+
+(* the pattern is wrong.  Pat' might be defined in B3. But we need to remove
+the the projections from inside. It's something to think about *)
+(* Idea 1 : use unification *)
+(* remark : use "test ["cpt"]; " as  example *)
 
 	      val B3 = deblockify B3'
 	      val Pat = raisePrg (B3, Pat', F4)
