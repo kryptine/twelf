@@ -464,6 +464,14 @@ struct
       | transDecs ((Psi, env), NONE, D.ValDecl (ValD, Ds), sc, W) = (transValDec ((Psi, env), ValD, Ds, sc, W))
       | transDecs _ = raise Error "Constant declaration must be followed by a constant definition"
 
+
+    (* transHead (T, S) = (F', t')
+       
+       Invariant:
+       If   G |- T : F
+       and  G |- S : world{W}all{G'}F' >> F'
+       then G |- t' : G'	 
+    *)
     and transHead (D.Head s, args) = transHead' ((T.lemmaFor (T.lemmaName s), T.id), args)
       | transHead (D.AppLF (h, t), args) = transHead (h, t::args)
 
