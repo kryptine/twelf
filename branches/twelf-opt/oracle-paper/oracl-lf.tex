@@ -1321,8 +1321,8 @@ every choice point. Again, both the prover and verifier are following
 similar algorithms, so both have identical caches. The number of
 choices is also the same in both the prover and verifier. We just need
 a convention on which order to consider tabled answers in, and we
-choose the choices appearing in the table to precede the other
-choices.
+choose the choices appearing in the table to be tried later than the
+other choices.
 
 \begin{note}
   Susmit: Are we really first checking if $\Gamma \vd G$ is in the
@@ -1450,14 +1450,14 @@ Example & Tabled Compression
 & Untabled Compression & Oracle & Oracle & Table size\\
 & Time (s) & Time (s) & Size (Bytes) & Size (Bytes) &\\
 \hline
-refine-41 & 1.632 & 0.231 & 183 & 171 & 579\\
-refine-42 & 2.193 & 0.270 & 234 & 216 & 691\\
-refine-43 & 2.634 & 0.340 & 259 & 239 & 757\\
-refine-44 & 0.381 & 0.070 & 80 & 67 & 164\\
-refine-45 & 0.300 & 0.050 & 80 & 67 & 164\\
-refine-46 & 0.300 & 0.050 & 85 & 72 & 179\\
-refine-47 & 2.314 & 0.731 & 268 & 247 & 794\\
-refine-48 & 2.765 & 0.422 & 264 & 243 & 775\\
+refine-41 & 1.632 & 0.231 & 171 & 171 & 579\\
+refine-42 & 2.193 & 0.270 & 216 & 216 & 691\\
+refine-43 & 2.634 & 0.340 & 239 & 239 & 757\\
+refine-44 & 0.381 & 0.070 & 67 & 67 & 164\\
+refine-45 & 0.300 & 0.050 & 67 & 67 & 164\\
+refine-46 & 0.300 & 0.050 & 72 & 72 & 179\\
+refine-47 & 2.314 & 0.731 & 247 & 247 & 794\\
+refine-48 & 2.765 & 0.422 & 243 & 243 & 775\\
 \hline
 \end{tabular}
 \end{small}
