@@ -1562,7 +1562,7 @@ struct
     *)
     fun splitVar (cg as CGoal (G, S), k, w) =
         let
-	  val _ = chatter 6 (fn () => showSplitVar (cg, k))
+	  val _ = chatter 6 (fn () => showSplitVar (cg, k) ^ "\n")
 	  val s = newEVarSubst (I.Null, G) (* for splitting, EVars are always global *)
 	  (* G = xn:V1,...,x1:Vn *)
 	  (* s = X1....Xn.^0, where . |- s : G *)
@@ -1722,9 +1722,9 @@ struct
 	  val _ = chatter 4 (fn () => "\n")
 	  val ccs = List.map (fn (Gi, si) => CClause (Gi, substToSpine (si, G))) Cs
 	  (* Question: are all the Gi's above named already? *)
-	  val _ = chatter 6 (fn () => "[Begin covering clauses]")
+	  val _ = chatter 6 (fn () => "[Begin covering clauses]\n")
 	  val _ = List.app (fn cc => chatter 6 (fn () => showCClause cc ^ "\n")) ccs
-	  val _ = chatter 6 (fn () => "[End covering clauses]")
+	  val _ = chatter 6 (fn () => "[End covering clauses]\n")
 	  val pureG = purify (G)
 	  val namedG = N.ctxLUName (pureG)
 	  val R0 = substToSpine (I.id, namedG)
