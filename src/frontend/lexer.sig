@@ -31,7 +31,6 @@ sig
     | QUERY				(* `%query' *)
     | MODE				(* `%mode' *)
     | TERMINATES       			(* `%terminates' *)
-    | REDUCES       			(* `%reduces' *) (*  -bp6/5/99. *)
     | THEOREM                           (* `%theorem' *)
     | PROVE                             (* `%prove' *)
     | ESTABLISH				(* `%establish' *)
