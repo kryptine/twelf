@@ -927,10 +927,14 @@ val  _ = print "["
 	      val w1' = peeln (b, w1)	(* Psi0, G |- w1' : Psi0, G' *)
 	      val (B', _) = strengthenCtx (B, w1')
 					(* |- Psi0, G', B' ctx *)
+
+	      val n' = n - I.ctxLength B'   (* n' = |Psi0, G'| *)
 	      val _ = TomegaTypeCheck.checkCtx (Psi1)
 val _ = print "."
-	      val _ = TomegaTypeCheck.checkCtx (append (append (Psi0, G), 
-							T.embedCtx (deblockify B)))
+              val Psi1' = append (append (Psi0, G), T.embedCtx (deblockify B))
+
+	      val _ = TomegaTypeCheck.checkCtx (Psi1')
+              val P''' = lift (B', P'') (* Psi0, G' |- P''' :: F''' *)
 val _ = print "."
 
 
@@ -963,28 +967,21 @@ fun mk_iota (0, t) = t
 
 (* ---------------- *)
 
-(*
-val iota0 = I.Shift (I.ctxLength Psi2 + I.ctxLength B3)
-					(* Psi2, B3 |- iota0 : . *)
-
-val sigma3 = blockToIota (T.Shift (I.ctxLength B3), B3')
-					(* Psi2, B3 |- sigma3 : Psi2, B3' *)
-
-*)
-
-	     
-              val P''' = lift (B', P'') (* Psi0, G' |- P''' :: F''' *)
               val B4 = deblockify B'    (* Psi0, G' |- B4 ctx *)
 
+	      val b4 = I.ctxLength B4
+val iota1 = I.Shift (n' + b4)
+					(* Psi0, G', deb (B') |- iota1 : . *)
 
+val sigma4 = blockToIota (T.Shift b4, B',iota1)
+					(* Psi0, G, deb  |- sigma3 : Psi2, B3' *)
+val _ = print "."
 
-
-
-
-
-              val F''' = raiseFor (B4, F'')
+val _ = print ";"
+	      val F''' = raiseFor (B4, Normalize.normalizeFor (F'', sigma4))
                                         (* Psi0, G' |- F''' for *)
 
+val _ = print "."
 
 	      val (Psi1'', w2, z2) = strengthen (Psi1, (a, S), w1, M.Minus)
 		                        (* |- Psi0, Psi1'' ctx *)

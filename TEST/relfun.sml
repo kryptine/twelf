@@ -83,7 +83,7 @@ in
 
   (* Regression print for copy *)
   val _ = Twelf.loadFile "TEST/cp.elf"
-(*  val _ = test ["cpt"] *)
+  val _ = test ["cpt"] 
 
 
 
