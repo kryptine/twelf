@@ -1502,6 +1502,16 @@ exception Error' of Tomega.Sub
 	end
 
 
+
+    fun raiseP (G, P, F) =
+      let 
+	val (G', s) = deblockify G
+	val P' = Normalize.normalizePrg (P, s) (* G' |- P' : F' *)
+	val F' = Normalize.normalizeFor (F, s)
+	val P'' = raisePrg (G', P', F')
+      in
+	P''
+      end
 	  
   in 
     val convertFor = convertFor
@@ -1509,5 +1519,6 @@ exception Error' of Tomega.Sub
     val installFor = installFor
     val installPrg = installPrg
     val traverse = traverse
+    val raisePrg = raiseP
   end
 end (* functor FunSyn *)
