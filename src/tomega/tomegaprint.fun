@@ -617,14 +617,16 @@ struct
     fun proToString Args names = Fmt.makestring_fmt (formatPro Args names)
     fun lemmaDecToString Args = Fmt.makestring_fmt (formatLemmaDec Args)
 *)
+
+    fun prgToString Args names = "not yet implemented "
   in
     val formatFor = formatFor
     val forToString = forToString
 (*    val formatPro = formatPro
-    val formatLemmaDec = formatLemmaDec
+    val formatLemmaDec = formatLemmaDec *)
      
-    val proToString = proToString 
-    val lemmaDecToString = lemmaDecToString *)
+    val prgToString = prgToString 
+(*    val lemmaDecToString = lemmaDecToString *)
   end
 end;  (* signature FUNPRINT *)
 

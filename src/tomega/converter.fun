@@ -741,7 +741,7 @@ exception Error' of Tomega'.For
 	end
 
 
-    (* raisePrg (G, (P, F)) = (P', F')) 
+    (* raisePrg (G, P, F) = (P', F')) 
  
        Invariant:
        If   Psi, G |- P in F
@@ -940,18 +940,20 @@ val _ = print "."
 	      val (Psi1'', w2, z2) = strengthen (Psi1, (a, S), w1, M.Minus)
 		                        (* |- Psi0, Psi1'' ctx *)
 					(* Psi0, G'' |- w2 : Psi1'' *)
-		                        (* Psi1'' = Psi0, G3, B3 *)
+		                        (* Psi1'' = Psi0, G3, B3' *)
 		                        (* |B| = |B4| *)
 					(* Psi'' |-  z2 : Psi0, G', B' *)
-					(* Psi0, G, B |- w2 : Psi0, G3, B3 *)
+					(* Psi0, G, B |- w2 : Psi0, G3, B3' *)
 	      val w3 = peeln (b, w2)	(* Psi0, G |- w3 : Psi0, G3 *)
 	      val z3 = peeln (b, z2)	(* Psi0, G3 |-  z3 : Psi0, G' *)
+
+
 	      val (Psi2, B3') = popn (b, Psi1'') 
 					(* Psi2 = Psi0, G3 *)
 
 	      val Pat' = transformConc ((a, S), w2)
 
-					(* Psi0, G3, B3 |- Pat' :: For *)
+					(* Psi0, G3', B3' |- Pat' :: For *)
 	      val F4 = Normalize.normalizeFor (F''', T.embedSub z3)
 					(* Psi0, G3 |- F4 for *)
 	      val _ = TomegaTypeCheck.checkCtx (Psi1'')
@@ -966,18 +968,46 @@ val  _ = print "]"
 
 
 (* the pattern is wrong.  Pat' might be defined in B3. But we need to remove
-the the projections from inside. It's something to think about *)
+ the projections from the inside. It's something to think about *)
 (* Idea 1 : use unification *)
 (* Solutiion use inst *)
 (* remark : use "test ["cpt"]; " as  example *)
 
 (* ---------------- *)
-val iota0 = T.Shift (I.ctxlength (Psi2) + I.ctxLength (B3))
-					(* Psi0, G3, B3 |- iota0 : . *)
+
+(* mk_iota (n, t) = t'
+
+   Invariant:
+   If   G, V1[t] ... Vn[t] |- iota : Sigma
+   and  G, V1[t] ... Vn[t] |- n ... 1.iota :  <V1; ...; <Vn ;Sigma>>
+*)
+fun mk_iota (0, t) = t
+  | mk_iota (n, t) = I.Dot (I.Idx n, mk_iota (n-1, t))
+
+val iota0 = I.Shift (I.ctxLength Psi2 + I.ctxLength B3)
+					(* Psi2, B3 |- iota0 : . *)
+    (* blockToIota (t, G) = t'
+     
+       Invariant:
+       If   |- G is a block ctx
+       then G' |- t : .
+       and  G' |- t' : G
+    *)
+    fun blockToIota (t, I.Null) = t 
+      | blockToIota (t, I.Decl (G, I.BDec (x, (c, s)))) = 
+        let
+	  val t' = blockToIota (t, G)
+	  val (_, L) = I.constBlock c
+	in
+	  T.Dot (T.Block (I.Inst (mk_iota (List.length L, iota0))), t')
+	end
+
+val sigma3 = blockToIota (T.Shift (I.ctxLength B3), B3')
+					(* Psi2, B3 |- sigma3 : Psi2, B3' *)
 
 (* ---------------- *)
 
-	      val Pat = raisePrg (B3, Pat', F4)
+	      val Pat = raisePrg (B3, T.PClo (Pat', sigma3), F4)
 		                        (* Psi0, G3 |- Pat :: F4  *)
 		                        (* Here's a commutative diagram
 					   at work which one has to prove 
