@@ -23,4 +23,7 @@ sig
 
   val collectEVars : IntSyn.dctx * IntSyn.eclo * IntSyn.Exp list -> IntSyn.Exp list
 
+  val raiseTerm    : IntSyn.dctx * IntSyn.Exp -> IntSyn.Exp
+  val raiseType    : IntSyn.dctx * IntSyn.Exp -> IntSyn.Exp
+
 end;  (* signature ABSTRACT *)
