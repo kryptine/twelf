@@ -45,48 +45,43 @@ in
     let
       val P = test names
     in
-      TextIO.print (TomegaPrint.prgToString P ^ "\n")
+      TextIO.print (TomegaPrint.funToString P ^ "\n")
     end
 
 
   val _ = Twelf.chatter := 1
 (*  val _ = FunNames.reset(); --cs *)
-
-(*
   
 
-  (* Regression test for Mini-ML *)
+  (* Regression print for Mini-ML *)
   val _ = load "examples/mini-ml/sources.cfg"
   val _ = Twelf.loadFile "examples/mini-ml/reduce.elf"
-  val _ = test ["eval"]
+  val _ = print ["eval"]
   val _ = test ["value"]
-  val _ = test ["vs"]
-  val _ = test ["tps"]
-  val _ = test ["==>"]
-(*  val _ = test ["==>*"]     -- error case: Lemmas not yet available *)
-(*  val _ = test ["closed"]   -- error case check back later *)
+  val _ = print ["vs"]
+  val _ = print ["tps"]
+  val _ = print ["==>"]
+(*  val _ = print ["==>*"]     -- error case: Lemmas not yet available *)
+(*  val _ = print ["closed"]   -- error case check back later *)
 
-  (* Regression test for prop-calc *)
+  (* Regression print for prop-calc *)
   val _ = load "examples/prop-calc/sources.cfg"
-  val _ = test ["combdefn"]
+  val _ = print ["combdefn"]
 
-  (* Regression test for ccc *)
+  (* Regression print for ccc *)
   val _ = load "examples/ccc/sources.cfg"
-  val _ = test ["conc"]
+  val _ = print ["conc"]
 
-  (* Regression test for compile *)
+  (* Regression print for compile *)
   val _ = load "examples/compile/cpm/sources.cfg"
-  val _ = test ["ccp"]
-  val _ = test ["peq"]
+  val _ = print ["ccp"]
+  val _ = print ["peq"]
 
 
-  (* Regression test for copy *)
+  (* Regression print for copy *)
   val _ = Twelf.loadFile "TEST/cp.elf"
-*)
 (*  val _ = test ["cpt"] *)
 
- (* Regression test for copy *)
-  val _ = load "examples/mini-ml/sources.cfg"
 
 
 (*
