@@ -1,6 +1,5 @@
 (* Delphin Frontend *)
 (* Author: Carsten Schuermann *)
-(* Modified by Richard Fontana *)
 
 functor Delphin ((* structure Tomega : TOMEGA *)
 		 structure Parser : PARSER
@@ -18,12 +17,17 @@ struct
     
     fun loadFile (s1, s2) =
       let 
+	val _ = Twelf.reset ()
 	val _ = Twelf.loadFile s1
+	val _ = Trans.internalizeSig ()
 	val (DextSyn.Ast EDs) = Parse.gparse s2
 	val _ = print "* parsing completed\n"
 	val P = Trans.transDecs EDs
+	val P' = Trans.externalizePrg P 
+	val _  = TomegaTypeCheck.checkPrg (IntSyn.Null, (P, Tomega.True))
+	val V  = Opsem.evalPrg P'
       in 
-	P
+	V
       end
 
     fun top () = loop ()

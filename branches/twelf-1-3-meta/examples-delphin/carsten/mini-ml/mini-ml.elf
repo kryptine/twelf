@@ -24,7 +24,7 @@ of : exp -> tp -> type.			%name of P.
 	      -> eval (fix E) V}
   {of_z   : of z nat}
   {of_s   : {E:exp} of E nat -> of (s E) nat}
-  {of_fn : {T1:tp}{T2:tp}{E:exp -> exp} ({x:exp} of x T1 -> of (E x) T2) -> of (fn T1 E) (arr T1 T2)}
+  {of_fn : {T1:tp}{T2:tp} {E:exp -> exp} ({x:exp} of x T1 -> of (E x) T2) -> of (fn T1 E) (arr T1 T2)}
   {of_app : {E1:exp} {E2:exp}{T1:tp}{T2:tp} 
 	     of E1 (arr T2 T1) 
   	    -> of E2 T2 
@@ -33,6 +33,8 @@ of : exp -> tp -> type.			%name of P.
 	    -> of (fix E) T}.
 
 %block param : some {T:tp} block {x:exp} {u:of x T}.
+
+%{
 
 param': tp -> type.
 o_x   : param' T -> exp.
@@ -66,3 +68,9 @@ o_of_app : {B:base'}
 	    -> of ((o_app B) E1 E2) T1.
 o_of_fix : {B:base'} ({x:exp} of x T -> of (E x) T)
 	    -> of ((o_fix B) E) T.
+
+
+b: base'.
+d = o_eval_s b (o_eval_z b).
+
+}%

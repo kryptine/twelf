@@ -388,7 +388,8 @@ struct
     fun findLCID x = findBVar (findConst (findCSConst findOmitted)) x
     fun findUCID x = findBVar (findConst (findCSConst (findEFVar findOmitted))) x
     fun findQUID x = findConst (findCSConst findOmitted) x
-          
+
+
     fun inferApx (G, tm as internal (U, V, r)) =
         let
           val (U', V', L') = exactToApx (U, V)
