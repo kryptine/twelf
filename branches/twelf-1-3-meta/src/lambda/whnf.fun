@@ -247,7 +247,7 @@ struct
 	(case blockSub (B, s)
 	   of B' as Bidx (k) => (Root (Proj (B', i), SClo (S, s)), id)
             | B' as LVar _ => whnfRoot ((Proj (B', i), SClo (S, s)), id)
-	    | Inst iota => whnfRedex (whnfRoot ((BVar i, Nil), iota), (S, s)))
+	    | Inst L => whnfRedex (whnf (List.nth (L, i-1), id), (S, s)))
       | whnfRoot ((Proj (LVar (ref (SOME L), (l, t)), i), S), s) =
 	 whnfRoot ((Proj (L, i), S), s)
       | whnfRoot ((Proj (L as LVar (r, (l, t)), i), S), s) = (* r = ref NONE *)

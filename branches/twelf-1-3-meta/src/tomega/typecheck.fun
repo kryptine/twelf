@@ -557,7 +557,7 @@ val _ = print "==="
 	  else if Conv.convSub (s2, s1)  then ()
 	       else raise Error "Sub isn't well typed!"
 	end
-      | checkBlock (Psi, (I.Inst s, (c2, s2))) = 
+      | checkBlock (Psi, (I.Inst UL, (c2, s2))) = 
 	let
 	  val (G, L) = I.constBlock c2
 					(* Psi |- s2 : G *)
@@ -565,7 +565,7 @@ val _ = print "---"
 	  val _ = TypeCheck.typeCheckSub (T.coerceCtx Psi, s2, G)
 val _ = print "---"
 	in
-	  checkInst (Psi, s, (1, L, s2))
+	  checkInst (Psi, UL, (1, L, s2))
 	end
 
    (* Invariant:
@@ -575,39 +575,16 @@ val _ = print "---"
       and  Ai == Bi n<= i<=m
       then checkInst returns () otherwise an exception is raised.
    *)
-   and checkInst (Psi, s, (_, nil, _)) = ()
-     | checkInst (Psi, s, (n, D :: L, s2)) = 
+   and checkInst (Psi, nil, (_, nil, _)) = ()
+     | checkInst (Psi, U :: UL, (n, D :: L, s2)) = 
        let
-
-(*
 	 val G = T.coerceCtx Psi
-	 val s' = I.Dot (I.bvarSub  (n, s), I.Shift (I.ctxLength G))
-	 val D' = I.decSub (D, s2)
-	 val G' = I.Decl (I.Null, D')
-	 val _ = TypeCheck.typeCheckSub (G, s', G')
-*)	   
-	
-(*	 val G = T.coerceCtx Psi
- 
-	 val I.Idx k = I.bvarSub  (n, s)   (* by invariant *)
-	 val I.Dec (_ , V1) = I.decSub (D, s2)
-	 val I.Dec (_ , V2) = I.ctxDec (T.coerceCtx Psi, k)
-	 val _ = Conv.conv ((V1, I.id), (V2, I.id)) 
-	 val _ = print (Print.expToString (G, V1))
-	 val _ = print (Print.expToString (G, V2))
-	
-*)
-
-	 val G = T.coerceCtx Psi
-	 val F = I.bvarSub (n, s)
 	 val I.Dec (_ ,V) = I.decSub (D, s2)
-	 val U = (case F of I.Idx k => I.Root (I.BVar k, I.Nil)
-		          | I.Exp U => U)
 	 val _ = print (Print.expToString (G, U))
 	 val _ = print (Print.expToString (G, V))
 	 val _ = TypeCheck.typeCheck (G, (U, V))
        in
-	 checkInst (Psi, s, (n+1, L, I.dot1 s2))
+	 checkInst (Psi, UL, (n+1, L, I.dot1 s2))
        end
 
 	

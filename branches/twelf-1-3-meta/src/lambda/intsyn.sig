@@ -88,7 +88,14 @@ sig
     Bidx of int				(* b ::= v                    *)
   | LVar of Block option ref * (cid * Sub) 
                                         (*     | L(l,s)               *)
-  | Inst of Sub                         (*     | U1, ..., Un          *)
+  | Inst of Exp list                    (*     | U1, ..., Un          *)
+  (* It would be better to consider having projections count
+     like substitutions, then we could have Inst of Sub here, 
+     which would simplify a lot of things.  
+
+     I suggest however to wait until the next big overhaul 
+     of the system -- cs *)
+
 
 (*  | BClo of Block * Sub                 (*     | b[s]                 *) *)
 

@@ -716,35 +716,108 @@ exception Error' of Tomega'.For
 (* this is the code we need below *)
 
 
+    fun shiftCtx (I.Null, t) = (I.Null, t)
+      | shiftCtx (I.Decl (G, D), t) = 
+        let 
+	  val (G', t') =  shiftCtx (G, t)
+	in
+	  (I.Decl (G', I.decSub (D, t')), I.dot1 t')
+	end
 
-    (* raiseFor (G, (F, t)) = (P', F')) 
+    (* dotn (t, n) = t'
+
+       Invariant:
+       If   Psi0 |- t : Psi
+       and  |G| = n   for any G
+       then Psi0, G[t] |- t : Psi, G
+    *)
+    fun dotn (t, 0) = t
+      | dotn (t, n) = (print "*"; I.dot1 (dotn (t, n-1)))
+
+
+    fun strengthenToSpine (I.Shift _ (* =0 *), 0, (n, S)) = S
+      | strengthenToSpine (I.Dot (I.Idx _ (* = 1 *), t), l, (n, S)) =
+        let 
+	  val t' = I.comp (t, I.invShift)
+	in
+          strengthenToSpine (t', l-1, (n+1, I.App (I.Root (I.BVar n, I.Nil), S)))
+	end
+      | strengthenToSpine (I.Dot (I.Undef, t), l, (n, S)) = 
+          strengthenToSpine (t, l-1, (n+1, S))
+      | strengthenToSpine (I.Shift k, l, (n, S)) = 
+	  strengthenToSpine (I.Dot (I.Idx (k+1), I.Shift (k+1)), l, (n, S))
+
+
+(*
+    (* weaken (G, a) = (w')
+    *)
+    fun subweaken (I.Null, k, a, S) = (I.id, S)
+      | subweaken (I.Decl (G', D as I.Dec (name, V)), k, a, S) = 
+        if S.belowEq (I.targetFam V, a) then 
+	  let 
+	    val (w', S') = subweaken (G', k+1, a, I.App(I.Root (I.BVar k, I.Nil), S)) 
+	  in
+	   (I.dot1 w', S')
+	  end
+	else
+	  let 
+	    val (w', S') = subweaken (G', k+1, a, S) 
+	  in
+	    (I.comp (w', I.shift), S')
+	  end
+
+*)
+    (* raiseFor (B, (F, t)) = (P', F')) 
  
        Invariant:
-       If   Psi, G |-  F for
-       and  Psi', G' |- t : Psi, G
-       and  Psi |- G : blockctx
-       then Psi |-  F' for
-       and  F = raise (G, F')   (using subordination)
+       If   Psi, B, G |-  F for
+       and  Psi, G', B' |- t : Psi, B, G
+       then Psi, G' |-  F' for
+       and  F' = raise (B', F[t])   (using subordination)
     *)
-    fun raiseFor (G, T.True) = T.True
-      | raiseFor (G, T.And (F1, F2)) =
+    fun raiseFor (B', (T.True, t)) = T.True
+      | raiseFor (B', (T.And (F1, F2), t)) =
         let
-	  val F1' = raiseFor (G, F1)
-	  val F2' = raiseFor (G, F2)
+	  val F1' = raiseFor (B', (F1, t))
+	  val F2' = raiseFor (B', (F2, t))
 	in
-	   T.And (F1', F2')
+	  T.And (F1', F2')
 	end
-      | raiseFor (G,  T.Ex (I.Dec (x, V), F)) =     (* this is wrong, we forget to substitute a fully applied term for x! *)
+      | raiseFor (B', (T.Ex (I.Dec (x, V), F), t)) =
+					            (* Psi, G', B' |- V[t] : type *)
+				   	            (* Psi, B, G, x:V |- F for *)
+					            (* Psi, G' |- B' ctx  *)
 	let 
- 	  val w = S.weaken (G, I.targetFam V)       (* G  |- w  : G'    *)
-	  val iw = Whnf.invert w 	            (* G' |- iw : G     *)
-	  val G' = Whnf.strengthen (iw, G)      
-	  val V' = A.raiseType (G', V)   
-(*	  val U' = I.Root (I.BVar 1, S *)
-	  val F' = raiseFor (G, F)
+(* 	  val (w, S) = subweaken (B', 1, I.targetFam V, I.Nil)     *)
+	  val w = S.weaken (B', I.targetFam V)
+                                                   (* B'  |- w  : B''    *)
+	  val iw = Whnf.invert w 	            (* B'' |- iw : B'     *)
+	  val B'' = Whnf.strengthen (iw, B')        (* Psi0, G' |- B'' ctx *)
+
+	  val V' = A.raiseType (B'', I.EClo (V, I.comp (t, iw))) (* Psi0, G' |- V' : type *)
+
+	    
+	  val (B''', _) = shiftCtx (B', I.shift)
+					            (* Psi, G', x: V' |- B''' ctx *)
+
+          val t'' = dotn (I.shift, I.ctxLength B')
+                                                    (* Psi, G', x: V', B''' |- t'' :   Psi, G', B' *)
+ 					            (* Psi, G', B' |- t : Psi, B, G  *)
+          val t' = I.comp (t, t'')
+	                                            (* Psi, G', x:V', B''' |- t' : Psi, B, G *)
+
+					            (* Psi, G', x:V', B''' |- w : Psi,G', x:V', B'''' *)
+	  val S = strengthenToSpine (iw, I.ctxLength B', (1, I.Nil))
+					            (* Psi, G', x:V', B''' |- S : V' [^|B'''|] >> type  *) 
+	  val U = I.Root (I.BVar (I.ctxLength B''' + 1), S)
+					            (* Psi, G', x:V', B''' |- U : V[t'] *)
+
+          val t''' = I.Dot (I.Exp U, t')            (* Psi, G', x:V', B''' |- t''' :  Psi, B, G, x:V *)
+	  val F' = raiseFor (B''', (F, t'''))       (* Psi, G', x:V' |- F' for*)
 	in
-	  T.Ex (I.Dec (x, V'), F')
+	  T.Ex (I.Dec (x, V'), F')(* Psi, G', x:V', B''' |- t''' :  Psi, B, G, x:V *)
 	end
+
 
 (* TODO fix raise! *)
 
@@ -776,6 +849,34 @@ exception Error' of Tomega'.For
 	in
 	  T.PairExp (U', P')
 	end
+
+
+
+
+     (* mk_iota (n) = iota
+
+        Invariant:
+        iota = n.n-1....1
+     *)
+    fun mk_iota (0) = nil
+      | mk_iota (n) = I.Root (I.BVar n, I.Nil) :: mk_iota (n-1)
+
+    (* blockToIota (t, G) = t'
+     
+       Invariant:
+       If   |- G is a block ctx
+       then G' |- t : .
+       and  G' |- t' : G
+    *)
+    fun blockToIota (t, I.Null) = t 
+      | blockToIota (t, I.Decl (G, I.BDec (x, (c, s)))) = 
+        let
+	  val t' = blockToIota (t, G)
+	  val (_, L) = I.constBlock c
+	in
+	  T.Dot (T.Block (I.Inst (mk_iota (List.length L))), t')
+	end
+
     
     (* deblockify L = G'
      
@@ -877,6 +978,23 @@ exception Error' of Tomega'.For
 					(* Psi0, G, B |- w1 : Psi0, G', B' *)
 	    let
 
+
+	      (* just testing *)
+
+	      val carstenB = deblockify B
+					(* Psi0, G |- carstenB ctx *)
+	      val iota = blockToIota (T.Shift (I.ctxLength carstenB), B)
+					(* Psi0, G, carstenB |- iota : Psi0, G, B *)
+	      val _ = print "\n[begin of experiment]\n"
+	      val _ = print (Print.expToString ((append (append (T.coerceCtx Psi0, T.coerceCtx G), carstenB)), I.EClo (V, T.coerceSub iota)))
+	      val _ = print "\n[end of experiment]"
+
+
+	      (* end just testing *)
+
+
+
+
 val  _ = print "["
 	      val Psi1 = append (Psi0, append (G, T.embedCtx B))
 					(* Psi1 = Psi0, G, B *)
@@ -938,37 +1056,6 @@ val _ = print "&"
 	      val P'' = T.Root (T.Var k', S'')
 					(* Psi0, G', B' |- P'' :: F'' *)
 
-
-
-(* ---------------- *)
-
-(* mk_iota (n, t) = t'
-
-   Invariant:
-   If   G, V1[t] ... Vn[t] |- iota : Sigma
-   and  G, V1[t] ... Vn[t] |- n ... 1.iota :  <V1; ...; <Vn ;Sigma>>
-*)
-fun mk_iota (0, t) = t
-  | mk_iota (n, t) = mk_iota (n-1, I.Dot (I.Idx n, t))
-    (* blockToIota (t, G) = t'
-     
-       Invariant:
-       If   |- G is a block ctx
-       then G' |- t : .
-       and  G' |- t' : G
-    *)
-    fun blockToIota (t, I.Null, iota0) = t 
-      | blockToIota (t, I.Decl (G, I.BDec (x, (c, s))), iota0) = 
-        let
-	  val t' = blockToIota (t, G,iota0)
-	  val (_, L) = I.constBlock c
-	in
-	  T.Dot (T.Block (I.Inst (mk_iota (List.length L, iota0))), t')
-	end
-
-
-(* ---------------- *)
-
 	      val b = I.ctxLength B     (* b = |B| = |B'| *)
 	      val w1' = peeln (b, w1)	(* Psi0, G |- w1' : Psi0, G' *)
 	      val (B', _) = strengthenCtx (B, w1')
@@ -1004,22 +1091,12 @@ val _ = print "."
 
               val P''' = lift (B', P'') (* Psi0, G' |- P''' :: F''' *)
   
-
               val GB' = deblockify  B'    (* Psi0, G' |- GB' ctx *)
-
-	      val (GB'', _) = subCtx (GB', w1')
-	      val _ = TomegaTypeCheck.checkCtx (append (append (Psi0, G), T.embedCtx GB''))
-val _ = print "."
-
-
 
 	      val b4 = I.ctxLength GB'
 	      val _ = print (Int.toString (b4))
 	      val _ = print (Int.toString (n'))
-val iota1 = I.Shift (n' + b4)
-					(* Psi0, G', GB') |- iota1 : . *)
-
-val s' = blockToIota (T.Shift b4, B',iota1)
+	      val iota = blockToIota (T.Shift b4, B')
 					(* Psi0, G', GB'  |- s' : Psi0, G', B' *)
 
 
@@ -1028,8 +1105,12 @@ val s' = blockToIota (T.Shift b4, B',iota1)
 val _ = print "."
 
 
-	      val RR = Normalize.normalizeFor (F'', s')
-                                        (* Psi0, G' |- F''' for *)
+	      val RR = Normalize.normalizeFor (F'', iota) 
+ 					(* Psi0, G, B |- w1 : Psi0, G', B' *)	
+					(* Psi0, G', GB'  |- s' : Psi0, G', B' *)
+					(* Psi0, G', GB' |- RR for *)
+
+(*
 val _ = print "\n"
 val _ = print (Print.ctxToString (I.Null, T.coerceCtx (append (append (Psi0, G), T.embedCtx GB'))) ^ "\n")
 val _ = print (TomegaPrint.forToString (append (append (Psi0, G), T.embedCtx GB'), Normalize.normalizeFor(RR, T.embedSub w1')) ^ "\n")
@@ -1037,10 +1118,14 @@ val _ = print (TomegaPrint.forToString (append (append (Psi0, G), T.embedCtx GB'
 	      val _ = TomegaTypeCheck.checkFor (append (append (Psi0, G), T.embedCtx GB'), 
 						(Normalize.normalizeFor(RR, T.embedSub w1')))
 		    
-
+*)
 val _ = print ";"
-	      val F''' = raiseFor (GB', Normalize.normalizeFor (F'', s'))
-                                        (* Psi0, G' |- F''' for *)
+
+	      val F''' = raiseFor (GB', (RR, I.id))
+                                          (* Psi0, G |- w1' : Psi0, G' *)
+                                          (* Psi0, G' |- F''' for *)
+	      val _ = print "\n Checkpoint 1:\n"
+	      val _ = print (Print.ctxToString (I.Null, T.coerceCtx (append (Psi0, G))) ^ "\n")
 	      val _ = print (TomegaPrint.forToString (append (Psi0, G), Normalize.normalizeFor(F''', T.embedSub w1')))
 
 	      val _ = TomegaTypeCheck.checkFor (append (Psi0, G), 
@@ -1074,6 +1159,7 @@ val _ = print "*"
 val _ = print "."
 	      val _ = TomegaTypeCheck.checkCtx (append (Psi2, T.embedCtx B3'))
 val _ = print ".\n"
+
 val _ = print (TomegaPrint.forToString (Psi2, F4) ^ "\n")
 	      val _ = TomegaTypeCheck.checkFor (Psi2, F4)
 		handle _ => raise Error' F4
@@ -1087,10 +1173,8 @@ val  _ = print "]"
 (* Solutiion use inst *)
 (* remark : use "test ["cpt"]; " as  example *)
 
-val iota0 = I.Shift (I.ctxLength Psi2 + I.ctxLength B3)
-					(* Psi2, B3 |- iota0 : . *)
 
-val sigma3 = blockToIota (T.Shift (I.ctxLength B3), B3', iota0)
+val sigma3 = blockToIota (T.Shift (I.ctxLength B3), B3')
 					(* Psi2, B3 |- sigma3 : Psi2, B3' *)
 
 

@@ -107,7 +107,7 @@ struct
     Bidx of int 			(* b ::= v                    *)
   | LVar of Block option ref * (cid * Sub) 
                                         (*     | L(l,s)               *)
-  | Inst of Sub                         (*     | U1, ..., Un          *)
+  | Inst of Exp list			(*     | u1, ..., Un          *)
 
 
   (* Constraints *)
@@ -409,7 +409,7 @@ struct
     (* where is this needed? *)
     (* Thu Dec  6 20:30:26 2001 -fp !!! *)
     | blockSub (L as LVar (ref NONE, (l, t)), s) = L
-    | blockSub (L as Inst s, s') = Inst (comp (s, s'))  
+    | blockSub (L as Inst ULs, s') = Inst (map (fn U => EClo (U, s')) ULs)
     (* this should be right but somebody should verify *) 
 
   (* frontSub (Ft, s) = Ft'
