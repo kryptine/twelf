@@ -11,9 +11,9 @@ sig
   val forToString : Tomega.Dec IntSyn.Ctx * Tomega.For -> string
 (*  val formatFor : FunSyn.lfctx * FunSyn.For -> string list -> Formatter.format
   val formatPro : FunSyn.lfctx * FunSyn.Pro -> string list -> Formatter.format
-  val formatLemmaDec: FunSyn.LemmaDec -> Formatter.format
+  val formatLemmaDec: FunSyn.LemmaDec -> Formatter.format *)
 
-  val proToString : FunSyn.lfctx * FunSyn.Pro -> string list -> string
-  val lemmaDecToString : FunSyn.LemmaDec -> string *)
+  val prgToString : FunSyn.lfctx * FunSyn.Pro -> string list -> string
+(*  val lemmaDecToString : FunSyn.LemmaDec -> string *)
 end;  (* signature TOMEGAPRINT *)
 
