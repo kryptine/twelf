@@ -4,9 +4,6 @@
 
 signature TOMEGATYPECHECK = 
 sig
-  (*! structure IntSyn : INTSYN !*)
-  (*! structure Tomega : TOMEGA !*)
-
   exception Error of string
 
   val checkCtx : Tomega.Dec IntSyn.Ctx -> unit
