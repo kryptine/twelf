@@ -26,9 +26,9 @@ in
       val Ss = map Worldify.worldify a
       val S = foldr op@ nil Ss
       val _ = printS S
-      val _ = print "[tomega] "
+      val _ = TextIO.print "[tomega] "
       val P = Converter.convertPrg a
-      val _ = print "Checking: "
+      val _ = TextIO.print "Checking: "
       val F = Converter.convertFor a
       val _ = TextIO.print (TomegaPrint.forToString (I.Null, F) ^ "\n")
 
@@ -40,9 +40,20 @@ in
 (*      FunNames.installName (name, F.lemmaAdd LD) *)
     end)
 
+       
+  fun print names =
+    let
+      val P = test names
+    in
+      TextIO.print (TomegaPrint.prgToString (I.Null, P) names ^ "\n")
+    end
+
+
   val _ = Twelf.chatter := 1
 (*  val _ = FunNames.reset(); --cs *)
 
+
+  
 
   (* Regression test for Mini-ML *)
   val _ = load "examples/mini-ml/sources.cfg"
@@ -73,6 +84,9 @@ in
   val _ = Twelf.loadFile "TEST/cp.elf"
 
 (*  val _ = test ["cpt"] *)
+
+ (* Regression test for copy *)
+  val _ = load "examples/mini-ml/sources.cfg"
 
 
 (*
