@@ -74,6 +74,9 @@ functor Twelf
    structure TomegaCoverage : TOMEGACOVERAGE
      sharing TomegaCoverage.IntSyn = IntSyn'
      sharing TomegaCoverage.Tomega = Tomega
+   structure TomegaTypeCheck : TOMEGATYPECHECK
+     sharing TomegaTypeCheck.IntSyn = IntSyn'
+     sharing TomegaTypeCheck.Tomega = Tomega
 
    structure Total : TOTAL
      sharing Total.IntSyn = IntSyn'
@@ -597,12 +600,20 @@ struct
 	  val (T, rrs as (r,rs)) = ReconThm.tdeclTotDecl lterm
 	  val La = Thm.installTotal (T, rrs)
 (* ******************************************* *)
+      val _ = TextIO.print "[Tomega: Conversion ..."
 	  val lemma = Converter.installPrg La
 	  val P = Tomega.lemmaDef lemma
+	  val _ = TextIO.print " Formula ..."
+	  val F = Converter.convertFor La
 	  val _ = if !Global.chatter >= 6
 		    then print (TomegaPrint.funToString P ^ "\n")
 		  else ()
-	  val _ = TomegaCoverage.coverageCheckPrg (WorldSyn.lookup (hd La), IntSyn.Null, P)
+	  val _ = TextIO.print " Checking ..."
+	  val _ = TomegaTypeCheck.checkPrg (IntSyn.Null, (P, F))
+	  val _ = TextIO.print "]"
+
+(*	  val _ = TomegaCoverage.coverageCheckPrg (WorldSyn.lookup (hd La), IntSyn.Null, P)*)
+
 (* ******************************************* *)
 
 	  val _ = map Total.install La	(* pre-install for recursive checking *)
