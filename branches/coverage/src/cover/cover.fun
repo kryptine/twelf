@@ -683,6 +683,9 @@ struct
 		      fn U => if Unify.unifiable (I.Null, (X, I.id), (U, I.id)) (* always succeeds? *)
 				then sc ()
 			      else ())
+      | splitEVar (I.Uni I.Type, _, _) = ()
+    (* forgotton case added.  Please verify  -- cs !!! *)
+
 
     (* abstract (a @ S, s) = V'
        where V' = {{G}} a @ S' and G abstracts over all EVars in a @ S[s]
