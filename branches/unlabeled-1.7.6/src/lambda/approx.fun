@@ -368,26 +368,40 @@ struct
        effect: applies I
        otherwise raises Unify *)
 
-    fun matchW (AdamVar (X,G), Const H) =  
-           (X := SOME(I.Root (H, Whnf.newSpineVar (G, (I.conDecType (headConDec H), I.id)))))
-      | matchW (Const H, AdamVar (X,G)) = 
-           (X := SOME(I.Root (H, Whnf.newSpineVar (G, (I.conDecType (headConDec H), I.id)))))
-
-      | matchW (AdamVar (X1 as ref NONE, G1), AdamVar (X2 as ref NONE, G2)) = 
+    fun matchW (AdamVar (X1 as ref NONE, G1), AdamVar (X2 as ref NONE, G2)) = 
 	   if (X1 = X2) then () else X1 := SOME(I.EVar(X2, G2, I.Uni(I.Type), ref nil))
 	     (* Carsten:  do we need to check that G1 = G2??? *)
       | matchW (AdamVar (X1 as ref NONE, G1), AdamVar (X2 as ref (SOME F), G2)) = 
 	   X1 := SOME(I.EVar(X2, G2, I.Uni(I.Type), ref nil))
 	     (* Carsten:  do we need to check that G1 = G2??? *)
-      | matchW (AdamVar (X2 as ref (SOME F), G2), AdamVar (X1 as ref NONE, G1)) = 
-	   X1 := SOME(I.EVar(X2, G2, I.Uni(I.Type), ref nil))
-	     (* Carsten:  do we need to check that G1 = G2??? *)
+      | matchW (AdamVar (X1 as ref (SOME F), G1), AdamVar (X2 as ref (SOME F2), G2)) = raise Domain
+	   (* UnifyNoTrail causes problems 
+	   (UnifyNoTrail.unify(G1, (F, I.id), (F2, I.id))
+	    handle UnifyNoTrail.Unify s => raise Unify s)
+	    *)
+
+
+      | matchW (AdamVar (X as ref NONE,G), Const H) =  
+           (X := SOME(I.Root (H, Whnf.newSpineVar (G, (I.conDecType (headConDec H), I.id)))))
 
       | matchW (AdamVar X, CVar (r as ref NONE)) = (r := SOME(AdamVar X))
-      | matchW (CVar (r as ref NONE), AdamVar X) = (r := SOME(AdamVar X))
 
-      | matchW (AdamVar _, _) = raise Domain (* Carsten you need to do these cases *)
-      | matchW (_, AdamVar _) = raise Domain
+      | matchW (AdamVar (X as ref NONE, G), Arrow (V1, V2)) = 
+	   let
+	     val L = Type
+	     val allowed = false (* What is this? *)
+	     val V1' = apxToClass(G, V1, Type, allowed)
+	     val D = I.Dec(NONE, V1')
+	     val V2' = apxToClass (I.Decl (G, D), V2, L, allowed)
+	   in
+	     (X := SOME(I.Pi ((D, I.Maybe), V2')))
+	   end
+
+
+      | matchW (X, Y as AdamVar _) = matchW(Y, X)
+
+      | matchW (AdamVar (X as ref (SOME _), G), _) = () (* FIX THIS! CALL UNIFY! *)
+      | matchW (AdamVar _, _) = raise Domain (* Missing a case *)
 
       | matchW (Uni L1, Uni L2) = matchUni (L1, L2)
       | matchW (V1 as Const H1, V2 as Const H2) =
