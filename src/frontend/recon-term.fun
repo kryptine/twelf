@@ -580,6 +580,17 @@ struct
         in
           jof (tm1', tm2')
         end
+
+    fun ctxToApx IntSyn.Null = IntSyn.Null
+      | ctxToApx (IntSyn.Decl (G, IntSyn.Dec (name, V))) = 
+          let 
+	    val (V', _) = Apx.classToApx V
+	  in
+	    IntSyn.Decl (ctxToApx G, Dec (name, V'))
+	  end
+
+    fun inferApxJob' (G, t) =
+        inferApxJob (ctxToApx G, t)
           
   end (* open Apx *)
 
@@ -1275,6 +1286,28 @@ struct
 
     fun recon (j) = (queryMode := false; recon' j)
     fun reconQuery (j) = (queryMode := true; recon' j)
+
+    (* Invariant, G must be named! *)
+    fun reconWithCtx' (G, j) =
+        let
+          (* we leave it to the context to call Names.varReset
+             reason: this code allows reconstructing terms containing
+             existing EVars, and future developments might use that *)
+          (* context must already have called resetErrors *)
+          val _ = Apx.varReset ()
+          val _ = varReset ()
+          val j' = inferApxJob' (G, j)
+          val _ = clearDelayed ()
+          val j'' = inferExactJob (G, j')
+          val _ = runDelayed ()
+          (* we leave it to the context to call checkErrors
+             reason: the caller may want to do further processing on
+             the "best effort" result returned, even if there were
+             errors *)
+        in
+          j''
+        end
+    fun reconWithCtx (G, j) = (queryMode := false; reconWithCtx' (G, j))
 
   fun internalInst x = raise Match
   fun externalInst x = raise Match

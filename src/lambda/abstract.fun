@@ -792,10 +792,10 @@ struct
 
     (* Argument must be in normal form *)
     and abstractFor (K, depth, T.True) = T.True
-      | abstractFor (K, depth, T.All (MD, F)) = 
-          T.All (abstractMetaDec (K, depth, MD), abstractFor (K, depth, F))
-      | abstractFor (K, depth, T.Ex (D, F)) = 
-	  T.Ex (abstractDec (K, depth, (D, I.id)), abstractFor (K, depth, F))
+      | abstractFor (K, depth, T.All ((MD, Q), F)) = 
+          T.All ((abstractMetaDec (K, depth, MD), Q), abstractFor (K, depth, F))
+      | abstractFor (K, depth, T.Ex ((D, Q), F)) = 
+	  T.Ex ((abstractDec (K, depth, (D, I.id)), Q), abstractFor (K, depth, F))
       | abstractFor (K, depth, T.And (F1, F2)) = 
 	  T.And (abstractFor (K, depth, F1), abstractFor (K, depth, F2))
       | abstractFor (K, depth, T.World (W, F)) =

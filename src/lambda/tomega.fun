@@ -17,10 +17,13 @@ struct
 
   datatype Worlds = Worlds of IntSyn.cid list
 
+  datatype Quantifier = Implicit | Explicit
+
   datatype For  			(* Formulas                   *)
   = World of Worlds * For               (* F ::= World l1...ln. F     *)  
-  | All of Dec * For   		        (*     | All LD. F            *)
-  | Ex  of IntSyn.Dec * For		(*     | Ex  D. F             *)
+  | All of (Dec * Quantifier) * For	(*     | All LD. F            *)
+  | Ex  of (IntSyn.Dec * Quantifier) * For
+					(*     | Ex  D. F             *)
   | True				(*     | T                    *)
   | And of For * For                    (*     | F1 ^ F2              *)
   | FClo of For * Sub			(*     | F [t]                *)
@@ -34,6 +37,7 @@ struct
   and Prg =				(* Programs:                  *)
     Lam of Dec * Prg	 	        (*     | lam LD. P            *)
   | New of Prg                          (*     | new P                *)
+  | Choose of Prg                       (*     | choose P             *)
   | PairExp of IntSyn.Exp * Prg         (*     | <M, P>               *)
   | PairBlock of IntSyn.Block * Prg     (*     | <rho, P>             *) 
   | PairPrg of Prg * Prg                (*     | <P1, P2>             *)
@@ -441,12 +445,12 @@ struct
     *)
 
     fun convFor ((True, _), (True, _)) = true
-      | convFor ((All (D1, F1), t1),
-		 (All (D2, F2), t2)) =
+      | convFor ((All ((D1, _), F1), t1),
+		 (All ((D2, _), F2), t2)) =
           convDec ((D1, t1), (D2, t2))
           andalso convFor ((F1, dot1 t1), (F2, dot1 t2))
-      | convFor ((Ex (D1, F1), t1), 
-		 (Ex (D2, F2), t2)) = 
+      | convFor ((Ex ((D1, _), F1), t1), 
+		 (Ex ((D2, _), F2), t2)) = 
 	  Conv.convDec ((D1, coerceSub t1), (D2, coerceSub t2))
 	  andalso convFor ((F1, dot1 t1), (F2, dot1 t2))
       | convFor ((And (F1, F1'), t1), (And (F2, F2'), t2)) =

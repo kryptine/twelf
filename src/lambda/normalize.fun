@@ -18,11 +18,11 @@ struct
     structure I = IntSyn
     structure T = Tomega
   
-    fun normalizeFor (T.All (D, F), t) = 
-          T.All (T.decSub (D, t),  
+    fun normalizeFor (T.All ((D, Q), F), t) = 
+          T.All ((T.decSub (D, t), Q),  
 		 normalizeFor (F, T.dot1 t)) 
-      | normalizeFor (T.Ex (D, F), t) = 
-	  T.Ex (I.decSub (D, T.coerceSub t),  
+      | normalizeFor (T.Ex ((D, Q), F), t) = 
+	  T.Ex ((I.decSub (D, T.coerceSub t), Q),
 		 normalizeFor (F, T.dot1 t))
       | normalizeFor (T.And (F1, F2), t) =
 	  T.And (normalizeFor (F1, t), 

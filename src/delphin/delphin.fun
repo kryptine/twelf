@@ -14,12 +14,13 @@ struct
   local
     val version = "Delphin, Version 0.1, January 2003"
 
-    val prompt = "Delphin> "
+    val prompt = "> "
     
     fun loadFile (s1, s2) =
       let 
 	val _ = Twelf.loadFile s1
 	val (DextSyn.Ast EDs) = Parse.gparse s2
+	val _ = print "* parsing completed\n"
 	val P = Trans.transDecs EDs
       in 
 	()
@@ -31,7 +32,7 @@ struct
       let 
          val _ = print prompt
          val (DextSyn.Ast ED) = Parse.sparse ()
-         val res = Trans.transDecs ED   
+(*         val res = Trans.transDecs ED    *)
       in 
          loop ()
       end
@@ -89,7 +90,7 @@ struct
 	      (T.AppExp (I.Root (I.Def x, I.Nil), S'), F')
 	    end
 
-	  | makeSpine (x :: L, T.All (D, F')) = 
+	  | makeSpine (x :: L, T.All ((D, _), F')) = 
 	    let 
 	      val _ = checkDec(I.Root (I.Def x, I.Nil), D)
 	      val (S', F') =  makeSpine (L, Normalize.normalizeFor (F', T.Dot (T.Exp (I.Root (I.Def x, I.Nil)), T.id)))

@@ -53,10 +53,10 @@ struct
 		     Normalize.normalizeFor (F1, T.id), 
 		     Normalize.normalizeFor (F2, T.id))
     and unifyForN (Psi, T.True, T.True) = ()
-      | unifyForN (Psi, T.Ex (D1, F1), T.Ex (D2, F2)) = 
+      | unifyForN (Psi, T.Ex ((D1, _), F1), T.Ex ((D2, _), F2)) = 
         (unifyDec (Psi, T.UDec D1, (T.UDec D2));
 	 unifyFor(I.Decl (Psi, T.UDec D1), F1, F2))
-      | unifyForN (Psi, T.All (D1, F1), T.All (D2, F2)) = 
+      | unifyForN (Psi, T.All ((D1, _), F1), T.All ((D2, _), F2)) = 
 	(unifyDec (Psi, D1, D2);
 	 unifyFor(I.Decl (Psi, D1), F1, F2))
       | unifyForN (Psi, T.FVar (_, r), F) = 

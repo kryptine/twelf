@@ -19,6 +19,7 @@ struct
   structure A = Abstract
 
   exception Error of string
+  exception Abort
 
 
 
@@ -202,6 +203,51 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
 	   in 
 	     newP
 	   end
+
+      | evalPrg (Psi, (T.Choose P, t)) = 
+	   let
+
+	     (* This function was imported from cover.fun   -- cs Thu Mar 20 11:47:06 2003 *)
+
+             (* substtospine' (s, G, T) = S @ T
+	        If   G' |- s : G
+                then G' |- S : {{G}} a >> a  for arbitrary a
+                    {{G}} erases void declarations in G
+              *)
+	     fun substToSpine' (I.Shift(n), I.Null, T) = T
+	       | substToSpine' (I.Shift(n), G as I.Decl _, T) =
+	           substToSpine' (I.Dot (I.Idx (n+1), I.Shift(n+1)), G, T)
+	       | substToSpine' (I.Dot(I.Exp(U),s), I.Decl(G,V), T) =
+		   substToSpine' (s, G, T.AppExp (U, T))
+	       | substToSpine' (I.Dot(I.Idx(n),s), I.Decl(G,I.Dec(_,V)), T) =
+		   (* Eta-expand *)
+		   let
+		     val (Us,_) = Whnf.whnfEta ((I.Root (I.BVar(n), I.Nil), I.id), (V, I.id))
+		   in
+		     substToSpine' (s, G, T.AppExp (I.EClo Us, T))
+		   end
+
+
+	       
+	     fun choose (k, I.Null) = raise Abort
+	       | choose (k, I.Decl (Psi', T.PDec _)) = 
+  	           choose (k+1, Psi)
+	       | choose (k, I.Decl (Psi', T.UDec (I.Dec _))) = 
+	           choose (k+1, Psi')
+	       | choose (k, I.Decl (Psi', T.UDec (I.BDec (_, (l1, s1))))) = 
+		   let
+		     val (Gsome, Gpi) = I.constBlock l1
+		     val S = substToSpine' (s1, Gsome, T.AppBlock (I.Bidx k, T.Nil))
+		   in
+		     evalPrg (Psi, (T.Redex (T.PClo (P, t), S), T.id)) handle Abort => choose (k+1, Psi')
+		   end
+
+	   in
+	     choose (1, Psi)
+	   end
+
+         
+  
 
 
    (* other cases should not occur -cs *)

@@ -10,11 +10,14 @@ sig
   type lemma = int 
 
   datatype Worlds = Worlds of IntSyn.cid list
+    
+  datatype Quantifier = Implicit | Explicit
 
   datatype For  			(* Formulas                   *)
   = World of Worlds * For               (* F ::= World l1...ln. F     *)  
-  | All of Dec * For   		        (*     | All LD. F            *)
-  | Ex  of IntSyn.Dec * For		(*     | Ex  D. F             *)
+  | All of (Dec * Quantifier) * For     (*     | All LD. F            *)
+  | Ex  of (IntSyn.Dec * Quantifier)  * For
+					(*     | Ex  D. F             *)
   | True				(*     | T                    *)
   | And of For * For                    (*     | F1 ^ F2              *)
   | FClo of For * Sub			(*     | F [t]                *)
@@ -28,6 +31,7 @@ sig
   and Prg =				(* Programs:                  *)
     Lam of Dec * Prg	 	        (*     | lam LD. P            *)
   | New of Prg                          (*     | new P                *)
+  | Choose of Prg                       (*     | choose P             *)
   | PairExp of IntSyn.Exp * Prg         (*     | <M, P>               *)
   | PairBlock of IntSyn.Block * Prg     (*     | <rho, P>             *) 
   | PairPrg of Prg * Prg                (*     | <P1, P2>             *)
