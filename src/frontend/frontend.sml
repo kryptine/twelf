@@ -12,87 +12,79 @@ structure Parsing =
   Parsing (structure Stream' = Stream
 	   structure Lexer' = Lexer);
 
-structure ReconTerm =
-  ReconTerm (structure IntSyn' = IntSyn
-	     structure Names = Names
-	     structure Paths' = Paths
-             structure Approx = Approx
- 	     structure Whnf = Whnf
-	     structure Unify = UnifyTrail
-             structure Abstract = Abstract
-	     structure Print = Print
-             structure CSManager = CSManager
-             structure StringTree = StringRedBlackTree);
+structure TpRecon =
+  TpRecon (structure Global = Global
+	   structure IntSyn' = IntSyn
+	   structure Names = Names
+	   structure Paths' = Paths
+ 	   structure Whnf = Whnf
+	   structure Unify = UnifyNoTrail
+	   structure Abstract = Abstract
+	   structure Constraints = Constraints
+	   structure TypeCheck = TypeCheck
+           structure Conv = Conv
+	   structure Strict = Strict
+	   structure Print = Print
+	   structure Timers = Timers
+           structure CSManager = CSManager);
 
-structure ReconConDec =
-  ReconConDec (structure Global = Global
-               structure IntSyn' = IntSyn
+structure DefineRecon =
+  DefineRecon (structure IntSyn' = IntSyn
                structure Names = Names
-               structure Abstract = Abstract
-               structure Paths' = Paths
-               structure ReconTerm' = ReconTerm
-               structure Constraints = Constraints
-               structure Strict = Strict
-               structure TypeCheck = TypeCheck
-               structure Timers = Timers
-               structure Print = Print);
-                                                        
-structure ReconQuery =
-  ReconQuery (structure Global = Global
-              structure IntSyn' = IntSyn
-              structure Names = Names
-              structure Abstract = Abstract
-              structure Paths' = Paths
-              structure ReconTerm' = ReconTerm
-              structure TypeCheck = TypeCheck
-              structure Strict = Strict
-              structure Timers = Timers
-              structure Print = Print);
+               structure TpRecon' = TpRecon
+               structure Paths' = Paths);
 
-structure ReconMode =
-  ReconMode (structure Global = Global
+structure ModeRecon =
+  ModeRecon (structure Global = Global
+	     structure IntSyn = IntSyn
 	     structure ModeSyn' = ModeSyn
+	     structure ModeDec = ModeDec
 	     structure Whnf = Whnf
 	     structure Paths' = Paths
              structure Names = Names
 	     structure ModePrint = ModePrint
-	     structure ModeDec = ModeDec
-	     structure ReconTerm' = ReconTerm);
+	     structure TpRecon' = TpRecon);
 
-structure ReconThm =
-  ReconThm (structure Global = Global
+structure ThmRecon =
+  ThmRecon (structure Global = Global
 	    structure IntSyn = IntSyn
 	    structure Abstract = Abstract
 	    structure Constraints = Constraints
 	    structure ModeSyn = ModeSyn
-	    structure Names = Names
-	    structure Paths' = Paths
 	    structure ThmSyn' = ThmSyn
-	    structure ReconTerm' = ReconTerm
+	    structure Names = Names
+	    structure TpRecon' = TpRecon
+	    structure Paths' = Paths
 	    structure Print = Print);
 
-structure ReconModule =
-  ReconModule (structure Global = Global
-               structure IntSyn = IntSyn
-               structure Names = Names
-               structure Paths' = Paths
-               structure ReconTerm' = ReconTerm
-               structure ModSyn' = ModSyn
-               structure IntTree = IntRedBlackTree);
+structure ModRecon =
+  ModRecon (structure Global = Global
+            structure IntSyn = IntSyn
+            structure Names = Names
+            structure Paths' = Paths
+            structure TpRecon' = TpRecon
+            structure ModSyn' = ModSyn
+            structure IntTree = IntRedBlackTree);
 
 structure ParseTerm =
   ParseTerm (structure Parsing' = Parsing
-	     structure ExtSyn' = ReconTerm
+	     structure ExtSyn' = TpRecon
 	     structure Names = Names);
 
 structure ParseConDec =
   ParseConDec (structure Parsing' = Parsing
-	       structure ExtConDec' = ReconConDec
+	      structure ExtSyn' = TpRecon
+	      structure ParseTerm = ParseTerm);
+
+structure ParseDefine =
+  ParseDefine (structure Parsing' = Parsing
+	       structure ExtDefine' = DefineRecon
+	       structure Paths = Paths
 	       structure ParseTerm = ParseTerm);
 
 structure ParseQuery =
   ParseQuery (structure Parsing' = Parsing
-	      structure ExtQuery' = ReconQuery
+	      structure ExtSyn' = TpRecon
 	      structure ParseTerm = ParseTerm);
 
 structure ParseFixity =
@@ -101,56 +93,62 @@ structure ParseFixity =
 
 structure ParseMode =
   ParseMode (structure Parsing' = Parsing
-	     structure ExtModes' = ReconMode
+	     structure ExtModes' = ModeRecon
 	     structure Paths = Paths
 	     structure ParseTerm = ParseTerm);
 
 structure ParseThm =
   ParseThm (structure Parsing' = Parsing
-	    structure ThmExtSyn' = ReconThm
+	    structure ThmExtSyn' = ThmRecon
 	    structure ParseTerm = ParseTerm
 	    structure Paths = Paths);
 
-structure ParseModule =
-  ParseModule (structure Parsing' = Parsing
-               structure ModExtSyn' = ReconModule
-               structure ParseTerm = ParseTerm
-               structure Paths = Paths);
+structure ParseModules =
+  ParseModules (structure Parsing' = Parsing
+                structure ModExtSyn' = ModRecon
+                structure ParseTerm = ParseTerm
+                structure Paths = Paths);
 
 structure Parser =
   Parser (structure Parsing' = Parsing
 	  structure Stream' = Stream
-	  structure ExtSyn' = ReconTerm
+	  structure ExtSyn' = TpRecon
+          structure ExtDefine' = DefineRecon
 	  structure Names' = Names
-          structure ExtConDec' = ReconConDec
-          structure ExtQuery' = ReconQuery
-	  structure ExtModes' = ReconMode
-	  structure ThmExtSyn' = ReconThm
-          structure ModExtSyn' = ReconModule
+	  structure ExtModes' = ModeRecon
+	  structure ThmExtSyn' = ThmRecon
+          structure ModExtSyn' = ModRecon
 	  structure ParseConDec = ParseConDec
+          structure ParseDefine = ParseDefine
 	  structure ParseQuery = ParseQuery
 	  structure ParseFixity = ParseFixity
 	  structure ParseMode = ParseMode
 	  structure ParseThm = ParseThm
-          structure ParseModule = ParseModule
+          structure ParseModules = ParseModules
           structure ParseTerm = ParseTerm);
 
 structure Solve =
   Solve (structure Global = Global
 	 structure IntSyn' = IntSyn
+ 	 structure Whnf = Whnf
 	 structure Names = Names
 	 structure Parser = Parser
-	 structure ReconQuery = ReconQuery
+	 structure Constraints = Constraints
+	 structure Abstract = Abstract
+	 structure Unify = UnifyNoTrail
+	 structure TpRecon = TpRecon
+         structure DefineRecon = DefineRecon
 	 structure Timers = Timers
 	 structure CompSyn = CompSyn
 	 structure Compile = Compile
 	 structure CPrint = CPrint
-         structure CSManager = CSManager
 	 structure AbsMachine = SwMachine
-	 structure PtRecon = PtRecon
 	 structure Tabled = Tabled
+	 structure PtRecon = PtRecon
 	 structure TableIndex = TableIndex
-	 structure Print = Print);
+	 structure Strict = Strict
+	 structure Print = Print
+         structure CSManager = CSManager);
 
 structure Twelf =
   Twelf (structure Global = Global
@@ -169,19 +167,20 @@ structure Twelf =
 	 structure Strict = Strict
 	 structure Constraints = Constraints
 	 structure Abstract = Abstract
-	 structure ReconTerm = ReconTerm
-         structure ReconConDec = ReconConDec
-         structure ReconQuery = ReconQuery
+	 structure TpRecon = TpRecon 
+
+         structure DefineRecon = DefineRecon
 
 	 structure ModeSyn = ModeSyn
 	 structure ModeCheck = ModeCheck
 	 structure ModeDec = ModeDec
-	 structure ReconMode = ReconMode
+	 structure ModeRecon = ModeRecon
 	 structure ModePrint = ModePrint
 
          structure Cover = Cover
          structure Total = Total
 
+	 structure Terminate = Terminate
 	 structure Reduces = Reduces
 
 	 structure Index = Index
@@ -191,29 +190,27 @@ structure Twelf =
 	 structure Compile = Compile
 	 structure CPrint = CPrint
 	 structure AbsMachine = SwMachine
-
 	 structure Tabled = Tabled
 	 structure TableIndex = TableIndex
 	 structure Solve = Solve
 
 	 structure ThmSyn = ThmSyn
 	 structure Thm = Thm
-	 structure ReconThm = ReconThm
+	 structure ThmRecon = ThmRecon
 	 structure ThmPrint = ThmPrint
-                              
-	 structure TabledSyn = TabledSyn
-
-	 structure WorldSyn = WorldSyn
-	 structure WorldPrint = WorldPrint
-
-         structure ModSyn = ModSyn
-         structure ReconModule = ReconModule
-
 	 structure MetaGlobal = MetaGlobal
 	 structure FunSyn = FunSyn
 	 structure Skolem = Skolem
 	 structure Prover = CombiProver
 	 structure ClausePrint = ClausePrint
+
+	 structure TabledSyn = TabledSyn
+
+         structure ModSyn = ModSyn
+         structure ModRecon = ModRecon
+
+	 structure WorldSyn = WorldSyn
+	 structure WorldPrint = WorldPrint
 
          structure Trace = Trace
 

@@ -10,6 +10,17 @@ struct
   type mid = int                        (* Structure identifier       *)
   type csid = int                       (* CS module identifier       *)
 
+  (* pskeleton instead of proof term *)
+  datatype flatterm = 
+    pc of int | dc of int  | csolver
+
+  type pskeleton = flatterm list  
+
+  fun pskeletonToString [] = " " 
+    | pskeletonToString ((pc i)::O) = ("(pc " ^ (Int.toString i) ^ ") ") ^ (pskeletonToString O)
+    | pskeletonToString ((dc i)::O) = ("(dc " ^ (Int.toString i) ^ ") ") ^ (pskeletonToString O)
+    | pskeletonToString (csolver::O) = ("cs " ^ (pskeletonToString O))
+
 
   (* Contexts *)
   datatype 'a Ctx =			(* Contexts                   *)
@@ -72,7 +83,6 @@ struct
     
   and Head =				(* Heads:                     *)
     BVar  of int			(* H ::= k                    *)
-  | NVar  of int			(*     | n                -bp *)
   | Const of cid			(*     | c                    *)
   | Proj  of Block * int		(*     | #k(b)                *)
   | Skonst of cid			(*     | c#                   *)
@@ -93,7 +103,6 @@ struct
   and Front =				(* Fronts:                    *)
     Idx of int				(* Ft ::= k                   *)
   | Exp of Exp				(*     | U                    *)
-  | Axp of Exp				(*     | U (assignable)       *)
   | Block of Block			(*     | _x                   *)
   | Undef				(*     | _                    *)
 
@@ -330,6 +339,8 @@ struct
 
 
 
+
+
   (* comp (s1, s2) = s'
 
      Invariant:
@@ -349,28 +360,6 @@ struct
     | comp (Shift (n), Dot (Ft, s)) = comp (Shift (n-1), s)
     | comp (Shift (n), Shift (m)) = Shift (n+m)
     | comp (Dot (Ft, s), s') = Dot (frontSub (Ft, s'), comp (s, s'))
-
-
-  (* Fri Apr  5 15:35:09 2002 -bp  *)
-  and axpSub (Root(H as Const k, S), s) = 
-        Root(H, axpSubS(S, s))
-    | axpSub (Root(H as BVar k, S), s) = 
-	Root(H, axpSubS(S, s))
-    | axpSub (Root(H as NVar n, Nil), s) = 
-	(case bvarSub(n, s) 
-	   of Axp(U) => U)
-    (* Root(NVar, S) and S =/= nil should not happen *)
-    (* to be added FgnConst, Skonst *)
-    (* Def cannot happen, Def are in expanded form *)
-    | axpSub(Lam(D, U), s) = 
-	Lam(D, axpSub(U, s))
-    (* FgnExp to be added *)
-    (* EVar cannot happen, U always closed when used *)
-    (* EClo cannot happen *)
-
-  and axpSubS (Nil, s) = Nil
-    | axpSubS (App(U, S), s) = App(axpSub(U, s), axpSubS(S, s))
-    (* SClo cannot happen *)
 
 
   (* bvarSub (n, s) = Ft'
@@ -421,7 +410,6 @@ struct
     | frontSub (Exp (U), s) = Exp (EClo (U, s))
     | frontSub (Undef, s) = Undef
     | frontSub (Block (B), s) = Block (blockSub (B, s))
-    | frontSub (Axp (U), s) = Axp (axpSub (U, s))
 
   (* decSub (x:V, s) = D'
 
@@ -535,7 +523,6 @@ struct
      NONE if V is a kind or object or have variable type.
      Does not expand type definitions.
   *)
-  (* should there possibly be a FgnConst case? also targetFamOpt -kw *)
   fun targetHeadOpt (Root (H, _)) = SOME(H)
     | targetHeadOpt (Pi(_, V)) = targetHeadOpt V
     | targetHeadOpt (Redex (V, S)) = targetHeadOpt V

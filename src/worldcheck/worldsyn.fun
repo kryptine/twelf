@@ -159,11 +159,7 @@ struct
     (* Declaration lists *)
     fun formatDList (G, nil, t) = nil
       | formatDList (G, D :: nil, t) =
-        let
-	  val D' = I.decSub (D, t)
-	in
-          formatD (G, D') :: nil (* Names.decUName (G, I.decSub(D, t)) *)
-	end
+          formatD (G, D) :: nil (* Names.decUName (G, I.decSub(D, t)) *)
       | formatDList (G, D :: L, t) = 
         let
 	  val D' = I.decSub (D, t) (* Names.decUName (G, I.decSub (D, t)) *)
@@ -445,21 +441,6 @@ struct
 	    checkSubordBlock (I.Decl (G, D), I.Null, L') )
       | checkSubordBlock (G, I.Null, nil) = ()
 
-    (* conDecBlock (condec) = (Gsome, Lpi)
-       if condec is a block declaration
-       raise Error (msg) otherwise
-    *)
-    fun conDecBlock (I.BlockDec (_, _, Gsome, Lpi)) = (Gsome, Lpi)
-      | conDecBlock condec =
-        raise Error ("Identifier " ^ I.conDecName condec
-		     ^ " is not a block label")
-
-    (* constBlock cid = (someDecs, piDecs)
-       if cid is defined as a context block
-       Effect: raise Error (msg) otherwise
-    *)
-    fun constBlock (cid) = conDecBlock (I.sgnLookup cid)
-
     (* checkSubordWorlds (W) = ()
        Effect: raises Error(msg) if subordination is not respected
                in some context block in W
@@ -467,7 +448,7 @@ struct
     fun checkSubordWorlds (nil) = ()
       | checkSubordWorlds (cid::cids) =
         let
-	  val (someDecs, piDecs) = constBlock cid
+	  val (someDecs, piDecs) = I.constBlock cid
 	in
           checkSubordBlock (I.Null, someDecs, piDecs) ;
 	  checkSubordWorlds cids

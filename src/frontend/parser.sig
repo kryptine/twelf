@@ -8,14 +8,13 @@ sig
   structure Stream : STREAM
   structure ExtSyn : EXTSYN
   structure Names : NAMES
-  structure ExtConDec : EXTCONDEC
-  structure ExtQuery : EXTQUERY
+  structure ExtDefine : EXTDEFINE
   structure ExtModes : EXTMODES
   structure ThmExtSyn : THMEXTSYN
   structure ModExtSyn : MODEXTSYN
 
   datatype fileParseResult =
-      ConDec of ExtConDec.condec
+      ConDec of ExtSyn.condec
     | FixDec of (Names.Qid * ExtSyn.Paths.region) * Names.Fixity.fixity
     | NamePref of (Names.Qid * ExtSyn.Paths.region) * (string * string option)
     | ModeDec of ExtModes.modedec list
@@ -29,10 +28,10 @@ sig
     | ProveDec of ThmExtSyn.prove
     | EstablishDec of ThmExtSyn.establish
     | AssertDec of ThmExtSyn.assert
-    | Query of int option * int option * ExtQuery.query (* expected, try, A *)
-    | Querytabled of int option * int option * ExtQuery.query        (* expected, try, A *)
-    | Solve of ExtQuery.define list * ExtQuery.solve
-    | AbbrevDec of ExtConDec.condec
+    | Query of int option * int option * ExtSyn.query (* expected, try, A *)
+    | Querytabled of int option * ExtSyn.query        (* expected, try, A *)
+    | Solve of  ExtDefine.define list * string option * ExtSyn.term
+    | AbbrevDec of ExtSyn.condec
     | FreezeDec of Names.Qid list
     | DeterministicDec of Names.Qid list  (* -rv *)
     | SigDef of ModExtSyn.sigdef
@@ -44,6 +43,6 @@ sig
     (* Further declarations to be added here *)
 
   val parseStream: TextIO.instream -> (fileParseResult * ExtSyn.Paths.region) Stream.stream
-  val parseTerminalQ : string * string -> ExtQuery.query Stream.stream (* reads from std input *)
+  val parseTerminalQ : string * string -> ExtSyn.query Stream.stream (* reads from std input *)
 
 end;  (* signature PARSER *)

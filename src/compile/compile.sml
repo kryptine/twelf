@@ -11,8 +11,6 @@ structure CPrint =
 	  structure Formatter = Formatter
 	  structure Names = Names);
 
-
-
 structure Compile =
   Compile (structure IntSyn' = IntSyn
 	   structure CompSyn' = CompSyn

@@ -40,8 +40,6 @@ struct
   local
     structure I = IntSyn
     structure P = Paths
-    structure M = ModeSyn
-    structure N = Names
 
     (* totalTable (a) = SOME() iff a is total, otherwise NONE *)
     val totalTable : unit Table.Table = Table.new(0)
@@ -90,13 +88,15 @@ struct
            for clause V[s] or goal V[s], respectively.
        Effect: raises Error' (occ, msg) if coverage is not satisfied at occ.
 
+       Currently does not allow parametric or hypothetical subgoals.
+
        Invariants: G |- V[s] : type
     *)
     fun checkClause (G, Vs, occ) = checkClauseW (G, Whnf.whnf Vs, occ)
     and checkClauseW (G, (I.Pi ((D1, I.Maybe), V2), s), occ) =
         (* quantifier *)
         let
-	  val D1' = N.decEName (G, I.decSub (D1, s))
+	  val D1' = Names.decEName (G, I.decSub (D1, s))
 	in
           checkClause (I.Decl (G, D1'), (V2, I.dot1 s), P.body occ)
 	end
@@ -110,37 +110,29 @@ struct
       | checkClauseW (G, (I.Root _, s), occ) =
 	(* clause head *)
 	()
-
     and checkGoal (G, Vs, occ) = checkGoalW (G, Whnf.whnf Vs, occ)
     and checkGoalW (G, (V, s), occ) =
 	let
 	  val a = I.targetFam V
 	  val _ = if not (total a)
-		    then raise Error' (occ, "Subgoal " ^ N.qidToString (N.constQid a)
+		    then raise Error' (occ, "Subgoal " ^ Names.qidToString (Names.constQid a)
 				       ^ " not declared to be total")
 		  else ()
 	  val _ = checkDynOrderW (G, (V, s), 2, occ)
 	         (* can raise Cover.Error for third-order clauses *)
+	  (* need to implement recursive output coverage checking here *)
+	  (* Tue Dec 18 20:44:48 2001 -fp !!! *)
+          (*
+	  val _ = case V
+	            of I.Pi _ => print ("Warning: " ^ Names.qidToString (Names.constQid a)
+					^ " not checked recursively.\n")
+		     | _ => ()
+          *)
 	in
 	  Cover.checkOut (G, (V, s))
 	  handle Cover.Error (msg)
 	  => raise Error' (occ, "Totality: Output of subgoal not covered\n" ^ msg)
 	end
-
-    (* checkDefinite (a, ms) = ()
-       iff every mode in mode spine ms is either input or output
-       Effect: raises Error (msg) otherwise
-    *)
-    fun checkDefinite (a, M.Mnil) = ()
-      | checkDefinite (a, M.Mapp (M.Marg (M.Plus, _), ms')) = checkDefinite (a, ms')
-      | checkDefinite (a, M.Mapp (M.Marg (M.Minus, _), ms')) = checkDefinite (a, ms')
-      | checkDefinite (a, M.Mapp (M.Marg (M.Star, xOpt), ms')) =
-        (* Note: filename and location are missing in this error message *)
-        (* Fri Apr  5 19:25:54 2002 -fp *)
-        raise Error ("Error: Totality checking " ^ N.qidToString (N.constQid a) ^ ":\n"
-		     ^ "All argument modes must be input (+) or output (-)"
-		     ^ (case xOpt of NONE => ""
-			  | SOME(x) => " but argument " ^ x ^ " is indefinite (*)"  ))
 
     (* checkOutCover [c1,...,cn] = ()
        iff local output coverage for every subgoal in ci:Vi is satisfied.
@@ -148,11 +140,8 @@ struct
     *)
     fun checkOutCover nil = ()
       | checkOutCover (I.Const(c)::cs) =
-        ( if !Global.chatter >= 4
-	    then print (N.qidToString (N.constQid c) ^ " ")
-	  else () ;
-	  if !Global.chatter >= 6
-	    then print ("\n")
+        ( if !Global.chatter >= 6
+	    then print ("Output coverage: " ^ Names.qidToString (Names.constQid c) ^ "\n")
 	  else () ;
 	  checkClause (I.Null, (I.constType (c), I.id), P.top)
 	     handle Error' (occ, msg) => error (c, occ, msg) ;
@@ -162,39 +151,31 @@ struct
        iff family a is total in its input arguments.
        This requires termination, input coverage, and local output coverage.
        Currently, there is no global output coverage.
-       Effect: raises Error (msg) otherwise, where msg has filename and location.
+       Effect:raises Error (msg) otherwise, where msg has filename and location.
     *)
     fun checkFam (a) =
         let
           (* Checking termination *)
 	  val _ = (Reduces.checkFam a;
 		   if !Global.chatter >= 4
-		     then print ("Terminates: " ^ N.qidToString (N.constQid a) ^ "\n")
+		     then print ("Terminates: " ^ Names.qidToString (Names.constQid a) ^ "\n")
 		   else ())
 	          handle Reduces.Error (msg) => raise Reduces.Error (msg)
 
           (* Checking input coverage *)
 	  (* by termination invariant, there must be consistent mode for a *)
-	  val SOME(ms) = M.modeLookup a	(* must be defined and well-moded *)
-	  val _ = checkDefinite (a, ms) (* all arguments must be either input or output *)
+	  val SOME(ms) = ModeSyn.modeLookup a	(* must be defined and well-moded *)
 	  val _ = (Cover.checkCovers (a, ms) ;
 		   if !Global.chatter >= 4
-		     then print ("Covers (input): " ^ N.qidToString (N.constQid a) ^ "\n")
+		     then print ("Covers (+): " ^ Names.qidToString (Names.constQid a) ^ "\n")
 		   else ())
 	          handle Cover.Error (msg) => raise Cover.Error (msg)
 
           (* Checking output coverage *)
-	  val _ = if !Global.chatter >= 4
-		    then print ("Output coverage checking family " ^ N.qidToString (N.constQid a)
-				^ "\n")
-		  else ()
           val cs = Index.lookup a
 	  val _ = (checkOutCover (cs);
-		   if !Global.chatter = 4
-		     then print ("\n")
-		   else ();
 		   if !Global.chatter >= 4
-		     then print ("Covers (output): " ^ N.qidToString (N.constQid a) ^ "\n")
+		     then print ("Covers (-): " ^ Names.qidToString (Names.constQid a) ^ "\n")
 		   else ())
                   handle Cover.Error (msg) => raise Cover.Error (msg)
 	in

@@ -8,8 +8,8 @@ Group is
   ../subordinate/sources.cm
   ../paths/sources.cm
   ../solvers/sources.cm
-  checking.sig
-  checking.fun
+  terminate.sig
+  terminate.fun 
   reduces.sig
   reduces.fun 
   terminate.sml

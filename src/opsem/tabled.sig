@@ -9,11 +9,11 @@ sig
   structure Unify : UNIFY 
 
 
-  val SuspGoals : ((((IntSyn.Exp * IntSyn.Sub) * CompSyn.DProg * (CompSyn.pskeleton -> unit)) * 
+  val SuspGoals : ((((IntSyn.Exp * IntSyn.Sub) * CompSyn.DProg * (IntSyn.pskeleton -> unit)) * 
 		    Unify.unifTrail * int ref) list) ref 
 
   val solve     : (CompSyn.Goal * IntSyn.Sub) * CompSyn.DProg
-                  * (CompSyn.pskeleton -> unit) -> unit
+                  * (IntSyn.pskeleton -> unit) -> unit
 
   val nextStage : unit -> bool
 

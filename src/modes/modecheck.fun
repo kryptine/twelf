@@ -80,14 +80,14 @@ struct
       | nameOf (Existential (_, SOME name)) = name
       | nameOf _ = "?"
 	   
-    (* unique (k, ks) = B
+    (* unique (k, S) = B
 
        Invariant:
-       B iff k does not occur in ks
+       B iff k does not occur in S
     *)
-    fun unique (k, nil) = true
-      | unique (k, k'::ks) =
-          (k <> k') andalso unique (k, ks)
+    fun unique (k, I.Nil) = true
+      | unique (k, (I.App (I.Root (I.BVar (k'), I.Nil), S))) =
+          (k <> k') andalso unique (k, S)
 
     (* isUniversal S = B
        
@@ -105,37 +105,6 @@ struct
     fun isTop (Existential (Top, _)) = true
       | isTop _ = false
 
-    exception Eta
-
-    (* etaContract (U, n) = k
-
-       if lam V1... lam Vn. U =eta*=> k
-       otherwise raise exception Eta
-
-       Invariant: G, V1,..., Vn |- U : V for some G, Vi, V.
-                  U in NF
-    *)
-    fun etaContract (I.Root (I.BVar(k), S),  n) =
-        if k > n
-	  then ( etaSpine (S, n) ; k-n )
-	else raise Eta
-      | etaContract (I.Lam (D, U), n) =
-	  etaContract (U, n+1)
-      | etaContract _ = raise Eta
-
-    (* etaSpine (S, n) = ()
-       if S =eta*=> n ; n-1 ; ... ; 1 ; Nil
-       otherwise raise exception Eta
-
-       Invariant: G |- S : V1 >> V2 for some G, V1, V2
-                  S in NF
-    *)
-    and etaSpine (I.Nil, 0) = ()
-      | etaSpine (I.App (U, S), n) =
-        if etaContract (U, 0) = n
-	  then etaSpine (S, n-1)
-	else raise Eta
-      (* S[s] should be impossible *)
       
     (* isPattern (D, k, mS) = B
      
@@ -144,20 +113,14 @@ struct
 	 and for all k in mS: k is parameter
          and for all k', k'' in mS: k' <> k''
     *)
-    fun checkPattern (D, k, args, I.Nil) = ()
-      | checkPattern (D, k, args, I.App (U, S)) =
-        (let
-	   val k' = etaContract (U, 0)
-	 in
-	   if (k > k') andalso isUniversal (I.ctxLookup (D, k'))
-	     andalso unique (k', args) 
-	     then checkPattern (D, k, k'::args, S)
-	   else raise Eta
-	 end)
+    fun isPattern (D, k, I.Nil) = true
+      | isPattern (D, k, I.App (I.Root (I.BVar (k'), I.Nil), S)) =
+          (k > k') 
+	  andalso isUniversal (I.ctxLookup (D, k'))
+	  andalso isPattern (D, k, S)
+	  andalso unique (k', S) 
+      | isPattern _ = false
 
-    fun isPattern (D, k, S) =
-        (checkPattern (D, k, nil, S); true)
-	handle Eta => false
 
     (* ------------------------------------------- mode context update *)
 

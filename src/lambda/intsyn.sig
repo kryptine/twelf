@@ -9,6 +9,15 @@ sig
   type mid = int                        (* Structure identifier       *)
   type csid = int                       (* CS module identifier       *)
 
+
+ (* pskeleton instead of proof term *)
+  datatype flatterm = 
+    pc of int | dc of int | csolver
+
+  type pskeleton = flatterm list  
+
+  val pskeletonToString: pskeleton -> string
+
   (* Contexts *)
 
   datatype 'a Ctx =			(* Contexts                   *)
@@ -53,7 +62,6 @@ sig
 
   and Head =				(* Head:                      *)
     BVar  of int			(* H ::= k                    *)
-  | NVar  of int			(*     | n                -bp *)
   | Const of cid			(*     | c                    *)
   | Proj  of Block * int		(*     | #k(b)                *)
   | Skonst of cid			(*     | c#                   *)
@@ -74,7 +82,6 @@ sig
   and Front =				(* Fronts:                    *)
     Idx of int				(* Ft ::= k                   *)
   | Exp of Exp				(*     | U                    *)
-  | Axp of Exp				(*     | U                    *)
   | Block of Block			(*     | _x                   *)
   | Undef				(*     | _                    *)
 
@@ -151,8 +158,7 @@ sig
   val conDecImp    : ConDec -> int
   val conDecStatus : ConDec -> Status
   val conDecType   : ConDec -> Exp
-  val conDecBlock  : ConDec -> dctx * Dec list
-  val conDecUni    : ConDec -> Uni
+  val conDecBlock  : ConDec -> dctx * Dec list   
 
   val strDecName   : StrDec -> string
   val strDecParent : StrDec -> mid option

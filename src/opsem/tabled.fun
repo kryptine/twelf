@@ -21,7 +21,6 @@ functor Tabled (structure IntSyn' : INTSYN
 		    structure Queue : QUEUE
 		    structure TableIndex : TABLEINDEX
 		      sharing TableIndex.IntSyn = IntSyn'
-		      sharing TableIndex.CompSyn = CompSyn'
 		    structure AbstractTabled : ABSTRACTTABLED
 		      sharing AbstractTabled.IntSyn = IntSyn'
 		    structure Whnf : WHNF
@@ -61,7 +60,7 @@ struct
        hence do not have to be re-used again for this goal
      *)
 
-    val SuspGoals : ((((IntSyn.Exp * IntSyn.Sub) * CompSyn.DProg * (CompSyn.pskeleton -> unit)) * 
+    val SuspGoals : ((((IntSyn.Exp * IntSyn.Sub) * CompSyn.DProg * (IntSyn.pskeleton -> unit)) * 
 		      Unify.unifTrail * int ref)  list) ref  = ref []
 
 
@@ -183,6 +182,7 @@ bp Wed Feb 20 11:06:51 2002 *)
 	  val asw' = List.take(rev(TableIndex.solutions(answ)), 
 			       TableIndex.lookup(answ))
 	  val answ' = List.drop(asw', !k) 
+
 	in 
 	k := lkp;
         retrieve' (0, G, Vs, (G', D', U), answ', sc)
@@ -210,11 +210,9 @@ bp Wed Feb 20 11:06:51 2002 *)
               any effect  sc M  might have
   *)
   fun solve ((C.Atom(p), s), dp as C.DProg (G, dPool), sc) =     
-        ((* print ("\nSolve " ^ Print.expToString(G, I.EClo(p,s))); *)
 	(if TabledSyn.tabledLookup (I.targetFam p) then 
 	  let 
 	    val (G', D', U', s') = A.abstractEVarCtx (G, p, s)
-	      
 	    (* -- abstraction   
 	     return G', D', U', s' 
 	     where  D', G' |- U
@@ -233,12 +231,6 @@ bp Wed Feb 20 11:06:51 2002 *)
 		* 
 		* new subcomputation with own 
 		* success continutation is started 
-		*
-		* it would be more efficient, if tableLookup would
-                * return a pointer to where the goal has been inserted 
-                * in the table and where the answers need to inserted
-                * once it is done; then we would save another lookup
-                * during answerCheck Fri Apr 12 21:44:32 2002 -bp 
 		*)
 	       (matchAtom ((p,s), dp,   
  		       (fn pskeleton => 
@@ -249,8 +241,8 @@ bp Wed Feb 20 11:06:51 2002 *)
 			 * 
 			 *)
 			  case TableIndex.answerCheck (G', D', U', s', pskeleton)
-			    of TableIndex.Repeated => ()
-			     | TableIndex.New      => sc pskeleton
+			    of TableIndex.repeated => ()
+			     | TableIndex.new      => sc pskeleton
 		 )))
 	    
 	    
@@ -283,7 +275,7 @@ bp Wed Feb 20 11:06:51 2002 *)
 		end))
 	  end 
 	else 
-	  matchAtom ((p, s), dp, sc)))
+	  matchAtom ((p, s), dp, sc))
     
     | solve ((C.Impl(r, A, Ha, g), s), C.DProg (G, dPool), sc) =
       let
@@ -400,7 +392,7 @@ bp Wed Feb 20 11:06:51 2002 *)
 	      (* trail to undo EVar instantiations *)
 	      CSManager.trail (fn () =>
 			       (rSolve (ps', (r, I.id), dp,
-					(fn S => sc ((C.Pc c)::S)))));
+					(fn S => sc ((I.pc c)::S)))));
 	      matchSig sgn'
 	    end
 
@@ -417,7 +409,7 @@ bp Wed Feb 20 11:06:51 2002 *)
 	      then (* trail to undo EVar instantiations *)
 		(CSManager.trail (fn () =>
 		                      rSolve (ps', (r, I.comp(s, I.Shift(k))), dp,
-				              (fn S => sc ((C.Dc k)::S)))); 
+				              (fn S => sc ((I.dc k)::S)))); 
 		 matchDProg (dPool', k+1))
 	    else matchDProg (dPool', k+1)
 	  | matchDProg (I.Decl (dPool', NONE), k) =
@@ -430,7 +422,7 @@ bp Wed Feb 20 11:06:51 2002 *)
                   CSManager.trail
                     (fn () =>
                        case (solve (G, I.SClo (S, s), try))
-                         of SOME(U) => (sc [C.Csolver]; true)
+                         of SOME(U) => (sc [I.csolver]; true)
                           | NONE => false)
               in
                 if succeeded
@@ -545,25 +537,22 @@ bp Wed Feb 20 11:06:51 2002 *)
 
  fun reset () = (SuspGoals := []; TableIndex.reset())
 
- fun solveQuery ((g, s), dp as C.DProg (G, dPool), sc) =
+  fun solveQuery ((g as C.Atom(p), s), dp as C.DProg (G, dPool), sc) =
+    (* only work when query is atomic *)
      case (!TableIndex.strategy) of
        TableIndex.Variant =>  solve((g, s), dp, sc)
      |  TableIndex.Subsumption => 
-	 (case g 
-	   of C.Atom(p) => 
-	     if TabledSyn.tabledLookup (I.targetFam p) then 
-	       let 
-		 val (G', D', U', s') = A.abstractEVarCtx (G, p, s)
-		 fun scinit O = ()
-	       in 
-		 (TableIndex.query := SOME(G', D', U', s', sc); 
-		  solve((g, s), dp, scinit))
-	       end
-	     else 
-	       solve((g, s), dp, sc)
-	     | _ => (print "Warning: search using subsumption may be incomplete -- using variant checking instead.\n";
-	            TableIndex.strategy := TableIndex.Variant;
-		     solve((g, s), dp, sc)))
+	 if TabledSyn.tabledLookup (I.targetFam p) then 
+	   let 
+	     val (G', D', U', s') = A.abstractEVarCtx (G, p, s)
+	     fun scinit O = ()
+	   in 
+	     (TableIndex.query := SOME(G', D', U', s', sc); 
+	      solve((g, s), dp, scinit))
+	   end
+	 else 
+	   solve((g, s), dp, sc)	   
+    
 
   end (* local ... *)
 

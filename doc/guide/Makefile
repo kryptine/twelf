@@ -10,8 +10,7 @@ tex = tex
 dvips = dvips
 texi2html = /afs/cs/project/twelf/misc/texi2html/texi2html
 makeinfo = /afs/cs/project/twelf/misc/texinfo/bin/makeinfo
-# distill = distill
-pdftex = pdftex
+distill = distill
 texindex = /afs/cs/project/twelf/misc/texinfo/bin/texindex
 
 # ---------------------------------------------------------------
@@ -41,20 +40,12 @@ twelf_toc.html : twelf.texi;
 	$(texi2html) -menu -number -split_chapter twelf.texi;
 	$(texi2html) -check *.html;
 
-twelf.pdf : twelf.texi;
-	@echo "---------- Creating unindexed PDF: twelf.pdf"
-	$(pdftex) twelf.texi;
-	@echo "---------- Creating index twelf.cps"
-	$(texindex) twelf.cp;
-	@echo "---------- Creating indexed PDF: twelf.pdf"
-	$(pdftex) twelf.texi;
-
-# twelf.pdf : twelf.dvi;
-#	@echo "---------- Trying to create PDF: twelf.pdf"
-#	@case "`uname`" in Linux) \
-#	echo "---------- distill not available under Linux" ; exit 1 ; \
-#	;; esac;
-#	$(dvips) -P embed -f twelf.dvi | $(distill) > twelf.pdf;
+twelf.pdf : twelf.dvi;
+	@echo "---------- Trying to create PDF: twelf.pdf"
+	@case "`uname`" in Linux) \
+	echo "---------- distill not available under Linux" ; exit 1 ; \
+	;; esac;
+	$(dvips) -P embed -f twelf.dvi | $(distill) > twelf.pdf;
 
 install : ;
 	@echo "---------- Copying info file"
@@ -66,6 +57,7 @@ install : ;
 	@echo "---------- Copying ps.gz file"
 	gzip -c twelf.ps > twelf.ps.gz
 	@echo "---------- Copying pdf file"
+	@echo "---------- Is the PDF file really up-to-date?"
 	cp -p twelf.pdf ../pdf/
 	@echo "---------- Copying html files"
 	cp -p twelf_*.html ../html/
@@ -78,21 +70,10 @@ install-www : ;
 	gzip -c twelf.ps > twelf.ps.gz
 	cp -p twelf.ps.gz /afs/cs/project/twelf/www/guide/
 	@echo "---------- Copying pdf file"
+	@echo "---------- Is the PDF file really up-to-date?"
 	cp -p twelf.pdf /afs/cs/project/twelf/www/guide/
 	@echo "---------- Copying html files"
 	cp -p twelf_*.html /afs/cs/project/twelf/www/guide/
-	@echo "---------- Please edit ~twelf/www/index.html as necessary"
-
-install-www4 : ;
-	@echo "---------- Copying ps file"
-	cp -p twelf.ps /afs/cs/project/twelf/www/guide-1-4/
-	@echo "---------- Copying ps.gz file"
-	gzip -c twelf.ps > twelf.ps.gz
-	cp -p twelf.ps.gz /afs/cs/project/twelf/www/guide-1-4/
-	@echo "---------- Copying pdf file"
-	cp -p twelf.pdf /afs/cs/project/twelf/www/guide-1-4/
-	@echo "---------- Copying html files"
-	cp -p twelf_*.html /afs/cs/project/twelf/www/guide-1-4/
 	@echo "---------- Please edit ~twelf/www/index.html as necessary"
 
 clean : ;

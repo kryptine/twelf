@@ -6,17 +6,19 @@ functor Parser (structure Parsing' : PARSING
 		structure ExtSyn' : EXTSYN
 		  sharing ExtSyn'.Paths = Parsing'.Lexer.Paths
 		structure Names' : NAMES
-                structure ExtConDec' : EXTCONDEC
-                structure ExtQuery' : EXTQUERY
+                structure ExtDefine' : EXTDEFINE
 		structure ExtModes' : EXTMODES
 		structure ThmExtSyn' : THMEXTSYN
                 structure ModExtSyn' : MODEXTSYN
 		structure ParseConDec : PARSE_CONDEC
 		  sharing ParseConDec.Parsing.Lexer = Parsing'.Lexer
-		  sharing ParseConDec.ExtConDec = ExtConDec'
+		  sharing ParseConDec.ExtSyn = ExtSyn'
+                structure ParseDefine : PARSE_DEFINE
+                  sharing ParseDefine.Parsing.Lexer = Parsing'.Lexer
+                  sharing ParseDefine.ExtDefine = ExtDefine'
 		structure ParseQuery : PARSE_QUERY
 		  sharing ParseQuery.Parsing.Lexer = Parsing'.Lexer
-                  sharing ParseQuery.ExtQuery = ExtQuery'
+                  sharing ParseQuery.ExtSyn = ExtSyn'
 		structure ParseFixity : PARSE_FIXITY
 		  sharing ParseFixity.Parsing.Lexer = Parsing'.Lexer
 		  sharing ParseFixity.Names = Names' 
@@ -26,9 +28,9 @@ functor Parser (structure Parsing' : PARSING
 	        structure ParseThm : PARSE_THM
 		  sharing ParseThm.Parsing.Lexer = Parsing'.Lexer
 		  sharing ParseThm.ThmExtSyn = ThmExtSyn'
-                structure ParseModule : PARSE_MODULE
-                  sharing ParseModule.Parsing = Parsing'
-                  sharing ParseModule.ModExtSyn = ModExtSyn'
+                structure ParseModules : PARSE_MODULES
+                  sharing ParseModules.Parsing = Parsing'
+                  sharing ParseModules.ModExtSyn = ModExtSyn'
                 structure ParseTerm : PARSE_TERM 
                   sharing ParseTerm.Parsing.Lexer = Parsing'.Lexer
                   sharing ParseTerm.ExtSyn = ExtSyn')
@@ -39,31 +41,30 @@ struct
   structure Stream = Stream'
   structure ExtSyn = ExtSyn'
   structure Names = Names'
-  structure ExtConDec = ExtConDec'
-  structure ExtQuery = ExtQuery'
   structure ExtModes = ExtModes'
   structure ThmExtSyn = ThmExtSyn'
+  structure ExtDefine = ExtDefine'
   structure ModExtSyn = ModExtSyn'
 
   datatype fileParseResult =
-      ConDec of ExtConDec.condec
+      ConDec of ExtSyn.condec
     | FixDec of (Names.Qid * ExtSyn.Paths.region) * Names.Fixity.fixity
     | NamePref of (Names.Qid * ExtSyn.Paths.region) * (string * string option)
     | ModeDec of ExtModes.modedec list
     | CoversDec of ExtModes.modedec list
-    | TotalDec of ThmExtSyn.tdecl
+    | TotalDec of ThmExtSyn.tdecl	(* -fp *)
     | TerminatesDec of ThmExtSyn.tdecl
     | WorldDec of ThmExtSyn.wdecl
-    | ReducesDec of ThmExtSyn.rdecl   (* -bp *)
+    | ReducesDec of ThmExtSyn.rdecl  (* -bp *)
     | TabledDec of ThmExtSyn.tableddecl 
-    | TheoremDec of ThmExtSyn.theoremdec
+    | TheoremDec of ThmExtSyn.theoremdec 
     | ProveDec of ThmExtSyn.prove
     | EstablishDec of ThmExtSyn.establish
     | AssertDec of ThmExtSyn.assert
-    | Query of int option * int option * ExtQuery.query (* expected, try, A *)
-    | Querytabled of int option * int option * ExtQuery.query        (* numSol, try, A *)
-    | Solve of ExtQuery.define list * ExtQuery.solve
-    | AbbrevDec of ExtConDec.condec
+    | Query of int option * int option * ExtSyn.query (* expected, try, A *)
+    | Querytabled of int option * ExtSyn.query        (* expected, try, A *)
+    | Solve of (ExtDefine.define list * string option * ExtSyn.term)
+    | AbbrevDec of ExtSyn.condec
     | FreezeDec of Names.Qid list
     | DeterministicDec of Names.Qid list  (* -rv *)
     | SigDef of ModExtSyn.sigdef
@@ -107,6 +108,18 @@ struct
 	  Parsing.error (r, "Expected bound `*' or natural number, found "
 			    ^ L.toString t)
 
+    fun parseID' (LS.Cons ((L.ID (_, name), r), s')) = (name, s')
+      | parseID' (LS.Cons ((t,r), s')) =
+          Parsing.error (r, "Expected identifier, found " ^ L.toString t)
+
+    fun parseColon (LS.Cons ((L.COLON, r), s')) = s'
+      | parseColon (LS.Cons ((t,r), s')) =
+          Parsing.error (r, "Expected `:', found " ^ L.toString t)
+
+    fun parseEqual (LS.Cons ((L.EQUAL, r), s')) = s'
+      | parseEqual (LS.Cons ((t,r), s')) =
+          Parsing.error (r, "Expected `=', found " ^ L.toString t)
+
     (* pass parseStream as theSigParser in order to be able to use
        this function polymorphically in the definition of parseStream *)
     fun recParse (s, recparser, theSigParser, sc) =
@@ -145,9 +158,9 @@ struct
 	  Stream.Cons ((NamePref namePref, r), parseStream (stripDot f', sc))
 	end
       | parseStream' (f as LS.Cons((L.DEFINE, r), s'), sc) =
-          parseSolve' (f, sc)
+          parseSolve' nil (f, sc)
       | parseStream' (f as LS.Cons((L.SOLVE, r), s'), sc) =
-          parseSolve' (f, sc)
+          parseSolve' nil (f, sc)
       | parseStream' (LS.Cons((L.QUERY, r0), s'), sc) =
         let
 	  val (expected, s1) = parseBound' (LS.expose s')
@@ -159,12 +172,11 @@ struct
         end
       | parseStream' (LS.Cons((L.QUERYTABLED, r0), s'), sc) =
         let
-	  val (numSol, s1) = parseBound' (LS.expose s')
-	  val (try, s2) = parseBound' (LS.expose s1)
+	  val (try, s2) = parseBound' (LS.expose s')
           val (query, f3 as LS.Cons((_,r'),_)) = ParseQuery.parseQuery' (LS.expose s2)
 	  val r = ExtSyn.Paths.join (r0, r')
         in 
-          Stream.Cons ((Querytabled (numSol, try, query), r), parseStream (stripDot f3, sc))
+          Stream.Cons ((Querytabled (try, query), r), parseStream (stripDot f3, sc))
         end 
       | parseStream' (f as LS.Cons ((L.MODE, r), s'), sc) = parseMode' (f, sc)
       | parseStream' (f as LS.Cons ((L.COVERS, r), s'), sc) = parseCovers' (f, sc)
@@ -216,13 +228,28 @@ struct
 	  Stream.Cons ((FixDec fdec, r), parseStream (stripDot f', sc))
 	end
 
-    and parseSolve' (f as LS.Cons ((_, r0), _), sc) =
+    and parseSolve' defns (f as LS.Cons ((L.SOLVE, r0), s'), sc) =
+	let
+          fun parseName (LS.Cons ((L.UNDERSCORE, r0), s')) = (NONE, s')
+            | parseName s =
+                let val (name, s1) = parseID' s in (SOME(name), s1) end
+	  val (nameOpt, s1) = parseName (LS.expose s')
+	  val s2 = parseColon (LS.expose s1)
+	  val (solve, f3 as LS.Cons((_,r'),_)) =
+	  	ParseTerm.parseTerm' (LS.expose s2)
+	  val r = ExtSyn.Paths.join (r0, r')
+	in
+	  Stream.Cons ((Solve (List.rev defns, nameOpt, solve), r),
+                       parseStream (stripDot f3, sc))
+	end
+      | parseSolve' defns (f as LS.Cons((L.DEFINE, r0), s'), sc) =
         let
-          val (defnssolve, f' as LS.Cons ((_,r'),_)) = ParseQuery.parseSolve' (f)
-          val r = ExtSyn.Paths.join (r0, r')
+          val (defn, f') = ParseDefine.parseDefine' f
         in
-          Stream.Cons ((Solve defnssolve, r), parseStream (stripDot f', sc))
+          parseSolve' (defn :: defns) (f', sc)
         end
+      | parseSolve' defns (LS.Cons((t, r), s), sc) =
+          Parsing.error(r, "Expected %define or %solve, found " ^ L.toString t)
 
     and parseMode' (f as LS.Cons ((_, r0), _), sc) =
         let
@@ -336,7 +363,7 @@ struct
                 Stream.Cons ((SigDef sigdef, ExtSyn.Paths.join (r1, r2)),
                              parseStream (stripDot f', sc))
         in
-          recParse' (f, ParseModule.parseSigDef', parseStream, finish)
+          recParse' (f, ParseModules.parseSigDef', parseStream, finish)
         end
 
     and parseStructDec' (f as LS.Cons ((_, r1), _), sc) =
@@ -345,7 +372,7 @@ struct
                 Stream.Cons ((StructDec structdec, ExtSyn.Paths.join (r1, r2)),
                              parseStream (stripDot f', sc))
         in
-          recParse' (f, ParseModule.parseStructDec', parseStream, finish)
+          recParse' (f, ParseModules.parseStructDec', parseStream, finish)
         end
 
     and parseInclude' (f as LS.Cons ((_, r1), _), sc) =
@@ -354,13 +381,13 @@ struct
                 Stream.Cons ((Include sigexp, ExtSyn.Paths.join (r1, r2)),
                              parseStream (stripDot f', sc))
         in
-          recParse' (f, ParseModule.parseInclude', parseStream, finish)
+          recParse' (f, ParseModules.parseInclude', parseStream, finish)
         end
 
     and parseOpen' (f as LS.Cons ((_, r1), _), sc) =
         let
           val (strexp, f' as LS.Cons ((_, r2), _)) =
-                ParseModule.parseOpen' (f)
+                ParseModules.parseOpen' (f)
         in
           Stream.Cons ((Open strexp, ExtSyn.Paths.join (r1, r2)),
                        parseStream (stripDot f', sc))
