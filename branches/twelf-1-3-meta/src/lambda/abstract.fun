@@ -728,9 +728,6 @@ struct
        collect and abstract in subsitutions  including residual lemmas       
        pending approval of Frank.
     *)
-	  
-
-
     fun collectTomegaSub (T.Shift 0) = I.Null
       | collectTomegaSub (T.Dot (T.Exp U, t)) =
           collectExp (I.Null, (U, I.id), collectTomegaSub t)
@@ -769,6 +766,23 @@ struct
 	  (t', K') (* (T.Dot (T.Prg P', t'), K') *)
 	end *)
       
+    (* just added to abstract over residual lemmas  -cs *)
+    (* Tomorrow: Make collection in program values a priority *)
+    (* Then just traverse the Tomega by abstraction to get to the types of those 
+       variables. *)
+
+    fun abstractMetaDec (K, depth, T.UDec D) = T.UDec (abstractDec (K, depth, (D, I.id)))
+      | abstractMetaDec (K, depth, T.PDec (xx, F)) = T.PDec (xx, abstractFor (K, depth, F))
+
+    (* Argument must be in normal form *)
+    and abstractFor (K, depth, T.True) = T.True
+      | abstractFor (K, depth, T.All (MD, F)) = 
+          T.All (abstractMetaDec (K, depth, MD), abstractFor (K, depth, F))
+      | abstractFor (K, depth, T.Ex (D, F)) = 
+	  T.Ex (abstractDec (K, depth, (D, I.id)), abstractFor (K, depth, F))
+      | abstractFor (K, depth, T.And (F1, F2)) = 
+	  T.And (abstractFor (K, depth, F1), abstractFor (K, depth, F2))
+
 				
   in
     val raiseType = raiseType

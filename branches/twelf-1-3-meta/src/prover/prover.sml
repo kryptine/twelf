@@ -22,7 +22,8 @@ structure Introduce = Introduce
 structure FixedPoint = FixedPoint 
   (structure IntSyn' = IntSyn
    structure Tomega' = Tomega
-   structure State' = State)
+   structure State' = State
+   structure Normalize = Normalize)
 
 structure Split = Split
   (structure Global = Global
