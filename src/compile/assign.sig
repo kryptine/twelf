@@ -20,5 +20,6 @@ sig
  
   (* unifiable solves statically residuated equations *)
   val unifiable : IntSyn.dctx * IntSyn.eclo * IntSyn.eclo -> bool 
-
+    
+  val firstConstArg : IntSyn.Exp * IntSyn.Sub -> IntSyn.cid option
 end; (* signature ASSIGN *)

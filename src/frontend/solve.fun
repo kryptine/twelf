@@ -347,7 +347,8 @@ and raises exception Done if bound has been reached, otherwise it returns
 			else ();
 		   (case optName
 		      of NONE => ()
-		    | SOME(name) => (Timers.time Timers.ptrecon PtRecon.solve) 
+		    | SOME(name) => (print (CompSyn.pskeletonToString O); print "\n";
+				     Timers.time Timers.ptrecon PtRecon.solve) 
 				      (O, (g,IntSyn.id), CompSyn.DProg (IntSyn.Null, IntSyn.Null), 
 				       (fn (O, M) => 
 					if !Global.chatter >= 3
@@ -362,11 +363,11 @@ and raises exception Done if bound has been reached, otherwise it returns
 			     print ("Remaining constraints:\n"
 				    ^ str ^ "\n")
 		       else ());
-
+                   print "More solutions?\n";
 		   case numSol of 
 		     NONE => ()
 		   | SOME n => (if (!solutions = n) then 
-				  raise Done
+				  (print "Found enough solutions\n"; raise Done)
 				else 
 				  ())
 		       )
@@ -404,7 +405,7 @@ and raises exception Done if bound has been reached, otherwise it returns
 			(* solve query if bound > 0 *)
 			(Timers.time Timers.solving Tabled.solve)  
 			((g,IntSyn.id), CompSyn.DProg (IntSyn.Null, IntSyn.Null), 
-			  scInit) handle Done => (); (* printing is timed into solving! *) 
+			  scInit);(* handle Done => (); (* ?? printing is timed into solving! *) *)
 
 			CSManager.reset (); 	(* in case Done was raised *)
 			(* next stage until table doesn't change *)

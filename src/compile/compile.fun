@@ -40,9 +40,17 @@ struct
   in
     
     datatype Duplicates = BVAR of int | FGN | DEF of int
-    
-    datatype opt = datatype C.opt
-    val optimize = C.optimize
+
+   datatype Opt = datatype CompSyn.Opt
+   val optimize  = CompSyn.optimize
+
+(*
+  datatype Opt = No | LinearHeads | HeadAccess | Indexing | FirstArg
+
+  (* default *) 
+  val optimize = ref LinearHeads  
+  (*  val optimize = ref indexing  *)
+*)
 
     fun cidFromHead (I.Const c) = c
       | cidFromHead (I.Def c) = c
@@ -409,7 +417,7 @@ struct
   *)
 
    and compileDynamicClauseN fromCS opt (G, R as I.Root (h, S)) =      
-      if opt  andalso (!optimize = C.linearHeads) then
+      if opt  andalso (!optimize = C.LinearHeads) then
 	compileLinearHead (G, R) 
       else    
         if not fromCS andalso isConstraint (h)
@@ -507,6 +515,13 @@ struct
 	C.DProg (G, compileCtx' (G))
       end
 
+
+  fun lengthSpine I.Nil = 0
+    | lengthSpine (I.App(U, S)) = 1 + lengthSpine(S)
+
+
+(*    | fistConst (i, A) = raise Error "" 	*)
+
   (* compileConDec (a, condec) = ()
      Effect: install compiled form of condec in program table.
              No effect if condec has no operational meaning
@@ -515,17 +530,17 @@ struct
   (* Mon Apr  8 22:43:32 2002 -bp *)
   (* where is the cid corresponding to clause name ? *)
     (* is A really normalized? *)
+(*  fun cidFromArg (C.NoFunc c) = c
+    | cidFromArg (C.FuncArg c) = c
+*)
   fun compileConDec fromCS (a, I.ConDec(_, _, _, _, A, I.Type)) =
       (case (!C.optimize) 
-	 of C.no => C.sProgInstall (a, C.SClause (compileDynamicClause false (I.Null, A)))
-       | C.linearHeads => C.sProgInstall (a, C.SClause(compileDynamicClause true (I.Null, A)))
-       | C.indexing => 
+	 of C.No => C.sProgInstall (a, C.SClause (compileDynamicClause false (I.Null, A)))
+       | C.LinearHeads => C.sProgInstall (a, C.SClause(compileDynamicClause true (I.Null, A)))
+       | C.Indexing => 
 	   let
 	     val ((G, Head), R) = compileStaticClauseN fromCS (I.Null, I.Null, Whnf.normalize (A, I.id)) 
 	     val _ = C.sProgInstall (a, C.SClause(compileDynamicClause true (I.Null, A)))
-(*	     val _ = case Head 
-	       of SOME(H, AuxG) => print ("Head " ^  Print.expToString (G, H) ^ "\n")
-		 | _ => () *)
 	   in 
 	     case Head 
 	       of NONE => raise Error "Install via normal index"
@@ -535,9 +550,10 @@ struct
 
     | compileConDec fromCS (a, I.SkoDec(_, _, _, A, I.Type)) =
       (case (!C.optimize) 
-	 of C.no => C.sProgInstall (a, C.SClause (compileDynamicClauseN fromCS true (I.Null, Whnf.normalize (A, I.id))))
-       | C.linearHeads => C.sProgInstall (a, C.SClause (compileDynamicClauseN fromCS true (I.Null, Whnf.normalize (A, I.id))))
-       | C.indexing => 
+	 of C.No => C.sProgInstall (a, C.SClause (compileDynamicClauseN fromCS true (I.Null, Whnf.normalize (A, I.id))))
+       | C.LinearHeads => C.sProgInstall (a, C.SClause (compileDynamicClauseN fromCS true (I.Null, Whnf.normalize (A, I.id))))
+
+       | C.Indexing => 
 	   let
 	     val ((G, Head), R) = compileStaticClauseN fromCS (I.Null, I.Null, Whnf.normalize (A, I.id)) 
 	     (* install twice: in substitution tree index for logic programming and searhc
@@ -563,9 +579,14 @@ struct
     end*)
    
 
-  val sProgReset = SubTree.sProgReset
+  fun sProgReset () = (SubTree.sProgReset(); C.sProgReset())
+
+
+(*   in *)
+      
 
   end  (* local open ... *)
 
 end; (* functor Compile *)
 
+ 

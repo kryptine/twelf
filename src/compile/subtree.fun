@@ -792,8 +792,7 @@ struct
  fun matchSig (a, G, ps as (I.Root(Ha,S),s), sc) = 
      let
        val (n, Tree) = Array.sub (indexArray, a)
-     in       
-       
+     in              
        (* retrieval (n, !Tree, G, I.EClo(ps), sc)   *)
        retrieveCandidates (n, !Tree, G, I.EClo(ps), sc)   
      end 

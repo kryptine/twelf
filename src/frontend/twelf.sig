@@ -60,8 +60,8 @@ sig
 
   structure Compile :
   sig
-    datatype opt = no | linearHeads | indexing
-    val optimize : opt ref
+    datatype Opt = No | LinearHeads | HeadAccess | Indexing | FirstArg
+    val optimize : Opt ref
   end
 
   structure Recon :

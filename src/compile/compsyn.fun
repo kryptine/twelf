@@ -15,12 +15,10 @@ struct
 
   structure IntSyn = IntSyn'
 
-  datatype opt = no | linearHeads | indexing
 
+  datatype Opt = No | LinearHeads | HeadAccess | Indexing | FirstArg
 
-  (* default *) 
-  val optimize = ref linearHeads  
-(*  val optimize = ref indexing  *)
+  val optimize = ref LinearHeads
 
   datatype Goal =                       (* Goals                      *)
     Atom of IntSyn.Exp                  (* g ::= p                    *)
@@ -119,30 +117,37 @@ struct
 
   datatype DProg = DProg of IntSyn.dctx * (ResGoal * IntSyn.Sub * IntSyn.Head) option IntSyn.Ctx
 
-  (* Static programs --- compiled version of the signature *)
-  datatype ConDec =			(* Compiled constant declaration *)
-    SClause of ResGoal	                (* c : A                      *)
-  | Void 		                (* Other declarations are ignored  *)
+  (* Static programs --- compiled version of the signature (no indexing) *)
+  datatype ConDec =			   (* Compiled constant declaration           *)
+       SClause of ResGoal                  (* c : A  -- static clause (residual goal) *)
+    | Void 		                   (* Other declarations are ignored          *)
 
+  (* Static programs --- compiled version of the signature (indexed by first argument) *)
+  datatype ConDecDirect =		   (* Compiled constant declaration     *)
+      HeadGoals of CompHead * Conjunction  (* static clause with direct head access   *)
+    | Null     		                   (* Other declarations are ignored          *)
 
   local
     val maxCid = Global.maxCid
+    (* program array indexed by clause names (no direct head access) *)
     val sProgArray = Array.array (maxCid+1, Void) : ConDec Array.array
+
     val detTable : bool Table.Table = Table.new (32)
   in
     (* Invariants *)
     (* 0 <= cid < I.sgnSize () *)
-
+    (* program array indexed by clause names (no direct head access) *)
     fun sProgInstall (cid, conDec) = Array.update (sProgArray, cid, conDec)
+
     fun sProgLookup (cid) = Array.sub (sProgArray, cid)
     fun sProgReset () = Array.modify (fn _ => Void) sProgArray
+
     val detTableInsert = Table.insert detTable;
     fun detTableCheck (cid) = (case (Table.lookup detTable cid)
                                  of SOME(deterministic) => deterministic
                                   | NONE => false)
     fun detTableReset () = Table.clear detTable;
-  end
-
+  end 
   (* goalSub (g, s) = g'
 
      Invariants:

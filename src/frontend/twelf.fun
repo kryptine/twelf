@@ -1202,12 +1202,12 @@ struct
 
     structure Compile :
     sig
-      datatype opt = datatype CompSyn.opt
-      val optimize : opt ref
+      datatype Opt = datatype CompSyn.Opt
+      val optimize : Opt ref
     end
     =
     struct
-      datatype opt = datatype CompSyn.opt      
+      datatype Opt = datatype CompSyn.Opt      
       val optimize = CompSyn.optimize
     end
 
