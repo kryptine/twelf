@@ -235,10 +235,10 @@ struct
       | whnfRoot ((Proj (B as Bidx _, i), S), s) = 
 	 (Root (Proj (blockSub (B, s), i), SClo (S, s)), id)
         (* rewritten this piece of code -cs !!! *)
-      | whnfRoot ((Proj (LVar (ref (SOME L), l, t), i), S), s) =
+      | whnfRoot ((Proj (LVar (ref (SOME L), (l, t)), i), S), s) =
 	 whnfRoot ((Proj (L, i), S), s) 
-      | whnfRoot ((Proj (LVar (r, l, t), i), S), s) = (* r = ref NONE *)
-	 (Root (Proj (LVar (r, l, comp (t, s)), i), SClo (S, s)), id)
+      | whnfRoot ((Proj (LVar (r, (l, t)), i), S), s) = (* r = ref NONE *)
+	 (Root (Proj (LVar (r, (l, comp (t, s))), i), SClo (S, s)), id)
       (* Undef and Exp should be impossible by definition of substitution -cs *)
       | whnfRoot ((FVar (name, V, s'), S), s) =
 	 (Root (FVar (name, V, comp (s', s)), SClo (S, s)), id)

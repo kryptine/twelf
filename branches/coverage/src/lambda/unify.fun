@@ -310,8 +310,8 @@ struct
       | pruneHead (G, H as Const _, ss, rOccur, prunable) = H
       | pruneHead (G, H as Proj (Bidx k, i), ss, rOccur, pruneable) = H 
          (* added this case Nov 26 11:28:36 EST 2001 -cs !!! *)
-      | pruneHead (G, Proj (LVar (r, l, s), i), ss, rOccur, prunable) = 
-	   Proj (LVar (r, l, pruneSub (G, s, ss, rOccur, prunable)), i)
+      | pruneHead (G, Proj (LVar (r, (l, s)), i), ss, rOccur, prunable) = 
+	   Proj (LVar (r, (l, pruneSub (G, s, ss, rOccur, prunable))), i)
       | pruneHead (G, H as Skonst _, ss, rOccur, prunable) = H
       | pruneHead (G, H as Def _, ss, rOccur, prunable) = H
       | pruneHead (G, FVar (x, V, s'), ss, rOccur, prunable) =
@@ -666,7 +666,7 @@ struct
 	   | _ => false *)   (* not possible because of invariant? -cs *)
 	  unifySub (G, s1, s2))
 
-    and unifyBlock (G, (LVar (r1, l1, t1), s1), (L as LVar (r2, l2, t2), s2)) = 
+    and unifyBlock (G, (LVar (r1, (l1, t1)), s1), (L as LVar (r2, (l2, t2)), s2)) = 
         if l1 <> l2 then
   	  raise Unify "Label clash"
         else

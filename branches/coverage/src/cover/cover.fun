@@ -404,7 +404,7 @@ struct
 	in
 	  matchCtx' (G, s'', G'', V, k+1, ms, addKs (cands, klist))
 	end
-      | matchCtx (G, s', I.Decl(G'', I.BDec(cid, s)), V, k, ms, klist) =
+      | matchCtx (G, s', I.Decl(G'', I.BDec(_, (cid, s))), V, k, ms, klist) =
         let
 	  val (Gsome, piDecs) = I.constBlock cid	
 	  val s'' = I.comp (I.shift, s')
@@ -496,7 +496,7 @@ struct
 	in
 	  instEVars ((V2, I.Dot (I.Exp (X1), s)), SOME(X1)::XsRev)
 	end
-      | instEVarsW ((I.Pi ((I.BDec (l, t), _), V2), s), XsRev) =
+      | instEVarsW ((I.Pi ((I.BDec (_, (l, t)), _), V2), s), XsRev) =
 	let
 	  val L1 = I.newLVar (l, I.comp(t, s))
 	in
