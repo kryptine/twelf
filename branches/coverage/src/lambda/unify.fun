@@ -17,6 +17,7 @@ struct
 
     datatype Action =
       Instantiate of Exp option ref
+    | InstantiateBlock of Block option ref
     | Add of cnstr list ref
     | Solve of cnstr * Cnstr
 
@@ -25,6 +26,7 @@ struct
 
     datatype FAction = 
       BindExp of Exp option ref * Exp option
+    | BindBlock of Block option ref * Block option
     | BindAdd of cnstr list ref * CAction list
     | FSolve of Cnstr ref * Cnstr * Cnstr (* ? *)
 
@@ -39,6 +41,8 @@ struct
 
     fun copy (Instantiate refU) = 
           (BindExp (refU , !refU))
+      | copy (InstantiateBlock refB) = 
+          (BindBlock (refB , !refB))
       | copy (Add (cnstrs as ref Cnstrs)) = 
           (BindAdd (cnstrs , copyCnstr(!cnstrs)))
       | copy (Solve (cnstr, Cnstr)) =  
@@ -54,6 +58,9 @@ struct
     fun reset (BindExp (refU, U)) =
           (refU := U;
 	   Instantiate refU)
+      | reset (BindBlock (refB, B)) =
+          (refB := B;
+	   InstantiateBlock refB)
       | reset (BindAdd (cnstrs , CActions)) =
 	  (cnstrs := resetCnstr CActions;
 	   Add cnstrs)
@@ -164,6 +171,13 @@ struct
               refU := SOME(V);
               Trail.log (globalTrail, Instantiate (refU));
               awakenCnstrs := cnstrL @ !awakenCnstrs
+            )
+
+      (* Instantiating LVars  *)
+      fun instantiateLVar (refB, B) =
+            (
+              refB := SOME(B);
+              Trail.log (globalTrail, InstantiateBlock (refB))
             )
 
       fun postponeUnify (G, U1, U2) =
@@ -653,7 +667,7 @@ struct
         else
 	  (unifySub (G, comp (t1, s1), comp (t2, s2));
 	   unifySub (G, t1, t2);
-	   r1 := SOME L)
+	   instantiateLVar (r1, L))
 
 
     fun unify1W (G, Us1, Us2) =

@@ -55,6 +55,7 @@ struct
       | collectConstraints (I.Decl (G, EV (I.EVar (_, _, _, ref nil)))) = collectConstraints G
       | collectConstraints (I.Decl (G, EV (I.EVar (_, _, _, ref cnstrL)))) =
         (C.simplify cnstrL) @ collectConstraints G
+      | collectConstraints (I.Decl (G, LV _)) = collectConstraints G
 
     (* checkConstraints (K) = ()
        Effect: raises Constraints.Error(C) if K contains unresolved constraints
@@ -202,6 +203,8 @@ struct
       | collectExpW (G, (I.Root (I.Proj (L as I.LVar (r, l, t), i), S), s), K) =
 	if exists (eqLVar L) K
           then collectSpine (G, (S, s), K)
+	    (* why not: collectSpine (G, (S, s), collectSub (I.Null, t, K)) *)
+	    (* Fri Nov 23 11:40:11 2001 -fp !!! *)
 	else 
 	  collectSpine (G, (S, s), I.Decl (collectSub (I.Null, t, K), LV L))
       | collectExpW (G, (I.Root (_ , S), s), K) =
@@ -261,6 +264,10 @@ struct
       | collectSub (G, I.Dot (I.Idx _, s), K) = collectSub (G, s, K)
       | collectSub (G, I.Dot (I.Exp (U), s), K) =
 	  collectSub (G, s, collectExp (G, (U, I.id), K))
+      (* missing case Fri Nov 23 11:39:07 2001 -fp !!! *)
+      (*
+      | collectSub (G, I.Dot (I.Block _, s), K)
+      *)
 
     (* collectCtx (G0, G, K) = (G0', K')
        Invariant:
