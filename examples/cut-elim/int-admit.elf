@@ -142,7 +142,7 @@ car_falsel : ca A D ([h:hyp A] falsel H) (falsel H).
 
 % Next clause is redundant, but needed to get the coverage checker
 % to split H in the goal ?- ca A D ([h:hyp A] falsel (H h)) _.
-car_falsel' : ca false D ([h:hyp false] falsel h) D.
+% car_falsel' : ca false D ([h:hyp false] falsel h) D.
 
 car_forallr : ca A D ([h:hyp A] forallr (E1 h)) (forallr E1')
 	       <- ({a:i} ca A D ([h:hyp A] E1 h a) (E1' a)).

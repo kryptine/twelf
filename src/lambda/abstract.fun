@@ -268,6 +268,11 @@ struct
 	  collectSub (G, s, collectExp (G, (U, I.id), K))
       | collectSub (G, I.Dot (I.Block B, s), K) =
 	  collectSub (G, s, collectBlock (B, K))
+    (* next case should be impossible *)
+    (*
+      | collectSub (G, I.Dot (I.Undef, s), K) =
+          collectSub (G, s, K)
+    *)
 
     (* collectBlock (B, K) where . |- B block *)
     and collectBlock (I.LVar (ref (SOME B), _), K) =
