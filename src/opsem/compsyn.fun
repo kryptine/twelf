@@ -31,9 +31,8 @@ struct
   | Exists' of IntSyn.Dec * ResGoal	(*     | exists x:A. r        *)
 
   and AuxGoal =
-    Trivial				(* trivially done *)
-  | Unify of IntSyn.dctx * IntSyn.Exp   (* call unify *)
-             * IntSyn.Exp * AuxGoal
+    Trivial				(* *)
+  | Unify of IntSyn.Eqn * AuxGoal	(* call unify of IntSyn.eqn *)
 
   (* Representation invariants for compiled syntax:
      Judgments:

@@ -32,8 +32,7 @@ structure TpRecon =
 	   structure Strict = Strict
 	   structure Print = Print
 	   structure Timers = Timers
-           structure Vars = FVars
-           structure CSManager = CSManager);
+           structure Vars = FVars);
 
 structure TpTrace =
   TpTrace (structure Global = Global
@@ -47,8 +46,7 @@ structure TpTrace =
 	   structure Strict = Strict
 	   structure Print = Print
 	   structure Timers = Timers
-           structure Vars = FVars
-           structure CSManager = CSManager);
+           structure Vars = FVars);
 
 structure TpReconQ =
   TpRecon (structure Global = Global
@@ -62,8 +60,7 @@ structure TpReconQ =
 	   structure Strict = Strict
 	   structure Print = Print
 	   structure Timers = Timers
-           structure Vars = EVars
-           structure CSManager = CSManager);
+           structure Vars = EVars);
 
 structure TpTraceQ =
   TpTrace (structure Global = Global
@@ -77,8 +74,7 @@ structure TpTraceQ =
 	   structure Strict = Strict
 	   structure Print = Print
 	   structure Timers = Timers
-           structure Vars = EVars
-           structure CSManager = CSManager);
+           structure Vars = EVars);
 
 structure ModeRecon =
   ModeRecon (structure Global = Global
@@ -161,10 +157,10 @@ structure Solve =
 	 structure Timers = Timers
 	 structure CompSyn = CompSyn
 	 structure Compile = Compile
+	 structure Trail = Trail
 	 structure AbsMachine = TMachine
 	 structure Strict = Strict
-	 structure Print = Print
-         structure CSManager = CSManager);
+	 structure Print = Print);
 
 structure Twelf =
   Twelf (structure Global = Global
@@ -199,6 +195,7 @@ structure Twelf =
 	 structure Subordinate = Subordinate
 	 structure CompSyn' = CompSyn
 	 structure Compile = Compile
+	 structure Trail = Trail
 	 structure AbsMachine = TMachine
 	 structure Solve = Solve
 
@@ -215,6 +212,4 @@ structure Twelf =
          structure Trace = Trace
 
 	 structure PrintTeX = PrintTeX
-	 structure ClausePrintTeX = ClausePrintTeX
-
-         structure CSManager = CSManager);
+	 structure ClausePrintTeX = ClausePrintTeX);

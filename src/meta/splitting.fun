@@ -33,9 +33,7 @@ functor MTPSplitting (structure MTPGlobal : MTPGLOBAL
 		      structure Print : PRINT
 		        sharing Print.IntSyn = IntSyn
 		      structure Unify : UNIFY
-		        sharing Unify.IntSyn = IntSyn
-                      structure CSManager : CS_MANAGER
-                        sharing CSManager.IntSyn = IntSyn) 
+		        sharing Unify.IntSyn = IntSyn) 
   : MTPSPLITTING =
 struct
   structure StateSyn = StateSyn'
@@ -274,7 +272,7 @@ struct
 	  val (U, Vs') = createAtomConst (G, I.Const c)
 	in
 	  constCases (G, Vs, Sgn, abstract,
-		      CSManager.trail (fn () => 
+		      Trail.trail (fn () => 
 				   (if Unify.unifiable (G, Vs, Vs')
 				      then Active (abstract U)
 					   :: ops
@@ -298,7 +296,7 @@ struct
 	  val (U, Vs') = createAtomBVar (G, k)
 	in
 	  paramCases (G, Vs, k-1, abstract, 
-		      CSManager.trail (fn () =>
+		      Trail.trail (fn () =>
 				   (if Unify.unifiable (G, Vs, Vs')
 				      then Active (abstract U) :: ops
 				    else ops)
@@ -324,7 +322,7 @@ struct
 		        let 
  			  val (U, Vs') = createAtomBVar (G, n)
 			in
-			  CSManager.trail (fn () =>
+			  Trail.trail (fn () =>
 				       (if Unify.unifiable (G, Vs, Vs')
 					  then (Active (abstract U) :: ops) (* abstract state *)
 					else ops)
@@ -483,7 +481,7 @@ struct
 	end
       
 
-    (* occursInExp (k, U) = B, 
+    (* occursIn (k, U) = B, 
 
        Invariant:
        If    U in nf 
@@ -493,7 +491,6 @@ struct
       | occursInExp (k, I.Pi (DP, V)) = occursInDecP (k, DP) orelse occursInExp (k+1, V)
       | occursInExp (k, I.Root (C, S)) = occursInCon (k, C) orelse occursInSpine (k, S)
       | occursInExp (k, I.Lam (D,V)) = occursInDec (k, D) orelse occursInExp (k+1, V)
-      | occursInExp (k, I.FgnExp (cs, ops)) = occursInExp (k, Whnf.normalize (#toInternal(ops) (), I.id))
       (* no case for Redex, EVar, EClo *)
 
     and occursInCon (k, I.BVar (k')) = (k = k')

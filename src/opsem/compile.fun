@@ -1,6 +1,8 @@
 (* Compiler *)
 (* Author: Iliano Cervesato *)
-(* Modified: Jeff Polakow, Carsten Schuermann, Larry Greenfield, Roberto Virga *)
+(* Modified: Jeff Polakow *)
+(* Modified: Carsten Schuermann *)
+(* Modified: Larry Greenfield *)
 
 functor Compile (structure IntSyn' : INTSYN
 		 structure CompSyn' : COMPSYN
@@ -17,8 +19,6 @@ struct
   structure IntSyn = IntSyn'
   structure CompSyn = CompSyn'
 
-  exception Error of string
-
   local
     structure I = IntSyn
     structure C = CompSyn
@@ -26,25 +26,7 @@ struct
 
     val optimize = ref false
 
-    (* isConstraint(H) = B
-       where B iff H is a constant with constraint status
-    *)
-    fun isConstraint (I.Const (c)) =
-          (case I.constStatus (c)
-             of (I.Constraint _) => true
-              | _ => false)
-      | isConstraint H = false
-
-    (* head (A) = H, the head of V
-
-       Invariants:
-       G |- A : type, A enf
-       A = H @ S
-    *)
-    fun head (I.Root(h, _)) = h
-      | head (I.Pi (_, A)) = head(A)
-
-  (* compileGoalN  fromCS A => g
+  (* compileGoalN A => g
      if A is a type interpreted as a subgoal in a clause and g is its
      compiled form.  No optimization is performed.
 
@@ -53,28 +35,22 @@ struct
         A has no existential type variables
      then G |- A ~> g  (A compiles to goal g)
      and  G |- g  goal
-
-     Note: we don't accept objects that may introduce assumptions of
-     constraint types, unless fromCS = true (the object come from a
-     Constraint Solver module.
   *)
-  fun compileGoalN fromCS (G, R as I.Root _) =
+  fun compileGoalN (G, R as I.Root _) =
       (* A = H @ S *)
         C.Atom (R)
-    | compileGoalN fromCS (G, I.Pi((I.Dec(_,A1), I.No), A2)) =
+    | compileGoalN (G, I.Pi((I.Dec(_,A1), I.No), A2)) =
       (* A = A1 -> A2 *)
       let
 	val a1 = I.targetFam A1
       in
 	(* A1 is used to build the proof term, a1 for indexing *)
-	C.Impl (compileClauseN fromCS false (G, A1), A1, a1, 
-		compileGoalN fromCS (I.Decl(G, I.Dec(NONE, A1)), A2))
+	C.Impl (compileClauseN false (G, A1), A1, a1, 
+		compileGoalN (I.Decl(G, I.Dec(NONE, A1)), A2))
       end
-    | compileGoalN fromCS (G, I.Pi((D as I.Dec (_, A1), I.Maybe), A2)) =
+    | compileGoalN (G, I.Pi((D, I.Maybe), A2)) =
       (* A = {x:A1} A2 *)
-       if not fromCS andalso isConstraint (head (A1))
-       then raise Error "constraint appears in dynamic clause position"
-       else C.All (D, compileGoalN fromCS (I.Decl(G, D), A2))
+       C.All (D, compileGoalN (I.Decl(G, D), A2))
   (*  compileGoalN _ should not arise by invariants *)
 
   (* temporarily disabled because of missing context information *)
@@ -227,31 +203,29 @@ struct
      and  G |- r  resgoal
   *)
 
-  and compileClauseN fromCS opt (G, R as I.Root (h, S)) =
+  and compileClauseN opt (G, R as I.Root (h, S)) =
       (*
       if opt andalso !optimize then
         compileRootN (G, R)
       else
       *)
-        if not fromCS andalso isConstraint (h)
-        then raise Error "constraint appears in dynamic clause position"
-        else C.Eq(R)
-    | compileClauseN fromCS opt (G, I.Pi((D as (I.Dec(_,A1)),I.No), A2)) =
+	C.Eq(R)
+    | compileClauseN opt (G, I.Pi((D as (I.Dec(_,A1)),I.No), A2)) =
       (* A = A1 -> A2 *)
-	C.And (compileClauseN fromCS opt (I.Decl(G, D), A2), A1, 
-	       compileGoalN fromCS (G, A1))
-    | compileClauseN fromCS opt (G, I.Pi((D as (I.Dec(_,A1)),I.Meta), A2)) =
+	C.And (compileClauseN opt (I.Decl(G, D), A2), A1, 
+	       compileGoalN (G, A1))
+    | compileClauseN opt (G, I.Pi((D as (I.Dec(_,A1)),I.Meta), A2)) =
       (* A = {x: A1} A2, x  meta variable occuring in A2 *)
-	C.In (compileClauseN fromCS opt (I.Decl(G, D), A2), A1, 
-		compileGoalN fromCS (G, A1))
-    | compileClauseN fromCS opt (G, I.Pi((D,I.Maybe), A2)) =
+	C.In (compileClauseN opt (I.Decl(G, D), A2), A1, 
+		compileGoalN (G, A1))
+    | compileClauseN opt (G, I.Pi((D,I.Maybe), A2)) =
       (* A = {x:A1} A2 *)
-        C.Exists (D, compileClauseN fromCS opt (I.Decl(G, D), A2))
+        C.Exists (D, compileClauseN opt (I.Decl(G, D), A2))
     (*  compileClauseN _ should not arise by invariants *)
 
   fun compileClause opt (G, A) = 
-        compileClauseN false opt (G, Whnf.normalize (A, I.id))
-  fun compileGoal (G, A) = compileGoalN false (G, Whnf.normalize (A, I.id))
+        compileClauseN opt (G, Whnf.normalize (A, I.id))
+  fun compileGoal (G, A) = compileGoalN (G, Whnf.normalize (A, I.id))
 
   (* compileCtx G = (G, dPool)
 
@@ -299,13 +273,13 @@ struct
              No effect if condec has no operational meaning
   *)
   (* Defined constants are currently not compiled *)
-  fun compileConDec fromCS (a, I.ConDec(_, _, _, A, I.Type)) =
-        C.sProgInstall (a, C.SClause (compileClauseN fromCS true (I.Null, A)))
-    | compileConDec fromCS (a, I.SkoDec(_, _, A, I.Type)) =
-        C.sProgInstall (a, C.SClause (compileClauseN fromCS true (I.Null, A)))
-    | compileConDec _ _ = ()
+  fun compileConDec (a, I.ConDec(_, _, A, I.Type)) =
+        C.sProgInstall (a, C.SClause (compileClauseN true (I.Null, A)))
+    | compileConDec (a, I.SkoDec(_, _, A, I.Type)) =
+        C.sProgInstall (a, C.SClause (compileClauseN true (I.Null, A)))
+    | compileConDec _ = ()
 
-  fun install fromCS (cid) = compileConDec fromCS (cid, I.sgnLookup cid)
+  fun install (cid) = compileConDec (cid, I.sgnLookup cid)
 
   end  (* local open ... *)
 end; (* functor Compile *)
