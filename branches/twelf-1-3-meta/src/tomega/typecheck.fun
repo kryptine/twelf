@@ -227,7 +227,10 @@ struct
 	  ()
 	end
       | checkPrgW (Psi, (T.New P, (T.All (T.UDec (I.BDec (_, (cid, s))), F), t))) =
-raise Domain
+	 (print "* unsoundenss -- missing code\n")
+      | checkPrgW _ =
+	 (print "* unsoundenss -- missing code == the general case\n")
+(* raise Domain *)
 (*	let 
 	  val (G', _) = I.conDecBlock (I.sgnLookup cid')
 	  val D' = IDecl
