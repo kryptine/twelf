@@ -228,8 +228,8 @@ struct
 	  ()
 	end
       | checkPrgW (Psi, (T.New (T.Lam (D as T.UDec (I.BDec (_, (cid, s))), P)), (F, t))) =
-(*	  (print "* Temporary incompleteness;  code is written but not yet clean\n") *)
-	let 
+	  (print "* Temporary incompleteness;  code is written but not yet clean\n") 
+(*	let 
 
 	  fun makeCtx (G, (nil, s)) = G
 	    | makeCtx (G, (D::L, s)) = 
@@ -321,7 +321,7 @@ struct
 	in
 	  checkPrgW (I.Decl (Psi, D), (P, (F', t')))
 	end
-
+*)
 
 
 (* raise Domain *)
