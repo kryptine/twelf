@@ -5,6 +5,9 @@ functor TomegaCoverage
   (structure IntSyn' : INTSYN
    structure Tomega' : TOMEGA
      sharing Tomega'.IntSyn = IntSyn'
+   structure TomegaPrint : TOMEGAPRINT
+     sharing TomegaPrint.IntSyn = IntSyn'
+     sharing TomegaPrint.Tomega = Tomega'
    structure Cover : COVER
      sharing Cover.IntSyn = IntSyn'
      sharing Cover.Tomega = Tomega') : TOMEGACOVERAGE = 
@@ -38,8 +41,9 @@ struct
 	  coverageCheckPrg (W, I.Decl (Psi, D), P)
       | coverageCheckPrg (W, Psi, T.Case (T.Cases Omega)) = 
 	  coverageCheckCases (W, Psi, Omega, nil)
-      | coverageCheckPrg (W, Psi, T.Let (D, P1, P2)) = 
+      | coverageCheckPrg (W, Psi, P as T.Let (D, P1, P2)) = 
 	  (coverageCheckPrg (W, Psi, P1);
+	   print (TomegaPrint.prgToString (Psi, P)); 
 	   coverageCheckPrg (W, I.Decl (Psi, D), P2))
 (*    | coverageCheckPrg (Psi, T.Redex (P, S)) = 
           should not occur by invariant  *)

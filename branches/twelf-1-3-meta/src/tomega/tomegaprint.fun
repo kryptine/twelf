@@ -659,6 +659,9 @@ struct
 		Fmt.Space, Fmt.String "=", Fmt.Break,
 		formatPrg3 (Psi'', P)], Fmt.Break]
 	    end
+
+
+
 	  
 	fun formatPrg11 ((max, index), Psi, T.Lam (D, P)) =
               formatPrg11 ((max, index+1), I.Decl (Psi, decName (T.coerceCtx Psi, D)), P)
