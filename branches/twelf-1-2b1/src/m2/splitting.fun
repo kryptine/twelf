@@ -9,6 +9,10 @@ functor Splitting (structure Global : GLOBAL
 		   sharing MetaAbstract.MetaSyn = MetaSyn'
 		   structure ModeSyn : MODESYN
 		   sharing ModeSyn.IntSyn = MetaSyn'.IntSyn
+                   structure Whnf : WHNF
+		   sharing Whnf.IntSyn = MetaSyn'.IntSyn
+		   structure Index : INDEX
+		   sharing Index.IntSyn = MetaSyn'.IntSyn
 		   structure Print : PRINT
 		   sharing Print.IntSyn = MetaSyn'.IntSyn
 		   structure Unify : UNIFY
@@ -199,6 +203,18 @@ struct
        The inherit functions below copy the splitting depth attribute
        between successive states, using a simultaneous traversal
        in mode dependency order.
+
+       Invariant: 
+       (G,M,B) |- V type
+       G = G0, G1, G2
+       |G2| = k       (length of local context)
+       d = |G1, G2|   (last BVar seen)
+       let n < |G|
+       if   n>d then n is an index of a variable already seen in mdo
+       if   n=d then n is an index of a variable now seen for the first 
+	             time
+       if   n<=k then n is a local parameter
+       it is impossible for     k < n < d
     *)
     (* invariants on inheritXXX functions? -fp *)
     fun inheritBelow (b', k', I.Lam (D', U'), Bdd') =
@@ -219,6 +235,23 @@ struct
     and inheritBelowDec (b', k', I.Dec(x, V'), Bdd') =
           inheritBelow (b', k', V', Bdd')
 
+    (* skip *)
+    fun skip (k, I.Lam (D, U), Bdd') =
+          skip (k+1, U, skipDec (k, D, Bdd'))
+      | skip (k, I.Pi ((D,_), V), Bdd') =
+	  skip (k+1, V, skipDec (k, D, Bdd'))
+      | skip (k, I.Root (I.BVar(n), S), (B', d, d')) =
+	if n = k+d andalso n > k (* necessary for d = 0 *)
+	  then skipSpine (k, S, (B', d-1, d'))
+	else skipSpine (k, S, (B', d, d'))
+      | skip (k, I.Root (C, S), Bdd') =
+	  skipSpine (k, S, Bdd')
+    and skipSpine (k, I.Nil, Bdd') = Bdd'
+      | skipSpine (k, I.App (U, S), Bdd') =
+          skipSpine (k, S, skip (k, U, Bdd'))
+    and skipDec (k, I.Dec(x, V), Bdd') =
+          skip (k, V, Bdd')
+
     (* Uni impossible *)
     fun inheritExp (B, k, I.Lam (D, U), k', I.Lam (D', U'), Bdd') =
            inheritExp (B, k+1, U, k'+1, U',
@@ -229,12 +262,15 @@ struct
       | inheritExp (B, k, V as I.Root (I.BVar (n), S), k', V', (B', d, d')) =
 	if n = k+d andalso n > k (* new original variable *)
 	  then (* inheritBelow (I.ctxLookup (B, n-k) - 1, k', V', (B', d-1, d')) *)
-	    inheritNewRoot (B, I.ctxLookup (B, n-k), k, V, k', V', (B', d, d'))
+	    skipSpine (k, S, inheritNewRoot (B, I.ctxLookup (B, n-k), k, V, k', V', (B', d, d')))
 	else if n > k+d (* already seen original variable *)
-	     (* skip.  may be incorrect outside the pattern fragment *)
-	       then (B', d, d')
+	       (* then (B', d, d') *)
+	       (* previous line avoids redundancy,
+                  but may violate invariant outside pattern fragment *)
+	       then skipSpine (k, S, inheritBelow (I.ctxLookup (B, n-k)-1, k', V', (B', d, d')))
 	     else (* must correspond *)
-	       let val I.Root (C', S') = V' (* C' = BVar (n) *)
+	       let
+		 val I.Root (C', S') = V' (* C' = BVar (n) *)
 	       in
 		 inheritSpine (B, k, S, k', S', (B', d, d'))
 	       end
@@ -313,6 +349,8 @@ struct
 	  val d' = I.ctxLength G'	(* current first occurrence depth in V' *)
 	  (* mode dependency in Clause: first M.Top then M.Bot *)
 	  (* check proper traversal *)
+	  val V = Whnf.normalize (V, I.id)
+	  val V' = Whnf.normalize (V', I.id)
 	  val (B'', 0, 0) = inheritDBot (B, 0, V, 0, V',
 					    inheritDTop (B, 0, V, 0, V', (I.Null, d, d')))
 	in
@@ -399,7 +437,7 @@ struct
 		 isIndex, abstract, makeAddress) = 
 	  let 
 	    val (M.Prefix (G', M', B'), s', ops) =
-		expand' (M.Prefix (G, M, B), isIndexFail (D, isIndex),
+		expand' (M.Prefix (G, M, B), isIndexSucc (D, isIndex), (* -###- *)
 			 abstractCont ((D, mode, b), abstract),
 			 makeAddressCont makeAddress)
 	  in

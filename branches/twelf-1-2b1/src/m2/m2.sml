@@ -53,6 +53,8 @@ structure Splitting =
 	     structure MetaPrint = MetaPrint
 	     structure MetaAbstract = MetaAbstract
 	     structure ModeSyn = ModeSyn
+	     structure Whnf = Whnf
+	     structure Index = Index
 	     structure Print = Print
 	     structure Unify = UnifyTrail);
 
