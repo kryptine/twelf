@@ -75,6 +75,9 @@ struct
        If G |- V : L
        then G |- X[w] : V
     *)
+    (* individual createEVar function currently not used *)
+    (* Sun Dec 16 11:57:49 2001 -fp !!! *)
+    (*
     fun createEVar (G, V) =
         let (* G |- V : L *)
 	  val w = weaken (G, I.targetFam V) (* G |- w : G' *)
@@ -85,6 +88,7 @@ struct
 	in
 	  X
 	end
+    *)
 
     (*
        Coverage goals have the form {{G}} a @ S
@@ -830,7 +834,12 @@ struct
     (*********************************)
     (* Checking for Impossible Cases *)
     (*********************************)
+    (* This section is obsolete      *)
+    (* It has been replaced by weak  *)
+    (* finitary splitting candidates *)
+    (*********************************)
 
+    (*
     exception Possible
 
     (* impossible1 X = true
@@ -871,6 +880,12 @@ struct
 	in
 	  impossibleCase (XsRev, W)
 	end
+    *)
+    (* End obsolete section *)
+
+    (**********************)
+    (* Finitary Splitting *)
+    (**********************)
 
     fun targetBelowEq (a, I.EVar (ref(NONE), GY, VY, ref nil)) =
           Subordinate.belowEq (a, I.targetFam VY)
@@ -878,6 +893,13 @@ struct
 	  (* if contraints remain, consider recursive and thereby unsplittable *)
 	  true
 
+    (* recursive X = true
+       iff the instantiation of X : {{G}} a @ S contains an
+           EVar Y : {{G'}} b @ S such that a <|= b
+
+       This means there is no guarantee that X : {{G}} a @ S has only
+       a finite number of instances
+    *)
     fun recursive (X as I.EVar (ref(SOME(U)), GX, VX, _)) =
         let (* GX = I.Null *)
 	  val a = I.targetFam VX
@@ -901,6 +923,10 @@ struct
 
     exception NotFinitary
 
+    (* finitary1 (X, k, W, cands)
+        = ((k, n)::cands) if X is finitary with n possibilities
+        = cands if X is not finitary
+    *)
     fun finitary1 (X as I.EVar(r, I.Null, VX, _), k, W, cands) =
         ( resetCount () ;
 	  if !Global.chatter >= 6
@@ -920,6 +946,9 @@ struct
 				   cands )
 	)
 
+    (* finitarySplits (XsRev, k, W, cands) = [(k1,n1),...,(km,nm)]@cands
+       where all ki are finitary with ni possibilities for X(i+k)
+    *)
     fun finitarySplits (nil, k, W, cands) = cands
       | finitarySplits (NONE::Xs, k, W, cands) =
         (* parameter blocks can never be split *)
@@ -928,6 +957,9 @@ struct
           finitarySplits (Xs, k+1, W,
 			  CSManager.trail (fn () => finitary1 (X, k, W, cands)))
 
+    (* finitary (V, W) = [(k1,n1),...,(km,nm)]
+       where ki are indices of variables in V with ni possibilities
+    *)
     fun finitary (V, W) =
         let
 	  val ((V1, s), XsRev) = instEVars ((V, I.id), nil)
@@ -1029,6 +1061,7 @@ struct
           missing )
       | split (V, SOME(nil), wms as (W, ms), ccs, missing) =
         (* no candidates: check if coverage goal is impossible *)
+        (* obsolete---replaced by finitary weak splitting candidates below *)
 	(*
 	( if !Global.chatter >= 6
 	    then print ("No candidates---check if impossible\n")
