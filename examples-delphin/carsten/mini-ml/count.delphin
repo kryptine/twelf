@@ -3,21 +3,6 @@
 *)
 
 
-id :: world (base)
-	all {N:exp} exists {M:exp} true
-
-fun id X = <X, <>>
-
-new (b:base)
-
-val <Y, <>> = id (b.z)  
-
-id2 :: world (base)
-	all {N:exp} all {M:exp} exists {Y:exp} true
-
-fun id2 X Y = <X, <>>
-
-
 add :: world (base) 
 	all {N:exp} all {M:exp} exists {K:exp} true
 
@@ -28,15 +13,6 @@ fun add (A.z) M = <M, <>>
     in	
 	<(A.s) K, <>>
     end
-
-
-id :: world (base)
-	all {N:exp} exists {M:exp} true
-fun id X = <X, <>>
-
-
-val <X, <>> = add (b.z) (b.z)  
-val <Y, <>> = id (b.z)
 
 
 count :: world (param base)
@@ -71,3 +47,7 @@ fun count (B.of_z) = <B.z, <>>
       add N1 N2
     end
  
+
+new (b:base)
+
+val <X, <>> = count ((b.of_s) (b.z) (b.of_z))
