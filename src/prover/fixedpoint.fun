@@ -7,7 +7,10 @@ functor FixedPoint
      sharing Tomega'.IntSyn = IntSyn'
    structure State' : STATE
      sharing State'.IntSyn = IntSyn'
-     sharing State'.Tomega = Tomega') : FIXEDPOINT  =
+     sharing State'.Tomega = Tomega'
+   structure Normalize : NORMALIZE
+     sharing Normalize.IntSyn = IntSyn'
+     sharing Normalize.Tomega = Tomega') : FIXEDPOINT  =
 struct
   structure IntSyn = IntSyn'
   structure Tomega = Tomega'
@@ -29,9 +32,9 @@ struct
        and  F does not start with an all quantifier
        then S' = (Psi, xx :: F |> F)
     *)
-    fun expand (S.State ((Psi, F as T.All _), W)) =  
+    fun expand (S.State ((Psi, F), W)) =  
           S.State ((I.Decl (Psi, T.PDec (SOME "IH" , F)),   (* find better name -cs *)
-			  T.FClo (F, T.Shift 1)), W)
+			  Normalize.normalizeFor (F, T.Shift 1)), W)
 
 
     (* apply O = S 
