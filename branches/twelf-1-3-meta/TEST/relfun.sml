@@ -95,6 +95,12 @@ in
   val _ = print ["strip"] 
   val _ = print ["conf"]
   val _ = print ["cr"]
+  val _ = print ["appd"]
+  val _ = print ["lm1*"]
+  val _ = print ["apr1*"]
+  val _ = print ["apl1*"]
+  val _ = print ["eq1"]
+  val _ = print ["eq2"]
 
   (* Regression test for logic programming *)
   val _ = Twelf.loadFile "TEST/evenodd.elf"
@@ -122,7 +128,6 @@ in
   val _ = print ["nj_nk"]
   val _ = print ["equiv"]
   val _ = print ["complete"]
-
 
 
 (*

@@ -181,6 +181,8 @@ structure Twelf =
 	 structure ModePrint = ModePrint
 
          structure Cover = Cover
+	 structure Converter = Converter
+	 structure TomegaPrint = TomegaPrint
          structure Total = Total
 
 	 structure Reduces = Reduces

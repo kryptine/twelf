@@ -11,9 +11,9 @@ sig
   exception Error' of Tomega.Sub
 
   val convertFor : IntSyn.cid list -> Tomega.For
-  val installFor : IntSyn.cid list -> unit
+(*  val installFor : IntSyn.cid list -> unit *)
   val convertPrg : IntSyn.cid list -> Tomega.Prg
-  val installPrg : IntSyn.cid list -> unit
+  val installPrg : IntSyn.cid list -> IntSyn.cid
 end (* Signature CONVERTER *)       
 
 

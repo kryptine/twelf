@@ -1456,21 +1456,21 @@ exception Error' of Tomega.Sub
 	  val F = convertFor [cid]
 	  val P = convertPrg [cid]
 	  val name = I.conDecName (I.sgnLookup cid)
-	  val _ = T.lemmaAdd (T.ValDec (name, P, F))
+	  val lemma = T.lemmaAdd (T.ValDec (name, P, F))
 	in
-	  ()
+	  lemma
 	end
       | installPrg cids = 
 	let 
 	  val F = convertFor cids
 	  val P = convertPrg cids
 	  val s = name cids
-	  val l = T.lemmaAdd (T.ValDec (s, P , F))
+	  val lemma = T.lemmaAdd (T.ValDec (s, P , F))
 	  val Proj = fn k => T.Redex (T.Lam (T.PDec (NONE, F), 
 					     createProjection (I.Null, F, fn P => P) k),
-				      T.AppPrg (T.Root (T.Const l, T.Nil), T.Nil))
+				      T.AppPrg (T.Root (T.Const lemma, T.Nil), T.Nil))
 	in
-	  installMutual (cids, F, 1, Proj)
+	  (installMutual (cids, F, 1, Proj); lemma)
 	end
 
 
