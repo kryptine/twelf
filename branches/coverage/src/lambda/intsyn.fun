@@ -99,7 +99,6 @@ struct
     Bidx of int 			(* b ::= v                    *)
   | LVar of Block option ref * cid * Sub 
                                         (*     | L(l,s)               *)
-  | BClo of Block * Sub                 (*     | b[s]                 *)
 
   (* Constraints *)
 
@@ -368,6 +367,7 @@ struct
     | decSub (Dec (x, V), s) = Dec (x, EClo (V, s))
   *)
   fun decSub (Dec (x, V), s) = Dec (x, EClo (V, s))
+
       
   (* comp (s1, s2) = s'
 
@@ -415,6 +415,21 @@ struct
   *)
   fun invDot1 (s) = comp (comp(shift, s), invShift)
 
+  (* blockSub (B, s) = B' 
+    
+     Invariant:
+     If   G |- s : G'   
+     and  G' |- B block
+     then G |- B' block
+     and  B [s] == B' 
+  *)
+
+  fun blockSub (Bidx k, s) =
+      (case bvarSub (k, s)
+	 of Idx k' => Bidx k'
+          | Block B => B)
+    | blockSub (LVar (r, l, s), t) = 
+      LVar (r, l, comp (s, t)) 
 
   (* Declaration Contexts *)
 

@@ -82,7 +82,7 @@ sig
     Bidx of int				(* b ::= v                    *)
   | LVar of Block option ref * cid * Sub 
                                         (*     | L(l,s)               *)
-  | BClo of Block * Sub                 (*     | b[s]                 *)
+(*  | BClo of Block * Sub                 (*     | b[s]                 *) *)
 
   (* constraints *)
 
@@ -182,6 +182,7 @@ sig
   val bvarSub   : int * Sub -> Front    (* k[s]                       *)
   val frontSub  : Front * Sub -> Front	(* H[s]                       *)
   val decSub    : Dec * Sub -> Dec	(* x:V[s]                     *)
+  val blockSub  : Block * Sub -> Block  (* B[s]                       *)
 
   val comp      : Sub * Sub -> Sub	(* s o s'                     *)
   val dot1      : Sub -> Sub		(* 1 . (s o ^)                *)
