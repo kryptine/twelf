@@ -48,7 +48,6 @@ cp_app : copy (app E1 E2) (app F1 F2)
 %total E (copy E _).
 
 % Third-order example
-%{
 exp : type.
 lam : (exp -> exp) -> exp.
 app : exp -> exp -> exp.
@@ -72,4 +71,3 @@ cp_callcc : copy (callcc [f] E ([x] f x)) (callcc [f] F ([x] f x))
 %worlds (lx | lf) (copy E F).
 %mode copy +E -F.
 %total E (copy E _).
-}%
