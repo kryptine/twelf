@@ -1134,10 +1134,8 @@ exception Error' of Tomega'.For
 
 	      val _ = TomegaTypeCheck.checkFor (Psi2, F4)
 		handle _ => raise Error' F4
+
 	      val B3 = deblockify  B3'
-
-
-
 
 	      val sigma3 = blockToIota (T.Shift (I.ctxLength B3), B3')
 					(* Psi2, B3 |- sigma3 : Psi2,  B3' *)
@@ -1163,7 +1161,7 @@ exception Error' of Tomega'.For
 	fun traverseSig' nil = nil
           | traverseSig' ((G, V) :: Sig) =
   	    (case traverseNeg ((Psi0, T.embedCtx G), V, I.id)
-	       of (SOME (wf, (P', Q'))) =>  (P' Q') :: traverseSig' Sig)
+	       of (SOME (wf, (P', Q'))) =>  traverseSig' Sig @ [(P' Q')])
       in
 	traverseSig' Sig
       end

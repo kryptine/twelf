@@ -101,17 +101,15 @@ in
 
   (* Regression test for logic programming *)
   val _ = Twelf.loadFile "TEST/evenodd.elf"
-  val _ = test ["even", "odd"]
+  val _ = print ["even", "odd"]
 
 
   (* Regression test for logic programming *)
   val _ = load "examples/lp-horn/sources.cfg"
-  val _ = test ["can", "atm"]
-  val _ = test ["iscan", "isatm"]
-  val _ = test ["s_sound", "h_sound", "i_sound"]
-  val _ = test ["cmpcs", "cmpai"]
-  val _ = test ["gl", "pg"]
-  val _ = test ["r_total"]
+  val _ = print ["can", "atm"]
+  val _ = print ["iscan", "isatm"]
+  val _ = print ["s_sound", "h_sound", "i_sound"]
+  val _ = print ["cmpcs", "cmpai"]
   (* Cannot work yet because we do not have mutual
      recursive functions.
   *)

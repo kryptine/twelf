@@ -675,7 +675,8 @@ struct
 	   then fmts' is alist of pretty print formats of P
 	*)
 	fun formatPrg1 ((max, index), Psi, T.PairPrg (P1, P2)) = 
-	      formatPrg1 ((max, index), Psi, P1) @ formatPrg1 ((max, index+1), Psi, P2)
+	      formatPrg1 ((max, index), Psi, P1)
+	      @ formatPrg1 ((max, index-1), Psi, P2)
 	  | formatPrg1 ((max, index), Psi, P) = 
 	      formatPrg11 ((max, index), Psi, P)
 
@@ -689,7 +690,7 @@ struct
 	  let 
 	    val max = I.ctxLength Psi	(* number of ih. *)
 	  in
-	    Fmt.Vbox0 0 1 (formatPrg1 ((max, 1), Psi, P))
+	    Fmt.Vbox0 0 1 (formatPrg1 ((max, max), Psi, P))
 	  end
 
     fun formatFun Args = 
