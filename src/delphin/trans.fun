@@ -83,22 +83,68 @@ struct
         end
 
     fun transTerm (D.Rtarrow (t1, t2)) = 
-          transTerm (t1) ^ " -> " ^ transTerm (t2) 
+        let 
+	  val (s1, c1) = transTerm t1
+	  val (s2, c2) = transTerm t2
+	in
+	  (s1 ^ " -> " ^ s2, c1 @ c2)
+	end
       | transTerm (D.Ltarrow (t1, t2)) = 
-	  transTerm (t1) ^ " <- " ^ transTerm (t2)
-      | transTerm (D.Type) = "type"
-      | transTerm (D.Id s) = s
+        let 
+	  val (s1, c1) = transTerm t1
+	  val (s2, c2) = transTerm t2
+	in
+	  (s1 ^ " <- " ^ s2, c1 @ c2)
+	end
+      | transTerm (D.Type) = ("type", nil)
+      | transTerm (D.Id s) = (s, nil)
       | transTerm (D.Pi (D, t)) = 
-	  "{" ^ transDec D ^ "}" ^ transTerm (t) 
+        let 
+	  val (s1, c1) = transDec D
+	  val (s2, c2) = transTerm t
+	in
+	  ("{" ^ s1 ^ "}" ^ s2, c1 @ c2)
+	end
       | transTerm (D.Fn (D, t)) =
-	  "[" ^ transDec D ^ "]" ^ transTerm (t)
+        let 
+	  val (s1, c1) = transDec D
+	  val (s2, c2) = transTerm t
+	in
+	  ("[" ^ s1 ^ "]" ^ s2, c1 @ c2)
+	end
       | transTerm (D.App (t1, t2)) =
-	  transTerm t1 ^ " " ^ transTerm t2
-      | transTerm (D.Omit) = "_"
-      | transTerm (D.Paren (t)) = 
-	  "(" ^ transTerm t ^ ")"
+        let 
+	  val (s1, c1) = transTerm t1
+	  val (s2, c2) = transTerm t2
+	in
+	  (s1 ^ " " ^ s2, c1 @ c2)
+	end
+      | transTerm (D.Omit) = ("_", nil)
+      | transTerm (D.Paren (t)) =
+	let 
+	  val (s, c) = transTerm t
+	in
+	  ("(" ^  s ^ ")", c)
+	end
+      | transTerm (D.Of (t1, t2)) = 
+	let
+	  val (s1, c1) = transTerm t1
+	  val (s2, c2) = transTerm t2
+	in
+	  (s1 ^ ":" ^ s2, c1 @ c2)
+	end
+(*      | transTerm (D.Dot (D.Id s1, s2)) = 
+	("PROJ#" ^ s1 ^ "#" ^ s2, nil)
+      | transTerm (D.Dot (D.Paren (D.Of (D.Id s1, t)), s2)) = 
+	("PROJ#" ^ s1 ^ "#" ^ s2, [(s1, t)])
+*)
 	  
-    and transDec (D.Dec (s, t)) = s ^ ":" ^ (transTerm t)
+    and transDec (D.Dec (s, t)) = 
+        let
+	  val (s', c) = transTerm t
+	in 
+	  (s ^ ":" ^ s', c)
+	end
 
     fun transWorld (D.WorldIdent s) =
 	   (* We should use the worlds we have defined in Tomega, but this
@@ -139,25 +185,29 @@ struct
           T.And (transFor (Psi, EF1), transFor (Psi, EF2))
       | transFor (Psi, D.Forall (D, F)) =
         let 
-	  val D' = transFor' (Psi, stringTodec (transDec D))
+	  val (D'', nil) = transDec D
+	  val D' = transFor' (Psi, stringTodec (D''))
 	in
 	   T.All ((T.UDec D', T.Explicit), transFor (I.Decl (Psi, D'), F))
         end
       | transFor (Psi, D.Exists (D, F)) =
         let 
-	  val D' = transFor' (Psi, stringTodec (transDec D))
+	  val (D'', nil) = transDec D
+	  val D' = transFor' (Psi, stringTodec (D''))
 	in
 	   T.Ex ((D', T.Explicit), transFor (I.Decl (Psi, D'), F))
         end
       | transFor (Psi, D.ForallOmitted (D, F)) =
         let 
-	  val D' = transFor' (Psi, stringTodec (transDec D))
+	  val (D'', nil) = transDec D
+	  val D' = transFor' (Psi, stringTodec (D''))
 	in
 	   T.All ((T.UDec D', T.Implicit), transFor (I.Decl (Psi, D'), F))
         end
       | transFor (Psi, D.ExistsOmitted (D, F)) =
         let 
-	  val D' = transFor' (Psi, stringTodec (transDec D))
+	  val (D'', nil) = transDec D
+	  val D' = transFor' (Psi, stringTodec (D''))
 	in
 	   T.Ex ((D', T.Implicit), transFor (I.Decl (Psi, D'), F))
         end
@@ -167,7 +217,7 @@ struct
 
 
 
-(*
+
 
     (* stringToTerm s = U
 
@@ -186,315 +236,7 @@ struct
         end
 
 
-    (* weaken (G, a) = w'
 
-       Invariant:
-       If   a is a type family
-       then G |- w' : G'
-       and  forall x:A in G'  A subordinate to a
-     *)
-    fun weaken (I.Null, a) = I.id
-      | weaken (I.Decl (G', D as I.Dec (name, V)), a) =
-	let
-	  val w' = weaken (G', a)
-	in
-	  if Subordinate.belowEq (I.targetFam V, a) then I.dot1 w'
-	  else I.comp (w', I.shift)
-	end
-
-    fun listToCtx (G, [], s) = G
-      | listToCtx (G, D :: L', s) = 
-          listToCtx (I.Decl (G, I.decSub (D, s)), L', I.dot1 s)
-
-    fun raiseDec (l, s, D as I.Dec (x, V)) =
-        let 
-	  val (_, L) = I.constBlock l
-	  val G = listToCtx (I.Null, L, s)
-	  val a = I.targetFam V
-	  val w = weaken (G, a)
-	  val iw = Whnf.invert w 	          (* G' |- iw : G     *)
-	  val G' = Whnf.strengthen (iw, G)
-	  val V' = Abstract.raiseType (G', V)
-	in
-	  I.Dec (x, V')
-	end
-
-    fun push (D0 as T.UDec (I.BDec (_, (l, s))) , T.All (T.UDec (D as I.Dec (_, V)), F)) =  
-        let 
-	  val D' = raiseDec (l, s, D)
-	in
-	  T.All (T.UDec D', T.All (D0, F))
-	end
-      | push (D0 as T.UDec (I.BDec (_, (l, s))) , T.Ex (D as I.Dec (_, V), F)) =  
-        let 
-	  val D' = raiseDec (l, s, D)
-	in
-	  T.Ex (D', T.All (D0, F))
-	end
-      | push (D0, T.World (W, F)) = 
-	  T.World (W, push (D0, F))
-      | push (D0, T.True) = (print "-"; T.True)
-
-
-
-    (* collectPattern *)
-    (* make (Psi, Pat, (F, t)) = P
-
-       Invariant:
-       If   |- Psi ctx
-       and  Psi |- F[s] formula
-       and  Psi'' |- Pat :: F[t] pattern
-       then Psi'  |- P == Pat :: F[s]
-    *)
-    fun makePattern  (DPat, Ft) = 
-        let
-	  val _ = print "|"
-	  val F' = Normalize.normalizeFor Ft
-	in
-	  makePatternN (DPat, F')
-	end
-    and makePatternN (D.PatInx (D.Term s, Pat), F' as T.Ex (I.Dec (_, V), F)) = 
-        let 
-val _ = print "+"
-	  val t = stringToterm (s)
-val _ = print "NEXT LINE is the problem"
-	  val (U, L) = TpRecon.termToPattern ((t, V), Paths.Loc ("", Paths.Reg (1,1))) 
-	               (* fix location information *)
-val _ = print "+"
-	  val Pat' = makePattern (Pat, (F, T.Dot (T.Exp U, T.id)))
-val _ = print "+"
-        in
-	  T.PairExp (U, Pat')
-        end
-      | makePatternN (D.PatPair (Pat1, Pat2), T.And (F1, F2)) =  
-(print "^";
-          T.PairPrg (makePatternN (Pat1, F1), makePatternN (Pat2, F2)))
-      | makePatternN (D.PatVar (D.MDec (name, NONE)), F) =
-(print "%";
-          T.EVar (I.Null, ref NONE, F))
-      | makePatternN (D.PatVar (D.MDec (name, SOME EF)), F) =
-          let 
-val _ = print "!";
-            val (_, F') = transFor (I.Null, EF)  (* ? *)
-	    val _ = ()  (* CHECK that F == F' *)
-          in
-            T.EVar (I.Null, ref NONE, F)
-          end
-      | makePatternN ( D.PatUnderscore, F) =
-(print "@";
-	  T.EVar (I.Null, ref NONE, F) )
-      | makePatternN (D.PatUnit, T.True) = 
-(print "&";
-	  T.Unit)
-      | makePatternN (DPat, T.All (D0 as T.UDec (I.BDec _), F)) =
-(print "=";
-	  makePatternN (DPat, push (D0, F)))
-
-    (* collectPrg (K, P) = K'
-
-       Invariant:
-       If   K is a list of collected EVars
-       and  P is a program (or a pattern)
-            that contains all EVars in P
-       then K' is also a list of collected EVars
-       and  K' > K
-    *)
-    fun collectPrg (K, T.PairExp (M, P)) =
-          collectPrg (Abstract.collectExp (K, M), P)
-      | collectPrg (K, T.PairPrg (P1, P2)) =
-	  collectPrg (collectPrg (K, P2), P1)
-      | collectPrg (K, T.Root (H, S))= 
-	  collectSpine (K, S)
-      | collectPrg (K, T.Redex (P, S))= 
-	  collectSpine (collectPrg (K, P), S)
-      | collectPrg (K, T.EVar (_,_,_)) = K   
-      | collectPrg (K, T.Unit) = K			
-
-    (* collectSpine (K, S) = K'
-
-       Invariant:
-       If   K is a list of collected EVars
-       and  S is a spine
-       then K' is also a list of collected EVars 
-            that contains all EVars in S
-       and  K' > K
-    *)
-    and collectSpine (K, T.Nil) = K
-      | collectSpine (K, T.AppExp (U, S)) = collectSpine (Abstract.collectExp (K, U), S) 
-
-
-    (* collectSub (K, s) = K'
-
-       Invariant:
-       If   K is a list of collected EVars
-       and  s is a substitution
-       then K' is also a list of collected EVars 
-            that contains all EVars in s
-       and  K' > K
-    *)
-    fun collectSub (K, T.Shift _) = K 
-      | collectSub (K, T.Dot (T.Exp U, t)) =
-          collectSub (Abstract.collectExp (K, U), t)
-      | collectSub (K, T.Dot (T.Prg P, t)) = 
-	  collectSub (collectPrg (K, P), t)
-
- 
-    (* abstractPrg (K, P) = P'
-
-       Invariant:
-       If   K is a list of collected EVars
-       and  P is a program
-	    whose EVars are all contained in K
-       then P' is a program that does not 
-	    contain any EVars 
-       and  {{K}} |- P' :: F for some formula F
-    *)
-    fun abstractPrg (K, T.PairExp (U, P)) =
-          T.PairExp(Abstract.abstractExp (K, U), 
-		    abstractPrg (K, P))
-      | abstractPrg (K, T.PairPrg (P1, P2)) =
-	  T.PairPrg(abstractPrg (K, P1), 
-		    abstractPrg (K, P2))
-      | abstractPrg (K, X as T.EVar (_,_,_)) = X
-      | abstractPrg (K, T.Unit) = T.Unit
-      | abstractPrg (K, T.Root (H, S)) = 
-	  T.Root (abstractHead (K, H),
-		  abstractSpine (K, S))
-      | abstractPrg (K, T.Redex (P, S)) =
-	  T.Redex (abstractPrg (K, P),
-		   abstractSpine (K, S))
-      | abstractPrg (K, T.Case O) = T.Case O  (* think about it *)
-      | abstractPrg (K, T.Let (D, P1, P2)) =
-	  T.Let (abstractDec (K, D), 
-		 abstractPrg (K, P1),
-		 abstractPrg (K, P2))
-
-    (* abstractDec (K, D) = D'
-
-       Invariant:
-       If   K is a list of collected EVars
-       and  D is a declaration
-	    whose EVars are all contained in K
-       then D' is a declaration that does not 
-	    contain any EVars 
-       and  {{K}} |- D valid 
-    *)
-    and abstractDec (K, D) = D
-
-    (* abstractSpine (K, S) = S'
-
-       Invariant:
-       If   K is a list of collected EVars
-       and  S is a spine
-	    whose EVars are all contained in K
-       then S' is a spine that does not 
-	    contain any EVars 
-       and  {{K}} |- S : V > V'   for some V, V'
-    *)
-    and abstractSpine (K, T.Nil) = T.Nil
-      | abstractSpine (K, T.AppExp (U, S)) = 
-          T.AppExp (Abstract.abstractExp (K, U), 
-		    abstractSpine (K, S))
-      | abstractSpine (K, T.AppPrg (P, S)) = 
-	  T.AppPrg (abstractPrg (K, P),
-		    abstractSpine (K, S))
-
-    (* abstractHead (K, H) = H'
-
-       Invariant:
-       If   K is a list of collected EVars
-       and  H is a head
-	    whose EVars are all contained in K
-       then H' is a head that does not 
-	    contain any EVars 
-       and  {{K}} |- H :: F  for some F
-    *)
-    and abstractHead (K, T.Const l) =  
-          T.Const l
-      | abstractHead (K, T.Var k) = 
-	  T.Var k
-
-    (* abstractSub (K, t) = t'
-
-       Invariant:
-       If   K is a list of collected EVars
-       and  t is a substitution
-	    whose EVars are all contained in K
-       then t' is a substitution that does not 
-	    contain any EVars 
-       and  {{K}} |- t' :: Psi  for some context Psi
-    *)
-    and abstractSub (K, T.Shift 0) = T.Shift (Abstract.length K)
-      | abstractSub (K, T.Dot (T.Exp U, t)) =
-           T.Dot (T.Exp (Abstract.abstractExp (K, U)),
-		  abstractSub (K, t))
-      | abstractSub (K, T.Dot (T.Prg P, t)) =
-           T.Dot (T.Prg (abstractPrg (K, P)),
-		  abstractSub (K, t))
-
-    (* abstractEnv (K, G) Xs env = env'
-
-       Invariant:
-       If   K is a collected list of free EVars
-       and  G is the context that corresponds to K
-       and  Xs is a list of EVars named by the user
-       and  G |- env environment
-       then G |- env' is an environment
-       that contains all abstracted versions of Evars an X 
-       and  it extends env
-    *)
-    fun abstractEnv (K, G) [] env = env
-      | abstractEnv (K, G) ((U, name) :: Xs) env = 
-        let 
-	  val U' = Abstract.abstractExp (K, U)
-	  val V' = TypeCheck.infer' (G, U')
-	  val _ = TypeCheck.typeCheck (G, (U', V'))
-	in
-	  (U', V', name) :: abstractEnv (K, G) Xs env 
-	end
-
-    (* lookup n env = (U, V) 
-  
-       Invariant:
-       env (n) : V
-               = U 
-    *)
-    fun lookup n [] = raise Error "Free variable found"
-      | lookup n ((U, V,  n') :: env) = 
-        (if n=n' then (U, V) else lookup n env)
-
-    (* isClosedSub (Psi, t) = ()
-     
-       Invariant:
-       If   Psi |- t : Psi'
-       and  Psi is closed
-       then this function returns with ()
-       otherwise, an exception is raised.
-     *)
-    fun isClosedSub (Psi, T.Shift _) = ()
-      | isClosedSub (Psi, T.Dot (T.Exp U, t)) =
-        if Abstract.closedExp (T.coerceCtx Psi, (U, I.id)) then isClosedSub (Psi, t)
-	else raise Error "Sub: Could not infer all variables"
-
-    fun isClosedPrg P =
-        if Abstract.length (collectPrg (Abstract.nothing, P)) = 0 then ()
-	else raise Error "Prg: Could not infer all variables"
-
-    (* createEVarSub (Psi', Psi) = t
-
-       Invariant:
-       Psi' |- t : Psi
-    *)
-    and createEVarSub (Psi', I.Null) = T.Shift (I.ctxLength Psi')
-      | createEVarSub (Psi', I.Decl (Psi, T.UDec (I.Dec (_, V)))) =  
-	let 
-	  val t = createEVarSub (Psi', Psi)
-	  val V' = I.EClo (V, T.coerceSub t)
-	  val X = I.newEVar (T.coerceCtx Psi', V')
-	in
-	  T.Dot (T.Exp X, t)
-	end
-      (* some other cases will be added later --cs *)
 
     (* head (dH) = n
 
@@ -514,7 +256,7 @@ val _ = print "!";
        and . |- P :: F' 
        then P' = lam D1 ... lam Dn P
     *)
-    fun lamClosure (T.All (D, F), P) = T.Lam (D, lamClosure (F, P))
+    fun lamClosure (T.All ((D, _), F), P) = T.Lam (D, lamClosure (F, P))
       | lamClosure (_, P) = P
 
 
@@ -534,70 +276,6 @@ val _ = print "!";
 	end
       | checkForWorld FtW = FtW
 
-    (* typeOfFun dH k = (F', t')
-
-       Invariant:
-       If   Psi |- dH U1 ... Un is a Head
-       and  U1 ... Un are programs or LF objects
-       and  k is continuation that expects 
-	    as input: (F, t)  
-	              where  Psi  |- t :: Psi'
-		      and    Psi' |- F for
-		      and    Psi  |- dH :: F [t]
-	    as output (F', t') 
-	              where  Psi  |- t' :: Psi''
-		      and    Psi'' |- F' for
-		      and    Psi  |- dH U1 ... Un :: F' [t']
-       then
-    *)
-    fun typeOfFun (D.Head s, W) k = 
-       k (checkForWorld (T.lemmaFor (T.lemmaName s), T.id, W)) 
-  
-      | typeOfFun (D.AppLF (EH, D.Term s), W) k = 
-         
-          typeOfFun (EH, W)
-	     (fn 
-                  (T.All (T.UDec (I.Dec (_, V)), F'), t, W') => (
-  		      let 
-                        val term = case (String.sub (s, 0)) of 
-                                     #"#" => stringToterm (String.substring (s, 1, String.size(s)-1))
-                                   |  _   => stringToterm s
-              
-                        val (U, L) = TpRecon.termToPattern ((term, I.EClo (V, T.coerceSub t)),
-		 				       Paths.Loc ("", Paths.Reg (1,1)))
- 	     
-                        (* fix location information *)
-                      in k (checkForWorld (F', T.Dot (T.Exp U, t), W')) 
-                      end
-		      )
-		  | (T.FClo (F, t'), t, W') => (k (checkForWorld (F, T.comp (t', t), W'))) 
- 	          | (T.Ex _, _, _) => raise Error "more arguments than expected"
-	          | (T.True, _, _) => raise Error "more arguments than expected"
-	          | (T.And _, _, _) => 
-                        raise Error "Function type expected, Product type found"
-                  | (_,_,_) => raise Error "\nmissing case\n") 
-
-      (* some cases are missing  --cs *) 
-
-
-
-    fun printSub (G, T.Shift k) = print ("^" ^ (Int.toString k) ^ ")")
-      | printSub (G, T.Dot (T.Exp U, t)) = (print (Print.expToString (G, U)); print ", "; printSub (G, t))
-      | printSub (G, T.Dot (T.Idx k, t)) =  (print (Int.toString k); printSub (G, t))
-      | printSub (G, T.Dot (T.Prg P, t)) =  (print "Prg, "; printSub (G, t))
- 
-      
-    fun printCtx (G, env) = 
-      let 
-	val _ = print "\n[Ctx/Env:\n"
-	val _ = print (Print.ctxToString (I.Null, G));
-	val _ = print "\n";
-	val _ = map (fn (U, V, name) => print (name ^ "=" ^ Print.expToString (G, U) ^ ":" ^ Print.expToString (G, V) ^ "\n")) env
-	val _ = print "]"
-       in 
-	 ()
-       end
-       
 
 
     (* append (Psi1, Psi2) = Psi3
@@ -612,59 +290,29 @@ val _ = print "!";
           I.Decl (append (Psi, Psi'), T.UDec (I.Dec (NONE, V)))
       
 
-    (* bridgeSub (n, m) = s
-     
-       Invariant:
-       If   . |- Psi ctx
-       and  . |- Psi' ctx
-       and  n = | Psi |
-       and  m = | Psi' |
-       then Psi, Psi' |- s : Psi'
-    *)
-    fun bridgeSub (n, 0) = T.Shift n
-      | bridgeSub (n, m) = T.dot1 (bridgeSub (n, m-1))
 
-
-      
-    fun makectx (I.Null, nil) = I.Null
-      | makectx (I.Decl (Psi, T.UDec (I.Dec (_, V))), nil) = 
-          I.Decl (makectx (Psi, nil), T.UDec (I.Dec (NONE, V)))
-      | makectx (Psi, (U, V, name) :: env) = 
-	  I.Decl (makectx (Psi, env), T.UDec (I.Dec (SOME name, I.EClo (V, I.Shift (length env)))))
-		
-    fun makestring (I.Null, s) = s
-      | makestring (I.Decl (G, I.Dec (SOME n, V)), s) = 
-          makestring (G,  "[" ^ n ^ ":" ^ Print.expToString (G, V) ^ "]" ^ s)
- 
-
-    fun makesub (Psi, []) = T.id
-      | makesub (Psi, (U, V, name) :: env) = T.Dot (T.Exp U, makesub (Psi, env))
-
-    fun strip (0, (U, V)) = (U, V)
-      | strip (n, (I.Lam (_, U), I.Pi (_, V))) = strip (n-1, (U, V))
-
-    fun parseTerm ((Psi, env), s) =
+    fun parseTerm ((Psi, env), (s, V)) =
         let 
-          val _ = print "#\n"
-	  val _ = Names.varReset (I.Null)
-	  val Psi' = makectx (Psi, env)
-	  val s1 = makestring (Names.ctxName (T.coerceCtx Psi'), s)
-          val term = stringToterm s1
-	  val (_, U0, V0, occ) = TpRecon.termToExp (I.Null, term)
-	  val (U1, V1) = strip (I.ctxLength Psi + length env, (U0, V0))
-	  val t = makesub (Psi, env)
-	in 
-	  (I.EClo (U1, T.coerceSub t), I.EClo (V1, T.coerceSub t))
+	  val (term', c) = transTerm s
+	  val term = stringToterm (term')
+	  val ReconTerm.JOf ((U, occ), (_, _), L) =
+	    ReconTerm.reconWithCtx (T.coerceCtx Psi, ReconTerm.jof' (term, V))
+	in
+	  U
+	end
+
+    fun parseDec ((Psi, env), s) =
+        let 
+	  val (dec', c) = transDec s
+	  val dec = stringTodec (dec')
+	  val ReconTerm.JWithCtx (I.Decl(I.Null, D), ReconTerm.JNothing) =
+	    ReconTerm.reconWithCtx (T.coerceCtx Psi, ReconTerm.jwithctx (I.Decl(I.Null, dec), ReconTerm.jnothing))
+	in
+	  D
 	end
 
 
 
-    datatype Var 
-      = Normal of string
-      | Proj of string * string
-
-
-*)
     (* transDecs ((Psi, env), dDs, sc, W) = x
        
        Invariant:
@@ -680,12 +328,46 @@ val _ = print "!";
        then eventually x = ().     --cs
     *)
 
-    fun transDecs ((Psi, env), D.Empty, sc, W) = (sc (Psi, env, W))
-  (*    | transDecs ((Psi, env), D as D.FunDecl (FunD, Ds), sc, W) =  (transFun1 ((Psi, env), D, sc, W)) *)
-      | transDecs ((Psi, env), D.FormDecl (FormD, Ds), sc, W) = (transForDec ((Psi, env), FormD, Ds, sc, W))
-(*      | transDecs ((Psi, env), D.ValDecl (ValD, Ds), sc, W) = (transValDec ((Psi, env), ValD, Ds, sc, W)) *)
+    fun transDecs ((Psi, env), _, D.Empty, sc, W) = (sc (Psi, env, W))
+      | transDecs ((Psi, env), SOME condec, D as D.FunDecl (FunD, Ds), sc, W) =  (transFun1 ((Psi, env), condec, D, sc, W)) 
+      | transDecs ((Psi, env), NONE, D.FormDecl (FormD, Ds), sc, W) = (transForDec ((Psi, env), FormD, Ds, sc, W))
+      | transDecs ((Psi, env), NONE, D.ValDecl (ValD, Ds), sc, W) = (transValDec ((Psi, env), ValD, Ds, sc, W))
+      | transDecs _ = raise Error "Constant declaration must be followed by a constant definition"
 
-(*
+    and transHead (D.Head s, args) = transHead' ((T.lemmaFor (T.lemmaName s), T.id), args)
+      | transHead (D.AppLF (h, t), args) = transHead (h, t::args)
+
+    and transHead' ((T.World (_, F), s), args) = transHead' ((F, s), args) 
+      | transHead' ((T.All ((T.UDec (I.Dec (_, V)), T.Implicit), F'), s), args) =
+	  transHead' ((F', T.Dot (T.Exp (I.EVar (ref NONE, I.Null, I.EClo (V, T.coerceSub s), ref nil)), s)), args)
+      | transHead' ((T.All ((T.UDec (I.Dec (_, V)), T.Explicit), F'), s), t :: args) =
+	let
+	  val (term', c) = transTerm t
+	  val term = stringToterm (term')
+	  val ReconTerm.JOf ((U, occ), (_, _), L) =
+	    ReconTerm.reconWithCtx (I.Null, ReconTerm.jof' (term, I.EClo (V, T.coerceSub s)))
+	in
+	  transHead' ((F', T.Dot (T.Exp U, s)), args)
+	end
+      | transHead' ((F, s), nil) = (F, s)
+
+    and transPattern (p, (T.Ex ((I.Dec (_, V), T.Implicit), F'), s)) =
+	  transPattern (p, (F', T.Dot (T.Exp (I.EVar (ref NONE, I.Null, I.EClo (V, T.coerceSub s), ref nil)), s)))
+      | transPattern (D.PatInx (t, p), (T.Ex ((I.Dec (_, V), T.Explicit), F'), s)) =
+	let
+	  val (term', c) = transTerm t
+	  val term = stringToterm (term')
+	  val ReconTerm.JOf ((U, occ), (_, _), L) =
+	    ReconTerm.reconWithCtx (I.Null, ReconTerm.jof' (term, I.EClo (V, T.coerceSub s)))
+	in
+	  T.PairExp (U, transPattern (p, (F', T.Dot (T.Exp U, s))))
+	end
+      | transPattern (D.PatUnit, (F, s)) = T.Unit    
+					(* other cases should be impossible by invariant
+					 F should be F.True
+					 --cs Sun Mar 23 10:38:57 2003 *)
+
+
     (* transFun1 ((Psi, env), dDs, sc, W) = x
        
        Invariant:
@@ -701,13 +383,14 @@ val _ = print "!";
 	    as output: anything.  
        then eventually x = ().     --cs
     *)
-    and transFun1 ((Psi, env), D.FunDecl (D.Fun (eH, eP), Ds), sc, W) =
+    and transFun1 ((Psi, env), D, D.FunDecl (D.Fun (eH, eP), Ds), sc, W) =
         let
 	  val s = head eH
 	  val _ = print ("\n[fun " ^ s ^ " ")
-          
+	  val Psi' = I.Decl (Psi, D)
+	  val env' = map (fn (U, V, name) => (I.EClo (U, I.Shift 1), I.EClo (V, I.Shift 1), name)) env
   	in
-	  transFun2 ((Psi, env), s, D.FunDecl (D.Bar (eH, eP), Ds), sc, fn Cs => T.Case (T.Cases Cs), W)
+	  transFun2 ((Psi', env'), s, D.FunDecl (D.Bar (eH, eP), Ds), sc, fn Cs => T.Case (T.Cases Cs), W)
 	end
       | transFun1 _ = raise Error "Function declaration expected"
 
@@ -736,9 +419,9 @@ val _ = print "!";
           transFun3 ((Psi, env), s, eH, eP, Ds, sc,  k, W)
       | transFun2   ((Psi, env), s, Ds, sc, k, W) =
 	  let 
-       	    val _ = print "]"
+       	    val _ = print "]\n"
 	    val F = T.lemmaFor (T.lemmaName s)
-	    val P = transDecs  ((Psi, env), Ds, sc, W)
+	    val P = transDecs  ((Psi, env), NONE, Ds, sc, W)
 	    val D = T.PDec (SOME s, F)
 	    val P' = lamClosure (F, k nil)
 	  in
@@ -768,78 +451,26 @@ val _ = print "!";
     *)
     and transFun3 ((Psi, env), s, eH, eP, Ds, sc, k, W) =
         let 
-	  val _ = print "[case ...\n"
+	  val _ = print "[case ..."
 	  val _ = if (head eH) <> s
 		  then raise Error "Functions don't all have the same name"
 		  else ()
           val _ = Names.varReset (I.Null)
-
-(*
-          fun printHead h =
-             case h of
-               D.Head s => print ("Head " ^ s ^ "\n")
-             | D.AppLF (h', t) => (print ("AppLF\n"); printHead h'; let val (D.Term t') = t in
-                        print (t' ^ "\n") end)
-
-          val _ = printHead eH
-*)
-
-   	  val (F, t, W') = typeOfFun (eH, W) (fn (F, t, W) => (F, t, W))
-
-      	  val _ = Normalize.normalizeFor (F, t)
-	  val K' = collectSub (Abstract.nothing, t)
-	  val G' = Abstract.abstractCollected K'
-	  val Psi' = T.embedCtx G'
-	  val n = I.ctxLength Psi
+	  val (F, t) = transHead (eH, nil)
+	  val _ = print "+"
+(*      	  val F' = Normalize.normalizeFor (F, t) *)
+	  val (Psi', t') = Abstract.abstractTomegaSub t
 	  val m = I.ctxLength Psi'
-
-
-	  val t' = abstractSub (K', t)
-	  val env'  =  map (fn (U, V, name) => (I.EClo (U, I.Shift m), I.EClo (V, I.Shift m), name)) env
-	  val env'' = abstractEnv (K', G') (Names.namedEVars ()) env'
+	  val _ = print (Int.toString m)
+	  val env''  =  map (fn (U, V, name) => (I.EClo (U, I.Shift m), I.EClo (V, I.Shift m), name)) env
 	  val Psi'' = append (Psi, Psi')
-
-(* Operation add parameter variables begin *)
- 	  val _ = print "\n++++\n"
-
-
-          fun extractLabel ([]) = ([], [])
-            | extractLabel (#"#"::s) = extractLabel s
-            | extractLabel (x::s) =
-              if x = #"_" then ([], s)
-              else 
-                let 
-                  val (s1, s2) = extractLabel s
-                in 
-                  (x :: s1, s2)
-                end
-
-	      
-	  fun makeVar s = 
-	    (case (extractLabel (String.explode s))
-	       of (s1, []) => Normal (String.implode s1)
-	        | (s1, s2) => Proj (String.implode s1, String.implode s2))
-
-         
-	  val Ns = Names.namedEVars ()
-
-	  val _ = map (fn (_, x) => (case makeVar x 
-		                       of Normal s  => print  ("Normal variable: " ^ s)
-					| Proj (l, s) => print ("Projection from Block " ^ l ^ " at " ^ s)
-					)) Ns
-
- 	  val _ = print "\n++++"
-(* Operation add parameter variables end *)
-
-	  val myF = Normalize.normalizeFor (F, t')
-	  val _ = print (TomegaPrint.forToString (Names.ctxName (T.coerceCtx Psi''), myF) ^ "\n") 
-	  val P = transProgI ((Psi'', env''), eP, (F, t'), W')
-
+(*	  val _ = print (TomegaPrint.forToString (Names.ctxName (T.coerceCtx Psi''), myF) ^ "\n") *)
+	  val P = transProgI ((Psi'', env''), eP, (F, t'), W)
 	  val _ = print "]"
 	in
 	  transFun2 ((Psi, env), s, Ds, sc, fn Cs => k ((Psi'', t', P) :: Cs), W)
 	end
-*)
+
     (* transForDec ((Psi, env), eDf, dDs, sc, W) = x
        
        Invariant:
@@ -858,21 +489,21 @@ val _ = print "!";
     *)
     and transForDec ((Psi, env), D.Form (s, eF), Ds, sc, W) = 
         let
-	  val F = transFor (I.Null, eF)   
-					(* fix the context I.Null from
-                                           external to internal form--cs *)
+
 	  val G = Names.ctxName (T.coerceCtx Psi)
-	  val _ = Normalize.normalizeFor (F, T.id)
+	  val F = transFor (G, eF)   
+	  val F' = Normalize.normalizeFor (F, T.id)
 	  val _ = print s
 	  val _ = print " :: "
-	  val _ = print (TomegaPrint.forToString (T.embedCtx G, F) ^ "\n") 
+	  val _ = print (TomegaPrint.forToString (T.embedCtx G, F') ^ "\n") 
+	  val _ = TomegaTypeCheck.checkFor (Psi, F')
 	in
-	  (T.lemmaAdd (T.ForDec (s, F));
+	  (T.lemmaAdd (T.ForDec (s, F'));
            T.lemmaFor (T.lemmaName s); 
-	   transDecs ((Psi, env), Ds, sc, W))
+	   transDecs ((Psi, env), SOME (T.PDec (SOME s, F')), Ds, sc, W))
  	end
 
-(*
+
     (* transValDec ((Psi, env), dDv, dDs, sc, W) = x
        
        Invariant:
@@ -893,49 +524,28 @@ val _ = print "!";
         let 
 
 	  val _ = print "[val ..."
-
-	  val _ = Names.varReset I.Null
-    
           val (P, (F', t')) = (case eFopt 
-	                         of NONE => transProgS ((Psi, env), eP, W)
-			          | SOME eF => let 
-				                 val (_, F') = transFor (I.Null, eF)   
-						      (* rewrite the code for transFor, 
-						         I.Null too restrictive
-							 in its current form, this
-							 offers only limited functionality --cs*)
+	                         of NONE => transProgS ((Psi, env), eP, W, nil)
+			          | SOME eF => let
+						 val F' = transFor (T.coerceCtx Psi, eF)
 						 val P' =  transProgIN ((Psi, env), eP, F', W)
 					       in
 						 (P', (F', T.id))
 					       end)
-   
-          val _ = Names.varReset I.Null
-	  val G = Names.ctxName (T.coerceCtx Psi)
-	  val _ = printCtx (G, env) 
+
 	  val F'' = Normalize.normalizeFor (F', t')
-	  val _ = print (TomegaPrint.forToString (G, F'') ^ "\n") 
-	  val _ = Names.varReset I.Null
-	  val t0 = createEVarSub (I.Null, Psi)
-	  val Pat = makePattern (EPat, (F'', t0))
-	  val t = T.Dot (T.Prg Pat, t0)
-	  val s0 = T.coerceSub t0
-	  val K' = collectSub (Abstract.nothing, t)
-	  val G' = Abstract.abstractCollected K'
-(*	  val G'n = Names.ctxName G'*)
-	  val Psi' = T.embedCtx G'
-	  val t' = abstractSub (K', t)
-(*	  val _ = printSub (G'n, t') *)
-	  val env' = map (fn (U, V, name) => (Abstract.abstractExp (K', I.EClo (U, s0)), 
-					      Abstract.abstractExp (K', I.EClo (V, s0)), 
-						name)) env
-(*	  val _ = printCtx (G'n, []) *)
-	  val env'' = abstractEnv (K', G') (Names.namedEVars ()) env'
-          val P'' = transDecs ((Psi', env''), Ds, sc, W)
-      	  val D = T.PDec (NONE,  F'')
-	  val _ = print "]"
+	  val Pat = transPattern (EPat, (F', t'))
+      	  val D = T.PDec (NONE, F'')
+	  val (Psi', Pat') = Abstract.abstractTomegaPrg (Pat)
+	  val m = I.ctxLength Psi'
+	  val t = T.Dot (T.Prg Pat', T.id)
+	  val env''  = map (fn (U, V, name) => (I.EClo (U, I.Shift m), I.EClo (V, I.Shift m), name)) env
+	  val Psi'' = append (Psi, Psi')
+          val P'' = transDecs ((Psi'', env''), NONE, Ds, sc, W)
 	in
-	  T.Let (D, P, T.Case (T.Cases [(Psi', t', P'')])) 
+	  T.Let (D, P, T.Case (T.Cases [ (* (Psi'', t', P'') *)])) 
 	end
+
 
 
     (* transProgS ((Psi, env), ExtP, F, W) = P 
@@ -948,18 +558,45 @@ val _ = print "!";
        then Psi |- P :: F
     *)
     and transProgI ((Psi, env), eP, Ft, W) =
-        let
-	  val _= print "["
-	  val _ = Normalize.normalizeFor Ft
-	  val _= print "]"
-	in	 
           transProgIN ((Psi, env), eP, Normalize.normalizeFor Ft, W)
-	end
-
-
 
     and transProgIN ((Psi, env), D.Unit, T.True, W) = T.Unit
-      | transProgIN ((Psi, env), D.Pair (EP1, EP2), T.And (F1, F2), W) =
+      | transProgIN ((Psi, env), P as D.Inx (s, EP), T.Ex ((I.Dec (_, V), T.Explicit), F'), W) =
+        let 
+	  val U = parseTerm ((Psi, env), (s, V))
+	  val P' = transProgI ((Psi, env), EP, (F', T.Dot (T.Exp U, T.id)), W)
+        in
+          T.PairExp (U, P')
+        end
+      | transProgIN ((Psi, env), D.Let (eDs, eP), F, W) =
+          transDecs ((Psi, env), NONE, eDs, fn (Psi', env', W') => 
+		     transProgI ((Psi', env'), eP, (F, T.Shift (I.ctxLength Psi' - I.ctxLength Psi)),W'), W)
+      | transProgIN ((Psi, env), D.Choose (eD, eP), F, W) =
+	  let 
+	    val D' = parseDec ((Psi, env), eD)
+	    val env''  = map (fn (U, V, name) => (I.EClo (U, I.Shift 1), I.EClo (V, I.Shift 1), name)) env
+	    val Psi'' = I.Decl (Psi, T.UDec D')
+	  in
+	    T.Choose (T.Lam (T.UDec D', transProgI ((Psi'', env''), eP, (F, T.Shift 1), W)))
+	    end
+      | transProgIN ((Psi, env), D.New (eD, eP), F, W) =
+	  let 
+	    val D' = parseDec ((Psi, env), eD)
+	    val env''  = map (fn (U, V, name) => (I.EClo (U, I.Shift 1), I.EClo (V, I.Shift 1), name)) env
+	    val Psi'' = I.Decl (Psi, T.UDec D')
+	  in
+	    T.New (T.Lam (T.UDec D', transProgI ((Psi'', env''), eP, (F, T.Shift 1), W)))
+	  end
+      | transProgIN ((Psi, env), P as D.AppTerm (EP, s), F, W) =
+        let
+	  val (P', (F', _)) = transProgS ((Psi, env), P, W, nil)
+	  val ()  = ()   (* check that F == F' *)
+        in
+          P'
+        end  	
+
+
+(*      | transProgIN ((Psi, env), D.Pair (EP1, EP2), T.And (F1, F2), W) =
         let 
 	  val P1 = transProgIN ((Psi, env), EP1, F1, W)
 	  val P2 = transProgIN ((Psi, env), EP2, F2, W)	
@@ -1004,14 +641,6 @@ val _ = print "!";
           (Psi, T.Lam (T.UDec D, P), T.All (D, F'))
         end
 *)
-      | transProgIN ((Psi, env), D.Let (eDs, eP), F, W) =
-        let
-          val D = T.PDec (SOME "temp", T.FVar (I.Null, ref NONE))
-	in
-          transDecs ((Psi, env), eDs, fn (Psi', env', W') => 
-		     transProgI ((Psi', env'), eP, (F, T.Shift (I.ctxLength Psi' - I.ctxLength Psi)),W'), W)
-        end
-          (* T.Let (D, T.Empty, transProgIN ((Psi', env'), eP, F))  *)
 
 
       | transProgIN ((Psi, env), D.New (s, EP), F, W) =
@@ -1064,10 +693,60 @@ val _ = print "!";
             T.Unit 
           end
 
+*)
+   and transProgS ((Psi, env), D.Unit, W, args) =
+         (T.Unit, (T.True, T.id))
+     | transProgS ((Psi, env), D.AppTerm (EP, s), W, args) =
+	 transProgS ((Psi, env), EP, W, s :: args)
+     | transProgS ((Psi, env), D.Const name, W, args) = 
+	 let
+	   val lemma = T.lemmaName name
+	   val F = T.lemmaFor lemma
+	   val (S, Fs') = transProgS'  ((Psi, env), (F, T.id), W, args)
+	 in
+	   (T.Root (T.Const lemma, S), Fs')
+	 end
+	    
+(*      | transProgS ((Psi, env), D.AppTerm (EP, s), W) =
+        let
+          val (P', (T.All ((T.UDec (I.Dec (_, V)), _), F'), t)) = transProgS ((Psi, env), EP, W)
+	  val U = parseTerm ((Psi, env), (s, V))
+	  val (F'', t'', _) = checkForWorld (F', T.Dot (T.Exp U, t), W)
+        in
+          (T.Redex (P', T.AppExp (U, T.Nil)),  (F'', t''))
+        end
+      | transProgS ((Psi, env), D.Const name, W) =
+	let
+	  val lemma = T.lemmaName name
+	  val (F, t, _) = checkForWorld (T.lemmaFor lemma, T.id, W)
+	in
+	  (T.Root (T.Const lemma, T.Nil), (F, t))
+	end
 
-   and transProgS ((Psi, env), D.Unit, W) =
-          (T.Unit, (T.True, T.id))
+*)
 
+    and transProgS' ((Psi, env), (T.World (_, F), s), W, args) = transProgS' ((Psi, env), (F, s), W, args) 
+      | transProgS' ((Psi, env), (T.All ((T.UDec (I.Dec (_, V)), T.Implicit), F'), s), W, args) =
+        let
+	  val G = T.coerceCtx Psi
+	  val X = I.newEVar (G, I.EClo (V, T.coerceSub s))
+(*	  val X = I.EVar (ref NONE, I.Null, I.EClo (V, T.coerceSub s), ref nil) *)
+          val (S, Fs') = transProgS' ((Psi, env), (F', T.Dot (T.Exp X, s)), W, args)
+	in
+	  (T.AppExp (Whnf.normalize (X, I.id), S), Fs')
+	end
+      | transProgS' ((Psi, env), (T.All ((T.UDec (I.Dec (_, V)), T.Explicit), F'), s), W, t :: args) =
+	let
+	  val U = parseTerm ((Psi, env), (t, I.EClo (V, T.coerceSub s)))
+	  val (S, Fs') = transProgS' ((Psi, env), (F', T.Dot (T.Exp U, s)), W, args)
+(*	  val (F'', s'', _) = checkForWorld (F', T.Dot (T.Exp U, s), W) *)
+	in
+          (T.AppExp (U, S), Fs')
+	end
+      | transProgS' ((Psi, env), (F, s), _,nil) = (T.Nil, (F, s))
+
+
+(*
      | transProgS ((Psi, env), D.Pair (EP1, EP2), W) =
         let 
           val (P1, (F1, t1)) = transProgS ((Psi, env), EP1, W)
@@ -1085,14 +764,6 @@ val _ = print "!";
 	  (T.Redex (P1, T.AppPrg (P2, T.Nil)), (F'', t''))
 	end  
 
-      | transProgS ((Psi, env), D.AppTerm (EP, s), W) =
-        let
-          val (P', (T.All (T.UDec (I.Dec (_, V)), F'), t)) = transProgS ((Psi, env), EP, W)
-	  val (U, V) = parseTerm ((Psi, env), s)
-	  val (F'', t'', _) = checkForWorld (F', T.Dot (T.Exp U, t), W)
-        in
-          (T.Redex (P', T.AppExp (U, T.Nil)),  (F'', t''))
-        end  
 
       | transProgS ((Psi, env), P as D.Inx (s, EP), W) =  raise Error "Cannot infer existential types"
 
@@ -1105,14 +776,6 @@ val _ = print "!";
           (T.Lam (T.UDec D, P), (T.All (D, F'), t'))
         end
 *)
-      | transProgS ((Psi, env), D.Const name, W) =
-	let
-	  val lemma = T.lemmaName name
-	  val (F, t, _) = checkForWorld (T.lemmaFor lemma, T.id, W)
-	in
-	  (T.Root (T.Const lemma, T.Nil), (F, t))
-	end
-
       | transProgS ((Psi, env), D.New (s, eP), W)  = 
 	let
      	  val _ = print "["
@@ -1173,15 +836,7 @@ val _ = print "!";
 (*    val makePattern = makePattern *)
 (*    val transPro = fn P => let val (P', _) = transProgS ((I.Null, []), P, T.Worlds []) in P' end *)
 
-    val transDecs = fn Ds => transDecs ((I.Null, []), Ds, fn (Psi, env, W) => T.Unit, T.Worlds []) 
+    val transDecs = fn Ds => transDecs ((I.Null, []), NONE, Ds, fn (Psi, env, W) => T.Unit, T.Worlds []) 
 
   end 
 end (* functor Trans *)
-
-
-
-
-
-
-
-

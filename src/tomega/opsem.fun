@@ -231,7 +231,7 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
 	       
 	     fun choose (k, I.Null) = raise Abort
 	       | choose (k, I.Decl (Psi', T.PDec _)) = 
-  	           choose (k+1, Psi)
+  	           choose (k+1, Psi')
 	       | choose (k, I.Decl (Psi', T.UDec (I.Dec _))) = 
 	           choose (k+1, Psi')
 	       | choose (k, I.Decl (Psi', T.UDec (I.BDec (_, (l1, s1))))) = 

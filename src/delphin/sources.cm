@@ -12,6 +12,7 @@ is
    ../lambda/sources.cm
    ../print/sources.cm
    ../names/sources.cm
+   ../subordinate/sources.cm
    ml-yacc-lib-mod/sources.cm
    delphin.lex
    delphin.grm

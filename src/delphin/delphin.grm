@@ -105,6 +105,7 @@ structure L = Lexer
 %left PREC1
 %left AND
 
+%right DOT
 %right DBLCOLON
 %right ID TRUE ALL EXISTS ALLOMITTED EXISTSOMITTED VAL FUN CASE OF BAR LET IN END NEW CHOOSE
 %right RTARROW DBLARROW 
@@ -176,7 +177,7 @@ term      : TYPE                                       (D.Type)
           | LTPAREN term RTPAREN term         	       (D.App (D.Paren term1, term2))
           | term COLON term                   	       (D.Of (term1, term2))
           | UNDERSCORE                        	       (D.Omit)  
-          | term DOT term 			       (D.Dot (term1, term2))
+          | term DOT ID 			       (D.Dot (term1, ID))
 
 world     : LTPAREN world RTPAREN                      (world)
           | ID                                         (D.WorldIdent ID)

@@ -88,7 +88,7 @@ and Term
   | Pi of Dec * Term
   | Fn of Dec * Term
   | App of Term * Term
-  | Dot of Term * Term
+  | Dot of Term * string
   | Paren of Term
   | Omit
   | Of of Term * Term

@@ -21,6 +21,7 @@ sig
   val abstractCtxs : (IntSyn.Dec IntSyn.Ctx) list
                      -> (IntSyn.Dec IntSyn.Ctx) * (IntSyn.Dec IntSyn.Ctx) list
   val abstractTomegaSub : Tomega.Sub -> (Tomega.Dec IntSyn.Ctx * Tomega.Sub)
+  val abstractTomegaPrg : Tomega.Prg -> (Tomega.Dec IntSyn.Ctx * Tomega.Prg)
   val abstractSpine : IntSyn.Spine * IntSyn.Sub -> (IntSyn.dctx * IntSyn.Spine)
 
   val collectEVars : IntSyn.dctx * IntSyn.eclo * IntSyn.Exp list -> IntSyn.Exp list
