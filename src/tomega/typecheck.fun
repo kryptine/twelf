@@ -317,6 +317,10 @@ struct
 	  (print "* Temporary incompleteness;  code is written but not yet clean\n") 
       | checkPrgW (Psi, (T.Redex (P1, P2), (F, t))) =
 	  (print "* Temporary incompleteness; redex not checkable")
+
+      | checkPrgW (Psi, (T.PClo (P, t1), (F,t2))) = 
+	  (print "* Temporary incompleteness; PClo not checkable")
+
 (*	let 
 
 	  fun makeCtx (G, (nil, s)) = G
@@ -759,7 +763,7 @@ struct
        end
 
 	
-
+     (* Is isValue really necessary??? -ABP *)
     and isValue (T.Lam _) = ()
       | isValue (T.PairExp (M, P)) = isValue P
       | isValue (T.PairBlock _ ) = ()
@@ -775,6 +779,46 @@ struct
 
       (* ABP 1/23/03 *)
       | isValue (T.EVar _) = raise Error "It is an EVar"
+
+      (* ABP 2/25/03 *)
+      (* Even if isValue is necessary, is this necessary? *)
+      | isValue (P as T.PClo _) =
+	    let
+	      fun getExpIndex (I.Root (I.BVar k, I.Nil)) = k
+		| getExpIndex (I.Redex (U, I.Nil)) = getExpIndex(U)
+		| getExpIndex (I.EClo (U, t)) =
+		(case (I.bvarSub(getExpIndex(U), t))
+		  of (I.Idx i2) => i2
+		   | (I.Exp E) => getExpIndex(E)
+		   | (I.Block B) => getBlockIndex(B)
+		   | (I.Undef) => raise Error "P isn't Value!")
+		| getExpIndex (U as I.Lam (I.Dec (_, U1), U2)) = ( Whnf.etaContract(U) ) 
+		   handle Whnf.Eta => raise Error "P isn't Value!"
+		   
+	      and getBlockIndex (I.Bidx k) = k
+		| getBlockIndex _ = raise Error "P isn't Value!"
+
+	      and getPrgIndex (T.Root(T.Var k, T.Nil )) = k
+		| getPrgIndex (T.Redex(P, T.Nil) ) = getPrgIndex(P)
+
+		| getPrgIndex (T.PClo (P,t)) = 
+		(case (T.varSub(getPrgIndex(P), t))
+		  of (T.Idx i2) => i2
+		   | (T.Prg P2) => getPrgIndex(P2)
+		   | (T.Exp E2) => getExpIndex(E2)
+		   | (T.Block B2) => getBlockIndex(B2)
+		   | (T.Undef) => raise Error "P isn't Value!")
+
+		| getPrgIndex _ = raise Error "P isn't Value!"
+
+      	    in
+	      (* ABP. actually this needs to be fixed before getting here *)
+	      ()
+	      (*
+	      raise Error "YO" (* (getPrgIndex P ; ()) *)
+		*)
+	    end
+
 
       | isValue _ = raise Error "P isn't Value!"
 

@@ -8,6 +8,9 @@ Library
   signature TOMEGATYPECHECK
   structure TomegaTypeCheck
 
+  signature REDUNDANT	
+  structure Redundant
+
   signature OPSEM
   structure Opsem
 is
@@ -38,4 +41,6 @@ is
   unify.fun
   coverage.sig
   coverage.fun
+  redundant.sig
+  redundant.fun
   tomega.sml 

@@ -19,10 +19,12 @@ struct
 
   exception Error of string
 
-  local
-    
-    exception NoMatch
 
+
+(*  local -- removed ABP 1/19/03 *)
+
+  exception NoMatch
+    
 (* 
  matchPrg is used to see if two values can be 'unified' for
    purpose of matching case
@@ -45,30 +47,30 @@ struct
 	 
     and matchVal (Psi, (T.Unit, _), T.Unit) = ()
 
-      | matchVal (Psi, (T.PairPrg (P1, P1'), t1), T.PairPrg (P2, P2')) =
+      | matchVal (Psi, (T.PairPrg (P1, P1'), t1), T.PairPrg (P2, P2')) = 
          (matchVal (Psi, (P1, t1), P2);
 	  matchVal (Psi, (P1', t1), P2'))
 
-      | matchVal (Psi, (T.PairBlock (B1, P1), t1), T.PairBlock (B2, P2)) =
+      | matchVal (Psi, (T.PairBlock (B1, P1), t1), T.PairBlock (B2, P2)) = 
 	 (matchVal (Psi, (P1, t1), P2);
 	  Unify.unifyBlock (T.coerceCtx Psi, I.blockSub (B1, T.coerceSub t1), B2)
 	  handle Unify.Unify _ => raise NoMatch)
 
-      | matchVal (Psi, (T.PairExp (U1, P1), t1), T.PairExp (U2, P2)) =
-	 (matchVal (Psi, (P1, t1), P2);
+      | matchVal (Psi, (T.PairExp (U1, P1), t1), T.PairExp (U2, P2)) = 
+	 (matchVal (Psi, (P1, t1), P2); 
 	  Unify.unify (T.coerceCtx Psi, (U1, T.coerceSub t1), (U2, I.id))
 	  handle Unify.Unify _ => raise NoMatch)
 
-      | matchVal (Psi, (T.PClo (P, t1'), t1), Pt) = 
+      | matchVal (Psi, (T.PClo (P, t1'), t1), Pt) =  
 	  matchVal (Psi, (P, T.comp (t1', t1)), Pt)
 
       (* Added by ABP *)
    
-      | matchVal (Psi, (P',t1), T.PClo(T.PClo (P, t2), t3)) =
+      | matchVal (Psi, (P',t1), T.PClo(T.PClo (P, t2), t3)) =  
 	 (* ABP -- Do we need this? I added it *)
 	 matchVal (Psi, (P',t1), T.PClo(P, T.comp (t2, t3)))
 
-      | matchVal (Psi, (P',t1), T.PClo(T.EVar (_, r as ref NONE, _), t2)) =
+      | matchVal (Psi, (P',t1), T.PClo(T.EVar (_, r as ref NONE, _), t2)) =  
 	 let
 	   val iw = T.invertSub t2
 	 in
@@ -76,11 +78,11 @@ struct
 	   r := SOME (T.PClo (P', T.comp(t1, iw)))
 	 end
 
-      | matchVal (Psi, (P', t1), T.EVar (_, r as ref NONE, _)) = 
+      | matchVal (Psi, (P', t1), T.EVar (_, r as ref NONE, _)) =  
 	 r := SOME (T.PClo (P', t1))
 
-      | matchVal (Psi, (V,t), T.EVar ((D, r as ref (SOME P), F))) =
-	 (* ABP -- this should never occurr, since we normalized it to start *)
+      | matchVal (Psi, (V,t), T.EVar ((D, r as ref (SOME P), F))) =  
+	 (* ABP -- this should never occur, since we normalized it to start *)
 	 matchVal (Psi, (V,t), P) 
 
      | matchVal _ = raise NoMatch
@@ -210,12 +212,12 @@ and raisePrg (G, T.Unit) = T.Unit
 	in
 	  ( matchSub (Psi, t1, t');
 	   evalPrg (Psi, (P, Normalize.normalizeSub t)))
-	  handle NoMatch => match (Psi, t1, T.Cases C)
-	  
+	  handle NoMatch => match (Psi, t1, T.Cases C)	  
 	end
 
       (* What do you want to do if it doesn't match anything *)
-      (* | match (Psi, t1, T.Cases Nil) = raise Domain *)
+      (* can't happen when total function - ABP *)
+      (* | match (Psi, t1, T.Cases Nil) = raise Domain  *)
 
 
 
@@ -228,7 +230,7 @@ and raisePrg (G, T.Unit) = T.Unit
     *)
     and createVarSub (Psi, I.Null) = T.Shift(I.ctxLength(Psi))
 
-      | createVarSub (Psi, Psi'' as I.Decl (Psi', T.PDec (name, F))) =
+      | createVarSub (Psi, Psi'' as I.Decl (Psi', T.PDec (name, F))) =  
         let 
 	  val t = createVarSub (Psi, Psi')
 	  val t' = T.Dot (T.Prg (T.newEVar (Psi, Normalize.normalizeFor(F,t))), t)
@@ -236,7 +238,7 @@ and raisePrg (G, T.Unit) = T.Unit
 	  t'
 	end
 
-      | createVarSub (Psi, I.Decl (Psi', T.UDec (I.Dec (name, V)))) =
+      | createVarSub (Psi, I.Decl (Psi', T.UDec (I.Dec (name, V)))) =  
         let 
 	  val t = createVarSub (Psi, Psi')
 	in
@@ -249,7 +251,7 @@ and raisePrg (G, T.Unit) = T.Unit
 	  val t = createVarSub (Psi, Psi')
 	in
           T.Dot (T.Block (I.LVar (ref NONE, I.id, (cid, s))), t)
-	end
+	end 
 
 
  (* matchSub (t1, t2) = ()
@@ -262,32 +264,35 @@ and raisePrg (G, T.Unit) = T.Unit
        then function returns ()
 	    otherwise exception NoMatch is raised
     *)
-    and matchSub (Psi, T.Shift a, T.Shift b) = ()
-      | matchSub (Psi, T.Shift n, t as T.Dot _) =
+    and matchSub (Psi, T.Shift a, T.Shift b) =  ()
+      | matchSub (Psi, T.Shift n, t as T.Dot _) =  
           matchSub (Psi, T.Dot (T.Idx (n+1), T.Shift (n+1)), t)
 
-      | matchSub (Psi, t as T.Dot _, T.Shift 0) = (print "got here\n" ; ()) (* Just because ABP 2/5/03 *)
+      | matchSub (Psi, t as T.Dot _, T.Shift 0) =  () (* Just because ABP 2/5/03 *)
 
-      | matchSub (Psi, t as T.Dot _, T.Shift n) =
+      | matchSub (Psi, t as T.Dot _, T.Shift n) =  
           matchSub (Psi, t, T.Dot (T.Idx (n+1), T.Shift (n+1)))
 
-      | matchSub (Psi, T.Dot (T.Exp U1, t1), T.Dot (T.Exp U2, t2)) =
+      | matchSub (Psi, T.Dot (T.Exp U1, t1), T.Dot (T.Exp U2, t2)) = 
 	  (matchSub (Psi, t1, t2);
 	   Unify.unify (T.coerceCtx Psi, (U1, I.id), (U2, I.id)) handle Unify.Unify s => raise NoMatch)
 
-      | matchSub (Psi, T.Dot (T.Exp U1, t1), T.Dot (T.Idx k, t2)) =
+      | matchSub (Psi, T.Dot (T.Exp U1, t1), T.Dot (T.Idx k, t2)) =  
 	  ( matchSub (Psi, t1, t2);
-	   Unify.unify (T.coerceCtx Psi, (U1, I.id), (I.Root (I.BVar k, I.Nil), I.id)) handle Unify.Unify _ => raise NoMatch)
-      | matchSub (Psi, T.Dot (T.Idx k, t1), T.Dot (T.Exp U2, t2)) =
-	  ( matchSub (Psi, t1, t2);
-	   Unify.unify (T.coerceCtx Psi, (I.Root (I.BVar k, I.Nil), I.id), (U2, I.id)) handle Unify.Unify _ => raise NoMatch)
-      | matchSub (Psi, T.Dot (T.Prg P1, t1), T.Dot (T.Prg P2, t2)) =
-	  ( matchSub (Psi, t1, t2);
+	   Unify.unify (T.coerceCtx Psi, (U1, I.id), (I.Root (I.BVar k, I.Nil), I.id)) handle Unify.Unify _ => raise NoMatch) 
+
+      | matchSub (Psi, T.Dot (T.Idx k, t1), T.Dot (T.Exp U2, t2)) =  
+	  ( matchSub (Psi, t1, t2); 
+	   Unify.unify (T.coerceCtx Psi, (I.Root (I.BVar k, I.Nil), I.id), (U2, I.id)) handle Unify.Unify _ => raise NoMatch )
+
+
+      | matchSub (Psi, T.Dot (T.Prg P1, t1), T.Dot (T.Prg P2, t2)) = 
+	  ( matchSub (Psi, t1, t2); 
 	   matchPrg (Psi, P1, P2))
-      | matchSub (Psi, T.Dot (T.Prg P1, t1), T.Dot (T.Idx k, t2)) =
+      | matchSub (Psi, T.Dot (T.Prg P1, t1), T.Dot (T.Idx k, t2)) = 
 	  (matchSub (Psi, t1, t2);
 	   matchPrg (Psi, P1, T.Root (T.Var k, T.Nil)))
-      | matchSub (Psi, T.Dot (T.Idx k, t1), T.Dot (T.Prg P2, t2)) =
+      | matchSub (Psi, T.Dot (T.Idx k, t1), T.Dot (T.Prg P2, t2)) = 
 	  (matchSub (Psi, t1, t2);
 	   matchPrg (Psi, T.Root (T.Var k, T.Nil), P2))
       | matchSub (Psi, T.Dot (T.Idx k1, t1), T.Dot (T.Idx k2, t2)) =
@@ -320,11 +325,12 @@ and raisePrg (G, T.Unit) = T.Unit
 	  in
 	    evalRedex (Psi, V', (S, t))
 	  end
-	
-  in
+
+  (* in -- removed local *)
     val evalPrg = fn P => evalPrg (I.Null, (P, T.id))  
   
-  end
+  (* end -- removed local *)
+
 end
 
 

@@ -107,6 +107,10 @@ struct
       | normalizeSub (T.Dot (T.Exp E, s)) =
 	  T.Dot (T.Exp (Whnf.normalize (E, I.id)), normalizeSub s)
       | normalizeSub (T.Dot (T.Block k, s)) = T.Dot (T.Block k, normalizeSub(s))
+      
+      (* ABP 2/26/03 *)
+      | normalizeSub (T.Dot (T.Idx k, s)) = T.Dot (T.Idx k, normalizeSub(s))
+
   in
     val normalizeFor = normalizeFor
     val normalizePrg = normalizePrg 
