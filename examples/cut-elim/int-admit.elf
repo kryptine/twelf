@@ -139,13 +139,6 @@ car_notl : ca A D ([h:hyp A] notl (E1 h) H) (notl E1' H)
 car_truer: ca A D ([h:hyp A] truer) (truer).
 
 car_falsel : ca A D ([h:hyp A] falsel H) (falsel H).
-% Next clause is redundant, but needed for coverage checker
-car_falsel': ca false D ([h:hyp false] falsel h) D.
-
-
-% Next clause is redundant, but needed to get the coverage checker
-% to split H in the goal ?- ca A D ([h:hyp A] falsel (H h)) _.
-% car_falsel' : ca false D ([h:hyp false] falsel h) D.
 
 car_forallr : ca A D ([h:hyp A] forallr (E1 h)) (forallr E1')
 	       <- ({a:i} ca A D ([h:hyp A] E1 h a) (E1' a)).
@@ -164,4 +157,5 @@ car_existsl : ca A D ([h:hyp A] existsl (E1 h) H) (existsl E1' H)
 %block l2 : block {a:i}.
 %block l3 : block {p:o}.
 %worlds (l1 | l2 | l3) (ca A D E F).
-%covers ca +A +D +E *F.
+%covers ca +A +D +E -F.
+%terminates {A [D E]} (ca A D E _).

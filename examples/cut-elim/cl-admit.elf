@@ -218,5 +218,5 @@ cal_existsl' :
 %block li : block {a:i}.
 %block lo : block {p:o}.
 %worlds (lp | ln | li | lo) (ca' A D E F).
-% next fails miserably because of missing splitting candidates
-% %covers ca' +A +D +E *F.
+%covers ca' +A +D +E *F.
+%terminates {A [D E]} (ca' A D E _).
