@@ -20,6 +20,20 @@ structure TomegaTypeCheck = TomegaTypeCheck
    structure Print = Print
    structure Weaken = Weaken);
 
+structure TomegaUnify = TomegaUnify
+  (structure Global = Global
+   structure IntSyn' = IntSyn
+   structure Abstract = Abstract
+   structure Tomega' = Tomega
+   structure TypeCheck = TypeCheck
+   structure Normalize = Normalize
+   structure Conv = Conv
+   structure Whnf = Whnf
+   structure Subordinate = Subordinate
+   structure TomegaPrint = TomegaPrint
+   structure Print = Print
+   structure Weaken = Weaken);
+
 
 structure Converter = Converter
   (structure Global = Global
@@ -58,6 +72,9 @@ structure Opsem = Opsem
    structure Print = Print
    structure Weaken = Weaken);
 
-     
-
+structure TomegaCoverage = TomegaCoverage
+  (structure Global = Global
+   structure IntSyn' = IntSyn
+   structure Tomega' = Tomega
+   structure Cover = Cover);
 
