@@ -185,7 +185,25 @@ struct
       (* all other cases impossible by invariant *)
 
 
+    val id = Shift 0
 
+    (* dotEta (Ft, s) = s'
+       
+       Invariant: 
+       If   G |- s : G1, V  and G |- Ft : V [s]
+       then Ft  =eta*=>  Ft1
+       and  s' = Ft1 . s
+       and  G |- s' : G1, V
+    *)
+    fun dotEta (Ft as Idx _, s) = Dot (Ft, s)
+      | dotEta (Ft as Exp (U), s) =
+	let
+	  val Ft' = Idx (Whnf.etaContract U)
+		   handle Eta => Ft
+	in
+	  Dot (Ft', s)
+	end
+      | dotEta (Ft as Undef, s) = Dot (Ft, s)
 
 
     (* embedCtx G = Psi
@@ -563,6 +581,8 @@ temorarily removed --Carsten
     val ctxToList = ctxToList
     val listToCtx = listToCtx *)
 
+    val id = id
+    val dotEta = dotEta
     val convFor = convFor
     val newEVar = newEVar
 (* Below are added by Yu Liao *)

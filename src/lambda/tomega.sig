@@ -81,6 +81,7 @@ sig
   val id        : Sub
   val shift     : Sub
   val dot1      : Sub -> Sub
+  val dotEta    : Front * Sub -> Sub
   val comp      : Sub * Sub -> Sub
   val varSub    : int * Sub -> Front
   val decSub    : Dec * Sub -> Dec

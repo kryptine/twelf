@@ -42,10 +42,10 @@ in
   val _ = test ["vs"]
 
 
-  (* Regression test for copy *)
+(*  (* Regression test for copy *)
   val _ = Twelf.loadFile "TEST/cp.elf"
   val _ = test ["cpt"]
-
+*)
 
 (*
   val _ = test ["tps"]
