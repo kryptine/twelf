@@ -117,10 +117,10 @@
 \newcommand{\bnfalt}{\mathrel{|}}
 
 \begin{document}
-\title{Small proof witness for the logical framework LF}
+\title{Small proof witnesses for the logical framework LF}
 \author{
 \begin{tabular}{ccc}
-Susmit Sarkar \thanks{This work was supported by ITR Grant ???}& 
+Susmit Sarkar \thanks{This work was supported by NSF ITR Grant 0121633:ITR/SY+SI:''Language Technology for Trustless Software Dissemination''}& 
 Brigitte Pientka \thanks{This work has been partially supported by NSER
 Grant ??? and FQRNT Grant ???}& 
 Karl Crary\\
@@ -133,13 +133,13 @@ Pittsburgh, PA, USA & Montreal, CA & Pittsburgh, PA, USA\\
 \affiliation{}
 \maketitle 
 
-\abstract{Certified code systems demand the production of small-sized
-objects which can witness proofs in a machine-verifiable manner. We
-present a proof compression and verification engine for the logical
-framework LF. This extends ideas from previous work by Necula and
-Rahul~\cite{Necula+01:oracle} in two main ways: 1) We consider the full
-fragment of LF, and 2) We will incorporate caching of sub-proofs to
-generate even more compact proof representations. This demonstrates
+\abstract{Certified code systems require small-sized objects which can
+witness proofs in a machine-verifiable manner. We present a proof
+compression and verification engine for the logical framework LF. This
+extends ideas from previous work by Necula and
+Rahul~\cite{Necula+01:oracle} in two main ways: 1) We consider the
+full fragment of LF, and 2) We will incorporate caching of sub-proofs
+to generate even more compact proof representations. This demonstrates
 that many of the restrictions in previous work can be overcome.
 
 Our system is integrated into the Twelf system, which has been widely
@@ -148,14 +148,14 @@ results demonstrates the practicality and usefulness of proof
 compression within logical frameworks.}
 
 \section{Introduction}
-Proof-carrying code applications establish trust by verifying
-compliance of untrusted code with a given safety and security policy.
-A code producer verifies that her program is safe to run according to
-some predetermined safety policy, and supplies a binary executable
-together with its safety proof. Before executing the program, the code
-consumer then quickly checks the code's safety proof against the
-binary. The concerns of proof production and proof checking are thus
-seperated.
+Proof-carrying code applications seek to enable sceptical consumers of
+code to execute untrusted code, written by untrusted parties. The key
+idea is that the code will come packaged with a machine-verifiable
+proof of its safety. The code producer is responsible for providing
+this proof of safety, relative to a predetermined safety policy.
+Before executing the program, the code consumer then quickly checks
+the code's safety proof against the binary. The concerns of proof
+production and proof checking are thus seperated.
 
 Many proof-carrying code projects, in particular in the more modern
 variant known as foundational PCC, have employed the logical framework
@@ -175,29 +175,26 @@ logical framework may be large in size, and in one study
 % magnitude) 
 several orders of magnitude as big as the actual machine code they
 prove safety properties of. Since this proof is to be sent across the
-network, this is a practical problem. This has spawned a number of
-research contributions to reduce proof size and proof checking time
-for proof-carrying code applications.
+network, this is a practical problem. Further, a big proof object
+takes time and memory space to load into memory and check. This has
+spawned a number of research contributions to reduce proof size and
+proof checking time for proof-carrying code applications.
 
-In a first step, Necula and Lee's \cite{Necula98lics} developed a
-proof representation for a fragment of full LF called LF$_i$. They
-were able to eliminate many redundant type information in the
-representation of proofs. However, proofs in LF$_i$ are still 4-times
-as big as the program they are certifying. To obtain even smaller
-proofs (1/8th the size of the machine code), Necula proposed in
-\cite{Necula+01:oracle} to only record the non-deterministic choices
-which were made when constructing the proof, and then use a guided
-\ednote{is it fair to call it a first-order LP engine? -- bp :I don't
-  think so, because their ``theoretical description'' discusses
-  higher-order issues such as higher-order unification, although they
-  didn't evaluate it in practice. If you think it is first-order you
-  must justify why.}logic programming engine to reconstruct the proof
-on the consumer side. This simple idea leads to small proof witnesses,
-which they call oracles. This idea has proven to be effective in many
-practical examples, and most recently has been proposed within the
-Open Verifier Framework \cite{Necula?}. Wu {\em{et. al}}
-\cite{Appel:PPDP03} use a similar idea for creating a foundational
-proof checker with small witnesses. 
+In a first step, Necula and Lee~\cite{Necula98lics} developed a proof
+representation for a fragment of full LF called LF$_i$. They were able
+to eliminate many redundant type information in the representation of
+proofs. However, proofs in LF$_i$ are still 4-times as big as the
+program they are certifying. To obtain even smaller proofs (1/8th the
+size of the machine code), Necula proposed in \cite{Necula+01:oracle}
+to use a logic programming engine to check the proof. Further, they
+advocate only recording the non-deterministic choices made when
+constructing the proof, and then use a guided logic programming engine
+to reconstruct the proof on the consumer side. This simple idea leads
+to small proof witnesses, which they call oracles. This idea has
+proven to be effective in many practical examples, and most recently
+has been proposed within the Open Verifier Framework
+\cite{Necula?}. Wu {\em{et. al}} \cite{Appel:PPDP03} use a similar
+idea for creating a foundational proof checker with small witnesses.
 
 All these previous approaches restrict themselves to a fragment of LF.
 This approach trades the power of the resulting framework against
@@ -205,27 +202,24 @@ simplicity of implementation. Necula's work cited above restricts
 itself to the so-called 2-level fragment of LF, while Wu {\em et. al}
 restrict themselves to a simply typed Prolog-like engine. Higher order
 logic programming extends conventional first order logic programming
-along two distinct\ednote{I would say orthogonal - bp} dimensions,
-first, by allowing dynamic assumptions to be manipulated, and second,
-by allowing the term language to become higher order by adding
-$\lambda$-abstraction. The approaches outlined above allow the first
-dimension, but do not treat a higher order term
-language.\ednote{Necula describes some higher-order extensions. We 
-should discuss exactly what he does, maybe in the related work
-section}.
+along two orthogonal dimensions, first, by allowing dynamic
+assumptions to be manipulated, and second, by allowing the term
+language to become higher order by adding $\lambda$-abstraction. The
+approaches outlined above allow the first dimension, but do not treat
+a higher order term language.\ednote{Necula describes some
+higher-order extensions. We should discuss exactly what he does, maybe
+in the related work section}.
 
 This is unfortunate, since higher-order abstract syntax is often used
-in LF for compact representations for logics\ednote{Higher-order
-  abstract syntax is not only used in LF -bp. I would suggest to
-  remove ``in LF"}. Each particular system now has to use encoding
-tricks to encode their variable binding constructs in the essentially
-first order language supported by their engine. For example, Wu {\em
-  et al}\cite{Appel:PPDP03} encode the explicit substitution calculus
-\cite{Abadi:POPL90} together with the necessary proofs about
-substitutions for their foundational implementation of LTAL. As the
-technology of certified code evolves, we will move to more powerful
-and expressive safety policies and type systems. The use of
-higher-order abstract syntax will be crucial for such systems.
+for compact representations for logics. Each particular system now has
+to use encoding tricks to encode their variable binding constructs in
+the essentially first order language supported by their engine. For
+example, Wu {\em et al}\cite{Appel:PPDP03} encode the explicit
+substitution calculus \cite{Abadi:POPL90} together with the necessary
+proofs about substitutions for their foundational implementation of
+LTAL. As the technology of certified code evolves, we will move to
+more powerful and expressive safety policies and type systems. The use
+of higher-order abstract syntax will become crucial for such systems.
 
 The restrictions of previous work are due to two major concerns with
 higher order terms. First, use of a higher-order term language
@@ -246,15 +240,15 @@ setting. Furthermore, we improve on the size of oracle-proofs by
 factoring out common sub-proofs\footnote{Eliminating common sub-proofs
 is an orthogonal problem to eliminating redundant implicit type
 information, as is proposed in \cite{Necula98lics}.} by incorporating
-memoization\ednote{this is memoization -- not memorization -bp}
-techniques. Identifying and factoring out common sub-proofs leads to
-more compact oracles and can decrease proof-checking time by a factor
-of ?? since common sub-proofs are only checked once.  We hope this
-will provide a comprehensive guide for future implementations of proof
-checkers which need not be restricted to first-order Prolog-like
-systems. In particular, various certified code systems can exploit
-this idea. We have implemented a oracle-based proof generator and
-checker as part of the logical framework {\em Twelf}.
+memoization techniques. Identifying and factoring out common
+sub-proofs leads to more compact oracles and can decrease
+proof-checking time by a factor of ?? since common sub-proofs are only
+checked once.  We hope this will provide a comprehensive guide for
+future implementations of proof checkers which need not be restricted
+to first-order Prolog-like systems. In particular, various certified
+code systems can exploit this idea. We have implemented a oracle-based
+proof generator and checker as part of the logical framework {\em
+Twelf}.
 
 
 %   However, all these approaches are
@@ -343,10 +337,9 @@ $P$ ranges over atomic formulas and we interpret the function arrow
 $A_1 \rightarrow A_2$ as implication. The $\Pi$-quantifier, denoting
 dependent function type, corresponds to the universal
 $\forall$-quantifier. Types, which are goals and clauses, are
-inhabited by corresponding proof terms $M$,\ednote{changed from
-previous version: every type has a corresponding proof term - Susmit}
-and we assume that all proof terms are in normal form. To represent
-proof terms, we use the spine notation~\cite{CervesatoPfenning01}.
+inhabited by corresponding proof terms $M$, and we assume that all
+proof terms are in normal form. To represent proof terms, we use the
+spine notation~\cite{CervesatoPfenning01}.
 
 \begin{center}
 \begin{tabular}[h]{lcl}
@@ -463,13 +456,15 @@ impe     : prov B
 
 These rules are given as a Twelf signature. $A$, $B$, $C$ denote
 existential or logic variables which are instantiated during proof
-search. There are two key ideas which make the encoding of the sequent
-calculus elegant and direct. First, we use the power of dynamic
-assumptions which higher-order logic programming provides, to
-eliminate the need to manage assumptions in a list explicitly. To
-illustrate, we consider the clause {\tt impI}. To  prove {\tt prov
-  (imp A B)}, we prove {\tt prov B} assuming {\tt prov A} In other words,
-the proof for {\tt prov B} may use the dynamic assumption {\tt prov A}. 
+search. There are two key ideas which make the encoding of the logic
+calculus elegant and direct.
+
+First, we use and manipulate dynamic assumptions which higher-order
+logic programming provides, to eliminate the need to manage
+assumptions in a list explicitly. To illustrate, we consider the
+clause {\tt impI}. To prove {\tt prov (imp A B)}, we prove {\tt prov
+B} assuming {\tt prov A} In other words, the proof for {\tt prov B}
+may use the dynamic assumption {\tt prov A}.
 
 Second, we use higher-order abstract syntax to encode the bound
 variables in the universal quantifier. As a consequence substitution
@@ -481,7 +476,6 @@ $T$. The substitution $[T/x]A$ in the object language is achieved via
 application in the meta-language {\tt (A T)}. 
 
 
-
 \subsection{Proof search in higher-order logic programming}
 
 Higher-order logic programming is similar to a Prolog interpreter in
@@ -490,26 +484,27 @@ clauses. The key differences in moving to a higher order setting are
 the following: First, we may have dynamic assumptions which may be
 used within a certain scope. Second, since Twelf allows higher-order
 terms (i.e. terms may contain $\lambda$-abstraction), higher-order
-unification is used to unify clause heads with current goal. Thirdly,
-proof terms are generated. These features make a language like Twelf
-ideal for certified code systems.
+unification is used to unify clause heads with current goal. Third,
+proof terms are generated which represent the proof the interpreter
+found. These features make a language like Twelf ideal for certified
+code systems.
 
-Let us briefly describe the depth-first proof search procedure of
-the higher-order logic programming interpreter. Computation in logic
+Let us briefly describe the depth-first proof search procedure of the
+higher-order logic programming interpreter. Computation in logic
 programming is achieved through proof search. Given a goal (or query)
 $G$ and a program $\Gamma$, we derive $G$ by successive application of
 clauses of the program $\Gamma$. Following Miller {\em{et al}}
 \cite{Miller91apal}, we interpret the connectives in a goal $G$ as
 {\em{search instructions}} and the clauses in $\Gamma$ as
 specifications of how to continue search when the goal is atomic. A
-proof is {\em{goal-oriented}} if every compound goal is immediately
-decomposed and the program is accessed only after the goal has been
-reduced to an atomic formula. A proof is {\em{focused}} if every time
-a program formula is considered, it is processed up to the atoms it
-defines without need to access any other program formula. A proof
-having both these properties is {\em{uniform}} and a formalism such
-that every provable goal has a uniform proof is called an abstract
-logic programming language.
+proof is said to be {\em{goal-oriented}} if every compound goal is
+immediately decomposed and the program is accessed only after the goal
+has been reduced to an atomic formula. A proof is {\em{focused}} if
+every time a program formula is considered, it is processed up to the
+atoms it defines without need to access any other program formula. A
+proof having both these properties is {\em{uniform}} and a formalism
+such that every provable goal has a uniform proof is called an
+abstract logic programming language. 
 
 In the subsequent description, we will concentrate on the
 goal-oriented step. To solve a goal $G$ from a set of clauses $\Gamma$
@@ -737,23 +732,23 @@ which will be generate during proof search.
 %  \label{tab:foc}
 %\end{table}
 
- Our goal is to reduce the proof evidence to the
-non-deterministic choices we have made during the proof to produce
-small proof witnesses. In the previous example, it would suffice to
-know that in the first step, three possible rules apply, namely {\tt
-  alli}, {\tt alle}, and {\tt impe} and we want to follow the first
-possibility. In the second step, again three possible rules apply,
-namely {\tt alle}, {\tt   impi}, and {\tt impe}, and we want to follow
-the second possibility. In the final step, we have four potential
-candidates, the dynamic assumption {\tt u: (forall $\lambda\!\!$y P
-  y)}, and the rules {\tt allI}, {\tt allE}, and {\tt impE}.
- Hence it would suffice to store only a list of the choices made in
- the proof. In this example, the choices can be characterized by the
- following sequence: $1/3$, $2/3$, $1/2$, $1/4$, keeping in mind that
- dynamic assumptions are tried first by proof search procedures. This
- sequence will constitute our compact proof witness and is all that
- needs to be generated and sent to the verifier. 
-      
+Our goal is to reduce the proof evidence to the non-deterministic
+choices we have made during the proof to produce small proof
+witnesses. In the previous example, it would suffice to know that in
+the first step, three possible rules apply, namely {\tt alli}, {\tt
+alle}, and {\tt impe} and we want to follow the first possibility. In
+the second step, again three possible rules apply, namely {\tt alle},
+{\tt impi}, and {\tt impe}, and we want to follow the second
+possibility. In the final step, we have four potential candidates, the
+dynamic assumption {\tt u: (forall $\lambda\!\!$y P y)}, and the rules
+{\tt allI}, {\tt allE}, and {\tt impE}.  Hence it would suffice to
+store only a list of the choices made in the proof. In this example,
+the choices can be characterized by the following sequence: $1/3$,
+$2/3$, $1/2$, $1/4$, keeping in mind that dynamic assumptions are
+tried first by proof search procedures. This sequence will constitute
+our compact proof witness and is all that needs to be generated and
+sent to the verifier. 
+
 \section{Oracle-based proof search}
 \label{sec:oracles}
 
@@ -777,13 +772,14 @@ a compact proof witness in form of a bit-string using the verifier's
 proof search procedure from the previous section. We assume that we
 already have the full proof term and we are merely interested in
 compressing the proof term to a small witness in form of a bit-string.
-The bit-string encodes the non-deterministic choices within the proof, namely picking
-the right clause $c:A$ from the program context $\Gamma$ to establish a
-proof $S$ for $P$, once the goal $P$ is atomic, by unifying the head
-of $A$ with the atomic goal $P$. Potentially, there is more than one
-clause whose head unifies with $P$, and hence a proof search procedure
-would need to try all the possible choices in order. The proof witness
-just needs to keep track of what possibility was successful.
+The bit-string encodes the non-deterministic choices within the proof,
+namely picking the right clause $c:A$ from the program context
+$\Gamma$ to establish a proof $S$ for $P$, once the goal $P$ is
+atomic, by unifying the head of $A$ with the atomic goal
+$P$. Potentially, there is more than one clause whose head unifies
+with $P$, and hence a proof search procedure would need to try all the
+possible choices in order. The proof witness just needs to keep track
+of what possibility was successful.
 
 It is also worth pointing out that in the higher-order setting the
 choice of unification algorithm is crucial since not all unification
@@ -816,12 +812,11 @@ witness\footnote{Susmit: please check this with Frank}.
 For the idea to work, proof compression and witness checking have to
 perform essentially the same overall proof search. Moreover, the order
 in which different choices are considered must be the same.  The only
-difference from proof search is that during witness generation we
-would explore possible multiple fruitless paths until settling on the
-right one\ednote{I think this is confusing -- I suggest we call it just proof
-  search and leave out the ``during witness generation'' -bp}, while
-in proof compression or witness checking, we will consult the proof
-term or witness respectively to know which choice to consider.
+difference is that in proof search we would explore possibly multiple
+fruitless paths, backtracking until we find the right path. During
+proof compression or witness checking, we will consult the proof term
+or witness respectively to know which choice to consider, and thus
+eliminate uses of backtracking.
 
 We modify the proof search steps presented earlier such that we pass
 in the proof term together with the goal and output a proof witness in
@@ -944,10 +939,40 @@ to decompressing the proof witness $W$to an explicit proof term $M$
 and use a different trusted type-checker to verify the expanded proof
 witness.
 
-One further point is that choices as described above are encoded in
-unary. Other, more complex, encodings can be imagined. We have found
-the unary encoding to perform well in practice\ednote{-bp: I don't
-  quite understand what you mean with unary encoding. Can you give an example?}. 
+\subsection{Encoding The Guidance}
+
+The choices as described above are choice sequences of the form
+$i_1/k_1,i_2/k_2,\ldots$, where at the $j^{th}$ stage we have $k_j$
+choices, and we want to pick $i_j$ ($1 \leq i_j \leq k_j$). With the
+tight coupling of the witness generation and checking phases, both
+phases agree on the number of choices ($k_j$) as well as the ordering
+of those choices. That is, both producer and checker agree on which
+choice is to be considered the $i_j^{th}$ one.
+
+We can now see that the separator between choices is unnecessary. We
+can decide on a encoding scheme, and pull only the requisite number of
+bits from the oracle. The witness checker will always know how many
+bits to extract.
+
+We have experimented with two simple encoding schemes, though more
+complex coding schemes can be imagined. The original proposal by
+Necula and Rahul proposed what we call the binary scheme, in that the
+number would be encoded in binary. If $k$ choices apply, this will
+require $\lceil\log k\rceil$ bits. We discover that a scheme we call
+unary encoding works better in practice. In this scheme, the choice
+number $i$ is encoded as $0 0 0 \ldots (\mbox{i-1 zeros}) 1$. This
+takes $i$ bits.
+
+The binary scheme will work better when we habitually have a large
+number of choices, and we take one of the later choices in the
+ordering considered by the producer/checker. The unary scheme will
+work better precisely in the other cases. In all our examples, we have
+observed that only a few choices typically apply. Further, logic
+programmers usually write their programs so that the more common
+choices are tried first. With these observations, unary encodings
+should outperform binary encodings, as indeed they do in experimental
+studies. This is a configurable option in our engine, and can be set
+depending on the particular proof or logic.
 
 \section{Optimizations: Higher-order Term Indexing}
 
