@@ -190,20 +190,29 @@ local
         F.HVbox (foldr (fn (id, fmt) => Str0 (Symbol.str (id))::sym "."::fmt)
                        [Str0 (f (id))] ids)
 
+  fun parmDec (D::L, 1) = D
+    | parmDec (D::L, j) = parmDec (L, j-1)
+
+  fun parmName (cid, i) =
+      let
+	val (Gsome, Gblock) = I.constBlock (cid)
+      in
+	case parmDec (Gblock, i)
+	  of I.Dec (SOME(pname), _) => pname
+	   | I.Dec (NONE, _) => Int.toString i
+      end
+
   fun projName (G, I.Proj (I.Bidx(k), i)) =
-      (case I.ctxLookup (G, k)
-	 of I.BDec (SOME(bname), (cid, t)) =>
-	    let
-	      val (Gsome, Gblock) = I.constBlock (cid)
-	      fun parmName (D::L, 1) = D
-                | parmName (D::L, j) = parmName (L, j-1)
-	      val pname = case parmName (Gblock, i)
-		            of I.Dec (SOME(pname), _) => pname
-			     | I.Dec (NONE, _) => Int.toString i
-	    in
-	      bname ^ "_" ^ pname
-	    end)
-	    (* names should have been assigned by invariant, NONE not possible *)
+      let
+	val I.BDec (SOME(bname), (cid, t)) = I.ctxLookup (G, k)
+        (* names should have been assigned by invariant, NONE imppossible *)
+       in
+	 bname ^ "_" ^ parmName (cid, i)
+       end
+    | projName (G, I.Proj (I.LVar(_, (cid, t)), i)) =
+      (* note: this obscures LVar identity! *)
+       "_" ^ parmName (cid, i)
+
 
   (* fmtCon (c) = "c" where the name is assigned according the the Name table
      maintained in the names module.
