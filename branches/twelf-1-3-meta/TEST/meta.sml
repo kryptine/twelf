@@ -25,6 +25,11 @@ in
   val _ = Twelf.chatter := 1
   val _ = FunNames.reset();
 
+  val _ = Twelf.loadFile "TEST/cp.elf";
+  val _ = test ["new"]
+
+  val _ = raise Domain
+
   (* Regression test for Mini-ML *)
   val _ = load "examples/mini-ml/sources.cfg"
   val _ = Twelf.loadFile "examples/mini-ml/reduce.elf"
