@@ -200,6 +200,10 @@ local
     | fmtCon (G, I.Def(cid)) = fmtConstPath (Symbol.def, Names.constQid (cid))
     | fmtCon (G, I.NSDef (cid)) = fmtConstPath (Symbol.def, Names.constQid (cid))
     | fmtCon (G, I.FVar (name, _, _)) = Str0 (Symbol.fvar (name))
+    | fmtCon (G, I.Proj (I.Bidx(k), i)) = Str0 (Symbol.const ("#" ^ Int.toString k ^ "_"
+							      ^ Int.toString i))
+    | fmtCon (G, I.Proj (I.LVar(_, cid, t), i)) = fmtConstPath (fn l0 => Symbol.const ("#" ^ l0 ^ "_" ^ Int.toString i), (* fix !!! *)
+								Names.constQid (cid))
     | fmtCon (G, I.FgnConst (cs, conDec)) =
         let
           (* will need to be changed if qualified constraint constant
