@@ -69,6 +69,19 @@ structure Trace =
 	 structure Abstract = Abstract
 	 structure Print = Print);
 
+
+structure AbsMachineSbt = 
+  AbsMachineSbt (structure IntSyn' = IntSyn
+              structure CompSyn' = CompSyn
+	      structure SubTree = SubTree
+              structure Unify = UnifyTrail
+	      structure Assign = Assign 
+	      structure Index = Index
+              structure CPrint = CPrint
+              structure Print = Print
+              structure Names = Names
+              structure CSManager = CSManager); 
+
 structure TMachine =
   TMachine (structure IntSyn' = IntSyn
 	    structure CompSyn' = CompSyn

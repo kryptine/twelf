@@ -60,7 +60,15 @@ sig
 
   structure Compile :
   sig
-    val optimize : bool ref
+    datatype opt = no | linearHeads | indexing
+    val optimize : opt ref
+  end
+
+  structure Recon :
+  sig
+    datatype TraceMode = Progressive | Omniscient
+    val trace : bool ref
+    val traceMode : TraceMode ref
   end
 
   structure Prover :

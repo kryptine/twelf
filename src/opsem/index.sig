@@ -5,8 +5,9 @@ signature TABLEINDEX =
 sig
 
   structure IntSyn : INTSYN
+  structure CompSyn : COMPSYN
     
-  type answer = {solutions : ((IntSyn.dctx * IntSyn.Sub) * IntSyn.pskeleton) list,
+  type answer = {solutions : ((IntSyn.dctx * IntSyn.Sub) * CompSyn.pskeleton) list,
 		 lookup: int}
 
   datatype Strategy = Variant | Subsumption
@@ -18,7 +19,7 @@ sig
   val ctxLength  : int option ref
   val strengthen : bool ref
 
-  val query : (IntSyn.dctx * IntSyn.dctx  * IntSyn.Exp * IntSyn.Sub * (IntSyn.pskeleton -> unit)) option ref
+  val query : (IntSyn.dctx * IntSyn.dctx  * IntSyn.Exp * IntSyn.Sub * (CompSyn.pskeleton -> unit)) option ref
 
   datatype answState = new | repeated
 
@@ -57,7 +58,7 @@ sig
    *  else new
    *)
 
-  val answerCheck : IntSyn.dctx * IntSyn.dctx * IntSyn.Exp * IntSyn.Sub * IntSyn.pskeleton -> answState
+  val answerCheck : IntSyn.dctx * IntSyn.dctx * IntSyn.Exp * IntSyn.Sub * CompSyn.pskeleton -> answState
 
   (* reset table *)
   val reset: unit -> unit
@@ -78,7 +79,7 @@ sig
    
   val updateTable : unit -> bool
 
-  val solutions : answer -> ((IntSyn.dctx * IntSyn.Sub) * IntSyn.pskeleton) list
+  val solutions : answer -> ((IntSyn.dctx * IntSyn.Sub) * CompSyn.pskeleton) list
   val lookup : answer -> int
 
 end;  (* signature TABLEINDEX *)

@@ -142,7 +142,7 @@ struct
 	 end 
 	     
     and assignExp (G, Us1, Us2 as (U2, s2), cnstr) = 
-	 assignExpW (G, Whnf.whnf Us1, Whnf.whnf Us2, cnstr)  
+         assignExpW (G, Whnf.whnf Us1, Whnf.whnf Us2, cnstr)
 
     fun solveCnstr nil = true
       | solveCnstr (Eqn(G, U1, U2)::Cnstr) = 
@@ -172,3 +172,5 @@ struct
          handle (Assignment(msg)) => NONE)
   end
 end; (* functor Assign *)
+
+

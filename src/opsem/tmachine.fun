@@ -167,7 +167,7 @@ struct
 	rSolve (ps', (r, I.Dot(I.Exp(X), s)), dp, HcHa,
 		(fn S => sc (I.App(X,S))))
       end
-    | rSolve (ps', (C.Axists(I.ADec(_), r), s), dp as C.DProg (G, dPool), HcHa,sc) =
+    | rSolve (ps', (C.Axists(I.ADec(_, d), r), s), dp as C.DProg (G, dPool), HcHa,sc) =
       let
 	val X = I.newAVar ()
       in

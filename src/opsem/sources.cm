@@ -17,6 +17,10 @@ Group is
 
   absmachine.sig
   absmachine.fun
+
+  absmachine-sbt.sig
+  absmachine-sbt.fun
+
   ptrecon.sig
   ptrecon.fun
   trace.sig
