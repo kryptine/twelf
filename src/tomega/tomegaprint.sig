@@ -9,10 +9,10 @@ sig
 
   val formatFor   : Tomega.Dec IntSyn.Ctx * Tomega.For -> Formatter.format
   val forToString : Tomega.Dec IntSyn.Ctx * Tomega.For -> string
-  val formatPrg : Tomega.Dec IntSyn.Ctx * Tomega.Prg -> string list -> Formatter.format
+  val formatFun : Tomega.Prg -> Formatter.format
 (*  val formatLemmaDec: FunSyn.LemmaDec -> Formatter.format *)
 
-  val prgToString : Tomega.Dec IntSyn.Ctx * Tomega.Prg -> string list -> string
+  val prgToString : Tomega.Prg -> string
 (*  val lemmaDecToString : FunSyn.LemmaDec -> string *)
 end;  (* signature TOMEGAPRINT *)
 
