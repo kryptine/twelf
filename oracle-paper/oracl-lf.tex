@@ -154,7 +154,7 @@ safety proof against the binary.
 
 Many proof-carrying code projects, in particular in foundational PCC,
 have employed the logical framework LF as a general safety
-infrastructure for encoding safety polcies and representing safety
+infrastructure for encoding safety polices and representing safety
 proofs\cite{AppelFelty00,Crary:POPL03,AppelFelten99,Crary:CADE03}.
 The main advantage of using a logical framework is its flexibility
 and its small trusted computing base. Hence, it reduces the effort
@@ -162,10 +162,10 @@ required for each particular safety policy. However, proofs within the
 logical framework may be large in size 
 % several mega-bytes - with LFi few tens of kilobytes (=two orders of
 % magnitude) 
-, e.g. 4-times as big as the
-actual machine code. This has spawned a number of research
-contributions to reduce proof size and proof checking time for
-proof-carrying code applications. However, all these contributions
+, e.g. 4-times as big as the actual machine code. This has spawned a
+number of research contributions to reduce proof size and proof
+checking time for proof-carrying code applications. However, all these
+contributions 
 trade the expressive power and complexity of LF against
 simplicity. 
 In a first step, Necula and Lee's \cite{Necula98lics} developed a
@@ -184,7 +184,7 @@ has been proposed within the Open Verifier Framework \cite{Necula?}. Wu
 {\em{et. al}} \cite{Appel:PPDP03} use a similar idea for creating a
 foundational proof checker with small witnesses. However, all these
 approaches are restricted to simply typed Prolog-like engines which
-work on the fragment of hereditary harrop formulas. Although theses
+work on the fragment of hereditary Harrop formulas. Although theses
 approaches allow dynamic assumptions, they disallow a a higher-order
 term language where terms can be defined using
 $\lambda$-abstraction. This means they can only support first-order
@@ -192,7 +192,7 @@ abstract syntax rather than higher-order abstract syntax.  The main
 reason for staying with a simple first-order term language are that
 unification is decidable and easily implemented. Moreover, term
 indexing techniques are well-known and well-understood for first-order
-terms, hence allowing a straightforward implementation of prolog-like
+terms, hence allowing a straightforward implementation of Prolog-like
 engines to compress and reconstruct proofs. 
 
 %two-folded: First, in simple safety policies about typed-assembly
@@ -204,11 +204,11 @@ engines to compress and reconstruct proofs.
 
 However, the lack of support for higher-order abstract syntax
 encodings, means that any variable binding constructs must be
-explicitely encoded. For example, Wu {\em et al}\cite{Appel:PPDP03}
+explicitly encoded. For example, Wu {\em et al}\cite{Appel:PPDP03}
 encode the explicit substitution calculus \cite{Abadi:POPL90} together
 with the necessary proofs about substitutions for their foundational
 implementation of LTAL. The overhead in their setting is still
-managable although annoying, since simple safety policies about
+manageable although annoying, since simple safety policies about
 typed assembly require variable binding constructs only in few
 places. However, as we move beyond proving memory safety, we predict
 that richer safety policies and type systems will play a more
@@ -260,7 +260,7 @@ common sub-proofs leads to more compact oracles and can
 decrease proof-checking time by a factor of ?? since common sub-proofs
 are only checked once.  We hope this will provide a comprehensive
 guide for future implementations of proof checkers which need not be
-restricted to first-order prolog-like systems. In particular, various
+restricted to first-order Prolog-like systems. In particular, various
 certified code systems can exploit this idea. We have implemented 
 a oracle-based proof generator and checker as part of the logical
 framework {\em Twelf}.  
@@ -302,7 +302,7 @@ Programs  $\Gamma$ & ::= & $\cdot \mid \Gamma, x:A$
 \end{center}
 
 $P$ ranges over atomic formulas and we interpreter the function arrow
-$A_1 \impl A_2$ as implication. The $\Pi$-quantifier, denoting
+$A_1 \rightarrow A_2$ as implication. The $\Pi$-quantifier, denoting
 dependent function type, corresponds to the  universal
 $\forall$-quantifier. Every type has a corresponding proof term $M$
 and we assume that all proof terms are in normal form. To represent
@@ -425,7 +425,7 @@ existential or logic variables which are instantiated during proof
 search. There are two key ideas which make the encoding of the sequent
 calculus elegant and direct. First, we use the power of dynamic
 assumptions which higher-order logic programming provides, to
-eliminate the need to manage assumptions in a list explicitely. To
+eliminate the need to manage assumptions in a list explicitly. To
 illustrate, we consider the clause {\tt impI}. To  prove {\tt prov
   (imp A B)}, we prove {\tt prov B} assuming {\tt prov A} In other words,
 the proof for {\tt prov B} may use the dynamic assumption {\tt prov A}. 
@@ -454,17 +454,17 @@ generated.
 
 Let us briefly describe the depth-first proof search procedure of
 the higher-order logic programming interpreter. Computation in logic
-programmin is achieved through proof search. Given a goal (or query)
+programming is achieved through proof search. Given a goal (or query)
 $G$ and a program $\Gamma$, we derive $G$ by successive application of
 clauses of the program $\Gamma$. Following Miller {\em{et al}}
-\cite{Miller91apal}, we interprete the connectives in a goal $G$ as
-{\em{search instructions}} and the clauese in $\Gamma$ as
+\cite{Miller91apal}, we interpreter the connectives in a goal $G$ as
+{\em{search instructions}} and the clauses in $\Gamma$ as
 specifications of how to continue search when the goal is atomic. A
 proof is {\em{goal-oriented}} if every compound goal is immediately
 decomposed and the program is accessed only after the goal has been
 reduced to an atomic formula. A proof is {\em{focused}} if every time
-a program formula is consiedered, it is processed up to the atoms it
-defines without need tp access any other program formula. A proof
+a program formula is considered, it is processed up to the atoms it
+defines without need to access any other program formula. A proof
 having both these properties is {\em{uniform}} and a formalism such
 that every provable goal has a uniform proof is called an abstract
 logic programming language.
@@ -563,13 +563,13 @@ proof tree for this is shown in Figure~\ref{prooftree1}.
 % \psfrag{Node2}{\hspace{-0.5cm}$u:\forall y. P\;y \vd P\;a$}
 % \psfrag{Node3}{\hspace{-0.5cm}$u:\forall y.P \;y \vd \forall y. P\;y$}
 \begin{small}
-\psfrag{Topnode}{\hspace{-2.5cm}$\vd \pfLF \forallLF \lambda
-  x. (\impLF (\forallLF \lambda y. P\; y) \;(P\; x))$}
-\psfrag{Node1}{\hspace{-0.5cm}$\vd \pfLF (\impLF (\forallLF \lambda y.P\;y) \; (P\;a))$}
-\psfrag{Node2}{\hspace{-0.75cm}$u:\pfLF \forallLF \lambda y. P\;y \vd
-  \pfLF P\;a$}
-\psfrag{Node3}{\hspace{-0.75cm}$u:\pfLF \forallLF \lambda y.P \;y \vd
-  \pfLF \forallLF \lambda y. P\;y$}
+\psfrag{Topnode}{\hspace{-2.5cm}$\vd \pfLF\; (\forallLF \lambda
+  x. (\impLF (\forallLF \lambda y. P\; y) \;(P\; x)))$}
+\psfrag{Node1}{\hspace{-0.5cm}$\vd \pfLF\; (\impLF (\forallLF \lambda y.P\;y) \; (P\;a))$}
+\psfrag{Node2}{\hspace{-0.75cm}$u:\pfLF\;(\forallLF \lambda y. P\;y) \vd
+  \pfLF\; (P\;a)$}
+\psfrag{Node3}{\hspace{-0.75cm}$u:\pfLF\; (\forallLF \lambda y.P \;y) \vd
+  \pfLF\; (\forallLF \lambda y. P\;y)$}
 
 
 \psfrag{3dots}{$\vdots$}
@@ -589,10 +589,10 @@ proof tree for this is shown in Figure~\ref{prooftree1}.
 %\end{figure}
       
 The top node states the conjecture we are trying to prove. 
-Each node is labelled with a goal statement we are trying to prove and
+Each node is labeled with a goal statement we are trying to prove and
 each child node is the result of applying a clause from the program or
 from the dynamic clauses. We keep track of which clause has been used
-to derive the stement in the child node, by labelling the edge with
+to derive the statement in the child node, by labeling the edge with
 the corresponding clause name. The heads of three clauses will unify
 with the current goal, namely {\tt allI}, {\tt allE} and {\tt
   impE}. We pick the first of these applicable clauses ({\tt
@@ -746,7 +746,7 @@ just needs to keep track of what possibility was successful.
 It is also worth pointing out that in the higher-order setting the
 choice of unification algorithm is crucial since not all unification
 algorithms are deterministic. Higher-order unification based on Huet's
-algorithm \cite{Huet75} for example is highly non-determinstic. On the
+algorithm \cite{Huet75} for example is highly non-deterministic. On the
 other hand higher-order pattern unification \cite{Miller91jlc} is
 decidable and deterministic for higher-order patterns. Although it is too restrictive to
 concentrate solely on higher-order patterns statically, most of the
@@ -1117,7 +1117,7 @@ type family of type.
   \begin{itemize}
   \item Should we talk about lowered terms and modal variables
   \item Should be give an algorithm for computing the most specific
-    generalizaiton? (it is given in ICLP'03)
+    generalization? (it is given in ICLP'03)
   \end{itemize}
 \end{note}
 
@@ -1204,7 +1204,7 @@ an implementation. This achieves that instantiations of existential variables
 are immediate. On the other hand instantiations for existential
 variables may need to be rolled back upon backtracking, in other words
 the state of the existential variables may change during proof search.
-Hence when tabelling a given subgoal, we must abstract over all the
+Hence when tabling a given subgoal, we must abstract over all the
 existential variables and store an abstract version of the
 subgoal to avoid the pollution of the table entries.
 Hence before adding a subgoal with existential variables, we will
@@ -1257,7 +1257,7 @@ table\ednote{Give an example? -bp}.
   Susmit: How big is the table? Are we just memoizing *every* possible
   subgoal encountered or are we selectively memoizing?
 
-  Susmit: Are we caching everythin or are we caching selectively?
+  Susmit: Are we caching everything or are we caching selectively?
 \end{note}
 
 The following important invariants hold about the table
@@ -1289,7 +1289,7 @@ variables allow in place up-date.  In the following, we will describe
 requirements and challenges we face of memoizing sub-goals in the
 higher-order setting. 
 
-\subsection{Optimization: Strengthening}
+\subsection{Optimization: Strengthening and subsumption}
 
 Apply strengthening to detect more identical subproofs (strengthening
 based on subordination and on not adding dynamic assumption twice)
@@ -1324,7 +1324,7 @@ This evaluation should show:
   caching
 \item Size of the cache
 \item Time for proof compression using caching vs Time for proof
-  compression withoug caching (is there a performance penalty?)
+  compression without caching (is there a performance penalty?)
 \item Overhead of using Twelf for proof compression vs using a
   specialized system like Fleet?
 \end{itemize}
@@ -1389,15 +1389,15 @@ independently thereby minimizing the trusted computing base.
 As Necula and Rahul's work, their system is not able to support
 higher-order abstract syntax, which means that  
 that any variable binding constructs must be
-explicitely encoded. Wu {\em et al}\cite{Appel:PPDP03}
+explicitly encoded. Wu {\em et al}\cite{Appel:PPDP03}
 encode the explicit substitution calculus \cite{Abadi:POPL90} together
 with the necessary proofs about substitutions for their foundational
 implementation of LTAL. Although the overhead in this setting is still
-managable, it is not general enough to handle richer safety polices.
+manageable, it is not general enough to handle richer safety polices.
 
  Our work fills this gap by describing a general purpose tool to
  compress proofs to compact witnesses and check proofs for the logical
-framework LF. We demontrate that the restrictions to first-order terms
+framework LF. We demonstrate that the restrictions to first-order terms
 are unnecessary. 
 
 \section{Conclusion}
