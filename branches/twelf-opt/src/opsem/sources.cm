@@ -21,7 +21,7 @@ Group is
   subtree.fun 
   subtree-inst.fun 
   sw-subtree.fun
-  subtree.sig
+  sw-subtree.sig
 
   tabled.sig
   tabled.fun    
@@ -34,6 +34,9 @@ Group is
 
   ptrecon.sig
   ptrecon.fun
+(*  ha-ptrecon.fun
+  sw-ptrecon.fun*)
+
   trace.sig
   trace.fun
   tmachine.fun

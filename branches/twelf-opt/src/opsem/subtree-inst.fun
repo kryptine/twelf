@@ -74,7 +74,8 @@ functor MemoTableInst (structure IntSyn' : INTSYN
       memb (x, (!L))
     end 
 
-  fun insertList (E, L) = (L := (E::(!L)); L)
+(*  fun insertList (E, L) = (L := (E::(!L)); L)*)
+  fun insertList (E, L) = (L := (E::(!L)))
 
  (* ---------------------------------------------------------------------- *)
 
@@ -86,7 +87,7 @@ functor MemoTableInst (structure IntSyn' : INTSYN
   *)
   datatype Tree =  
       Leaf of (ctx *  normalSubsts) * 
-      (((int (* #EVar *) * int (* #G *)) * IntSyn.dctx (* G *) * 
+      (((int (* #EVar *) * int (* #G *)) * ctx (* D *) * CompSyn.DProg (* G, dpool *) * 
 	TableParam.ResEqn * TableParam.answer * int) list) ref
     | Node of (ctx *  normalSubsts) * (Tree ref) list
 
@@ -159,6 +160,135 @@ functor MemoTableInst (structure IntSyn' : INTSYN
     fun raiseType (I.Null, U) = U
       | raiseType (I.Decl(G, D), U) = I.Lam(D, raiseType (G, U))
 
+
+
+
+ (* ---------------------------------------------------------------------- *)
+ (* Matching for linear terms based on assignment *)
+   (* E1 is unnecessary? *)
+    (* lowerEVar' (G, V[s]) = (X', U), see lowerEVar *)
+    fun lowerEVar' (X, G, (I.Pi ((D',_), V'), s')) =
+        let
+	  val D'' = I.decSub (D', s')
+	  val (X', U) = lowerEVar' (X, I.Decl (G, D''), Whnf.whnf (V', I.dot1 s'))
+	in
+	  (X', I.Lam (D'', U))
+	end
+      | lowerEVar' (X, G, Vs') =
+        let
+	  val X' = X
+	in
+	  (X', X')
+	end
+    (* lowerEVar1 (X, V[s]), V[s] in whnf, see lowerEVar *)
+    and (* lowerEVar1 (X, I.EVar (r, G, _, _), (V as I.Pi _, s)) = *)
+      lowerEVar1 (X, I.EVar (r, G, _, _), (V as I.Pi _, s)) =
+        let 
+	  val (X', U) = lowerEVar' (X, G, (V,s))
+	in
+	  I.EVar(ref (SOME(U)), I.Null, V, ref nil)
+	end
+      | lowerEVar1 (_, X, _) = X
+
+    (* lowerEVar (X) = X'
+
+       Invariant:
+       If   G |- X : {{G'}} P
+            X not subject to any constraints
+       then G, G' |- X' : P
+
+       Effect: X is instantiated to [[G']] X' if G' is empty
+               otherwise X = X' and no effect occurs.
+    *)
+    and 
+      lowerEVar (E, X as I.EVar (r, G, V, ref nil)) = lowerEVar1 (E, X, Whnf.whnf (V, I.id))
+      | lowerEVar (E, I.EVar _) =
+        (* It is not clear if this case can happen *)
+        (* pre-Twelf 1.2 code walk, Fri May  8 11:05:08 1998 *)
+        raise Error "abstraction : LowerEVars: Typing ambiguous -- constraint of functional type cannot be simplified"
+
+   fun assign (d, Dec1 as I.Dec(n, V), E1 as I.Root(I.BVar k, S1), U, asub) = 
+     (* it is an evar -- (k-d, EVar (SOME(U), V)) *)
+     let
+       val E as I.EVar(r, _, _ , cnstr) = I.newEVar (I.Null, V)
+       val X = lowerEVar1 (E, I.EVar(r, I.Null, V, cnstr), Whnf.whnf(V, I.id))  
+       val _ = (r := SOME(U))
+     in
+       S.insert asub (k - d, X)
+     end
+     | assign (d, Dec1 as I.ADec(n, d'), E1 as I.Root(I.BVar k, S1), U, asub) = 
+       (* it is an Avar and d = d' (k-d, AVar(SOME(U)) ? *)
+       let
+	 val A as I.AVar(r) = I.newAVar ()
+	 val _ = (r := SOME(U))
+       in 
+	 S.insert asub (k - d, (I.EClo(A, I.Shift(~d'))))
+       end 
+
+
+ (* terms are in normal form *)
+(* 
+  exception Assignment of string *)
+  (* assignExp (asub, l, G, (U1, s1), (U2, s2)) = asub
+
+     invariant:
+     G |- s1 : G1    G1 |- U1 : V1   (U1, s1) in whnf
+     G |- s2 : G2    G2 |- U2 : V2   (U2, s2) is template 
+    l = length of Delta
+    d = depth 
+*)
+    fun assignExp (fasub, (l, d), (D1, U1 as I.Root (H1, S1)), (D2, U2 as I.Root (H2, S2))) =
+	 (case (H1, H2) of
+	    (I.Const(c1), I.Const(c2)) => 
+		if (c1 = c2) then assignSpine (fasub, (l, d), (D1, S1), (D2, S2))
+		else raise Assignment "Constant clash"
+	  | (I.BVar(k1), _) => 
+	    (if (k1 - d) > l
+	      then 
+              (* k1 is a globally bound variable *)
+		case H2 of (I.BVar k2) => 
+		  if (k2 - d) > l then 
+		    (* k2 globally bound *)
+		    (if k2 = k1 then fasub else raise Assignment "BVar clash")
+		  else raise Assignment "BVar - EVar clash" 
+	    else 
+	      (* k1 is an existial variable *)
+	      (case member (k1 - d, D1)
+		of NONE => (* should not happen ? *) raise Assignment "EVar nonexistent"
+		  | SOME(x, Dec) => (fn asub => (fasub asub; assign (d, Dec, U1, U2, asub)))))
+
+
+	  | (I.Skonst(c1), I.Skonst(c2)) => 	  
+	       if (c1 = c2) then assignSpine (fasub, (l, d), (D1, S1), (D2, S2))
+	       else raise Assignment "Skolem constant clash"
+          (* can this happen ? -- definitions should be already expanded ?*)
+	  | _ => (raise Assignment ("Head mismatch ")))
+
+      | assignExp (fasub, (l, d), (D1, I.Lam (Dec1, U1)), (D2, I.Lam (Dec2, U2))) =           
+          (* D1[s1] = D2[s2]  by invariant *)
+	  assignExp (fasub, (l, d + 1),  (D1, U1), (D2, U2))
+
+      | assignExp (fasub, (l, d), (D1, I.Pi ((Dec1 as I.Dec (_, V1), _), U1)), (D2, I.Pi ((Dec2 as I.Dec(_, V2), _), U2))) =  
+	  let
+	    val fasub' = assignExp (fasub, (l, d), (D1, V1), (D2, V2))
+	  in 
+	    assignExp (fasub', (l, d + 1), (D1, U1), (D2, U2))
+	  end
+      | assignExp (fasub, (l, d), (D1, I.EClo(U, s' as I.Shift(0))), (D2, U2)) = assignExp (fasub, (l, d), (D1, U), (D2, U2))
+(*	  (print "Found closure U1!\t"; 
+	   (case s' of I.Shift(0) => (print "s = id\n")
+	     | _ => print "s =/= I.id\n"); raise Assignment "" )*)
+      | assignExp (fasub, (l,d), (D1, U1), (D2, I.EClo(U, s as I.Shift(0)))) = assignExp (fasub, (l,d), (D1, U1), (D2, U))
+
+	  
+    and assignSpine (fasub, (l, d), (D1, I.Nil), (D2, I.Nil)) = fasub
+      | assignSpine (fasub, (l, d), (D1, I.App (U1, S1)), (D2, I.App (U2, S2))) =
+	 let 
+	   val fasub' = assignExp (fasub, (l, d), (D1, U1), (D2, U2))
+	 in 
+	   assignSpine (fasub', (l, d), (D1, S1), (D2, S2))
+	 end 
+   
     (* ------------------------------------------------------ *)      
 
     (*  Variable b    : bound variable
@@ -253,16 +383,55 @@ functor MemoTableInst (structure IntSyn' : INTSYN
 
     fun equalCtx' (I.Null, I.Null) = true
       | equalCtx' (I.Decl(Dk, I.Dec(_, A)), I.Decl(D1, I.Dec(_, A1))) = 
-      (Conv.conv ((A, I.id), (A1, I.id)) andalso equalCtx'(Dk, D1))
+(*        (Conv.conv ((A, I.id), (A1, I.id)) andalso equalCtx'(Dk, D1))*)
+        (Conv.conv ((A, I.id), (A1, I.id)) andalso equalCtx'(Dk, D1))
       | equalCtx' (I.Decl(Dk, I.ADec(_, d')), I.Decl(D1, I.ADec(_, d))) = 	
         ((d = d') andalso equalCtx'(Dk, D1))
       | equalCtx' (_, _) = false
 
 
+    fun equalDProg (evarl, d, asub, (Delta, C.DProg(I.Null, I.Null)), (Delta1, C.DProg(I.Null, I.Null))) = true
+
+      | equalDProg (evarl, d, asub, (Delta, C.DProg(I.Decl(Dk, Dec), I.Decl(dp, NONE))), 
+                    (Delta1, C.DProg(I.Decl(D1, Dec1), I.Decl(dp1, NONE)))) = 
+        equalDProg (evarl, d, asub, (Delta, C.DProg(Dk, dp)), (Delta1, C.DProg(D1, dp1)))
+
+      | equalDProg (evarl, d, asub, (Delta, C.DProg(I.Decl(Dk, Dec), I.Decl(dp, NONE))), 
+                    (Delta1, dprog1 as C.DProg(I.Decl(D1, Dec1), I.Decl(dp1, SOME(_,_,_))))) = 
+        equalDProg (evarl, d, asub, (Delta, C.DProg(Dk, dp)), (Delta1, dprog1))
+
+      | equalDProg (evarl, d, asub, (Delta, dprog as C.DProg(I.Decl(Dk, Dec), I.Decl(dp, SOME(_,_,_)))),
+		    (Delta1, C.DProg(I.Decl(D1, Dec1), I.Decl(dp1, NONE))))= 
+        equalDProg (evarl, d, asub, (Delta, dprog), (Delta1, C.DProg(D1, dp1)))
+
+      | equalDProg (evarl, d, asub, (Delta, dprog as C.DProg(I.Decl(Dk, I.Dec(_, A)), I.Decl(dp, SOME(_,_,_)))),
+		    (Delta1, dprog1 as C.DProg(I.Decl(D1, I.Dec(_, A1)), I.Decl(dp1, SOME(_,_,_))))) = 
+	let 
+	  val asub' = assignExp (asub, (evarl, d), (Delta, A), (Delta1, A1))
+	in 
+           equalDProg(evarl, d + 1, asub', (Delta, C.DProg(Dk,dp)), (Delta1, C.DProg(D1, dp1)))
+	end 
+				 
+(*        (Conv.conv ((A, I.id), (A1, I.id))*)
+	 (* Instance? needs to take into account asub !*)
+	 (* there are still at least 2 possibilties, A[asub] conv A1
+            or A[asub][asub'] = A1 
+	    matching! (simplifies assignment) in addition, both terms are linear!
+	    *)
+
+(*      | equalDProg (evarl, asub, C.DProg(I.Decl(Dk, I.ADec(_, d')), I.Decl(D1, I.ADec(_, d))) = 	
+        ((d = d') andalso equalDProg(Dk, D1))*)
+      | equalDProg (_, _, _, _, _) = false
+
+
+    fun equalDProg' (evarl, d, asub, DeltaDProg, DeltaDProg1) = 
+      (equalDProg (evarl, d, asub, DeltaDProg, DeltaDProg1)) handle Assignment msg => false
+
    (* ---------------------------------------------------------------*)   
 
-    fun subsumesCtx (G, G') = equalCtx' (G, G')
-
+(*    fun instanceCtx (evarl, d, asub, (Delta, I.Null) , (Delta', I.Null)) = true
+      | instanceCtx (evarl, d, asub, (Delta, I.Decl( 
+*)
     (* potential for forward and backward subsumption here ? *)
 
    (* ---------------------------------------------------------------*)   
@@ -271,6 +440,32 @@ functor MemoTableInst (structure IntSyn' : INTSYN
 	 of TableParam.Variant => equalCtx' (G, G')
 	   | TableParam.Subsumption => subsumesCtx (G, G')
 *)
+   (* ---------------------------------------------------------------*)   
+   (* collect EVars in sub *)
+   (* collectEVar (D, nsub) = (D_sub, D')
+     if D |- nsub where 
+        D is a set of free variables
+     then D_sub |- nsub  and (D_sub u D') = D
+          D_sub contains all the free variables occuring in nsub
+   *)
+   fun collectEVar (D, nsub) = 
+     let
+       val D' = emptyCtx ()	 
+       fun collectExp (D', D, I.Lam(_, U)) = collectExp (D', D, U)
+	 | collectExp (D', D, I.Root(I.Const c, S)) = collectSpine (D', D, S)
+	 | collectExp (D', D, I.Root(I.BVar k, S)) = 
+	   (case (member (k, D)) of NONE => collectSpine (D', D, S) 
+	     | SOME(x, Dec) => (delete (x, D); insertList ((x, Dec), D')))
+
+       and collectSpine (D', D, I.Nil) = ()
+	 | collectSpine (D', D, I.App(U, S)) = (collectExp(D', D, U); collectSpine(D', D, S))
+     in 
+       S.forall nsub (fn (nv, U) => collectExp (D', D, U));
+       (D', D)
+     end 
+
+
+
    (* ---------------------------------------------------------------*)   
    (* most specific linear common generalization *)
 
@@ -282,46 +477,6 @@ functor MemoTableInst (structure IntSyn' : INTSYN
        T'[rho_u] = U and T'[rho_t] = T 
    *)
 
-    (* lowerEVar' (G, V[s]) = (X', U), see lowerEVar *)
-    fun lowerEVar' (X, G, (I.Pi ((D',_), V'), s')) =
-        let
-	  val D'' = I.decSub (D', s')
-	  val (X', U) = lowerEVar' (X, I.Decl (G, D''), Whnf.whnf (V', I.dot1 s'))
-	in
-	  (X', I.Lam (D'', U))
-	end
-      | lowerEVar' (X, G, Vs') =
-        let
-	  val X' = X
-	in
-	  (X', X')
-	end
-    (* lowerEVar1 (X, V[s]), V[s] in whnf, see lowerEVar *)
-    and (* lowerEVar1 (X, I.EVar (r, G, _, _), (V as I.Pi _, s)) = *)
-      lowerEVar1 (X, I.EVar (r, G, _, _), (V as I.Pi _, s)) =
-        let 
-	  val (X', U) = lowerEVar' (X, G, (V,s))
-	in
-	  I.EVar(ref (SOME(U)), I.Null, V, ref nil)
-	end
-      | lowerEVar1 (_, X, _) = X
-
-    (* lowerEVar (X) = X'
-
-       Invariant:
-       If   G |- X : {{G'}} P
-            X not subject to any constraints
-       then G, G' |- X' : P
-
-       Effect: X is instantiated to [[G']] X' if G' is empty
-               otherwise X = X' and no effect occurs.
-    *)
-    and 
-      lowerEVar (E, X as I.EVar (r, G, V, ref nil)) = lowerEVar1 (E, X, Whnf.whnf (V, I.id))
-      | lowerEVar (E, I.EVar _) =
-        (* It is not clear if this case can happen *)
-        (* pre-Twelf 1.2 code walk, Fri May  8 11:05:08 1998 *)
-        raise Error "abstraction : LowerEVars: Typing ambiguous -- constraint of functional type cannot be simplified"
 
   fun convAssSub' (n, idx_k, D, asub, d) =  
     (case (RBSet.lookup asub d)  
@@ -334,23 +489,6 @@ functor MemoTableInst (structure IntSyn' : INTSYN
 
   fun convAssSub (D, n, asub, d) = convAssSub' (n, 1, D, asub, d)
 
-   fun assign (d, Dec1 as I.Dec(n, V), E1 as I.Root(I.BVar k, S1), U, asub) = 
-     (* it is an evar -- (k-d, EVar (SOME(U), V)) *)
-     let
-       val E as I.EVar(r, _, _ , cnstr) = I.newEVar (I.Null, V)
-       val X = lowerEVar1 (E, I.EVar(r, I.Null, V, cnstr), Whnf.whnf(V, I.id))  
-       val _ = (r := SOME(U))
-     in
-       S.insert asub (k - d, X)
-     end
-     | assign (d, Dec1 as I.ADec(n, d'), E1 as I.Root(I.BVar k, S1), U, asub) = 
-       (* it is an Avar and d = d' (k-d, AVar(SOME(U)) ? *)
-       let
-	 val A as I.AVar(r) = I.newAVar ()
-	 val _ = (r := SOME(U))
-       in 
-	 S.insert asub (k - d, (I.EClo(A, I.Shift(~d'))))
-       end 
 
    fun isExists (d, I.BVar k, D) = member (k-d, D)
 
@@ -577,23 +715,38 @@ functor MemoTableInst (structure IntSyn' : INTSYN
 
  (* ---------------------------------------------------------------------- *)
 
-  fun mkLeaf (Ds, GR, n) = Leaf (Ds, GR)
+(*  fun mkLeaf (Ds, GR, n) = Leaf (Ds, GR)*)
 
-  fun mkNode (Node(_, Children), Dsigma, Drho1, GR, Drho2) = 
-       Node(Dsigma, [ref (Leaf(Drho2, ref [GR])), ref (Node(Drho1, Children))])
+  fun mkNode (Node(_, Children), Dsigma, Drho1, GR as ((evarl, l), dp, eqn, answRef, stage), Drho2 as (D2, rho2)) = 
+      let
+	val (D_rho2, D_G2) = collectEVar (D2, rho2)
+	val GR' = ((evarl, l), D_G2, dp, eqn, answRef, stage)
+      in 
+	Node(Dsigma, [ref (Leaf((D_rho2, rho2), ref [GR'])), ref (Node(Drho1, Children))])
+      end 
 
-    | mkNode (Leaf(c, GRlist), Dsigma, Drho1, GR2, Drho2) = 
-       Node(Dsigma,[ref(Leaf(Drho2, ref [GR2])), ref(Leaf(Drho1, GRlist))])
+    | mkNode (Leaf(c, GRlist), Dsigma, Drho1 as (D1, rho1), GR2 as ((evarl, l), dp, eqn, answRef, stage), 
+	      Drho2 as (D2, rho2)) = 
+       let
+	 val (D_rho2, D_G2) = collectEVar (D2, rho2)
+	 val GR2' =((evarl, l), D_G2, dp, eqn, answRef, stage)
+       in 
+	 Node(Dsigma,[ref(Leaf((D_rho2, rho2), ref [GR2'])), ref(Leaf(Drho1, GRlist))])
+       end 
 
   (* ---------------------------------------------------------------------- *)
 
-  fun compatibleCtx ((G, eqn), []) = NONE
-    | compatibleCtx ((G, eqn), (((evarl', l'), G', eqn', answRef', _)::GRlist)) = 
+  fun compatibleCtx (evarl, asub, (Delta, dp, eqn), []) = NONE
+    | compatibleCtx (evarl, asub, dpEqn as (Delta, C.DProg(G, dpool), eqn), 
+		     (((evarl', l'), Delta', C.DProg(G', dpool'), eqn', answRef', _)::GRlist)) = 
        (* we may not need to check that the DAVars are the same *)
-      (if  (equalCtx' (G, G') (* andalso equalEqn(eqn, eqn')*))
+    (if equalCtx' (G, G')
+(* if instanceCtx (evarl, 0 (fn asub => ()), (Delta, G), (Delta', G')) *)
+(*      (if  (equalDProg' (evarl, 0, (fn asub => ()), (Delta, C.DProg(G, dpool)), (Delta', C.DProg(G', dpool))) 
+       (* andalso equalEqn(eqn, eqn')*))*)
 	 then SOME((evarl', l'), answRef')
        else 
-	 compatibleCtx((G, eqn), GRlist))
+	 compatibleCtx(evarl, asub, dpEqn, GRlist))
 
   fun compChild (N as Leaf((D_t, nsub_t), GList), (D_e, nsub_e), asub) = 
         compatibleSub ((D_t, nsub_t), (D_e,  nsub_e), asub)
@@ -632,7 +785,7 @@ functor MemoTableInst (structure IntSyn' : INTSYN
     let
       val l = I.ctxLength(G)
     in 
-    List.exists (fn ((_, l), G', _, _, stage') => (stage = stage' andalso (l > (I.ctxLength(G')))))
+    List.exists (fn ((_, l), D, C.DProg(G',_), _, _, stage') => (stage = stage' andalso (l > (I.ctxLength(G')))))
     (!GRlistRef)
     end 
 
@@ -672,18 +825,23 @@ functor MemoTableInst (structure IntSyn' : INTSYN
 
   fun insert (Nref, (D_u, nsub_u), asub, GR) = 
     let    
-      fun insert' (N as Leaf ((D,  _), GRlistRef), (D_u, nsub_u), asub, GR as ((evarl, l), G_r, eqn, answRef, stage)) = 
+      fun insert' (N as Leaf ((D,  _), GRlistRef), (D_u, nsub_u), asub, GR' as ((evarl, l), dp as C.DProg(G_r, dpool), eqn, answRef, stage)) = 
 	(* need to compare D and D_u *)
-	(case compatibleCtx ((G_r, eqn), (!GRlistRef))
+	let
+	  val (D_nsub, D_G) = collectEVar (D_u, nsub_u)
+	    (* D_nsub <= D by invariant ! *)
+	  val GR = ((evarl, l), D_G, dp, eqn, answRef, stage)
+	in
+	  (case compatibleCtx (evarl, asub, (D_G, dp, eqn), (!GRlistRef))
 	   of NONE => ((* compatible path -- but different ctx! *)		  
 		       if ((!TableParam.divHeuristic) andalso divergingCtx (stage, G_r, GRlistRef))
 			 then
-			   (print "ctx are diverging --- force suspension \n";
+			   (print "\t ctx are diverging --- force suspension ";
 			    (fn () => (GRlistRef := (GR::(!GRlistRef));   
 				      answList := (answRef :: (!answList))),   
 			    T.DivergingEntry(answRef))) 
 		       else 			 
-			 ((* print "compatible path -- ctx are different\n";*)
+			 (print "\t compatible path -- ctx are different ";
 			  (fn () => (GRlistRef := (GR::(!GRlistRef)); 
 				    answList := (answRef :: (!answList))), 
 			  T.NewEntry(answRef))))
@@ -691,17 +849,22 @@ functor MemoTableInst (structure IntSyn' : INTSYN
 			      (* print "compatible path --- same ctx\n";*)
 				((fn () => ()), T.RepeatedEntry(convAssSub(D_u, evars, asub, Glength), answRef'))
 				))
-
+	end 	    
        
-      | insert' (N as Node((D, sub), children), (D_u, nsub_u), asub, GR as (l, G_r, eqn, answRef, stage)) = 
+      | insert' (N as Node((D, sub), children), (D_u, nsub_u), asub, GR as (l, dp as C.DProg(G_r, dpool), eqn, answRef, stage)) = 
 	let
 	  val (VariantCand, InstCand, SplitCand) = findAllCandidates (G_r, children, (D_u, nsub_u), asub)
 	    
 	  fun checkCandidates (nil, nil, nil) = 
 	    ((* no child is compatible with nsub_u *)	     
-	     (fn () => (Nref := Node((D, sub), (ref (Leaf((D_u, nsub_u), ref [GR])))::children); 
-			answList := (answRef :: (!answList))),
-	      T.NewEntry(answRef)))
+	     (fn () => (let 
+			  val (D_nsub, D_G) = collectEVar (D_u, nsub_u) 
+			  val GR' = (l, D_G, dp, eqn, answRef, stage)
+			in 
+			  Nref := Node((D, sub), (ref (Leaf((D_nsub, nsub_u), ref [GR'])))::children); 
+			answList := (answRef :: (!answList))
+			end)),
+	      T.NewEntry(answRef))
 
 	    | checkCandidates (nil, nil, ((ChildRef, (Dsigma, Drho1, Drho2))::_)) = 
 	      (* split an existing node *)
@@ -793,7 +956,7 @@ functor MemoTableInst (structure IntSyn' : INTSYN
         (insertList ((n, D), DEVars); 
 	 makeCtx (n+1, G, DEVars))
       
-    fun callCheck (a, DAVars, DEVars, G , U, eqn) = 
+    fun callCheck (a, DAVars, DEVars, G , dpool, U, eqn) = 
       let 
 	val (n, Tree) = Array.sub (indexArray, a)     
 	val nsub_goal = S.new()             
@@ -804,14 +967,14 @@ functor MemoTableInst (structure IntSyn' : INTSYN
 	val l = I.ctxLength(DAEVars)
 	val _ = S.insert nsub_goal (1, U) 
 	val result =  insert (Tree, (D, nsub_goal), nid() (* assignable subst *), 
-			      ((l, n+1), G, eqn, emptyAnswer(), !TableParam.stageCtr))
+			      ((l, n+1), C.DProg(G, dpool), eqn, emptyAnswer(), !TableParam.stageCtr))
       in       
 	case result 
-	  of (sf, T.NewEntry(answRef)) => (sf(); added := true; (* print "Add goal \n";  *)
+	  of (sf, T.NewEntry(answRef)) => (sf(); added := true; print "\t -- Add goal \n";  
 					 T.NewEntry(answRef))
-	  | (_, T.RepeatedEntry(asub, answRef)) =>  ((* print "Suspend goal\n";*)
+	  | (_, T.RepeatedEntry(asub, answRef)) =>  (print "\t -- Suspend goal\n";
 						     T.RepeatedEntry(asub, answRef))
-	  | (sf, T.DivergingEntry(answRef)) => (sf(); added := true;  print "Add diverging goal\n";
+	  | (sf, T.DivergingEntry(answRef)) => (sf(); added := true;  print "\t -- Add diverging goal\n";
 					     T.DivergingEntry(answRef))
       end 
 
@@ -849,8 +1012,8 @@ functor MemoTableInst (structure IntSyn' : INTSYN
   
   in
     val reset = reset
-    val callCheck = (fn (DAVars, DEVars, G, U, eqn) => 
-		        callCheck(cidFromHead(I.targetHead U), DAVars, DEVars, G, U, eqn))
+    val callCheck = (fn (DAVars, DEVars, G, dpool, U, eqn) => 
+		        callCheck(cidFromHead(I.targetHead U), DAVars, DEVars, G, dpool, U, eqn))
 
 (*
     val findAll (DAVars, DEVars, G, U, eqn) = 
