@@ -150,6 +150,7 @@ struct
 	end
       | checkPrgW (Psi, (T.Root (H, S), (F, t))) =
 	let
+	  val _ = print "Checking T.Root\n"
 	  val F' = inferCon (Psi, H)
 	  val Ft'' = inferSpine (Psi, S, (F', T.id))
 	  val _ = convFor (Psi, Ft'', (F, t))

@@ -60,6 +60,12 @@ struct
 	in 
           (t', Psi', T.Dot (T.Undef, s'))
 	end
+      | purifyCtx (T.Dot (T.Prg (T.Root (_, T.Nil)), t), I.Decl (Psi, T.PDec (_, T.Ex _))) =
+        let 
+	  val (t', Psi', s') = purifyCtx (t, Psi)
+	in 
+          (t', Psi', T.Dot (T.Undef, s'))
+	end
       | purifyCtx (T.Dot (T.Prg P, t), I.Decl (Psi, T.PDec (_, F))) =
         let 
 	  val (t', Psi', s') = purifyCtx (t, Psi)
@@ -125,7 +131,7 @@ struct
 
       
     and coverageCheckCases (W, Psi, nil, Cs) = 
-      let 
+        let 
 	  val _ = print ("[coverage]" ^ Int.toString (List.length Cs) ^ " cases\n")
 	  val (Cs' as (_, _, Psi') :: _) = map purify Cs
 	  val Cs'' = map (fn (Psi0, t, _) => (T.coerceCtx Psi0, T.coerceSub t)) Cs'
