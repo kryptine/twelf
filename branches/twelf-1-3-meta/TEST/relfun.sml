@@ -1,4 +1,4 @@
-local 
+local
   structure I = IntSyn
   structure T = Tomega
 
@@ -11,6 +11,7 @@ local
   fun printS nil = ()
     | printS (condec :: S) =
         (TextIO.print ((Print.conDecToString condec) ^ "\n"); printS S)
+in
 
 
   fun test names =
@@ -23,14 +24,16 @@ local
       val _ = printS S
       val P = Converter.convertPrg a
       val F = Converter.convertFor a
+      val _ = print "[CHECKING "
+      val _ = TomegaTypeCheck.check (P, F)
+      val _ = print "]"
 (*      val _ = TextIO.print (TomegaPrint.forToString (I.Null, F) ^ "\n")
       val _ = (FunTypeCheck.check (P, F); Twelf.OK)  *)
 (*      val LD = F.LemmaDec (names, P, F) *)
 (*      val _ = TextIO.print (FunPrint.lemmaDecToString LD) *)
-    in ()
+    in P
 (*      FunNames.installName (name, F.lemmaAdd LD) *)
     end)
-in
   val _ = Twelf.chatter := 4
 (*  val _ = FunNames.reset(); --cs *)
 

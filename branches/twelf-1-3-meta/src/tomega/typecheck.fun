@@ -29,6 +29,14 @@ struct
     structure I = IntSyn'
     structure T = Tomega
 
+
+    fun chatter chlev f =
+        if !Global.chatter >= chlev
+	  then print (f ())
+	else ()
+
+
+
 (* checkProg(G,Ps,Fs)=()
 Invariant: 
 If G |- s1 : G1
@@ -127,14 +135,18 @@ otherwise exception Error is raised
       | checkProg (G, ((T.Case (T.Cases nil), s), (F2, s2))) = ()
       | checkProg (G, ((T.Case (T.Cases ((G', s', P) :: tailCases)), s), (F2, s2))) =
 	let 
-	    val _ = isSub(G', T.comp(s, s'), G)
-	    val _ = checkProg (G', ((P, s), (F2, T.comp(s2, s'))))
+	  val _ = chatter 4 (fn () => "[case")
+	  val _ = isSub(G', T.comp(s, s'), G)
+	  val _ = checkProg (G', ((P, s), (F2, T.comp(s2, s'))))
+	  val _ = chatter 4 (fn () => "]\n")
 	in 
 	    checkProg (G, ((T.Case (T.Cases tailCases), s), (F2, s2)))
 	end 
       | checkProg (G, ((T.Rec (FDec as T.PDec (x, F), P), s), (F2, s2))) =
 	let 
-	    val _ = convFor(G, (F, s), (F2, s2))
+	  val _ = chatter 4 (fn () => "[rec")
+	  val _ = convFor(G, (F, s), (F2, s2))
+	  val _ = chatter 4 (fn () => "]\n")
 	in 
 	    checkProg(I.Decl(G, FDec), ((P, T.dot1(s)), (F2, s2)))
 	end
