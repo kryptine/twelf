@@ -1737,6 +1737,9 @@ struct
 	in
 	  substToSpine' (s, G, I.App(I.EClo Us, T))
 	end
+      | substToSpine' ( I.Dot (I.Idx _, s) , I.Decl (G, I.BDec (_, (L, t))), T) = 
+	raise Domain
+
       (* I.Axp, I.Block(B) or other I.Undef impossible *)
 
     (* substToSpine (s, G) = S
