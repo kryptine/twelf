@@ -3,17 +3,17 @@
 
 functor ModePrint (structure ModeSyn' : MODESYN
 		   structure Names : NAMES
-		   (*! sharing Names.IntSyn = ModeSyn'.IntSyn !*)
+		     sharing Names.IntSyn = ModeSyn'.IntSyn
 		   structure Formatter : FORMATTER
 		   structure Print : PRINT
-		   (*! sharing Print.IntSyn = ModeSyn'.IntSyn !*)
+		     sharing Print.IntSyn = ModeSyn'.IntSyn
 		     sharing Print.Formatter = Formatter)
   : MODEPRINT =
 struct
   structure ModeSyn = ModeSyn'
 
   local
-    structure I = IntSyn
+    structure I = ModeSyn.IntSyn
     structure M = ModeSyn
     structure F = Formatter
     structure P = Print

@@ -7,10 +7,9 @@ functor Filling (structure MetaSyn' : METASYN
 		 structure Search   : SEARCH
 		 sharing Search.MetaSyn = MetaSyn'
  		 structure Whnf : WHNF
-		 (*! sharing Whnf.IntSyn = MetaSyn'.IntSyn !*)
+		 sharing Whnf.IntSyn = MetaSyn'.IntSyn
 		 structure Print : PRINT
-		 (*! sharing Print.IntSyn = MetaSyn'.IntSyn !*)
-		   )
+		 sharing Print.IntSyn = MetaSyn'.IntSyn)
   : FILLING =
 struct
   structure MetaSyn = MetaSyn'
@@ -21,7 +20,7 @@ struct
 
   local
     structure M = MetaSyn
-    structure I = IntSyn
+    structure I = MetaSyn.IntSyn
 
     exception Success of M.State
 

@@ -1,7 +1,7 @@
 
 structure Checking = 
   Checking (structure Global = Global
-	  (*! structure IntSyn' = IntSyn !*)
+	  structure IntSyn' = IntSyn
 	  structure Whnf = Whnf
 	  structure Conv = Conv
 	  structure Unify = UnifyTrail
@@ -14,13 +14,12 @@ structure Checking =
 	  structure Order = Order
 	  structure Paths = Paths
 	  structure Origins = Origins
-	  (*! structure CSManager = CSManager !*)
-	      );
+	  structure CSManager = CSManager);
 
 
 structure Reduces =
   Reduces (structure Global = Global
-	  (*! structure IntSyn' = IntSyn !*)
+	  structure IntSyn' = IntSyn
 	  structure Whnf = Whnf
 	  structure Names = Names
 	  structure Index = Index
@@ -31,6 +30,5 @@ structure Reduces =
 	  structure Checking = Checking 
 	  structure Paths = Paths
 	  structure Origins = Origins
-	  (*! structure CSManager = CSManager !*)
-	     );
+	  structure CSManager = CSManager);
 

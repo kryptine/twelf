@@ -14,13 +14,19 @@ sig
     val sgn : unit -> unit	       (* print signature *)
     val prog : unit -> unit	       (* print signature as program *)
     val subord : unit -> unit	       (* print subordination relation *)
-    val domains : unit -> unit         (* print available constraint domains *)
 
     structure TeX :		       (* print in TeX format *)
     sig
       val sgn : unit -> unit	       (* print signature *)
       val prog : unit -> unit	       (* print signature as program *)
     end
+
+(*    structure Table :
+    sig
+      val print : unit -> unit
+      val printEntries : unit -> unit
+    end 
+*)
   end
 
   structure Trace :
@@ -54,24 +60,14 @@ sig
 
   structure Compile :
   sig
-    val optimize : bool ref		(* true, optimize clauses *)
+    val optimize : bool ref
   end
-
-  structure Table : 
-  sig 
-    datatype Strategy = Variant | Subsumption
-
-    val strategy : Strategy ref		(* Variant, tabling strategy *)
-    val strengthen : bool ref		(* false, tabling optimization *)
-
-    val top : unit -> unit		(* Top-level for tabled queries *)
-  end 
 
   structure Recon :
   sig
     datatype TraceMode = Progressive | Omniscient
-    val trace : bool ref		(* false, trace term reconstruction *)
-    val traceMode : TraceMode ref	(* Omniscient, trace mode *)
+    val trace : bool ref
+    val traceMode : TraceMode ref
   end
 
   structure Prover :
@@ -108,5 +104,15 @@ sig
   val make : string -> Status	       (* read and load configuration *)
 
   val version : string		       (* Twelf version *)
+
+  structure Table : 
+  sig 
+    datatype Strategy = Variant | Subsumption
+
+    val strategy : Strategy ref
+    val strengthen : bool ref
+
+    val top : unit -> unit
+  end 
 
 end;  (* signature TWELF *)

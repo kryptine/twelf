@@ -236,8 +236,7 @@ struct
 
   local
     val maxCid = Global.maxCid
-    val dummyEntry = ConDec("", NONE, 0, Normal, Uni (Kind), Kind)
-    val sgnArray = Array.array (maxCid+1, dummyEntry)
+    val sgnArray = Array.array (maxCid+1, ConDec("", NONE, 0, Normal, Uni (Kind), Kind))
       : ConDec Array.array
     val nextCid  = ref(0)
 
@@ -254,14 +253,7 @@ struct
     (* If Const(cid) is valid, then sgnArray(cid) = ConDec _ *)
     (* If Def(cid) is valid, then sgnArray(cid) = ConDef _ *)
 
-    fun sgnClean (i) = if i >= !nextCid then ()
-                       else (Array.update (sgnArray, i, dummyEntry);
-			     sgnClean (i+1))
-
-    fun sgnReset () = ((* Fri Dec 20 12:04:24 2002 -fp *)
-		       (* this circumvents a space leak *)
-		       sgnClean (0);
-		       nextCid := 0; nextMid := 0)
+    fun sgnReset () = (nextCid := 0; nextMid := 0)
     fun sgnSize () = (!nextCid, !nextMid)
 
     fun sgnAdd (conDec) = 
@@ -563,6 +555,3 @@ struct
   fun targetFam (A) = valOf (targetFamOpt A)
                       
 end;  (* functor IntSyn *)
-
-structure IntSyn :> INTSYN =
-  IntSyn (structure Global = Global);

@@ -1,29 +1,27 @@
 structure AbsMachine = 
-  AbsMachine ((*! structure IntSyn' = IntSyn !*)
-              (*! structure CompSyn' = CompSyn !*)
+  AbsMachine (structure IntSyn' = IntSyn
+              structure CompSyn' = CompSyn
               structure Unify = UnifyTrail
 	      structure Assign = Assign 
 	      structure Index = Index
               structure CPrint = CPrint
               structure Print = Print
               structure Names = Names
-              (*! structure CSManager = CSManager !*)
-		); 
+              structure CSManager = CSManager); 
 
 structure PtRecon = 
-  PtRecon ((*! structure IntSyn' = IntSyn !*)
-           (*! structure CompSyn' = CompSyn !*)
+  PtRecon (structure IntSyn' = IntSyn
+	  structure CompSyn' = CompSyn
 	  structure Unify = UnifyTrail
 	  structure Assign = Assign 
 	  structure Index = Index
 	  structure CPrint = CPrint
 	  structure Names = Names
-	  (*! structure CSManager = CSManager !*)
-	    ); 
+	  structure CSManager = CSManager); 
 
 
 structure AbstractTabled =
-  AbstractTabled ((*! structure IntSyn' = IntSyn !*)
+  AbstractTabled (structure IntSyn' = IntSyn
 		  structure Print = Print
 		  structure Subordinate = Subordinate
 		  structure Whnf = Whnf
@@ -35,9 +33,9 @@ structure AbstractTabled =
 structure TableIndex = 
   TableIndex (structure Global = Global
 	      structure Queue = Queue
-	      (*! structure IntSyn' = IntSyn !*)
+	      structure IntSyn' = IntSyn
 	      structure Subordinate = Subordinate
-	      (*! structure CompSyn' = CompSyn !*)
+	      structure CompSyn' = CompSyn
 	      structure Conv = Conv
 	      structure Unify = UnifyTrail 
 	      structure AbstractTabled = AbstractTabled
@@ -48,8 +46,8 @@ structure TableIndex =
 	      structure TypeCheck = TypeCheck);
 
 structure Tabled = 
-  Tabled ((*! structure IntSyn' = IntSyn !*)
-          (*! structure CompSyn' = CompSyn !*)
+  Tabled (structure IntSyn' = IntSyn
+	  structure CompSyn' = CompSyn
 	  structure Unify = UnifyTrail 
 	  structure Whnf = Whnf
 	  structure TabledSyn = TabledSyn
@@ -62,27 +60,26 @@ structure Tabled =
 	  structure CPrint = CPrint
 	  structure Print = Print
 	  structure Names = Names
-	  (*! structure CSManager = CSManager !*)
+	  structure CSManager = CSManager
 	  structure Subordinate = Subordinate); 
 
 structure Trace =
-  Trace ((*! structure IntSyn' = IntSyn !*)
+  Trace (structure IntSyn' = IntSyn
 	 structure Names = Names
 	 structure Whnf = Whnf
 	 structure Abstract = Abstract
 	 structure Print = Print);
 
 structure TMachine =
-  TMachine ((*! structure IntSyn' = IntSyn !*)
-            (*! structure CompSyn' = CompSyn !*)
+  TMachine (structure IntSyn' = IntSyn
+	    structure CompSyn' = CompSyn
 	    structure Unify = UnifyTrail
 	    structure Index = Index
 	    structure Assign = Assign 
 	    structure CPrint = CPrint
             structure Names = Names
 	    structure Trace = Trace
-	    (*! structure CSManager = CSManager !*)
-		);
+              structure CSManager = CSManager);
 
 structure SwMachine =
   SwMachine (structure Trace = Trace

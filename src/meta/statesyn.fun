@@ -1,18 +1,17 @@
 (* State for Proof Search *)
 (* Author: Carsten Schuermann *)
 
-functor StateSyn ((*! structure IntSyn' : INTSYN !*)
-                  (*! structure FunSyn' : FUNSYN !*)
-		  (*! sharing FunSyn'.IntSyn = IntSyn' !*)
+functor StateSyn (structure IntSyn' : INTSYN
+		  structure FunSyn' : FUNSYN
+		    sharing FunSyn'.IntSyn = IntSyn'
 		  structure Whnf : WHNF
-		  (*! sharing Whnf.IntSyn = IntSyn' !*)
+		    sharing Whnf.IntSyn = IntSyn'
 		  structure Conv : CONV
-		  (*! sharing Conv.IntSyn = IntSyn' !*)
-		    )
+		    sharing Conv.IntSyn = IntSyn')
   : STATESYN =
 struct
-  (*! structure IntSyn = IntSyn' !*)
-  (*! structure FunSyn = FunSyn' !*)
+  structure IntSyn = IntSyn'
+  structure FunSyn = FunSyn'
     
   datatype Order =	       	        (* Orders                     *)
     Arg of (IntSyn.Exp * IntSyn.Sub) * 
@@ -35,8 +34,8 @@ struct
 
   datatype State =			(* S = <n, (G, B), (IH, OH), d, O, H, F> *)
     State of int			(* Part of theorem                   *)
-	   * (IntSyn.dctx	(* Context of Hypothesis in general not named *)
-           * Tag IntSyn.Ctx) (* Status information *)
+	   * (FunSyn.IntSyn.dctx	(* Context of Hypothesis in general not named *)
+           * Tag FunSyn.IntSyn.Ctx) (* Status information *)
            * (FunSyn.For * Order)	(* Induction hypothesis, order       *)
            * int			(* length of meta context            *)
            * Order			(* Current Order *)

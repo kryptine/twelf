@@ -3,3 +3,6 @@
 
 %query 1 *
 sieve 500 L.
+
+%query 1 *
+sieve 500 L.

@@ -10,7 +10,7 @@ struct
     
   local
     structure L = ThmSyn
-    structure I = IntSyn
+    structure I = L.ModeSyn.IntSyn
     structure F = Formatter
       
     fun fmtIds nil = []

@@ -1,7 +1,1 @@
-Library
-  signature TIMING
-  structure Timing
-  signature TWELF
-  structure Twelf
-is
-  src/frontend/sources.cm
+Alias src/frontend/sources.cm

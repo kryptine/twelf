@@ -246,5 +246,3 @@ struct
       pathToRegion (v, skipImplicit (n, occToPath (occ, Here)))
 
 end;  (* functor Paths *)
-
-structure Paths = Paths ();

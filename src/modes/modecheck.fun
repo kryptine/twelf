@@ -2,23 +2,22 @@
 (* Author: Carsten Schuermann *)
 (* Modified: Frank Pfenning, Roberto Virga *)
 
-functor ModeCheck ((*! structure IntSyn : INTSYN !*)
+functor ModeCheck (structure IntSyn : INTSYN
 		   structure ModeSyn : MODESYN
-		   (*! sharing ModeSyn.IntSyn = IntSyn !*)
+		     sharing ModeSyn.IntSyn = IntSyn
                    structure Whnf : WHNF
-		   (*! sharing Whnf.IntSyn = IntSyn !*)
+                     sharing Whnf.IntSyn = IntSyn
 		   structure Index : INDEX
-		   (*! sharing Index.IntSyn = IntSyn !*)
-		   (*! structure Paths : PATHS !*)
+		     sharing Index.IntSyn = IntSyn
+		   structure Paths : PATHS
 		   structure Origins : ORIGINS
-		   (*! sharing Origins.Paths = Paths !*)
-		     (*! sharing Origins.IntSyn = IntSyn !*)
-		       )
+		     sharing Origins.Paths = Paths
+		     sharing Origins.IntSyn = IntSyn)
   : MODECHECK =
 struct
-  (*! structure IntSyn = IntSyn !*)
+  structure IntSyn = IntSyn
   structure ModeSyn = ModeSyn
-  (*! structure Paths = Paths !*)
+  structure Paths = Paths
 
   exception Error of string
    
@@ -417,8 +416,7 @@ struct
 
     fun freeAtom (D, mode, I.Nil, M.Mnil, _, strictFun) = ()
       | freeAtom (D, M.Minus, I.App (U, S), M.Mapp (M.Marg (M.Minus, _), mS), (p, occ), strictFun) =
-          (freeExpN (D, 0, M.Minus, U, P.arg(p, occ), strictFun);
-	   freeAtom (D, M.Minus, S, mS, (p+1, occ), strictFun))
+          freeExpN (D, 0, M.Minus, U, P.arg(p, occ), strictFun)
       | freeAtom (D, mode, I.App (U, S), M.Mapp (_, mS), (p, occ), strictFun) =
 	  freeAtom (D, mode, S, mS, (p+1, occ), strictFun)
 
@@ -644,7 +642,7 @@ struct
                     (* compute all other mode contexts *)
                     val Ds' = checkList (found orelse found') mSs                                  
                   in
-                    if found'
+                    if(found')
                     then k (updateAtom (D, M.Minus, S, a, mS, (1, occ))) @ Ds'
                     else Ds'
                   end
@@ -670,7 +668,7 @@ struct
                     (* compute all other mode contexts *)
                     val Ds' = checkList (found orelse found') mSs                                  
                   in
-                    if found'
+                    if(found')
                     then k (updateAtom (D, M.Minus, S, d, mS, (1, occ))) @ Ds'
                     else Ds'
                   end
@@ -726,19 +724,12 @@ struct
 	end
 
     fun checkAll (nil) = ()
-      | checkAll (I.Const(c) :: clist) =
+      | checkAll (I.Const c :: clist) =
         (if !Global.chatter > 3
 	   then print (Names.qidToString (Names.constQid c) ^ " ")
 	 else ();
 	 checkDlocal (I.Null, I.constType c, P.top)
 	   handle Error' (occ, msg) => raise Error (wrapMsg (c, occ, msg));
-	 checkAll clist)
-      | checkAll (I.Def(d) :: clist) =
-        (if !Global.chatter > 3
-	   then print (Names.qidToString (Names.constQid d) ^ " ")
-	 else ();
-	 checkDlocal (I.Null, I.constType d, P.top)
-	   handle Error' (occ, msg) => raise Error (wrapMsg (d, occ, msg));
 	 checkAll clist)
 
     fun checkMode (a, ms) =

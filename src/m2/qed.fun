@@ -11,7 +11,7 @@ struct
 
   local
     structure M = MetaSyn
-    structure I = IntSyn
+    structure I = MetaSyn.IntSyn
 
     fun subgoal (M.State (name, M.Prefix (G, M, B), V)) =
 	let

@@ -13,7 +13,7 @@ struct
   local
     structure A = MetaAbstract
     structure M = MetaSyn
-    structure I = IntSyn
+    structure I = MetaSyn.IntSyn
 
     (* createEVars (G, M, B) = ((G', M', B'), s')
        

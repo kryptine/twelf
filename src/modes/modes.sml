@@ -1,20 +1,19 @@
 structure ModeSyn = 
-  ModeSyn ((*! structure IntSyn' = IntSyn !*)
+  ModeSyn (structure IntSyn' = IntSyn
 	   structure Names = Names
 	   structure Table = IntRedBlackTree
 	   structure Index = Index);
 
 structure ModeDec =
   ModeDec (structure ModeSyn' = ModeSyn
-	   (*! structure Paths' = Paths !*)
-	     );
+	   structure Paths' = Paths);
 
 structure ModeCheck =
-  ModeCheck ((*! structure IntSyn = IntSyn *)
+  ModeCheck (structure IntSyn = IntSyn
 	     structure ModeSyn = ModeSyn
              structure Whnf = Whnf
 	     structure Index = Index
-	     (*! structure Paths = Paths !*)
+	     structure Paths = Paths
 	     structure Origins = Origins);
 
 structure ModePrint =

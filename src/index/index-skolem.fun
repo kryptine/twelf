@@ -4,11 +4,10 @@
 
 functor IndexSkolem (structure Global : GLOBAL
 		     structure Queue : QUEUE
-		     (*! structure IntSyn' : INTSYN !*)
-		       )
+		     structure IntSyn': INTSYN)
   : INDEX =
 struct
-  (*! structure IntSyn = IntSyn' !*)
+  structure IntSyn = IntSyn'
  
   local
     structure I = IntSyn
