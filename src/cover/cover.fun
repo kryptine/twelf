@@ -323,7 +323,7 @@ struct
       | matchExpW (G, d, Us1, Us2 as (I.EVar _, s2), cands) =
 	   addEqn (Eqn (G, Us1, Us2), cands)
       (* next 3 cases are new for output coverage *)
-      (* Tue Dec 18 20:54:58 2001 -fp *)
+      (* Tue Dec 18 20:54:58 2001 -fp !!! *)
       | matchExpW (G, d, (I.Pi ((D1, _), V1), s1), (I.Pi ((D2, _), V2), s2), cands) =
 	let 
 	  val cands' = matchDec (G, d, (D1, s1), (D2, s2), cands)
@@ -380,9 +380,10 @@ struct
 	(* this case arises in output coverage *)
 	(* the parameters should not suggest any splittable variables,
 	   perhaps but they should probably be unified *)
-	(* Tue Dec 18 19:49:47 2001 -fp ??? *)
+	(* Tue Dec 18 19:49:47 2001 -fp ??? !!! *)
 	let
-	  val cands' = matchDec (G, d, (D1, s1), (D2, s2), cands)
+	  (* val cands' = matchDec (G, d, (D1, s1), (D2, s2), cands) *)
+	  val cands' = cands
 	in
 	  matchTopW (I.Decl (G, D1), d+1, (V1, I.dot1 s1), (V2, I.dot1 s2), ms, cands')
 	end
@@ -402,7 +403,7 @@ struct
 		       M.Mapp (_, ms'), cands) =
 	(* skip "ignore" and "output" arguments *)
 	(* this seems questionable during output coverage *)
-	(* Tue Dec 18 19:20:47 2001 -fp *)
+	(* Tue Dec 18 19:20:47 2001 -fp ??? !!! *)
 	   matchTopSpine (G, d, (S1, s1), (S2, s2), ms', cands)
 
     (* matchClause (G, (a @ S1, s1), V, ms) = cands
@@ -521,7 +522,7 @@ struct
 	in
 	  addKs (cands'', CandList (nil))
 	end
-      | matchOut (G, V, ms, (I.Pi ((I.Dec(_, V1'), _), V2'), s'), p) = (* p > 0 *)
+      | matchOut (G, V, ms, (V' as I.Pi ((I.Dec(_, V1'), _), V2'), s'), p) = (* p > 0 *)
 	let
 	  val X1 = I.newEVar (G, I.EClo (V1', s'))
 	in
@@ -542,7 +543,7 @@ struct
           matchCtx' (G, I.id, G, V, 1, ms,
 		     matchSig (G, (V, I.id), ccs, ms, CandList (nil)))
       | match (G, V, 0, ms, Output (V', q)) =
-	  matchOut (G, V, ms, (V', I.id), q)
+	  matchOut (G, V, ms, (V', I.Shift (I.ctxLength G)), q)
       | match (G, I.Pi ((D, _), V'), p, ms, ccs) =
 	  match (I.Decl (G, D), V', p-1, ms, ccs)
 
@@ -990,7 +991,7 @@ struct
 					then raise NotFinitary
 				      else incCount ()) ;
 	    if !Global.chatter >= 6
-	      then print ("Finitary with " ^ Int.toString (k) ^ " candidates.\n")
+	      then print ("Finitary with " ^ Int.toString (getCount ()) ^ " candidates.\n")
 	    else () ;
 	    (k, getCount ())::cands )
            handle NotFinitary => ( if !Global.chatter >= 6
@@ -1150,7 +1151,7 @@ struct
 
     and splitWeak (V, p, nil, wms, ccs, missing) =
         ( if !Global.chatter >= 6
-	    then print ("No weak candidates---case not covered")
+	    then print ("No weak candidates---case not covered\n")
 	  else () ;
 	  (V,p)::missing )
       | splitWeak (V, p, ksn, wms, ccs, missing) = (* ksn <> nil *)

@@ -220,3 +220,4 @@ cal_existsl' :
 %worlds (lp | ln | li | lo) (ca' A D E F).
 %covers ca' +A +D +E *F.
 %terminates {A [D E]} (ca' A D E _).
+%total {A [D E]} (ca' A D E _).
