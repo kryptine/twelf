@@ -172,7 +172,7 @@ part via explicit abstraction.  From cp_lam:
 |- {x:exp A} {y:exp A} {u:cp x y} cp (E x) (F y)
 
 Lets call this the coverage clause.  Since we don't factor different
-clauses for output coverage,, the coverage clauses is unique.
+clauses for output coverage, the coverage clauses is unique.
 
 We next set up the initial coverage goal.  For this coverage goal the
 output arguments of the eventual atomic subgoal are maximally general
