@@ -71,6 +71,7 @@ structure Opsem = Opsem
    structure Subordinate = Subordinate
    structure TomegaPrint = TomegaPrint
    structure TomegaTypeCheck = TomegaTypeCheck
+   structure Converter = Converter
    structure Weaken = Weaken);
 
 structure TomegaCoverage = TomegaCoverage
