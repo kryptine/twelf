@@ -91,6 +91,13 @@ struct
 		    (U2, dot1 s2), cnstr)  
 	   (* same reasoning holds as above *)
 
+      | assignExpW (G, (Pi ((D1 as Dec (_, V1), _), U1), s1), (Pi ((D2 as Dec(_, V2), _), U2), s2), cnstr) =           
+	  let
+	    val cnstr' = assignExp (G, (V1, s1), (V2, s2), cnstr)
+	  in 
+	    assignExp (Decl (G, decSub (D1, s1)), (U1, dot1 s1), (U2, dot1 s2), cnstr')
+	  end 
+
       | assignExpW (G, Us1 as (U, s1),
 		    Us2 as (EVar(r2, _, _, _), s2), cnstr) =
 	    (* s2 = id *)
@@ -148,19 +155,31 @@ struct
       | solveCnstr (Eqn(G, U1, U2)::Cnstr) = 
         (Unify.unifiable(G, (U1, id), (U2, id)) andalso solveCnstr Cnstr)
 	
+  fun printSub (Shift n) = print ("Shift " ^ Int.toString n ^ "\n")
+    | printSub (Dot(Idx n, s)) = (print ("Idx " ^ Int.toString n ^ " . "); printSub s)
+    | printSub (Dot (Exp(EVar (_, _, _, _)), s)) = (print ("Exp (EVar _ ). "); printSub s)
+    | printSub (Dot (Exp(AVar (_)), s)) = (print ("Exp (AVar _ ). "); printSub s)
+    | printSub (Dot (Exp(EClo (AVar (_), _)), s)) = (print ("Exp (AVar _ ). "); printSub s)
+    | printSub (Dot (Exp(EClo (_, _)), s)) = (print ("Exp (EClo _ ). "); printSub s)
+    | printSub (Dot (Exp(_), s)) = (print ("Exp (_ ). "); printSub s)
+    | printSub (Dot (Undef, s)) = (print ("Undef . "); printSub s)
+
+
     fun unifyW (G, (Xs1 as AVar(r as ref NONE), s), Us2) = 
-          r := SOME(EClo(Us2))
-      | unifyW (G, Xs1, Us2) = 
+          ((* print "Unify - avar \n" ;*) r := SOME(EClo(Us2)))
+      | unifyW (G, Xs1 as (X, s), Us2) = 
 	  (* Xs1 should not contain any uninstantiated AVar anymore *)
-	  Unify.unifyW(G, Xs1, Us2)
+	  ((* print "Unify - no avar \n";
+	   printSub s;*)
+	  Unify.unifyW(G, Xs1, Us2))
       
-    fun unify(G, Xs1, Us2) = unifyW(G, Whnf.whnf Xs1, Whnf.whnf Us2)
+    fun unify(G, Xs1, Us2) = unifyW (G, Whnf.whnf Xs1, Whnf.whnf Us2)
 
   in
     val solveCnstr = solveCnstr
 
     fun unifiable (G, Us1, Us2) = 
-        (unify(G, Us1, Us2); true)
+        (unify (G, Us1, Us2); true)
          handle Unify.Unify msg => false
 
     (*
@@ -169,7 +188,7 @@ struct
 
     fun assignable (G, Us1, Uts2) = 
         (SOME(assignExp (G, Us1, Uts2, []))
-         handle (Assignment(msg)) => NONE)
+         handle (Assignment(msg)) =>  NONE)
   end
 end; (* functor Assign *)
 

@@ -8,12 +8,18 @@ Group is
   ../subordinate/sources.cm
   ../tabling/sources.cm
   ../compile/sources.cm
+
+
   abstract.sig  
-  abstract.fun
-  index.sig
-  index.fun  
+  abstract.fun 
+(*  index.sig
+  index.fun  *)
+
+  subtree.fun 
+  subtree.sig
+
   tabled.sig
-  tabled.fun     
+  tabled.fun    
 
   absmachine.sig
   absmachine.fun

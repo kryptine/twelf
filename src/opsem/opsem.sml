@@ -19,18 +19,25 @@ structure PtRecon =
 	  structure Names = Names
 	  structure CSManager = CSManager); 
 
-
-structure AbstractTabled =
+ structure AbstractTabled =
   AbstractTabled (structure IntSyn' = IntSyn
-		  structure Print = Print
-		  structure Subordinate = Subordinate
 		  structure Whnf = Whnf
-		  structure Constraints = Constraints
-		  structure Unify = UnifyTrail
 		  structure Subordinate = Subordinate
+		  structure Conv = Conv
+		  structure Unify = UnifyTrail
 		  structure Print = Print);
 
-structure TableIndex = 
+
+structure MemoTable =
+ MemoTable (structure IntSyn' = IntSyn
+	    structure Conv = Conv
+	    structure CompSyn' = CompSyn
+	    structure Print = Print
+	    structure AbstractTabled = AbstractTabled
+	    structure Table = IntRedBlackTree
+	    structure RBSet = RBSet)
+
+(* structure TableIndex = 
   TableIndex (structure Global = Global
 	      structure Queue = Queue
 	      structure IntSyn' = IntSyn
@@ -43,18 +50,16 @@ structure TableIndex =
 	      structure Print = Print
 	      structure CPrint = CPrint
 	      structure TypeCheck = TypeCheck);
-
+*)
 structure Tabled = 
   Tabled (structure IntSyn' = IntSyn
 	  structure CompSyn' = CompSyn
 	  structure Unify = UnifyTrail 
-	  structure Whnf = Whnf
 	  structure TabledSyn = TabledSyn
 	  structure Assign = Assign 
-	  structure Subordinate = Subordinate
 	  structure Index = Index
 	  structure Queue = Queue
-	  structure TableIndex = TableIndex
+	  structure MemoTable = MemoTable    
 	  structure AbstractTabled = AbstractTabled
 	  structure CPrint = CPrint
 	  structure Print = Print

@@ -6,43 +6,45 @@ sig
 
   structure IntSyn : INTSYN
   structure CompSyn : COMPSYN
+  structure AbstractTabled : ABSTRACTTABLED
     
-  type answer = {solutions : ((IntSyn.dctx * IntSyn.Sub) * CompSyn.pskeleton) list,
-		 lookup: int}
+  type answer = {solutions : ((IntSyn.dctx  * IntSyn.Sub * AbstractTabled.ResEqn) * CompSyn.pskeleton) list,
+		 lookup: int} ref
 
   datatype Strategy = Variant | Subsumption
+  exception Error of string
 
   val strategy  : Strategy ref 
 
   val termDepth  : int option ref
   val ctxDepth   : int option ref
-  val ctxLength  : int option ref
+  val ctxLength  : int option ref 
   val strengthen : bool ref
 
-  val query : (IntSyn.dctx * IntSyn.dctx  * IntSyn.Exp * IntSyn.Sub * (CompSyn.pskeleton -> unit)) option ref
-
   datatype answState = new | repeated
+
+  datatype callCheckResult = 
+    NewEntry of answer 
+  | RepeatedEntry of answer
 
   (* table: G, Gdprog |- goal , 
             (answ list (ith stage) , answ list (1 to i-1 th stage))
    *) 
-  val table : ((int ref * IntSyn.dctx * IntSyn.dctx * IntSyn.Exp) * answer) list ref 
+  val table : ((int ref * IntSyn.dctx * IntSyn.dctx * IntSyn.Exp * AbstractTabled.ResEqn) * answer) list ref 
 
-  val noAnswers : ((IntSyn.dctx * IntSyn.dctx * IntSyn.Exp) * answer) list -> bool
+  val noAnswers : answer -> bool
 
+  val tableSize : unit -> int
   (* call check/insert *)
 
-  (* callCheck (G, D, U)
+  (* callCheck (G, D, U, eqn)
    *
-   * if D, G |- U     in table  
-   *    then SOME(entries)
-   * if D, G |- U not in table 
-   *    then NONE  
-   *          SIDE EFFECT: D, G |- U added to table
+   * if D, G |- U & eqn     in table  then RepeatedEntry (entries)
+   * if D, G |- U & eqn not in table  then NewEntry (ptrAnswer)
+   * SIDE EFFECT: D, G |- U added to table
    *)
 
-  val callCheck : IntSyn.dctx * IntSyn.dctx * IntSyn.Exp ->  
-                  (((IntSyn.dctx * IntSyn.dctx * IntSyn.Exp) * answer) list) option
+  val callCheck : IntSyn.dctx * IntSyn.dctx * IntSyn.Exp * AbstractTabled.ResEqn -> callCheckResult
   
 
   (* answer check/insert *)
@@ -58,7 +60,7 @@ sig
    *  else new
    *)
 
-  val answerCheck : IntSyn.dctx * IntSyn.dctx * IntSyn.Exp * IntSyn.Sub * CompSyn.pskeleton -> answState
+  val answerCheck : IntSyn.dctx * IntSyn.dctx * IntSyn.Exp * AbstractTabled.ResEqn *IntSyn.Sub * answer * CompSyn.pskeleton -> answState
 
   (* reset table *)
   val reset: unit -> unit
@@ -79,7 +81,7 @@ sig
    
   val updateTable : unit -> bool
 
-  val solutions : answer -> ((IntSyn.dctx * IntSyn.Sub) * CompSyn.pskeleton) list
+  val solutions : answer -> ((IntSyn.dctx * IntSyn.Sub * AbstractTabled.ResEqn) * CompSyn.pskeleton) list
   val lookup : answer -> int
 
 end;  (* signature TABLEINDEX *)

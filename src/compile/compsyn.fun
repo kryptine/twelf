@@ -19,8 +19,8 @@ struct
 
 
   (* default *) 
-(*  val optimize = ref linearHeads  *)
-  val optimize = ref indexing 
+  val optimize = ref linearHeads  
+(*  val optimize = ref indexing  *)
 
   datatype Goal =                       (* Goals                      *)
     Atom of IntSyn.Exp                  (* g ::= p                    *)

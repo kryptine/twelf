@@ -304,6 +304,7 @@ struct
                  )
       | pruneExpW (G, (FgnExp (_, ops), s), ss, rOccur, prunable) =
           #map(ops) (fn U => pruneExp (G, (U, s), ss, rOccur, prunable))
+      | pruneExpW (G, ((X as AVar _), s), ss, rOccur, prunable) = (print "\nLeft-over AVar\n" ; raise Unify "Left-over AVar")
 
       (* other cases impossible since (U,s1) whnf *)
     and pruneDec (G, (Dec (name, V), s), ss, rOccur, prunable) =

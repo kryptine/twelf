@@ -53,7 +53,7 @@ struct
   
   datatype Cnstr = Eqn of IntSyn.Dec IntSyn.Ctx * IntSyn.Exp * IntSyn.Exp
 
-  datatype CGoal = CGoals of CompSyn.AuxGoal * IntSyn.cid * CompSyn.Conjunction * int
+  datatype CGoal = CGoals of CompSyn.AuxGoal * IntSyn.cid * CompSyn.Conjunction * int (* cid of clause *)
     
   datatype Tree = 
     Leaf of normalSubsts  * IntSyn.Dec IntSyn.Ctx * CGoal
@@ -63,7 +63,7 @@ struct
 
    val nid : unit -> normalSubsts = RBSet.new 
    val assignSubId : unit -> assSubsts = RBSet.new 
-   val cnstrSubId : unit -> cnstrSubsts = RBSet.new  (* rename !!!!! *) (* substitution: nvars -> avars for cnstr *)
+   val cnstrSubId : unit -> cnstrSubsts = RBSet.new   (* substitution: nvars -> avars for cnstr *)
    val querySubId : unit -> querySubsts = RBSet.new   (* query substitution *)
 
    fun isId s = RBSet.isEmpty s
@@ -457,7 +457,7 @@ struct
 	       (if (cs1 = cs2) andalso (n1 = n2) then cnstr
 		else assignExp (depth, Glocal_u1, (W1, s1), W2, cnstr))
 	     | (I.FgnConst (_, I.ConDef (_, _, _, W1, _, _)), _) => assignExp (depth, Glocal_u1, (W1, s1), U2, cnstr)
-	     | (_, I.FgnConst (_, I.ConDef (_, _, _, W2, _, _))) => assignExp (depth, Glocal_u1, Us1, W2, cnstr)              
+	     | (_, I.FgnConst (_, I.ConDef (_, _, _, W2, _, _))) => assignExp (depth, Glocal_u1, Us1, W2, cnstr)           
 	     | (_, _) => (raise Assignment ("Head mismatch ")))
 
       and assignExpW (depth, Glocal_u1, (I.Uni L1, s1), I.Uni L2, cnstr) = cnstr (* L1 = L2 by invariant *)
@@ -506,7 +506,7 @@ struct
 		    (Eqn(Glocal_u1, I.EClo(Us1), U2')::cnstr)
 		  end)
         (* by invariant Us2 cannot contain any FgnExp *)
-	| assignExpW (depth, Glocal_u1, (I.Lam (D1 as I.Dec(_, A1), U1), s1), I.Lam (D2 as I.Dec(_, A2), U2), cnstr) =            
+	| assignExpW (depth, Glocal_u1, (I.Lam (D1 as I.Dec(_, A1), U1), s1), I.Lam (D2 as I.Dec(_, A2), U2), cnstr) =   
           (* D1[s1] = D2[s2]  by invariant *)
 	  assignExp (depth+1, I.Decl (Glocal_u1, I.decSub (D1, s1)), (U1, I.dot1 s1), U2, cnstr) 
 	  (* here it does matter what we put in Glocal_u1! since D2 will only be approximately the same as D1 at this point! *)
@@ -684,14 +684,15 @@ struct
 
   fun solveResiduals (Gquery, Gclause, CGoals(AuxG, cid, ConjGoals, i), asub, cnstr', sc) =
     let
+(*      val _ = print ("Applied clause " ^ Names.qidToString(Names.constQid cid) ^ "\n") *)
       val s = ctxToExplicitSub (1, Gquery, Gclause, asub) 
       val success =  solveAuxG (AuxG, s, Gquery) andalso solveCnstr (Gquery, cnstr', s)	
     in
       if success
 	then 
-	  (sc ((ConjGoals, s), cid))
-      else ()
-    end
+	  (sc ((ConjGoals, s), cid (* B *))) 
+      else () 
+    end 
 
 
   fun ithChild (CGoals(_, _, _, i), n) = (i = n)
@@ -771,16 +772,16 @@ struct
     let
       val (nsub_query, assignSub) = (querySubId (), assignSubId ())
       val candSet = S.new() 
-       fun solveCandidate (i, candSet) = 
+      fun solveCandidate (i, candSet) = 
 	case (S.lookup candSet i) 
-	  of NONE => () 
-	   | SOME(assignSub, nsub_left, cnstrSub, cnstr, Gclause, Residuals) => 
-	     (CSManager.trail (fn () => 
-	       (S.forall nsub_left (fn (nv, U) => case (S.lookup cnstrSub nv) 
+	  of NONE => ((* print "No candidate left anymore\n" ;*) () )
+	   | SOME(assignSub, nsub_left, cnstrSub, cnstr, Gclause, Residuals (* CGoals(AuxG, cid, ConjGoals, i) *)) => 
+	     (S.forall nsub_left (fn (nv, U) => case (S.lookup cnstrSub nv) 
 					                 of NONE =>  raise Error "Left-over nsubstitution" 
 						       | SOME(I.AVar A) => A := SOME(U));
-                solveResiduals (Gquery, Gclause, Residuals, assignSub, cnstr, sc (* fn S => (1::S) *))));
-	      solveCandidate (i+1, candSet (* sc = (fn S => (0::S)) *) ))
+	      CSManager.trail (fn () => 
+	       (solveResiduals (Gquery, Gclause, Residuals, assignSub, cnstr, sc)));
+	        solveCandidate (i+1, candSet (* sc = (fn S => (0::S)) *) ))
     in 
       S.insert nsub_query (1, (I.Null, r));
       S.forall Children (fn (_, C) => retrieveAll (n, C, nsub_query, assignSub, nil, candSet));
@@ -792,8 +793,9 @@ struct
      let
        val (n, Tree) = Array.sub (indexArray, a)
      in       
-       retrieval (n, !Tree, G, I.EClo(ps), sc)  
-(*       retrieveCandidates (n, !Tree, G, I.EClo(ps), sc)   *)
+       
+       (* retrieval (n, !Tree, G, I.EClo(ps), sc)   *)
+       retrieveCandidates (n, !Tree, G, I.EClo(ps), sc)   
      end 
 
  fun sProgReset () = 

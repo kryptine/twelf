@@ -150,7 +150,8 @@ structure Solve =
 	 structure AbsMachineSbt = AbsMachineSbt
 	 structure PtRecon = PtRecon
 	 structure Tabled = Tabled
-	 structure TableIndex = TableIndex
+(*	 structure TableIndex = TableIndex *)
+	 structure MemoTable = MemoTable
 	 structure Print = Print);
 
 structure Twelf =
@@ -194,7 +195,8 @@ structure Twelf =
 	 structure AbsMachine = SwMachine
 
 	 structure Tabled = Tabled
-	 structure TableIndex = TableIndex
+(*	 structure TableIndex = TableIndex *)
+	 structure MemoTable = MemoTable
 	 structure Solve = Solve
 
 	 structure ThmSyn = ThmSyn

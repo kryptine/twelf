@@ -211,6 +211,32 @@ struct
 	ap dict
       end
 
+(*
+  fun exists (Set(n, dict)) f =
+      let fun ap (Empty) = NONE
+	    | ap (Red tree) = ap' tree
+	    | ap (Black tree) = ap' tree
+	  and ap' (entry, left, right) =
+	      (case (f entry) 
+		 of NONE => (case (ap left) of NONE => ap right | SOME(entry, res) => SOME(entry, res))
+	       | SOME(res) => SOME(entry, res))
+      in
+	ap dict
+      end
+*)
+
+  fun exists (Set(n, dict)) f =
+      let fun ap (Empty) = false
+	    | ap (Red tree) = ap' tree
+	    | ap (Black tree) = ap' tree
+	  and ap' (entry, left, right) =
+	      if (f entry) 
+		then true
+	      else (if (ap left) then true else (ap right))
+      in
+	ap dict
+      end
+
   fun setsize (Set (n, _)) = n
 
   (* support for constructing red-black trees in linear time from increasing
@@ -457,6 +483,7 @@ struct
     val app = (fn ordSet => fn f => app f (!ordSet))
     val update = (fn ordSet => fn f => ((ordSet := (update f (!ordSet)); ordSet)))
     val forall = (fn ordSet => fn f => forall (!ordSet) f)
+    val exists = (fn ordSet => fn f => exists (!ordSet) f)
 
     fun size S = setsize (!S) 
 
