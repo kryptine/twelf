@@ -1,5 +1,6 @@
-(* Type checking for functional proof term calculus *)
+(* Type checking for Tomega *)
 (* Author: Carsten Schuermann *)
+(* Modified: Yu Liao *)
 
 functor TomegaTypeCheck
   (structure IntSyn' : INTSYN
@@ -11,10 +12,16 @@ functor TomegaTypeCheck
      sharing TypeCheck.IntSyn = IntSyn'
    structure Conv : CONV
      sharing Conv.IntSyn = IntSyn'
+   structure Normalize : NORMALIZE
+     sharing Normalize.IntSyn = IntSyn'
+     sharing Normalize.Tomega = Tomega'
    structure Whnf : WHNF
      sharing Whnf.IntSyn = IntSyn'
    structure Print : PRINT
      sharing Print.IntSyn = IntSyn'
+   structure TomegaPrint : TOMEGAPRINT
+     sharing TomegaPrint.IntSyn = IntSyn'
+     sharing TomegaPrint.Tomega = Tomega'
    structure Subordinate : SUBORDINATE
      sharing Subordinate.IntSyn = IntSyn'
    structure Weaken : WEAKEN
@@ -36,27 +43,36 @@ struct
 	else ()
 
 
+    fun normalizeHead (T.Const lemma, t) = T.Const lemma
+      | normalizeHead (T.Var k, t) =
+        (case T.varSub (k, t)
+	   of T.Idx (k') => T.Var (k'))
+	(* no other cases can occur *)
 
-(* checkProg(G,Ps,Fs)=()
-Invariant: 
-If G |- s1 : G1
-   G |- s2 : G2
-and G2 |- F : VALID
-returns () if there is a F' s.t.
-   G1 |- P : F'
-and G |- F'[s1] = F[s2] : VALID
-otherwise exception Error is raised
-*)
 
-    fun inferCon (G, (T.Const lemma, s)) =  (inferLemma lemma, T.id)
-      | inferCon (G, (T.Var v, s)) = 
-	let 
-	    val D = T.ctxDec (G, v) (* if the context G is valid, the output should be T.PDec, HOW to be sure G is valid? otherwise raise error *)
-	in 
-	    case D of 
-		T.PDec(_, F') => (F', s)  (* or  (T.FClo(F', s), T.id) *)
-	      | _ => raise Error ("Context Invalid")
-	end
+
+    (* inferCon (Psi, (H, t)) = (F', t')
+     
+       Invariant:
+       If   Psi  |- t : Psi1 
+       and  Psi1 |- H : F
+       then Psi  |- F'[t'] == F[t]
+    *)
+    fun inferCon (Psi, T.Const lemma) = inferLemma lemma
+      | inferCon (Psi, T.Var k) = 
+	  case T.ctxDec (Psi, k) of T.PDec (_, F') => F' 
+
+
+    (* inferSpine (Psi, (S, t1), (F, t2)) = (F', t')
+     
+       Invariant:
+       If   Psi  |- t1 : Psi1 
+       and  Psi1 |- S : F' > F''
+       and  Psi  |- t2 : Psi2
+       and  Psi2 |- F for
+       and  Psi  |- F'[t1] == F[t2]
+       then Psi  |- F''[t1] == F'[t']
+    *)
     and inferSpine (G, (T.Nil, s), (F2, s2)) = (F2, s2)
       | inferSpine (G, (T.AppExp (M, S), s), (T.All (T.UDec(I.Dec(_, A2)), F2), s2)) =
 	let 
@@ -83,20 +99,43 @@ otherwise exception Error is raised
       | inferSpine (G, _, _) = raise Error "applied, but not of function type."
 	
 
-    and checkProg(G, ((T.Root (H, S), s), (F2, s2))) =
+    (* checkProg (Psi, (P, t1), F) = ()
+     
+       Invariant:
+       If   Psi  |- t1 : Psi1 
+       and  Psi1 |- P : F'
+       and  Psi  |- F for     (F in normal form)
+       then checkProg returns () iff F'[t1] == F[id]
+    *)
+    and checkProg (Psi, ((T.Root (H, S), t), (F2, t2))) =
 	let
-	    val (F1, s1) = inferSpine (G, (S, s), inferCon (G, (H, s)))
+	  val H' = normalizeHead  (H, t)
+	  val F = inferCon (Psi, H')
+	  val (F1, t1) = inferSpine (Psi, (S, t), (F, T.id))
+	  val _ = convFor (Psi, Normalize.normalizeFor (F1, t1), Normalize.normalizeFor (F2, t2))
 	in 
-	    convFor(G, (F1, s1), (F2, s2))
+	  ()
 	end
-      | checkProg(G, ((T.Lam(D as T.PDec(x, F1), P), s), (T.All(T.PDec(x', F1'), F2), s2))) = 
+      | checkProg (Psi, ((T.Lam (D as T.PDec (x, F1), P), t1), (T.All (T.PDec (x', F1'), F2), t2))) = 
 	let 
-	    val _ = isFor(G, T.FClo(F1, s))
-	    val _ = isFor(G, T.FClo(F1', s2))
-	    val _ = convFor(G, (F1, s), (F1', s2)) 
+	  val _ = chatter 4 (fn () => "[lam[p]")
+	    val _ = isFor (Psi, T.FClo(F1, t1))
+	    val _ = isFor (Psi, F1')
+	    val _ = convFor (Psi, Normalize.normalizeFor (F1, t1), Normalize.normalizeFor (F1', t2)) 
+	  val _ = chatter 4 (fn () => "]")
 	in 
-	    checkProg(I.Decl(G, T.decSub(D, s)),  ((P,  T.dot1 s), (F2, T.dot1 s2)))
+	    checkProg (I.Decl (Psi, T.decSub(D, t1)), ((P, T.dot1 t1), (F2, T.dot1 t2)))
 	end
+
+      | checkProg (Psi, ((T.Lam (T.UDec D, P), t1), (T.All (T.UDec D', F), t2))) =
+	let 
+	  val _ = chatter 4 (fn () => "[lam[u]")
+	  val _ = Conv.convDec ((D, T.coerceSub t1), (D', T.coerceSub t2))
+	  val _ = chatter 4 (fn () => "]")
+	in  
+	    checkProg(I.Decl(Psi , T.UDec D'), ((P, T.dot1 t1), (F, T.dot1 t2)))
+	end
+(*		   
       | checkProg(G, ((T.Lam (T.UDec (I.BDec(name, (l, s'))), P), s), (T.All(T.UDec (I.BDec(_, (l2, s2'))), F2), s2))) =
 	let
 	    val _ = if (l <> l2) then raise Error("Type mismatch") else ()         
@@ -107,11 +146,13 @@ otherwise exception Error is raised
 	end
       | checkProg(G, ((T.Lam(T.UDec(D as I.Dec(x, A)), P), s), (T.All(T.UDec(I.Dec(x2, A2)), F2), s2))) =
 	let 
+	  val _ = chatter 4 (fn () => "[lam[u]")
 	    val _ = TypeCheck.checkDec(T.coerceCtx(G), (D, T.coerceSub(s)))
 	    val _ = Conv.conv((A, T.coerceSub(s)), (A2, T.coerceSub(s2)))
+	  val _ = chatter 4 (fn () => "]")
 	in  
 	    checkProg(I.Decl(G, T.UDec(I.decSub(D, T.coerceSub(s)))), ((P, T.dot1 s), (F2, T.dot1 s2)))
-	end
+	end *)
       | checkProg (G, ((T.PairExp (M, P), s), (T.Ex(I.Dec(x, A), F2), s2))) =
 	let 
 	    val _ = TypeCheck.typeCheck(T.coerceCtx(G), (I.EClo(M, T.coerceSub(s)), I.EClo(A, T.coerceSub(s2))))
@@ -145,7 +186,7 @@ otherwise exception Error is raised
       | checkProg (G, ((T.Rec (FDec as T.PDec (x, F), P), s), (F2, s2))) =
 	let 
 	  val _ = chatter 4 (fn () => "[rec")
-	  val _ = convFor(G, (F, s), (F2, s2))
+	  val _ = convFor(G, Normalize.normalizeFor (F, s), Normalize.normalizeFor (F2, s2))
 	  val _ = chatter 4 (fn () => "]\n")
 	in 
 	    checkProg(I.Decl(G, FDec), ((P, T.dot1(s)), (F2, s2)))
@@ -163,45 +204,54 @@ otherwise exception Error is raised
 	     T.ForDec (_, F) => F |
 	     T.ValDec (_,_,F) => F)
 
-    and convFor(_, (T.True, _), (T.True, _)) = ()
-      | convFor(G, (T.All(D as T.UDec(I.Dec(_, A1)), F1), s1), 
-		   (T.All(T.UDec(I.Dec(_,A2)), F2), s2)) =
+	    
+    and convFor(_, T.True, T.True) = ()
+      | convFor(Psi, T.All (D as T.UDec( I.Dec (_, A1)), F1), 
+		     T.All (     T.UDec( I.Dec (_, A2)), F2)) =
 	let
-	    val _ = Conv.conv((A1, T.coerceSub(s1)), (A2, T.coerceSub(s2)))
-	    val _ = TypeCheck.typeCheck(T.coerceCtx(G), (I.EClo(A1, T.coerceSub(s1)), I.Uni I.Type))
-	    val _ = TypeCheck.typeCheck(T.coerceCtx(G), (I.EClo(A2, T.coerceSub(s2)), I.Uni I.Type))
+	  val G = T.coerceCtx (Psi)
+	  val _ = Conv.conv((A1, I.id), (A2, I.id))
+	  val _ = TypeCheck.typeCheck(G, (A1, I.Uni I.Type))
+	  val _ = TypeCheck.typeCheck(G, (A2, I.Uni I.Type))
 	in
-	    convFor(I.Decl(G, D), (F1, T.dot1 s1), (F2, T.dot1 s2))
+	  convFor (I.Decl(Psi, D), F1, F2)
 	end
-      | convFor(G, (T.All (D as T.UDec (I.BDec(_, (l1, s1))), F1), s11), 
-		   (T.All(T.UDec (I.BDec(_, (l2, s2))), F2), s22)) =
+      | convFor(G, T.All (D as T.UDec (I.BDec(_, (l1, s1))), F1), 
+		   T.All(T.UDec (I.BDec(_, (l2, s2))), F2)) =
 	let 
 	    val _ = if l1 <> l2 then raise Error "Formula not equilavent" else ()
 	    val (G', _) = I.conDecBlock (I.sgnLookup l1)
-	    val _ = convSub (G, T.comp(T.embedSub s1, s11), T.comp(T.embedSub s2, s22), T.revCoerceCtx(G'))  
+	    val _ = convSub (G, T.embedSub s1, T.embedSub s2, T.revCoerceCtx(G'))  
 	in
-	    convFor(I.Decl(G, D), (F1, T.dot1 s11), (F2, T.dot1 s22))
+	    convFor (I.Decl (G, D), F1, F2)
 	end
-      | convFor(G, (T.Ex(D as I.Dec(_, A1), F1), s1), (T.Ex(I.Dec(_,A2), F2), s2)) =
+      | convFor(Psi, T.Ex (D as I.Dec (_, A1), F1), 
+		     T.Ex (     I.Dec (_, A2), F2)) =
 	let
-	    val _ = Conv.conv((A1, T.coerceSub(s1)), (A2, T.coerceSub(s2)))
-	    val _ = TypeCheck.typeCheck(T.coerceCtx(G), (I.EClo(A1, T.coerceSub(s1)), I.Uni I.Type))
-	    val _ = TypeCheck.typeCheck(T.coerceCtx(G), (I.EClo(A2, T.coerceSub(s2)), I.Uni I.Type))
+	  val G = T.coerceCtx (Psi)
+	  val _ = Conv.conv ((A1, I.id), (A2, I.id))
+	  val _ = TypeCheck.typeCheck(G, (A1, I.Uni I.Type))
+	  val _ = TypeCheck.typeCheck(G, (A2, I.Uni I.Type))
 	in
-	    convFor(I.Decl(G, T.UDec D), (F1, T.dot1 s1), (F2, T.dot1 s2))
+	    convFor (I.Decl(Psi, T.UDec D), F1, F2)
 	end
-      | convFor(G, (T.Ex(D as I.BDec(name, (l1, s1)), F1), s11), (T.Ex(I.BDec(_, (l2, s2)), F2), s22)) =
+      | convFor(G, T.Ex(D as I.BDec(name, (l1, s1)), F1), T.Ex(I.BDec(_, (l2, s2)), F2)) =
 	let 
 	    val _ = if l1 <> l2 then raise Error "Formula not equilavent" else ()
 	    val (G', _) = I.conDecBlock (I.sgnLookup l1)
-	    val _ = convSub (G, T.comp(T.revCoerceSub(s1), s11), T.comp(T.revCoerceSub(s2), s22), T.revCoerceCtx(G'))  
+	    val _ = convSub (G, T.revCoerceSub(s1), T.revCoerceSub(s2), T.revCoerceCtx(G'))
 	in
-	    convFor(I.Decl(G, T.UDec (I.BDec (name, (l1, I.comp(s1, T.coerceSub s11))))), (F1, T.dot1 s11), (F2, T.dot1 s22))
+	    convFor(I.Decl(G, T.UDec (I.BDec (name, (l1, s1)))), F1, F2)
 	end
-      | convFor(G, (T.And(F1, F1'), s1), (T.And(F2, F2'), s2)) =
-	(convFor(G, (F1, s1), (F2, s2)); convFor(G, (F1', s1), (F2', s2))) 
-      | convFor(G, (T.All(T.PDec(_, F1), F1'), s1), (T.All(T.PDec(_, F2), F2'), s2)) =
-	(convFor(G, (F1, s1), (F2, s2)); convFor(G, (F1', s1), (F2', s2))) 
+      | convFor(Psi, T.And(F1, F1'), T.And(F2, F2')) =
+	let
+	  val _ = convFor(Psi, F1, F2)
+	  val _ = convFor(Psi, F1', F2') 
+	in 
+	  ()
+	end
+      | convFor(G, T.All(D as T.PDec(_, F1), F1'), T.All(T.PDec(_, F2), F2')) =
+	(convFor(G, F1, F2); convFor(I.Decl (G, D), F1', F2')) 
       | convFor _ = raise Error "Typecheck error"
 
     and convSub(G, T.Shift k1, T.Shift k2, G') = if k1=k2 then () else raise Error "Sub not equivalent"
@@ -282,6 +332,15 @@ otherwise exception Error is raised
       
     and convValue (G, P1, P2, F) = ()
     and isFor (G, F)= ()
+
+
+    (* isSub (Psi, t, Psi') = () 
+ 
+       Invariant
+       If Psi |- t: Psi' then isSub terminates with ()
+       otherwise exception Error is raised 
+    *)
+
     and isSub (I.Null, T.Shift 0, I.Null) = ()
       | isSub (I.Decl (G, D), T.Shift k, I.Null) = 
 	if k >0 
@@ -312,7 +371,7 @@ otherwise exception Error is raised
 	    val _ = isSub (G, s, G')
 	    val T.PDec(_, F1) = T.ctxDec (G, k)
 	in
-	    convFor (G, (F1, T.id), (F', s))
+	    convFor (G, Normalize.normalizeFor (F1, T.id), Normalize.normalizeFor (F', s))
 	end
       | isSub (G, T.Dot (T.Exp M, s), I.Decl(G', T.UDec (I.Dec (_, A)))) =
 	let 
@@ -331,12 +390,12 @@ otherwise exception Error is raised
 		then ()
 		else raise Error "Sub isn't well typed!"
 	end
-      | isSub (G, T.Dot (T.Prg P, s), I.Decl(G', T.PDec(_, F'))) =
+      | isSub (Psi, T.Dot (T.Prg P, t), I.Decl(Psi', T.PDec(_, F'))) =
 	let 
-	    val _ = isSub (G, s, G')
-	    val _ = isValue P
+	  val _ = isSub (Psi, t, Psi')
+	  val _ = isValue P
 	in
-	    checkProg (G, ((P, T.id), (F', s)))
+	    checkProg (Psi, ((P, T.id), (F', t)))
 	end
     and isValue (T.Lam _) = ()
       | isValue (T.PairExp (M, P)) = isValue P
