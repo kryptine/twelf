@@ -46,8 +46,16 @@ Group is
   mpi.fun
   recursion.sig
   recursion.fun
+
+  searchEVar.sig
+  searchEVar.fun 
+
   search.sig
-  search.fun 
+  search.fun
+  searchTabled.sig		   
+  searchTabled.fun  
+  searchTabled-sbt.fun  
+  sw-searchTabled.fun		   
   uniquesearch.sig
   uniquesearch.fun
   splitting.sig

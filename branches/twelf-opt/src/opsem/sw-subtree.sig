@@ -18,8 +18,7 @@ sig
    * SIDE EFFECT: D, G |- U added to table
    *)
 
-  val callCheck : IntSyn.dctx * IntSyn.dctx * IntSyn.dctx * 
-                  (CompSyn.ResGoal * IntSyn.Sub * IntSyn.Head) option IntSyn.Ctx *
+  val callCheck : IntSyn.dctx * IntSyn.dctx * IntSyn.dctx *
 		  IntSyn.Exp * TableParam.ResEqn 
                   -> TableParam.callCheckResult
 
@@ -37,7 +36,11 @@ sig
    *  else new
    *)
 
-  val answerCheck : IntSyn.dctx * IntSyn.Exp * IntSyn.Sub * TableParam.answer * CompSyn.pskeleton -> TableParam.answState
+(*  val answerCheck : IntSyn.dctx * IntSyn.Exp * IntSyn.Sub * TableParam.answer * CompSyn.pskeleton -> TableParam.answState
+*)
+
+  val answerCheck : IntSyn.dctx * IntSyn.Sub * TableParam.answer * CompSyn.pskeleton -> TableParam.answState
+
 
   (* reset table *)
   val reset: unit -> unit

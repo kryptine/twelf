@@ -318,6 +318,17 @@ struct
 	ap dict
       end
 
+  fun setToList (Set(n, dict)) =
+      let fun ap (Empty) = nil
+	    | ap (Red tree) = ap' tree
+	    | ap (Black tree) = ap' tree
+	  and ap' (entry as (d,k), left, right) =
+	      ((ap left) @  [(d,k)] @ (ap right))
+      in
+	ap dict
+      end
+
+
 (*
   fun exists (Set(n, dict)) f =
       let fun ap (Empty) = NONE
@@ -585,6 +596,7 @@ struct
 
     
     val lookup = (fn ordSet => fn key => lookup (!ordSet) key)
+    val setToList = (fn ordSet => setToList (!ordSet))
 
     val clear = (fn ordSet => (ordSet := empty))
 

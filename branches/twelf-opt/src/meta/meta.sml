@@ -99,12 +99,15 @@ structure MTPrint =
 	   structure FunPrint = FunPrint)
 
 
-
-structure MTPSearch = 
-  MTPSearch (structure Global = Global
+structure SearchEVar = 
+  SearchEVar (structure Global = Global
              structure MTPGlobal = MTPGlobal
 	     structure IntSyn' = IntSyn
 	     structure Abstract = Abstract
+	     structure Queue = Queue
+	     structure TableParam = TableParam
+	     structure MemoTable = SwMemoTable    
+	     structure AbstractTabled = AbstractTabled
 	     structure Conv = Conv
 	     structure StateSyn' = StateSyn
 	     structure CompSyn' = CompSyn
@@ -118,6 +121,81 @@ structure MTPSearch =
 	     structure Names = Names
              structure CSManager = CSManager); 
 
+structure MTPSearch = 
+  MTPSearch (structure Global = Global
+             structure MTPGlobal = MTPGlobal
+	     structure IntSyn' = IntSyn
+	     structure Abstract = Abstract
+	     structure Queue = Queue
+	     structure TableParam = TableParam
+	     structure MemoTable = SwMemoTable    
+	     structure AbstractTabled = AbstractTabled
+	     structure SearchEVar = SearchEVar
+	     structure Conv = Conv
+	     structure StateSyn' = StateSyn
+	     structure CompSyn' = CompSyn
+	     structure Compile = Compile
+	     structure Whnf = Whnf
+	     structure Unify = UnifyTrail
+	     structure Index = IndexSkolem
+	     structure Assign = Assign 
+	     structure CPrint = CPrint
+	     structure Print = Print
+	     structure Names = Names
+             structure CSManager = CSManager); 
+
+
+structure MTPSearchTabled = 
+  MTPSearchTabled (structure Global = Global
+             structure MTPGlobal = MTPGlobal
+	     structure IntSyn' = IntSyn
+	     structure Abstract = Abstract
+	     structure Queue = Queue
+	     structure TableParam = TableParam
+	     structure MemoTable = SwMemoTable    
+	     structure AbstractTabled = AbstractTabled
+	     structure SearchEVar = SearchEVar
+	     structure Conv = Conv
+	     structure StateSyn' = StateSyn
+	     structure CompSyn' = CompSyn
+	     structure Compile = Compile
+	     structure Whnf = Whnf
+	     structure Unify = UnifyTrail
+	     structure Index = IndexSkolem
+	     structure Assign = Assign 
+	     structure CPrint = CPrint
+	     structure Print = Print
+	     structure Names = Names
+             structure CSManager = CSManager); 
+
+structure MTPSearchTabledSbt = 
+  MTPSearchTabledSbt (structure Global = Global
+             structure MTPGlobal = MTPGlobal
+	     structure IntSyn' = IntSyn
+	     structure Abstract = Abstract
+	     structure Queue = Queue
+	     structure TableParam = TableParam
+	     structure MemoTable = SwMemoTable    
+	     structure AbstractTabled = AbstractTabled
+	     structure SearchEVar = SearchEVar
+	     structure Conv = Conv
+	     structure StateSyn' = StateSyn
+	     structure CompSyn' = CompSyn
+	     structure Compile = Compile
+	     structure Whnf = Whnf
+	     structure Unify = UnifyTrail
+	     structure Index = IndexSkolem
+	     structure Assign = Assign 
+	     structure CPrint = CPrint
+	     structure Print = Print
+	     structure Names = Names
+             structure CSManager = CSManager); 
+
+structure SwSearchTabled =
+ SwSearchTabled (structure TableParam = TableParam
+	      structure MTPSearchTabled = MTPSearchTabled
+	      structure MTPSearchTabledSbt = MTPSearchTabledSbt)
+
 structure MTPFilling =
   MTPFilling (structure MTPGlobal = MTPGlobal
               structure IntSyn = IntSyn
@@ -128,6 +206,7 @@ structure MTPFilling =
 	      structure Abstract = Abstract
 	      structure TypeCheck = TypeCheck
 	      structure Search = MTPSearch
+	      structure SearchTabled = SwSearchTabled
 	      structure Whnf = Whnf)
 
 structure MTPSplitting = 
@@ -231,7 +310,7 @@ structure CombiProver =
   CombiProver (structure MTPGlobal = MTPGlobal
 	       structure IntSyn' = IntSyn
 	       structure ProverNew = MTProver
-	       structure ProverOld = Prover)
+	       structure ProverOld = MTProver)
 
 
 structure MTPi = 

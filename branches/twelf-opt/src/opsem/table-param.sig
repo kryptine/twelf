@@ -39,8 +39,8 @@ sig
 
  datatype callCheckResult = 
     NewEntry of answer 
-  | RepeatedEntry of (IntSyn.Sub * answer)
-  | DivergingEntry of answer
+  | RepeatedEntry of (IntSyn.Sub * (IntSyn.dctx * ResEqn) option * answer)
+  | DivergingEntry of (IntSyn.Sub * answer)
 
 
   datatype answState = new | repeated

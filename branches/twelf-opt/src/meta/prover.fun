@@ -70,6 +70,7 @@ struct
     fun reset () =
         (openStates := nil;
 	 solvedStates := nil)
+	 (* MTPStrategy.tableReset()) *)
 
     (* contains (L1, L2) = B'
 
@@ -146,6 +147,7 @@ struct
 	     handle Splitting.Error s => error ("Splitting Error: " ^ s)
 		  | Filling.Error s => error ("Filling Error: " ^ s)
 		  | Recursion.Error s => error ("Recursion Error: " ^ s)
+		  | _ => error ("Error ")
 
 	  val _ = openStates := Open
 	  val _ = solvedStates := (!solvedStates) @ solvedStates' 
@@ -155,15 +157,17 @@ struct
 	  else ()
 	end
 
-
     fun print () = ()
     fun install _ = ()
+    fun tableReset () = MTPStrategy.tableReset ()
 
   in
     val init = init
     val auto = auto
+(*    val autoTabled = autoTabled*)
     val print = print
     val install = install
+    val tableReset = tableReset
   end (* local *)
 end (* functor MTProver *)
 
@@ -188,12 +192,20 @@ struct
     fun init Args = 
       he (fn () => case !(MTPGlobal.prover) 
   	             of MTPGlobal.New => ProverNew.init Args
-		      | MTPGlobal.Old => ProverOld.init Args)
+		      | MTPGlobal.Old => ProverOld.init Args
+		      | MTPGlobal.Memo => ProverNew.init Args)
 	    
     fun auto Args = 
       he (fn () => case !(MTPGlobal.prover) 
 	             	of MTPGlobal.New => ProverNew.auto Args
-        	         | MTPGlobal.Old => ProverOld.auto Args)
+        	         | MTPGlobal.Old => ProverOld.auto Args
+        	         | MTPGlobal.Memo => ProverNew.auto Args)
+
+
+(*    fun autoTabled Args = 
+      he (fn () => case !(MTPGlobal.prover) 
+	             	of MTPGlobal.New => ProverNew.autoTabled Args
+        	         | MTPGlobal.Old => ProverOld.autoTabled Args)*)
 	
     fun print Args = 
       he (fn () => case !(MTPGlobal.prover) 
@@ -203,11 +215,20 @@ struct
     fun install Args = 
       he (fn () => case !(MTPGlobal.prover) 
 	             	of MTPGlobal.New => ProverNew.install Args
-       		         | MTPGlobal.Old => ProverOld.install Args)
+       		         | MTPGlobal.Old => ProverOld.install Args
+       		         | MTPGlobal.Memo => ProverNew.install Args)
+
+    fun tableReset Args = he (fn () => case !(MTPGlobal.prover) 
+			    of MTPGlobal.New => ProverNew.tableReset Args
+			  | MTPGlobal.Old => ProverOld.tableReset Args
+			  | MTPGlobal.Memo => ProverNew.tableReset Args)
   in
     val init = init
     val auto = auto
+(*    val autoTabled = autoTabled (* not well designed ... *)*)
     val print = print
     val install = install
+    val tableReset = tableReset
+
   end (* local *)
 end (* functor CombiProver *)

@@ -1,4 +1,4 @@
-(* Abstract Machine using substitution trees *)
+(* Abstract Machine using substitution trees *) 
 (* Author: Iliano Cervesato *)
 (* Modified: Jeff Polakow, Frank Pfenning, Larry Greenfield, Roberto Virga *)
 
@@ -37,7 +37,8 @@ struct
     structure I = IntSyn
     structure C = CompSyn
 
-    val mSig : ((IntSyn.Exp * IntSyn.Sub) * CompSyn.DProg * (CompSyn.Flatterm list -> unit) -> unit) ref = ref (fn (ps, dp, sc) => ())
+    val mSig : ((IntSyn.Exp * IntSyn.Sub) * CompSyn.DProg * (CompSyn.Flatterm list -> unit) -> unit) ref 
+             = ref (fn (ps, dp, sc) => ())
 
   (* We write
        G |- M : g
@@ -280,61 +281,10 @@ struct
 	    (case (!CompSyn.optimize) of
 	       CompSyn.No => (mSig := matchSig ; solve' args)
 	     | CompSyn.LinearHeads => (mSig := matchSig; solve' args)
-(*	     | CompSyn.HeadAccess => (mSig := matchHASig; solve' args)
-	     | CompSyn.FirstArg => (mSig := matchFASig; solve' args)*)
 	     | CompSyn.Indexing => (mSig := matchIndexSig; solve' args))
 
-  end (* local ... *) 
+  end 
+(* local ... *) 
 
 end; (* functor AbsMachineSbt *)
 
-
-(* working version of mathHASig
-  and matchHASig (deterministic, ps' as (I.Root(Ha,S),s), dp as C.DProg (G, dPool), sc) = 
-      let
-        exception SucceedOnce of I.Spine
-	fun mSig nil = ()	(* return on failure *)
-	  | mSig ((Hc as I.Const c)::sgn') =
-	  let
-	    val C.HeadGoals(H, Sgoals) = C.sProgDHLookup (cidFromHead Hc)
-	    val C.Head(Q', G', eqns, cname) = H
-	  in 
-	    (* trail to undo EVar instantiations *)
-	    CSManager.trail
-	    (fn () =>
-	     let 
-	       val s' = ctxToEVarSub (G, G', I.id)
-	     in 
-	       case Assign.assignable (G, ps', (Q', s')) of
-		 SOME(cnstr) => (aSolve((eqns, s'), dp, cnstr, 
-					(fn () => (sSolve ((Sgoals, s'), dp, (fn S => sc (I.Root(Hc, S))))))))
-	       | NONE => ()
-	     end);
-	    mSig (sgn')
-	  end
-	fun mSigDet nil = ()	(* return unit on failure *)
-	  | mSigDet ((Hc as I.Const c)::sgn') =
-	    let
-	      val C.HeadGoals(H, Sgoals) = C.sProgDHLookup (cidFromHead Hc)
-	      val C.Head(Q', G', eqns, cname) = H
-	    in 
-	      (* trail to undo EVar instantiations *)
-	      (CSManager.trail
-	       (fn () => 
-		let 
-		  val s' = ctxToEVarSub (G, G', I.id)
-		in 
-		  case Assign.assignable (G, ps', (Q', s')) of
-		    SOME(cnstr) => (aSolve((eqns, s'), dp, cnstr, 
-					   (fn () => (sSolve ((Sgoals, s'), dp, (fn S => sc (I.Root(Hc, S))))))))
-		  | NONE => ()
-		end);
-	       mSigDet sgn')
-	      handle SucceedOnce S =>  sc (I.Root(Hc, S))
-	    end
-
-      in 
-	if deterministic then 	mSigDet (Index.lookup (cidFromHead Ha))	
-	else mSig(Index.lookup (cidFromHead Ha))	
-      end
-*)

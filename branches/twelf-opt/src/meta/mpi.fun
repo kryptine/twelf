@@ -55,7 +55,8 @@ struct
     structure Fmt = Formatter
 
     datatype MenuItem =
-      Filling of MTPFilling.operator
+      FillTabled of MTPFilling.operator
+    | Filling of MTPFilling.operator
     | Recursion of MTPRecursion.operator
     | Splitting of MTPSplitting.operator
     | Inference of Inference.operator
@@ -98,7 +99,8 @@ struct
         (initOpen ();
 	 initSolved ();
 	 History := nil;
-	 Menu := NONE)
+	 Menu := NONE; 
+	 MTPFilling.tableReset())
 
     fun cLToString (nil) = ""
       | cLToString (c :: nil) = 
@@ -131,6 +133,8 @@ struct
     fun SplittingToMenu (nil, A) = A
       | SplittingToMenu (O :: L, A) = SplittingToMenu (L, Splitting O :: A)
 
+    fun FillTabledToMenu (O, A) = FillTabled O :: A
+
     fun FillingToMenu (O, A) = Filling O :: A
 
     fun RecursionToMenu (O, A) = Recursion O :: A
@@ -145,12 +149,14 @@ struct
 	    val SplitO = MTPSplitting.expand S
 	    val InfO = Inference.expand S
 	    val RecO = MTPRecursion.expand S 
-	    val FillO = MTPFilling.expand S
+	    val FillO = MTPFilling.expandItDeep S
+	    val FillTabledO = MTPFilling.expandTabled S 
 	  in
 	    Menu := SOME (FillingToMenu (FillO,
-					 RecursionToMenu (RecO, 
-							  InferenceToMenu (InfO,
-									   SplittingToMenu (SplitO, nil)))))
+			    FillTabledToMenu(FillTabledO, 		 
+			       RecursionToMenu (RecO, 
+				   InferenceToMenu (InfO,
+			                 SplittingToMenu (SplitO, nil))))))
 	  end
 
 
@@ -189,6 +195,14 @@ struct
 	      in 
 		(kopt, s ^ "\n  " ^ (format k) ^ (MTPFilling.menu O))
 	      end
+
+	    | menuToString' (k, FillTabled O :: M, kOopt) = 
+	      let 
+		val (kopt, s) = menuToString' (k+1, M, kOopt)
+	      in 
+		(kopt, s ^ "\n  " ^ (format k) ^ (MTPFilling.menu O))
+	      end
+
 	    | menuToString' (k, Recursion O :: M,kOopt) =
 	      let 
 		val (kopt, s) = menuToString' (k+1, M, kOopt)
@@ -312,13 +326,27 @@ struct
 		let 
 		  val P = (Timers.time Timers.filling MTPFilling.apply) O
 		    handle MTPFilling.Error _ =>  abort ("Filling unsuccessful: no object found")
-		  val _ = printFillResult P
+		  (* could print skeleton here *)
+		  val _ = print "Filling sucesful\n"
+(*		  val _ = printFillResult P*)
 		  val _ = delete ()
 		  val _ = print "\n[Subgoal finished]\n"
 		  val _ = print "\n"
 		in
 		  (menu (); printMenu ())
 		end
+	    | select' (1, FillTabled O :: _) =
+		let 
+		  val P = (Timers.time Timers.filltabled MTPFilling.apply) O 
+		    handle MTPFilling.Error _ =>  abort ("Tabled Filling unsuccessful: no object found")
+(*		  val _ = printFillResult P*)
+		  val _ = delete ()
+		  val _ = print "\n[Subgoal finished (tabled)]\n"
+		  val _ = print "\n"
+		in
+		  (menu (); printMenu ())
+		end
+
 	    | select' (k, _ :: M) = select' (k-1, M)
 	in
 	  (case !Menu of 
@@ -371,7 +399,7 @@ struct
 		 | MTPRecursion.Error s => abort ("Recursion Error: " ^ s)
 		 | Inference.Error s => abort ("Inference Errror: " ^ s)
 		 | Error s => abort ("Mpi Error: " ^ s) 
-	  val _ = pushHistory ()
+	  val _ = pushHistory ()       
 	  val _ = initOpen ()
 	  val _ = map insertOpen Open' 
 	  val _ = map insertSolved Solved'
@@ -380,9 +408,28 @@ struct
 	end
 
 
+(*    fun autoTabled () =
+	let 
+	  val (Open', Solved') = MTPStrategy.runTabled (collectOpen ())
+	    handle MTPSplitting.Error s => abort ("MTPSplitting. Error: " ^ s)
+		 | MTPFilling.Error s => abort ("Filling Error: " ^ s)
+		 | MTPRecursion.Error s => abort ("Recursion Error: " ^ s)
+		 | Inference.Error s => abort ("Inference Errror: " ^ s)
+		 | Error s => abort ("Mpi Error: " ^ s) 
+	  val _ = pushHistory ()       
+	  val _ = initOpen ()
+	  val _ = map insertOpen Open' 
+	  val _ = map insertSolved Solved'
+	in
+	  (menu (); printMenu ())
+	end
+*)
+
     fun next () = (nextOpen (); menu (); printMenu ())
 
-    fun undo () = (popHistory (); menu (); printMenu ())
+    fun undo () = (popHistory (); menu (); printMenu (); MTPFilling.tableReset())
+      
+    val tablReset = MTPFilling.tableReset 
 
   in 
     val init = init
@@ -392,7 +439,9 @@ struct
     val reset = reset
     val solve = solve 
     val auto = auto
+(*    val autoTabled = autoTabled*)
     val check = check 
     val undo = undo
+    val tableReset = MTPFilling.tableReset 
  end (* local *)
 end; (* functor MPI *)

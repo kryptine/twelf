@@ -87,7 +87,7 @@ functor MemoTableInst (structure IntSyn' : INTSYN
   *)
   datatype Tree =  
       Leaf of (ctx *  normalSubsts) * 
-      (((int (* #EVar *) * int (* #G *)) * ctx (* D *) * CompSyn.DProg (* G, dpool *) * 
+      (((int (* #EVar *) * int (* #G *)) * ctx (* D *) * IntSyn.dctx (* G *) * 
 	TableParam.ResEqn * TableParam.answer * int) list) ref
     | Node of (ctx *  normalSubsts) * (Tree ref) list
 
@@ -131,6 +131,7 @@ functor MemoTableInst (structure IntSyn' : INTSYN
     
     exception Generalization of string   
 
+    exception DifferentSpines
 
   fun emptyAnswer () = T.emptyAnsw ()
 
@@ -162,10 +163,18 @@ functor MemoTableInst (structure IntSyn' : INTSYN
 
 
 
+    fun printSub (I.Shift n) = print ("I.Shift " ^ Int.toString n ^ "\n")
+    | printSub (I.Dot(I.Idx n, s)) = (print ("Idx " ^ Int.toString n ^ " . "); printSub s)
+    | printSub (I.Dot (I.Exp(I.EVar (_, _, _, _)), s)) = (print ("Exp (EVar _ ). "); printSub s)
+    | printSub (I.Dot (I.Exp(I.AVar (_)), s)) = (print ("Exp (AVar _ ). "); printSub s)
+    | printSub (I.Dot (I.Exp(I.EClo (I.AVar (_), _)), s)) = (print ("Exp (EClo(AVar _, _ )). "); printSub s)
+    | printSub (I.Dot (I.Exp(I.EClo (_, _)), s)) = (print ("Exp (EClo _ ). "); printSub s)
+    | printSub (I.Dot (I.Exp(_), s)) = (print ("Exp (_ ). "); printSub s)
+    | printSub (I.Dot (I.Undef, s)) = (print ("Undef . "); printSub s)
 
  (* ---------------------------------------------------------------------- *)
  (* Matching for linear terms based on assignment *)
-   (* E1 is unnecessary? *)
+
     (* lowerEVar' (G, V[s]) = (X', U), see lowerEVar *)
     fun lowerEVar' (X, G, (I.Pi ((D',_), V'), s')) =
         let
@@ -207,6 +216,10 @@ functor MemoTableInst (structure IntSyn' : INTSYN
         (* pre-Twelf 1.2 code walk, Fri May  8 11:05:08 1998 *)
         raise Error "abstraction : LowerEVars: Typing ambiguous -- constraint of functional type cannot be simplified"
 
+   (* assign(d, Dec(n, V), I.Root(BVar k, S), U, asub) = asub' 
+     
+
+    *)
    fun assign (d, Dec1 as I.Dec(n, V), E1 as I.Root(I.BVar k, S1), U, asub) = 
      (* it is an evar -- (k-d, EVar (SOME(U), V)) *)
      let
@@ -226,68 +239,102 @@ functor MemoTableInst (structure IntSyn' : INTSYN
        end 
 
 
- (* terms are in normal form *)
-(* 
-  exception Assignment of string *)
-  (* assignExp (asub, l, G, (U1, s1), (U2, s2)) = asub
+
+  (* terms are in normal form *)
+  (* exception Assignment of string *)
+  (* assignExp (fasub, (l, ctxTotal as (r, passed), d) (D1, U1), (D2, U2))) = fasub'
 
      invariant:
-     G |- s1 : G1    G1 |- U1 : V1   (U1, s1) in whnf
-     G |- s2 : G2    G2 |- U2 : V2   (U2, s2) is template 
-    l = length of Delta
-    d = depth 
-*)
-    fun assignExp (fasub, (l, d), (D1, U1 as I.Root (H1, S1)), (D2, U2 as I.Root (H2, S2))) =
-	 (case (H1, H2) of
-	    (I.Const(c1), I.Const(c2)) => 
-		if (c1 = c2) then assignSpine (fasub, (l, d), (D1, S1), (D2, S2))
-		else raise Assignment "Constant clash"
-	  | (I.BVar(k1), _) => 
-	    (if (k1 - d) > l
-	      then 
-              (* k1 is a globally bound variable *)
-		case H2 of (I.BVar k2) => 
-		  if (k2 - d) > l then 
-		    (* k2 globally bound *)
+      G, G0 |- U1 : V1   U1 in nf 
+      G, G0 |- U2 : V2   U2 in nf
+     and U1, U2 are linear higher-order patterns
+      D1 contains all existential variables of U1
+      D2 contains all existential variables of U2
+
+      ctxTotal = (r + passed) = |G|  
+            where G refers to the globally bound variables
+      d = |G0| where G' refers to the locally bound variables
+
+      then fasub' is a success continuation 
+	which builds up a substitution s
+              with domain D1 and  U1[s] = U2 
+
+   *)
+   fun assignExp (fasub, (ctxTotal as (r,passed), d), (D1, U1 as I.Root (H1, S1)), (D2, U2 as I.Root (H2, S2))) =
+     (case (H1, H2) of
+	(I.Const(c1), I.Const(c2)) => 
+	  if (c1 = c2) 
+	    then assignSpine (fasub, (ctxTotal, d), (D1, S1), (D2, S2))
+	  else raise Assignment "Constant clash"
+      | (I.BVar(k1), I.BVar k2) => 
+	    (if k1 <= (r + d) (* if (k1 - d) >= l *)
+	       then 
+		 (* k1 is a globally bound variable *)
+		 if k2 <= (r + d) then 
+		   (* k2 is globally bound *)
 		    (if k2 = k1 then fasub else raise Assignment "BVar clash")
 		  else raise Assignment "BVar - EVar clash" 
 	    else 
 	      (* k1 is an existial variable *)
-	      (case member (k1 - d, D1)
-		of NONE => (* should not happen ? *) raise Assignment "EVar nonexistent"
+	      (case member (k1 - d + passed, D1) (* member (k1 - d, D1)*)
+		of NONE =>  raise Assignment "EVar nonexistent"
 		  | SOME(x, Dec) => (fn asub => (fasub asub; assign (d, Dec, U1, U2, asub)))))
 
-
 	  | (I.Skonst(c1), I.Skonst(c2)) => 	  
-	       if (c1 = c2) then assignSpine (fasub, (l, d), (D1, S1), (D2, S2))
+	       if (c1 = c2) then assignSpine (fasub, (ctxTotal, d), (D1, S1), (D2, S2))
 	       else raise Assignment "Skolem constant clash"
           (* can this happen ? -- definitions should be already expanded ?*)
 	  | _ => (raise Assignment ("Head mismatch ")))
 
-      | assignExp (fasub, (l, d), (D1, I.Lam (Dec1, U1)), (D2, I.Lam (Dec2, U2))) =           
-          (* D1[s1] = D2[s2]  by invariant *)
-	  assignExp (fasub, (l, d + 1),  (D1, U1), (D2, U2))
+      | assignExp (fasub, (ctxTotal, d), (D1, I.Lam (Dec1, U1)), (D2, I.Lam (Dec2, U2))) =           
+          (* Dec1 = Dec2  by invariant *)
+	  assignExp (fasub, (ctxTotal, d + 1),  (D1, U1), (D2, U2))
 
-      | assignExp (fasub, (l, d), (D1, I.Pi ((Dec1 as I.Dec (_, V1), _), U1)), (D2, I.Pi ((Dec2 as I.Dec(_, V2), _), U2))) =  
+      | assignExp (fasub, (ctxTotal, d), (D1, I.Pi ((Dec1 as I.Dec (_, V1), _), U1)), (D2, I.Pi ((Dec2 as I.Dec(_, V2), _), U2))) =  
 	  let
-	    val fasub' = assignExp (fasub, (l, d), (D1, V1), (D2, V2))
+	    val fasub' = assignExp (fasub, (ctxTotal, d), (D1, V1), (D2, V2)) 
 	  in 
-	    assignExp (fasub', (l, d + 1), (D1, U1), (D2, U2))
+	    assignExp (fasub', (ctxTotal, d + 1), (D1, U1), (D2, U2))
 	  end
-      | assignExp (fasub, (l, d), (D1, I.EClo(U, s' as I.Shift(0))), (D2, U2)) = assignExp (fasub, (l, d), (D1, U), (D2, U2))
-(*	  (print "Found closure U1!\t"; 
-	   (case s' of I.Shift(0) => (print "s = id\n")
-	     | _ => print "s =/= I.id\n"); raise Assignment "" )*)
-      | assignExp (fasub, (l,d), (D1, U1), (D2, I.EClo(U, s as I.Shift(0)))) = assignExp (fasub, (l,d), (D1, U1), (D2, U))
+      (* the closure cases should be unnecessary, if everything is in nf *)
+      | assignExp (fasub, (ctxTotal, d), (D1, I.EClo(U, s' as I.Shift(0))), (D2, U2)) = 
+	  assignExp (fasub, (ctxTotal, d), (D1, U), (D2, U2))
+      | assignExp (fasub, (ctxTotal, d), (D1, U1), (D2, I.EClo(U, s as I.Shift(0)))) =
+	  assignExp (fasub, (ctxTotal, d), (D1, U1), (D2, U))
 
 	  
-    and assignSpine (fasub, (l, d), (D1, I.Nil), (D2, I.Nil)) = fasub
-      | assignSpine (fasub, (l, d), (D1, I.App (U1, S1)), (D2, I.App (U2, S2))) =
+    and assignSpine (fasub, (ctxTotal, d), (D1, I.Nil), (D2, I.Nil)) = fasub
+      | assignSpine (fasub, (ctxTotal, d), (D1, I.App (U1, S1)), (D2, I.App (U2, S2))) =
 	 let 
-	   val fasub' = assignExp (fasub, (l, d), (D1, U1), (D2, U2))
+	   val fasub' = assignExp (fasub, (ctxTotal, d), (D1, U1), (D2, U2))
 	 in 
-	   assignSpine (fasub', (l, d), (D1, S1), (D2, S2))
+	   assignSpine (fasub', (ctxTotal, d), (D1, S1), (D2, S2))
 	 end 
+
+
+
+   (* assignCtx (fasub, ctxTotal as (r, passed), (D1, G), (D2, G')) = fasub'
+      invariant
+         |G| = |G'| = r 
+         |G0| = |G0'| = passed
+         |G, G0| = |G', G0'| = (r + passed) = ctxTotal
+
+         D1 contains all existential variables occuring in (G, G0)
+         D2 contains all existential variables occuring in (G', G0')
+
+         fasub' is a success continuation 
+ 	    which builds up a substitution s
+              with domain D1 and  (G, G0)[s] = (G, G0) 
+    *)
+   fun assignCtx (fasub, ctxTotal, (D1,  I.Null), (D2, I.Null)) = fasub 
+     | assignCtx (fasub, (ctxTotal as (r, passed)), (D1, I.Decl(G1, I.Dec(_, V1))), (D2, I.Decl(G2, I.Dec(_, V2)))) = 
+     let 
+       val fasub' = assignExp (fasub, ((r - 1, passed + 1), 0), (D1, V1), (D2, V2))
+     in 
+       assignCtx (fasub', ((r - 1, passed + 1)), (D1, G1), (D2, G2))
+     end 
+
+
    
     (* ------------------------------------------------------ *)      
 
@@ -333,10 +380,8 @@ functor MemoTableInst (structure IntSyn' : INTSYN
    if we have a linear term then N will be empty, but the same holds.
 
    In addition: 
-   all expressions in the index are closed and linear, i.e.
+   all expressions in the index are closed and linear and in normalform i.e.
    an expression is first linearized before it is inserted into the index
-   (this makes retrieving all axpressions from the index which unify with 
-    a given expression simpler, because we can omit the occurs check)
    
    *)
 
@@ -358,8 +403,10 @@ functor MemoTableInst (structure IntSyn' : INTSYN
      Sun Sep  8 20:37:48 2002 -bp *) 
     (* s = s' = I.id *)
     fun equalCtx (I.Null, s, I.Null, s') = true
-      | equalCtx (I.Decl(G, D), s, I.Decl(G', D'), s') = 
-        Conv.convDec((D, s), (D', s')) andalso (equalCtx (G, I.dot1 s, G', I.dot1 s'))
+      | equalCtx (I.Decl(G, D as  I.Dec(_, A)), s, I.Decl(G', D' as  I.Dec(_, A')), s') = 
+	  Conv.convDec((D, s), (D', s')) andalso (equalCtx (G, I.dot1 s, G', I.dot1 s'))
+      | equalCtx (_, s, _, s') = false
+
 
     (* in general, we need to carry around and build up a substitution *)
     fun equalEqn (T.Trivial, T.Trivial) = true
@@ -383,63 +430,30 @@ functor MemoTableInst (structure IntSyn' : INTSYN
 
     fun equalCtx' (I.Null, I.Null) = true
       | equalCtx' (I.Decl(Dk, I.Dec(_, A)), I.Decl(D1, I.Dec(_, A1))) = 
-(*        (Conv.conv ((A, I.id), (A1, I.id)) andalso equalCtx'(Dk, D1))*)
         (Conv.conv ((A, I.id), (A1, I.id)) andalso equalCtx'(Dk, D1))
       | equalCtx' (I.Decl(Dk, I.ADec(_, d')), I.Decl(D1, I.ADec(_, d))) = 	
         ((d = d') andalso equalCtx'(Dk, D1))
       | equalCtx' (_, _) = false
 
-
-    fun equalDProg (evarl, d, asub, (Delta, C.DProg(I.Null, I.Null)), (Delta1, C.DProg(I.Null, I.Null))) = true
-
-      | equalDProg (evarl, d, asub, (Delta, C.DProg(I.Decl(Dk, Dec), I.Decl(dp, NONE))), 
-                    (Delta1, C.DProg(I.Decl(D1, Dec1), I.Decl(dp1, NONE)))) = 
-        equalDProg (evarl, d, asub, (Delta, C.DProg(Dk, dp)), (Delta1, C.DProg(D1, dp1)))
-
-      | equalDProg (evarl, d, asub, (Delta, C.DProg(I.Decl(Dk, Dec), I.Decl(dp, NONE))), 
-                    (Delta1, dprog1 as C.DProg(I.Decl(D1, Dec1), I.Decl(dp1, SOME(_,_,_))))) = 
-        equalDProg (evarl, d, asub, (Delta, C.DProg(Dk, dp)), (Delta1, dprog1))
-
-      | equalDProg (evarl, d, asub, (Delta, dprog as C.DProg(I.Decl(Dk, Dec), I.Decl(dp, SOME(_,_,_)))),
-		    (Delta1, C.DProg(I.Decl(D1, Dec1), I.Decl(dp1, NONE))))= 
-        equalDProg (evarl, d, asub, (Delta, dprog), (Delta1, C.DProg(D1, dp1)))
-
-      | equalDProg (evarl, d, asub, (Delta, dprog as C.DProg(I.Decl(Dk, I.Dec(_, A)), I.Decl(dp, SOME(_,_,_)))),
-		    (Delta1, dprog1 as C.DProg(I.Decl(D1, I.Dec(_, A1)), I.Decl(dp1, SOME(_,_,_))))) = 
-	let 
-	  val asub' = assignExp (asub, (evarl, d), (Delta, A), (Delta1, A1))
-	in 
-           equalDProg(evarl, d + 1, asub', (Delta, C.DProg(Dk,dp)), (Delta1, C.DProg(D1, dp1)))
-	end 
-				 
-(*        (Conv.conv ((A, I.id), (A1, I.id))*)
-	 (* Instance? needs to take into account asub !*)
-	 (* there are still at least 2 possibilties, A[asub] conv A1
-            or A[asub][asub'] = A1 
-	    matching! (simplifies assignment) in addition, both terms are linear!
-	    *)
-
-(*      | equalDProg (evarl, asub, C.DProg(I.Decl(Dk, I.ADec(_, d')), I.Decl(D1, I.ADec(_, d))) = 	
-        ((d = d') andalso equalDProg(Dk, D1))*)
-      | equalDProg (_, _, _, _, _) = false
-
-
-    fun equalDProg' (evarl, d, asub, DeltaDProg, DeltaDProg1) = 
-      (equalDProg (evarl, d, asub, DeltaDProg, DeltaDProg1)) handle Assignment msg => false
-
    (* ---------------------------------------------------------------*)   
 
-(*    fun instanceCtx (evarl, d, asub, (Delta, I.Null) , (Delta', I.Null)) = true
-      | instanceCtx (evarl, d, asub, (Delta, I.Decl( 
-*)
-    (* potential for forward and backward subsumption here ? *)
+    (* destructively may update asub ! *)
+    fun instanceCtx (asub, ((D1, evarl1), G1) , ((D2, evarl2), G2)) = 
+      let 
+	val d1 = I.ctxLength G1
+	val d2 = I.ctxLength G2
+      in 
+       if d1 = d2 
+	 then 
+	   (let 
+	      val fasub = assignCtx ((fn asub => ()), ((d1, 0)), (D1, G1), (D2, G2))
+	    in 
+	      (fasub asub; true)
+	    end ) handle Assignment msg => ((* print msg;*) false)
+       else false
+      end 
 
-   (* ---------------------------------------------------------------*)   
-    fun compareCtx (G, G') = equalCtx' (G, G')
-(*      (case TableParam.Strategy (H1 as I.BVar k, S1)
-	 of TableParam.Variant => equalCtx' (G, G')
-	   | TableParam.Subsumption => subsumesCtx (G, G')
-*)
+
    (* ---------------------------------------------------------------*)   
    (* collect EVars in sub *)
    (* collectEVar (D, nsub) = (D_sub, D')
@@ -454,8 +468,10 @@ functor MemoTableInst (structure IntSyn' : INTSYN
        fun collectExp (D', D, I.Lam(_, U)) = collectExp (D', D, U)
 	 | collectExp (D', D, I.Root(I.Const c, S)) = collectSpine (D', D, S)
 	 | collectExp (D', D, I.Root(I.BVar k, S)) = 
-	   (case (member (k, D)) of NONE => collectSpine (D', D, S) 
-	     | SOME(x, Dec) => (delete (x, D); insertList ((x, Dec), D')))
+	   (case (member (k, D)) 
+	      of NONE => collectSpine (D', D, S) 
+	    | SOME(x, Dec) => (delete (x, D); insertList ((x, Dec), D')))
+       (* case for definitions needs to be added -- Wed Jun 25 17:19:41 2003 -bp *)
 
        and collectSpine (D', D, I.Nil) = ()
 	 | collectSpine (D', D, I.App(U, S)) = (collectExp(D', D, U); collectSpine(D', D, S))
@@ -477,17 +493,16 @@ functor MemoTableInst (structure IntSyn' : INTSYN
        T'[rho_u] = U and T'[rho_t] = T 
    *)
 
-
   fun convAssSub' (n, idx_k, D, asub, d) =  
     (case (RBSet.lookup asub d)  
        of NONE => (case member (d, D) 
-		      of NONE => IntSyn.Shift (n)
-		    | SOME(x, Dec) => I.Dot(I.Idx (idx_k), convAssSub' (n, idx_k + 1, D, asub, d+1)))
-     | SOME (U) => IntSyn.Dot(IntSyn.Exp(Whnf.normalize(U, I.id)), convAssSub'(n, idx_k + 1, D, asub, d+1)))
+		      of NONE =>  IntSyn.Shift (idx_k) 
+		    | SOME(x, V) =>  I.Dot(I.Idx (idx_k+1),  convAssSub' (n, idx_k + 1, D, asub, d+1)))
+     | SOME (U) => (case Whnf.normalize(U, I.id)
+		      of I.Root(I.BVar k, I.Nil) => I.Dot(I.Idx (k), convAssSub'(n, idx_k + 1, D, asub, d+1))
+		      | U' => I.Dot(I.Exp(U'), convAssSub'(n, idx_k, D, asub, d+1))))
 
-
-
-  fun convAssSub (D, n, asub, d) = convAssSub' (n, 1, D, asub, d)
+   fun convAssSub (D, n, asub, d) = convAssSub' (d, 0, D, asub, d)
 
 
    fun isExists (d, I.BVar k, D) = member (k-d, D)
@@ -533,11 +548,11 @@ functor MemoTableInst (structure IntSyn' : INTSYN
 		 of (NONE, NONE) =>  
 		   if (k1 = k2) 
 		     then 
-		       let 
+		       (let 
 			 val (f', S') = genSpine(d, S1, S2, f)
 		       in 
 			 (f', I.Root(H1, S'))
-		       end 
+		       end)  handle DifferentSpine => (f, genNVar ((rho_t, T), (rho_u, U)))
 		   else 
 		     (f, genNVar ((rho_t, T), (rho_u, U)))
 	       | (SOME(x, Dec1), SOME(x', Dec2)) => 
@@ -559,28 +574,28 @@ functor MemoTableInst (structure IntSyn' : INTSYN
 		   (* (f, genNVar ((rho_t, T), (rho_u, U)))*)
 		   (* instance checking only Sun Oct 27 12:16:10 2002 -bp *)
 		    (instance := true;
-		    ((fn asub => (f asub; assign (d, Dec1, T, U, asub))), T))
+		    ((fn asub => (f asub;  assign (d, Dec1, T, U, asub))), T))
 		       
 	       (* instance checking only Sun Oct 27 12:18:53 2002 -bp *)
 	       | (SOME(x, Dec1 as I.ADec(n,d)), NONE) =>  
 		 ( instance := true;
-		  ((fn asub => (f asub; assign (d, Dec1, T, U, asub))), T))
+		  ((fn asub => (f asub;  assign (d, Dec1, T, U, asub))), T))
 
 	       | (SOME(x, Dec1), NONE) =>  
 		 ((* print ("assign X_1 = BV " ^ Int.toString x ^ "\n"); *)
 		  instance := true;
-		  ((fn asub => (f asub; assign (d, Dec1, T, U, asub))), T))
+		  ((fn asub => (f asub;  assign (d, Dec1, T, U, asub))), T))
 
 	       | (_, _) => 
 		 (f, genNVar ((rho_t, T), (rho_u, U)))
 	     end 
 	 else (* locally bound variables *)
 	   if (k = k') then 
-	     let
+	     (let
 	       val (f', S') = genSpine(d, S1, S2, f)
 	     in 
 	       (f', I.Root(H1, S'))
-	     end 
+	     end ) handle DifferentSpines => (f, genNVar ((rho_t, T), (rho_u, U)))
 	   else 
 	     ( (f, genNVar ((rho_t, T), (rho_u, U))))
        | genRoot (d, T as I.Root (H1 as I.BVar k, S1), U as I.Root(I.Const k', S2), f) = 
@@ -589,7 +604,7 @@ functor MemoTableInst (structure IntSyn' : INTSYN
 	 (case isExists (d, I.BVar k, D_t)
 	    of NONE => (f, genNVar ((rho_t, T), (rho_u, U))) 
 	  | SOME(x, Dec1 as I.ADec(_,_)) => (instance := true ; 
-					     ((fn asub => (f asub; assign (d, Dec1, T, U, asub))), T))
+					     ((fn asub => (f asub;  assign (d, Dec1, T, U, asub))), T))
 
 	  | SOME(x, Dec1) => (instance := true ; 
 			      ((fn asub => (f asub; assign (d, Dec1, T, U, asub))), T)))
@@ -621,6 +636,26 @@ functor MemoTableInst (structure IntSyn' : INTSYN
        in 
 	 (f'', I.App(E, S'))
        end 
+       | genSpine (d, I.Nil, I.App (_ , _), f) = (print ("Spines are not the same -- (first one is Nil) -- cannot happen!\n"); raise DifferentSpines)
+       | genSpine (d, I.App (_ , _), I.Nil, f) = (print ("Spines are not the same -- second one is Nil -- cannot happen!\n"); raise DifferentSpines)
+
+       | genSpine (d, I.SClo (_ , _), _, f) = (print ("Spine Closure!(1) -- cannot happen!\n"); raise DifferentSpines)
+       | genSpine (d, _ , I.SClo (_ , _), f) = (print ("Spine Closure! (2) -- cannot happen!\n"); raise DifferentSpines)
+
+(*     and genSpine (d, I.Nil, I.Nil, f) = (f, I.Nil)
+       | genSpine (d, I.App(T, S1), I.App(U, S2), f) = 
+       let 
+	 val (f', E) = genExp (d, T, U, f)
+	 val (f'', S') = genSpine (d, S1, S2, f')
+       in 
+	 (f'', I.App(E, S'))
+       end 
+(*       | genSpine (d, I.Nil, I.App (_ , _), f) = (print ("Spines are not the same -- (first one is Nil -- cannot happen!\n"); raise Error "Spines not the same!\n" )
+       | genSpine (d, I.App (_ , _), I.Nil, f) = (print ("Spines are not the same -- second one is Nil -- cannot happen!\n"); raise Error "Spines not the same!\n" )
+
+       | genSpine (d, I.SClo (_ , _), _, f) = (print ("Spine Closure!(1) -- cannot happen!\n"); raise Error "Spines not the same!\n" )
+       | genSpine (d, _ , I.SClo (_ , _), f) = (print ("Spine Closure! (2) -- cannot happen!\n"); raise Error"Spines not the same!\n" )*)
+*)
      val (f, E) = genExp (0, T, U, (fn asub => ()))
 (*     val _ = print "genExp -- done\n"*)
    in	 
@@ -698,12 +733,13 @@ functor MemoTableInst (structure IntSyn' : INTSYN
 	then 
 	  (* perfect match under asub and rho_t = nsub_t 
 	   sigma = rho_t and sigma o asub = rho_u *)
-	  ((!choose) true ;
-	   if !inst then InstanceSub (asub, (D_r2, rho_u))
-	   else VariantSub(asub, (D_r2, rho_u)))
+	  ((*print "trigger assignment \n"; *)
+	   (!choose) true ;
+	   (if !inst then InstanceSub (asub, (D_r2, rho_u))
+	   else VariantSub(asub, (D_r2, rho_u))))
       else 
 	((* split -- asub is unchanged *)
-	 (!choose) false ; 
+	  (!choose) false ; 
 	 if isId(sigma) 
 	   then NoCompatibleSub
 	 else 
@@ -736,17 +772,16 @@ functor MemoTableInst (structure IntSyn' : INTSYN
 
   (* ---------------------------------------------------------------------- *)
 
-  fun compatibleCtx (evarl, asub, (Delta, dp, eqn), []) = NONE
-    | compatibleCtx (evarl, asub, dpEqn as (Delta, C.DProg(G, dpool), eqn), 
-		     (((evarl', l'), Delta', C.DProg(G', dpool'), eqn', answRef', _)::GRlist)) = 
+  fun compatibleCtx ((evarl,l), asub, (Delta, G, eqn), []) = NONE
+    | compatibleCtx ((evarl, l), asub, dpEqn as (Delta, G, eqn), 
+		     (((evarl', l'), Delta', G', eqn', answRef', _)::GRlist)) = 
        (* we may not need to check that the DAVars are the same *)
-    (if equalCtx' (G, G')
-(* if instanceCtx (evarl, 0 (fn asub => ()), (Delta, G), (Delta', G')) *)
-(*      (if  (equalDProg' (evarl, 0, (fn asub => ()), (Delta, C.DProg(G, dpool)), (Delta', C.DProg(G', dpool))) 
-       (* andalso equalEqn(eqn, eqn')*))*)
-	 then SOME((evarl', l'), answRef')
+      if (instanceCtx (asub, ((Delta, evarl), G), ((Delta', evarl'), G')) andalso equalEqn(eqn, eqn'))
+	then 
+	  SOME((evarl', l'), (G', eqn'), answRef')
        else 
-	 compatibleCtx(evarl, asub, dpEqn, GRlist))
+	 compatibleCtx((evarl,l), asub, dpEqn, GRlist)
+
 
   fun compChild (N as Leaf((D_t, nsub_t), GList), (D_e, nsub_e), asub) = 
         compatibleSub ((D_t, nsub_t), (D_e,  nsub_e), asub)
@@ -771,10 +806,18 @@ functor MemoTableInst (structure IntSyn' : INTSYN
 			    ((x, (Dsigma, Drho1, Drho2))::SList))
 	    | InstanceSub (asub'', Drho2 as (D_r2, rho2)) => 
 	      (* real instance *)
-	      findAllCands (G_r, L, (D_u, sub_u), asub', VList, ((x, Drho2, asub'')::IList), SList)
+	       (*let val aslist = RBSet.setToList asub''
+(*		   val _ = (print "InstanceSub = " ; printSubList aslist)*)
+	       in*) 
+		 findAllCands (G_r, L, (D_u, sub_u), asub, VList, ((x, Drho2, asub'')::IList), SList) 
+	      
 	    | VariantSub (asub'', Drho2 as (D_r2, rho2)) => 
- 	      (* variant *)
-	      findAllCands (G_r, L, (D_u, sub_u), asub', ((x, Drho2, asub')::VList), IList, SList)
+ 	      (* variant -- asub'' = asub' = asub = id *)
+(*	      (let val L = RBSet.setToList asub' 
+		   val _ = (print "asub = ";printSubList L)
+	       in *)
+              ((* print "VariantSub = " ; printSubList (RBSet.setToList asub'');*)
+	      findAllCands (G_r, L, (D_u, sub_u), asub', ((x, Drho2, asub'')::VList), IList, SList))(* end*)
 
 	end 
     in 
@@ -783,9 +826,9 @@ functor MemoTableInst (structure IntSyn' : INTSYN
  (* ---------------------------------------------------------------------- *)	      	       
   fun divergingCtx (stage, G, GRlistRef) = 
     let
-      val l = I.ctxLength(G)
+      val l = I.ctxLength(G) +  3  (* this 3 is arbitrary -- lockstep *)
     in 
-    List.exists (fn ((_, l), D, C.DProg(G',_), _, _, stage') => (stage = stage' andalso (l > (I.ctxLength(G')))))
+    List.exists (fn ((_, l), D, G', _, _, stage') => (stage = stage' andalso (l > (I.ctxLength(G')))))
     (!GRlistRef)
     end 
 
@@ -825,33 +868,34 @@ functor MemoTableInst (structure IntSyn' : INTSYN
 
   fun insert (Nref, (D_u, nsub_u), asub, GR) = 
     let    
-      fun insert' (N as Leaf ((D,  _), GRlistRef), (D_u, nsub_u), asub, GR' as ((evarl, l), dp as C.DProg(G_r, dpool), eqn, answRef, stage)) = 
+      fun insert' (N as Leaf ((D,  _), GRlistRef), (D_u, nsub_u), asub, GR' as ((evarl, l), G_r, eqn, answRef, stage)) = 
 	(* need to compare D and D_u *)
 	let
 	  val (D_nsub, D_G) = collectEVar (D_u, nsub_u)
 	    (* D_nsub <= D by invariant ! *)
-	  val GR = ((evarl, l), D_G, dp, eqn, answRef, stage)
+	  val GR = ((evarl, l), D_G, G_r, eqn, answRef, stage)
 	in
-	  (case compatibleCtx (evarl, asub, (D_G, dp, eqn), (!GRlistRef))
+	  (case compatibleCtx ((evarl,l), asub, (D_G, G_r, eqn), (!GRlistRef))
+	     (* compatibleCtx may destructively update asub ! *)
 	   of NONE => ((* compatible path -- but different ctx! *)		  
 		       if ((!TableParam.divHeuristic) andalso divergingCtx (stage, G_r, GRlistRef))
 			 then
-			   (print "\t ctx are diverging --- force suspension ";
+			   ((* print "\t ctx are diverging --- force suspension ";*)
 			    (fn () => (GRlistRef := (GR::(!GRlistRef));   
 				      answList := (answRef :: (!answList))),   
-			    T.DivergingEntry(answRef))) 
+			    T.DivergingEntry(convAssSub(D_u, evarl, asub, l), answRef)))
 		       else 			 
-			 (print "\t compatible path -- ctx are different ";
+			 ((* print "\t compatible path -- ctx are different ";*)
 			  (fn () => (GRlistRef := (GR::(!GRlistRef)); 
 				    answList := (answRef :: (!answList))), 
 			  T.NewEntry(answRef))))
-	 | SOME((evars, Glength), answRef') => ((* compatible path -- SAME ctx *)
-			      (* print "compatible path --- same ctx\n";*)
-				((fn () => ()), T.RepeatedEntry(convAssSub(D_u, evars, asub, Glength), answRef'))
+	 | SOME((evars, Glength), (G', eqn'), answRef') => (* compatible path -- SAME ctx *)
+			      ((* print "compatible path --- same ctx\n";*)
+				((fn () => ()), T.RepeatedEntry(convAssSub(D_u, evars, asub, Glength), SOME(G', eqn'), answRef'))
 				))
 	end 	    
        
-      | insert' (N as Node((D, sub), children), (D_u, nsub_u), asub, GR as (l, dp as C.DProg(G_r, dpool), eqn, answRef, stage)) = 
+      | insert' (N as Node((D, sub), children), (D_u, nsub_u), asub, GR as (l, G_r, eqn, answRef, stage)) = 
 	let
 	  val (VariantCand, InstCand, SplitCand) = findAllCandidates (G_r, children, (D_u, nsub_u), asub)
 	    
@@ -859,7 +903,7 @@ functor MemoTableInst (structure IntSyn' : INTSYN
 	    ((* no child is compatible with nsub_u *)	     
 	     (fn () => (let 
 			  val (D_nsub, D_G) = collectEVar (D_u, nsub_u) 
-			  val GR' = (l, D_G, dp, eqn, answRef, stage)
+			  val GR' = (l, D_G, G_r, eqn, answRef, stage)
 			in 
 			  Nref := Node((D, sub), (ref (Leaf((D_nsub, nsub_u), ref [GR'])))::children); 
 			answList := (answRef :: (!answList))
@@ -868,14 +912,15 @@ functor MemoTableInst (structure IntSyn' : INTSYN
 
 	    | checkCandidates (nil, nil, ((ChildRef, (Dsigma, Drho1, Drho2))::_)) = 
 	      (* split an existing node *)
-	      if ((!TableParam.divHeuristic) andalso 
+(*	      if ((!TableParam.divHeuristic) andalso 
 		  divergingSub (Dsigma, Drho1, Drho2))
 	       then 	       
-		 ((* print "substree divering -- splitting node\n";*)
+		 (print "substree diverging -- splitting node\n";
 		  (fn () => (ChildRef :=  mkNode((!ChildRef), Dsigma, Drho1, GR, Drho2); 
 			     answList := (answRef :: (!answList))),
 		   T.DivergingEntry(answRef)))
 	     else 
+*)
 		((* print "split existing node\n";*)
 		 (fn () => (ChildRef :=  mkNode((!ChildRef), Dsigma, Drho1, GR, Drho2); 
 			    answList := (answRef :: (!answList))),
@@ -890,15 +935,20 @@ functor MemoTableInst (structure IntSyn' : INTSYN
 	      (* there are several "perfect" candidates *)
 	      (case (insert (ChildRef, Drho2, asub, GR))
 	       of (_, T.NewEntry(answRef)) => checkCandidates (L, nil, SCands)
-	     | (f, T.RepeatedEntry(asub, answRef)) => ((f, T.RepeatedEntry(asub, answRef)))
-	     | (f, T.DivergingEntry(answRef)) => ((f, T.DivergingEntry(answRef))))
+	     | (f, T.RepeatedEntry(asub, VarDefs, answRef)) => ((f, T.RepeatedEntry(asub, VarDefs, answRef)))
+	     | (f, T.DivergingEntry(asub, answRef)) => ((f, T.DivergingEntry(asub, answRef))))
 
  	    | checkCandidates (VarCands, ((ChildRef, Drho2, asub)::ICands), SCands) = 
 	      (* there are some "quite perfect" one *)
-	      (case insert (ChildRef, Drho2, asub, GR)
+	      ((*print "quite perfect candidate\t";
+	       printSubList (RBSet.setToList asub);print "\n";
+	       *)
+	       case insert (ChildRef, Drho2, asub, GR)
 		 of (_, T.NewEntry (answRef)) => checkCandidates (VarCands, ICands, SCands)
-	       | (f, T.RepeatedEntry(asub, answRef)) => ((f, T.RepeatedEntry(asub, answRef)))
-	       | (f, T.DivergingEntry(answRef)) => ((f, T.DivergingEntry(answRef))))
+	       | (f, T.RepeatedEntry(asubS, VarDefs, answRef)) => ((*print "Repeated entry\n";*)
+(*							  print "ASub " ; printSub asubS;*)
+							 (f, T.RepeatedEntry(asubS, VarDefs, answRef)))
+	       | (f, T.DivergingEntry(asub, answRef)) => ((f, T.DivergingEntry(asub, answRef))))
 	in 
 	  checkCandidates (VariantCand, InstCand, SplitCand)
 	end 
@@ -924,7 +974,7 @@ functor MemoTableInst (structure IntSyn' : INTSYN
          if (D_k, s_k, eqn) did not occur in answRef
          Sideeffect: update answer list for U    
      *) 
-    fun answCheckVariant (G', U', s', answRef, O) =  
+    fun answCheckVariant (G', s', answRef, O) =  
       let 
 	fun member ((D, sk), []) = false
 	  | member ((D, sk), (((D1, s1),_)::S)) = 
@@ -932,8 +982,9 @@ functor MemoTableInst (structure IntSyn' : INTSYN
 	      true
 	    else 
 	      member ((D, sk), S)
-	
+		
 	val (DEVars, sk) = A.abstractAnswSub (G', s')
+
       in 	
 	if member ((DEVars, sk), T.solutions answRef) then  
 	  T.repeated
@@ -945,6 +996,7 @@ functor MemoTableInst (structure IntSyn' : INTSYN
     (* ---------------------------------------------------------------------- *)
     fun reset () = 
       (nctr := 1; 
+       (* print "Clear Subsitution Tree (Subsumption)\n";*)
        Array.modify (fn (n, Tree) => (n := 0; 
 				      Tree := !(makeTree ());
 				      answList := []; 
@@ -956,8 +1008,9 @@ functor MemoTableInst (structure IntSyn' : INTSYN
         (insertList ((n, D), DEVars); 
 	 makeCtx (n+1, G, DEVars))
       
-    fun callCheck (a, DAVars, DEVars, G , dpool, U, eqn) = 
+    fun callCheck (a, DAVars, DEVars, G , U, eqn) = 
       let 
+(*	val _ = print "MT.callCheck -- subsumption\n"*)
 	val (n, Tree) = Array.sub (indexArray, a)     
 	val nsub_goal = S.new()             
 	val DAEVars = compose (DEVars, DAVars)
@@ -967,25 +1020,34 @@ functor MemoTableInst (structure IntSyn' : INTSYN
 	val l = I.ctxLength(DAEVars)
 	val _ = S.insert nsub_goal (1, U) 
 	val result =  insert (Tree, (D, nsub_goal), nid() (* assignable subst *), 
-			      ((l, n+1), C.DProg(G, dpool), eqn, emptyAnswer(), !TableParam.stageCtr))
+			      ((l, n+1), G, eqn, emptyAnswer(), !TableParam.stageCtr))
       in       
 	case result 
-	  of (sf, T.NewEntry(answRef)) => (sf(); added := true; print "\t -- Add goal \n";  
+	  of (sf, T.NewEntry(answRef)) => (sf(); added := true; (* print "\t -- Add goal \n";  *)
 					 T.NewEntry(answRef))
-	  | (_, T.RepeatedEntry(asub, answRef)) =>  (print "\t -- Suspend goal\n";
-						     T.RepeatedEntry(asub, answRef))
-	  | (sf, T.DivergingEntry(answRef)) => (sf(); added := true;  print "\t -- Add diverging goal\n";
-					     T.DivergingEntry(answRef))
+	  | (_, T.RepeatedEntry(asub, VarDefs, answRef)) =>  ((* print "\t -- Suspend goal\n";*)
+						     T.RepeatedEntry(asub, VarDefs, answRef))
+	  | (sf, T.DivergingEntry(asub, answRef)) => (sf(); added := true;  print "\t -- Add diverging goal\n";
+					     T.DivergingEntry(asub, answRef))
       end 
 
+(*
+    fun findAll (a, DVars, G, U, eqn) = 
+      let
+	val (n, Tree) = Array.sub (indexArray, a)     
+	val nsub_goal = S.new()             
+	val D = emptyCtx()
+	val n = I.ctxLength(G)
+	val _ = makeCtx (n+1, DVars, D:ctx)
+	val l = I.ctxLength(DVars)
+	val _ = S.insert nsub_goal (1, U) 
+      in 
+	retrieveAll (Tree, (D, nsub_goal), nid() (* assignable subst *), 
+		     (l, n+1), G, eqn, emptyAnswer(), !TableParam.stageCtr)
+      end 
 
-    fun answCheck (G', U', s', answRef, O) = answCheckVariant (G', U', s', answRef, O)
-(*      case (!TableParam.strategy) of
-	TableParam.Variant => answCheckVariant (G', U', s', answRef, O)
-
-      | TableParam.Subsumption => answCheckVariant (G', U', s', answRef, O) 
-	                          (* no answer subsumption currently *)
 *)
+    fun answCheck (G', s', answRef, O) = answCheckVariant (G', s', answRef, O)
 
     fun updateTable () = 
       let
@@ -1012,20 +1074,10 @@ functor MemoTableInst (structure IntSyn' : INTSYN
   
   in
     val reset = reset
-    val callCheck = (fn (DAVars, DEVars, G, dpool, U, eqn) => 
-		        callCheck(cidFromHead(I.targetHead U), DAVars, DEVars, G, dpool, U, eqn))
-
-(*
-    val findAll (DAVars, DEVars, G, U, eqn) = 
-    returns (asub * answRef) list which contains all possible entries in the tree 
-    open question: do we need all entries?
-
-*)
+    val callCheck = (fn (DAVars, DEVars, G, U, eqn) => 
+		        callCheck(cidFromHead(I.targetHead U), DAVars, DEVars, G, U, eqn))
   
     val answerCheck = answCheck
-(*    val solutions = (fn answRef => solutions (!answRef))
-    val lookup = (fn answRef => lookup (!answRef))*)
-(*    val noAnswers = (fn answRef => noAnswers (!answRef))*)
 
     val updateTable = updateTable
 

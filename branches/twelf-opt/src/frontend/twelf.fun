@@ -679,6 +679,7 @@ struct
 	  val _ = if !Global.chatter >= 3 
 		    then print ("%QED\n")
 		  else ()
+	  val _ = Prover.tableReset ()
 		    
 	in
 	  (Prover.install (fn E => installConDec false (E, (fileName, NONE), r));
@@ -691,7 +692,7 @@ struct
 	  val (ThmSyn.PDecl (depth, T), rrs) = ReconThm.establishToEstablish lterm 
 	  val La = Thm.installTerminates (T, rrs)  (* La is the list of type constants *)
 	  val _ = if !Global.chatter >= 3 
-		    then print ("%prove " ^ (Int.toString depth) ^ " " ^
+		    then print ("%establish " ^ (Int.toString depth) ^ " " ^
 				       (ThmPrint.tDeclToString T) ^ ".\n")
 		  else ()
 	  val _ = Prover.init (depth, La)
@@ -702,7 +703,10 @@ struct
 		  else [()]
 
 	  val _ = Prover.auto () handle Prover.Error msg => raise Prover.Error (Paths.wrap (joinregion rrs, msg)) (* times itself *)
-		    
+	  val _ = if !Global.chatter >= 3 
+		    then print ("%QED\n")
+		  else ()
+	  val _ = Prover.tableReset ()		    
 	in
 	  Prover.install (fn E => installConDec false (E, (fileName, NONE), r))
 	end 
@@ -973,6 +977,7 @@ struct
 		    Compile.sProgReset (); (* resetting substitution trees *)
                     ModSyn.reset ();
                     CSManager.resetSolvers ();
+		    Prover.tableReset();
                     context := NONE
 		    )
 
@@ -1227,6 +1232,10 @@ struct
     structure Prover :
     sig					(* F=Filling, R=Recursion, S=Splitting *)
       datatype Strategy = datatype MetaGlobal.Strategy  (* FRS or RFS *)
+      datatype ProverType = datatype MetaGlobal.ProverType
+
+
+      val prover : ProverType ref       (* default : NEW = tabled *)
       val strategy : Strategy ref	(* FRS, strategy used for %prove *)
       val maxSplit : int ref		(* 2, bound on splitting  *)
       val maxRecurse : int ref		(* 10, bound on recursion *)
@@ -1234,6 +1243,8 @@ struct
     =
     struct
       datatype Strategy = datatype MetaGlobal.Strategy  (* FRS or RFS *)
+      datatype ProverType = datatype MetaGlobal.ProverType 
+      val prover = MetaGlobal.prover
       val strategy = MetaGlobal.strategy
       val maxSplit = MetaGlobal.maxSplit
       val maxRecurse = MetaGlobal.maxRecurse

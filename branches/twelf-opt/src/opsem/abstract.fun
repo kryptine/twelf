@@ -321,18 +321,15 @@ struct
 	    (* we have seen X before *)
 	     (if flag 
 	       then
-		 ((* print "collect fap EVar, duplicate flag = true\n";*)
-		 collectSub(Gss, G, Gl, s, K, I.Decl(DupVars, AV(X, d)), flag, d) )
+		 (collectSub(Gss, G, Gl, s, K, I.Decl(DupVars, AV(X, d)), flag, d) )
 	        (* since X has occurred before, we do not traverse its type V' *)
 	     else 
-		((* print "collect fap EVar, duplicate flag = false\n";*)
-	       collectSub(Gss, G, Gl, s, K, DupVars, flag, d)))
+		collectSub(Gss, G, Gl, s, K, DupVars, flag, d))
 	else 
 	  let
 	    (* val _ = checkEmpty !cnstrs *)
 	    val V' = raiseType (GX, V) (* inefficient! *)
 	    val (K', DupVars') = collectExp ((I.Null, I.id), I.Null, I.Null, (V', I.id), K, DupVars, false, d)
-(*	    val _ = print "collect fap EVar (seen for the first time) \n"*)
 	  in
 	    collectSub(Gss, G, Gl, s, I.Decl (K', EV(X)), DupVars', flag, d)
 	  end
@@ -342,16 +339,13 @@ struct
 	  then 
 	    (if flag 
 	       then 
-		 ((* print "collect nfap EVar (duplicate) flag = true\n";*)
-		 collectSub(Gss, G, Gl, s, K, I.Decl(DupVars, AV(X, d)), flag, d)) 
+		 collectSub(Gss, G, Gl, s, K, I.Decl(DupVars, AV(X, d)), flag, d)
 	     else  
-	       ((* print "collect nfap EVar (duplicate) flag = false\n"; *)
-	       collectSub(Gss, G, Gl, s, K, DupVars, flag, d))) 
+	       collectSub(Gss, G, Gl, s, K, DupVars, flag, d))
 	else 
 	  let
 	    val V' = raiseType (GX, V) (* inefficient! *)
 	    val (K', DupVars') = collectExp ((I.Null, I.id), I.Null, I.Null, (V', I.id), K, DupVars, false, d)
-(*	    val _ = print "collect nfap EVar (seen for the first time)\n"; *)
 	  in 
 	    if flag 
 	      then 
@@ -423,7 +417,8 @@ struct
 	  val (K', DupVars') = collectExp (Gss, G, Gl, (U, I.id), K, DupVars, flag, d)
 	in 
 	  collectSub (Gss, G, Gl, s, K', DupVars', flag, d)
-	end 
+	end
+      | collectSub (Gss, G, Gl, I.Dot (I.Undef, s), K, DupVars, flag, d) =  collectSub (Gss, G, Gl, s, K, DupVars, flag, d)    
 
     (* collectCtx (Gss, G0, G, K, DupVars, flag) = (K', DupVars)
        Invariant:
@@ -500,12 +495,10 @@ struct
 	(* X is possibly strengthened ! *)
 	if  isId(I.comp(ss, s))  (* equalCtx (Gs, I.id, GX, I.id)*)
 	   then  (* X is fully applied *)
-	     ((* print " \t abstract over X -- X fully applied\n";*)
-	     abstractEVarFap (flag, Gs, posEA, Vars, G, total, depth, (X, s), eqn))
+	     abstractEVarFap (flag, Gs, posEA, Vars, G, total, depth, (X, s), eqn)
 	 else 
 	   (* s =/= id, i.e. X is not fully applied *)	
-	   ((* print " \t abstract over X -- X not fully applied\n";*)
-	  abstractEVarNFap (flag, Gs, posEA, Vars, G, total, depth, (X, s), eqn))
+	  abstractEVarNFap (flag, Gs, posEA, Vars, G, total, depth, (X, s), eqn)
 		  
 (*      | abstractExpW (posEA, Vars, Gl, total, depth, (X as I.FgnExp (cs, ops), s), eqn) =  *)
 (*	let
@@ -527,10 +520,6 @@ struct
 	   SOME(i) =>  (* we have seen X before *)	    
 	     (if flag then 		    
 	       let
-		 val _ = print "abstract over fap X (duplicate) flag = true\n";
-		 val _ = print ("BV = " ^ Int.toString(apos + total) ^ "\n")
-		 val _ = print ("UNIFY : BV " ^ Int.toString(i + depth)) 
-		 val _ = print ("= BV " ^ Int.toString(apos + depth) ^ "\n")
 		 val BV = I.BVar(apos + total) 
 		 val BV' = I.BVar(i + depth)    
 		 val BV1 = I.BVar(apos + depth) 		   
@@ -540,19 +529,12 @@ struct
 	       end 	 
 	     else 
 	       let
-(*		 val _ = print "abstract over fap X (duplicate) flag = false\n";
-		 val _ = print ("i = " ^ Int.toString(i) ^ "\n")
-		 val _ = print ("BV = " ^ Int.toString(i + total) ^ "\n")*)
 		 val (posEA', Vars', S, eqn1) = abstractSub (flag, Gs, (epos, apos), Vars, G, total, depth, s, I.Nil, eqn)
 	       in 
 		 (posEA', Vars', I.Root(I.BVar(i + total), S), eqn1)
 	       end) 
 	 | NONE => 
 	       let
-(*		 val _ = print "abstract over fap X (seen for first time) \n";
-		 val _ = print ("epos " ^ Int.toString (epos) ^ "\n")
-		 val _ = print ("total " ^ Int.toString (total) ^ "\n")
-		 val _ = print ("BV = " ^ Int.toString(epos + total) ^ "\n")*)
 		 val BV = I.BVar(epos + total) 
 		 val pos = (epos - 1, apos)
 		 val (posEA', Vars', S, eqn1) = abstractSub (flag, Gs, pos, I.Decl(Vars, (epos, EV X)), G, total, depth, s, I.Nil, eqn)
@@ -566,10 +548,6 @@ struct
 	     if flag 
 	       then 
 		 let
-(*		 val _ = print "abstract over nfap X (duplicate) flag = true\n";
-		 val _ = print ("BV = " ^ Int.toString(apos + total) ^ "\n")
-		 val _ = print ("UNIFY : BV " ^ Int.toString(i + depth) ^ " = ")
-		 val _ = print ("BV " ^ Int.toString(apos + depth) ^ "\n") *)
 		 val BV = I.BVar(apos + total) 
 		 val BV' = I.BVar(i + depth)   
 		 val BV1 = I.BVar(apos + depth)
@@ -580,10 +558,6 @@ struct
 		 end 	  
 	     else 
 	       let
-(*		 val _ = print ("abstract over nfap X (duplicate) flag = false\n")
-		 val _ = print ("i = " ^ Int.toString i ^ "\n")
-		 val _ = print ("total = " ^ Int.toString total ^ "\n")
-		 val _ = print ("BV = " ^ Int.toString(i + total) ^ "\n")*)
 		 val (posEA', Vars', S, eqn1) = abstractSub (flag, Gs, (epos, apos), Vars, G, total, depth, s, I.Nil, eqn)
 
 	       in 
@@ -593,10 +567,6 @@ struct
 	   (if flag 
 	      then 		  
 		let
-(*		  val _ = print "abstract over nfap X (see for first time) (flag = true)\n";
-		  val _ = print ("BV = " ^ Int.toString(apos + total) ^ "\n")
-		  val _ = print ("BV " ^ Int.toString(epos + depth))
-		  val _ = print ("= BV " ^ Int.toString(apos + depth) ^ "\n")*)
 		  val BV = I.BVar(apos + total)
 		  val BV' = I.BVar(epos + depth)  
 		  val BV1 = I.BVar(apos + depth)  
@@ -606,8 +576,6 @@ struct
 		end
 	    else 
 	      let
-(*		val _ = print "abstract over nfap X (see for first time) (flag = false)\n";
-		 val _ = print ("BV = " ^ Int.toString(epos + total) ^ "\n")*)
 		val BV = I.BVar(apos + total)
 		val BV' = I.BVar(epos + total + depth)  
 		val BV1 = I.BVar(apos + total + depth)  
@@ -645,7 +613,7 @@ struct
 	  in 
 	    abstractSub (flag, Gs, posEA', Vars', G, total, depth, s, I.App (U', S), eqn')
 	  end 
- 
+(*      | abstractSub (flag, Gs, posEA, Vars, G, total, depth, I.Dot (I.Undef, s), S, eqn) = ??? *)
 
     (* abstractSpine (flag, Gs, posEA, Vars, G, total, depth, (S, s), eqn) = (posEA', Vars', S', eqn')
        where S' = {{S[s]}}_K*   and K* = K, Dup
@@ -685,7 +653,10 @@ struct
     and abstractSub' (flag, Gs, evartotal, posEA, Vars, G, total, d, I.Shift (k), eqn) =  
         if k < d
 	  then 
-	    (posEA, Vars, I.Dot(I.Idx(k+1), I.Shift (k+1)), eqn) 
+	    (* should never happen???? Tue Jun  3 14:22:22 2003 -bp *)
+	    (print ("k<d in abstractSub' --- should never happen\n");
+	     print ("d = " ^ Int.toString d ^ "\t k =" ^ Int.toString k ^ "\n");
+	    (posEA, Vars, I.Dot(I.Idx(k+1), I.Shift (k+1)), eqn))
 	else 
 	  (posEA, Vars, I.Shift(k + evartotal), eqn)
       | abstractSub' (flag, Gs, evartotal, posEA, Vars, G, total, d, I.Dot (I.Idx (k), s), eqn) =
@@ -787,7 +758,6 @@ struct
 	end       
       | createDupCtx (G, Vars, I.Decl (K', AV (E as I.EVar (_, GX, VX, _), d)), k) = 
 	let
-	  val _ = print "createDupCtx : AV (EVar...) is instantiated!\n"
           val G' = createDupCtx (G, Vars, K', k+1)
 	in
 	  I.Decl (G', I.ADec (SOME("AVar "^Int.toString k ^ "--" ^ Int.toString d), d)) 
@@ -864,12 +834,12 @@ struct
 	in
 	  raise Error "abstractKSubAVars: AVar is instantiated!\n"
 	end *)
+
   in
 
   (* abstractEVarCtx (G, p, s) = (G', D', U', s')
 
-     if G |- p[s]
-        and s contains free variables X_n .... X_1
+     if G |- p[s] and s contains free variables X_n .... X_1
      then 
         
        D', G' |- U'  
@@ -905,42 +875,24 @@ struct
 	    in general expressions which need to be replaced to obtain a 
 	    linear assignable expression *)	
 	 val (G0', Kdp, DupVars) = collectCtx ((Gs, ss), I.Null, G, I.Null, I.Null, true, 0)
-	 val _ = print "Collect Ctx done\n";
-	 val _ = print ("|DupVars| = " ^ Int.toString (I.ctxLength(DupVars)) ^ "\n")
-	 (* K contains all EVars in (p,s) and G *)
 	 (* DupVars' contains all duplicate EVars in (p,s) and G *)
 	 val (K, DupVars') = collectExp((Gs, ss), G, I.Null, (p, s), Kdp, DupVars, true, d)
-(*	 val _ = print "Abstract ctx\n";*)
+
 	 val epos = I.ctxLength(K)
 	 val apos = I.ctxLength(DupVars')
-(*	 val _ = print ("epos " ^ Int.toString (epos) ^ "\n")
-	 val _ = print ("apos " ^ Int.toString (apos+epos) ^ "\n")*)
 	 val (posEA', Vars', G', eqn) = abstractCtx (true, (Gs,ss), (epos, apos+epos), I.Null, d - 1, d, G, TableParam.Trivial) 
-(*	 val _ = print "abstractCtx done\n"*)
 	 val (epos', apos') = posEA'
-(*	 val _ = print ("epos' " ^ Int.toString (epos') ^ "\n")
-	 val _ = print ("apos' " ^ Int.toString (apos') ^ "\n")
-	 val _ = print "abstractExp \n"*)
 
 	 val (posEA'', Vars'', U', eqn') = abstractExp (true, (Gs, ss), posEA', Vars',  (G, I.Null), d, d, (p,s), eqn)
-(*	 val _ = print "abstractExp done\n"*)
-	 (* Vars'' contains all EVars occuring in G and p[s] once *)
-         (* by invariant epos'' = apos'' = 0 *)
 	 val (epos'', apos'') = posEA''
-(*	 val _ = print ("epos'' " ^ Int.toString (epos'') ^ "\n")
-	 val _ = print ("apos'' " ^ Int.toString (apos'') ^ "\n")
-	 val _ = print ("d " ^ Int.toString (d) ^ "\n")*)
 
 	 val DAVars = createDupCtx (I.Null, Vars'', DupVars', 0)  
-(*	 val _ = print "createEVarCtx\n"
-	 val _ = print ("total = " ^ Int.toString (epos+apos-1) ^ "\n")*)
 	 val ( _, DEVars,I.Shift(0), eqn2) = createEVarCtx ((Gs, ss), epos'', I.Null, Vars'', I.id, 0 (* epos + apos - 1 *), eqn')
-(*	 val _ = print "abstractKSubAVars\n"*)
-	 (* abstract over the assignable variables *)
+
 	 val s' = abstractKSubAVars (DupVars', I.id)
-(*	 val _ = print "abstractKSubEVars\n"*)
+
 	 val s'' = abstractKSubEVar (Vars'', s')
-(*	 val _ = print "DONE\n"*)
+
        in 		
 	 if (!TableParam.strengthen) then 
 	   let
@@ -955,7 +907,7 @@ struct
        end)
 
 
-  (* abstractAnswSub s = (Delta, s')
+  (* abstractAnswSub (G, s) = (Delta, s')
     
    if G |- s : Delta', G 
       s may contain free variables
@@ -975,18 +927,13 @@ struct
     val abstractAnswSub = 
       (fn (G, s) => 
        let
-(*	 val _ = print "abstractAnswSub\n"*)
-	 val total = I.ctxLength (G)
+(*	 val total = I.ctxLength (G)*)
 	 val (K, DupVars) = collectSub((I.Null, I.id), I.Null, I.Null, s, I.Null, I.Null, false, 0)
 	 val epos = I.ctxLength K
 	 val apos = I.ctxLength DupVars	   
 	 val evartotal = epos + apos
-(*	 val _ = print ("epos " ^ Int.toString epos ^ "\n")
-	 val _ = print ("apos " ^ Int.toString apos ^ "\n")*)
-         (* total = length(G), depth = |Glocal|*)
-	 val ((epos' (*0 *), _ (* 0 *)), Vars, s', eqn) = abstractSub' (false, (I.Null, I.id), evartotal, (epos, apos+epos), I.Null, G, 0 (* total *), 0(* total*), s, TableParam.Trivial)
-(*	 val _ = print ("epos' " ^ Int.toString epos' ^ "\n")*)
-(*	 val DAVars = createDupCtx (I.Null, Vars, DupVars, 0)  (* will have no avars! *)*)
+	 val ((epos' (*0 *), _ (* 0 *)), Vars, s', eqn) = abstractSub' (false, (G (*I.Null*), I.id),  evartotal , (epos, apos+epos), I.Null, G, 0 (* total *), 0(* total*), s, TableParam.Trivial)
+
 	 val ( _, DEVars,_, _ (* trivial *)) = createEVarCtx ((I.Null, I.id), epos', I.Null, Vars, I.id, (* 0 *) (epos + apos -1), eqn)  
        in 
 	 (DEVars, s')

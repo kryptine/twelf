@@ -17,7 +17,7 @@ sig
                         (IntSyn.dctx * IntSyn.dctx * IntSyn.dctx * IntSyn.Exp * TableParam.ResEqn * IntSyn.Sub)
 
 
-  val abstractAnswSub : (IntSyn.dctx * IntSyn.Sub ) -> IntSyn.dctx * IntSyn.Sub
+  val abstractAnswSub :  (IntSyn.dctx * IntSyn.Sub) -> IntSyn.dctx * IntSyn.Sub
 
   val raiseType : IntSyn.dctx * IntSyn.Exp -> IntSyn.Exp   
 

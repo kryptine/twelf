@@ -22,12 +22,13 @@ struct
   fun ctxPop (Decl (G, D)) = G
 
   exception Error of string             (* raised if out of space     *) 
+
   (* ctxLookup (G, k) = D, kth declaration in G from right to left
      Invariant: 1 <= k <= |G|, where |G| is length of G
   *)
   fun ctxLookup (Decl (G', D), 1) = D
     | ctxLookup (Decl (G', _), k') = ctxLookup (G', k'-1)
-    | ctxLookup (Null, k) = (print ("Looking up k = " ^ (Int.toString k) ^ "\n"); raise Error "")
+    | ctxLookup (Null, k) = (print ("*** k = " ^ (Int.toString k) ^ "***\t ctx lookup failed!\n"); raise Error "")
     (* ctxLookup (Null, k')  should not occur by invariant *)
 
   (* ctxLength G = |G|, the number of declarations in G *)

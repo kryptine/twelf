@@ -74,7 +74,10 @@ sig
   structure Prover :
   sig
     datatype Strategy = RFS | FRS     (* F=Filling, R=Recursion, S=Splitting *)
+    datatype ProverType = New | Old | Memo
+
     val strategy : Strategy ref	      (* FRS, strategy used for %prove *)
+    val prover : ProverType ref	      (* New = tabled used for %prove *)
     val maxSplit : int ref	      (* 2, bound on splitting  *)
     val maxRecurse : int ref	      (* 10, bound on recursion *)
   end

@@ -9,6 +9,8 @@ sig
 
   val init   : (int * IntSyn.cid list) -> unit
   val auto   : unit -> unit
+(*  val autoTabled   : unit -> unit*)
   val print  : unit -> unit
   val install: (IntSyn.ConDec -> IntSyn.cid) -> unit
+  val tableReset : unit -> unit
 end;  (* signature PROVER *)

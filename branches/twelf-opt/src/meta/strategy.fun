@@ -54,7 +54,7 @@ struct
 	else ()
 
     fun printQed () = 
-        (if !Global.chatter > 3 then print ("[QED]\n")
+        (if !Global.chatter >= 3 then print ("[QED]\n")
 	 else ();
 	 if !Global.chatter > 4 then print ("Statistics: required Twelf.Prover.maxFill := "
 					    ^ (Int.toString (!MTPData.maxFill)) ^ "\n") 
@@ -117,15 +117,21 @@ struct
 
     and fill (nil, os) = os
       | fill (S :: givenStates, os as (openStates, solvedStates)) =
-        case (Timers.time Timers.recursion MTPFilling.expand) S
+      let
+	  val gStates = givenStates
+      in 
+         case (Timers.time Timers.recursion MTPFilling.expand) S
 	  of fillingOp =>
 	     (let
 	       val _ = printFilling ()
-	       val (max, P) = (Timers.time Timers.filling MTPFilling.apply) fillingOp
+	       val (max, _) = (Timers.time Timers.filling MTPFilling.apply) fillingOp
+	       val _ = if !Global.chatter >3 then print "----------------FILLING OPERATION SUCCESSFUL!!!! -----------------\n" else ()
 	       val _ = printCloseBracket ()
 	      in
-		fill (givenStates, os)
-	      end) handle MTPFilling.Error _ => split (S :: givenStates, os)
+(*		fill (givenStates, os)*)
+		fill (gStates, os)
+	      end) handle MTPFilling.Error msg => (let val _ = if !Global.chatter > 3 then print ("FILLING ERROR: " ^ msg ^ "\n") else () in  split (S :: givenStates, os) end)
+      end
 
     (* run givenStates = (openStates', solvedStates')
 
@@ -149,7 +155,9 @@ struct
 	end
 
   in
+    val tableReset = MTPFilling.tableReset
     val run = run
+(*    val runTabled = runTabled *)
   end (* local *)
 end;  (* functor StrategyFRS *)
 

@@ -1,8 +1,6 @@
 (* Meta Prover Version 1.3 *)
 (* Author: Carsten Schuermann *)
-
-
-signature MTPROVER =
+ signature MTPROVER =
 sig
   structure FunSyn : FUNSYN
   structure StateSyn : STATESYN
@@ -10,4 +8,7 @@ sig
   exception Error of string 
 
   val init : FunSyn.For * StateSyn.Order -> unit
+
+  val tableReset : unit -> unit
+
 end;  (* signature MTPROVER *)

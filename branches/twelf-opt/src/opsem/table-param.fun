@@ -19,7 +19,7 @@ struct
  
    datatype ResEqn =
      Trivial				  (* trivially done *)
-   | Unify of IntSyn.dctx * IntSyn.Exp      (* call unify *)
+   | Unify of IntSyn.dctx * IntSyn.Exp    (* call unify *)
      * IntSyn.Exp * ResEqn
      
    type answer = {solutions : ((IntSyn.dctx * IntSyn.Sub) 
@@ -54,16 +54,17 @@ struct
    val aid : unit -> asub = RBSet.new
 
    datatype callCheckResult = 
-     NewEntry of answer (* * asub???? *)
-     | RepeatedEntry of (IntSyn.Sub * answer)
-     | DivergingEntry of answer
+       NewEntry of answer
+     | RepeatedEntry of (IntSyn.Sub * (IntSyn.dctx * ResEqn) option * answer)
+     | DivergingEntry of (IntSyn.Sub * answer)
      
    datatype answState = new | repeated
      
 (* ---------------------------------------------------------------------- *)
 (* global search parameters *)
 
-  val strategy  = ref (* Subsumption*)  Variant 
+  val strategy  = ref Variant (* Subsumption*) 
+
 
   val divHeuristic = ref false;
 
@@ -76,6 +77,7 @@ struct
 
   (* apply strengthening during abstraction *)
   val strengthen = ref false ;
+(*  val strengthen = ref true ;*)
 
 
 

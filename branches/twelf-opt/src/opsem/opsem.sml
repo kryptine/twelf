@@ -80,6 +80,32 @@ structure Tabled =
 	  structure CSManager = CSManager
 	  structure Subordinate = Subordinate); 
 
+
+
+structure TabledSbt = 
+  TabledSbt (structure IntSyn' = IntSyn
+	  structure CompSyn' = CompSyn
+	  structure Unify = UnifyTrail 
+	  structure TabledSyn = TabledSyn
+	  structure Assign = Assign 
+	  structure Index = Index
+	  structure Queue = Queue
+	  structure TableParam = TableParam
+(*	  structure MemoTable = MemoTable    *)
+	  structure MemoTable = SwMemoTable    
+	  structure AbstractTabled = AbstractTabled
+	  structure CPrint = CPrint
+	  structure Print = Print
+	  structure Names = Names
+	  structure CSManager = CSManager
+	  structure Subordinate = Subordinate); 
+
+
+structure SwTabled =
+ SwTabled (structure TableParam = TableParam
+	      structure Tabled = Tabled
+	      structure TabledSbt = TabledSbt)
+
 structure Trace =
   Trace (structure IntSyn' = IntSyn
 	 structure Names = Names

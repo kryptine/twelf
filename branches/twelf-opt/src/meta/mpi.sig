@@ -21,6 +21,7 @@ sig
 (*  val extract: unit -> MetaSyn.Sgn *)
 (*  val show   : unit -> unit *)
   val undo   : unit -> unit 
+  val tableReset : unit -> unit
 end;  (* signature MTPI *)
 
 

@@ -38,7 +38,5 @@ sig
   val matchSig : IntSyn.cid * IntSyn.Dec IntSyn.Ctx * IntSyn.eclo * 
     ((CompSyn.Conjunction * IntSyn.Sub) * IntSyn.cid -> unit) -> unit 
 
-  val goalToString : string -> IntSyn.Dec IntSyn.Ctx * CompSyn.Goal * IntSyn.Sub -> string
-
 end;  (* signature SUBTREE *)
 

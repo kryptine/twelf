@@ -132,6 +132,9 @@ struct
 	  else ()
 	end
 
+    (* vacuous -- required to make everything uniform *)
+    fun autoTabled () = ()
+
     (* makeConDec (name, (G, M), V) = e'
 
        Invariant: 
@@ -203,10 +206,13 @@ struct
 	   print' (!solvedStates))
 	end
 
+fun tableReset () = ()
   in
     val print = printState
     val init = init
     val auto = auto 
+    val autoTabled = autoTabled
     val install = install
+    val tableReset = tableReset
   end (* local *)
 end; (* functor Prover *)

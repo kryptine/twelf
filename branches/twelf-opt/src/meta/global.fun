@@ -4,9 +4,13 @@
 functor MTPGlobal 
   (structure MetaGlobal : METAGLOBAL): MTPGLOBAL =
 struct
-  datatype ProverType = New | Old
 
-  val prover = ref New
+  structure MetaGlobal = MetaGlobal
+
+  datatype ProverType = datatype MetaGlobal.ProverType   
+
+  val prover = MetaGlobal.prover
+
   val maxFill = MetaGlobal.maxFill
   val maxSplit = MetaGlobal.maxSplit
   val maxRecurse = MetaGlobal.maxRecurse
