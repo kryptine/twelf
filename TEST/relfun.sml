@@ -93,7 +93,8 @@ in
   val _ = print ["subst"] 
 
 
-(*  val _ = print ["dia"]             -- problem here:  we need to support lemmas 
+(*  val _ = print ["dia"]      -- problem here.  Lemmas not yet supported
+
   val _ = print ["strip"] 
   val _ = print ["conf"]
   val _ = print ["cr"]
