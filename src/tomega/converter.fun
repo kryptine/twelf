@@ -1230,9 +1230,6 @@ exception Error' of Tomega.Sub
 	      val _ = TomegaTypeCheck.checkPrg (Psi2, (Pat, F4))
 	      val t = T.Dot (T.Prg Pat, T.embedSub z3)
                                         (* Psi0, G3 |- t :: Psi0, G', x :: F4  *)
-	      val _ = print (Int.toString (I.ctxLength Psi2))
-	      val _ = print (Int.toString (I.ctxLength Psi0))
-	      val  _ = print ("\n")
 	    in     
 	      (SOME (w3, 
 		     (fn p => P (T.Let (T.PDec (NONE, F'''), P''', 
