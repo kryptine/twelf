@@ -43,7 +43,7 @@ struct
 		  T.UDec (Names.decName (T.coerceCtx Psi, D)))
       | nameCtx (I.Decl (Psi, T.PDec (_, F))) = 
           I.Decl (nameCtx Psi, 
-		  T.PDec (SOME "s", F))
+		  T.PDec (SOME "s", F))   (* to be fixed! --cs *)
       
 
 

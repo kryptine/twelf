@@ -10,16 +10,22 @@ functor State
 struct
   structure IntSyn = IntSyn'
   structure Tomega = Tomega'
-  structure T = Tomega'
-  structure I = IntSyn'
 
   datatype State
-    = State of (T.Dec I.Ctx * T.For) * T.Worlds
+    = State of (Tomega.Dec IntSyn.Ctx * Tomega.For) * Tomega.Worlds
+
+  datatype SideCondition  (* we need some work here *)
+    = None
+    | All   of SideCondition
+    | And   of SideCondition * SideCondition
+    | Order of Order.Predicate
 
   exception Error of string
 
   local 
-       (* init F = S
+    structure T = Tomega'
+    structure I = IntSyn'
+    (* init F = S
 
        Invariant:
        S = (. |> F) is the initial state
