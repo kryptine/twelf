@@ -1,11 +1,15 @@
 Library	
    signature DELPHIN
    structure Delphin
+   signature TRANS
+   structure Trans
 is
    ../frontend/sources.cm
    ../stream/sources.cm
    ../tomega/sources.cm
+   ../lambda/sources.cm
    ../print/sources.cm
+   ../names/sources.cm
    ml-yacc-lib-mod/sources.cm
    delphin.lex
    delphin.grm
