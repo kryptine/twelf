@@ -1,0 +1,44 @@
+- Add remark about optimize
+- Remark about "mixed substitution incompleteness"
+- Add remark about "%assert" and "safe mode"
+- Add remark about "%establish" and "%prove"
+
+- Add Twelf.unsafe
+
+- Add Twelf.Print.sgn
+- Add Twelf.Print.prog
+
+- Add TeX remarks
+- Add Twelf.Print.TeX.sgn and prog
+
+- Add tracing.
+
+- %name takes optional second argument
+- Prefix argument to a few command now selects the server buffer
+  (this simplified tracing and breaking)
+
+- Add Twelf.make
+- Remove strictness remarks / %abbrev
+- fixity operators can now take additional arguments
+
+----------------------------------------------------------------------
+README for Twelf 1.2R4
+
+Major internal update to Twelf 1.2.
+
+Externally visible changes:
+ - bug fixes (through twelf-1-2 pl5)
+ - definitions need not be strict
+ - %name takes optional second argument (prefered name for parameters)
+ - %assert <callpats> after Twelf.unsafe := true;
+   is like %prove without proving anything
+ - %establish <nat> <order> <callpats> like %prove, but result
+   will never be used as a lemma in future %prove
+ - Twelf.Print.sgn and Twelf.Print.prog print signature
+ - Twelf.Print.TeX.sgn and Twelf.Print.TeX.prog print signature in
+   TeX format (see .../twelf/tex/ directory)
+ - Added tracing and breakpoints/stepping in operational semantics.
+   Recommended: use pull-down menus in Emacs, since documentation
+   has not been written yet.
+ - Theorem prover has been generalized, but is not yet stable or
+   documented.  Old %theorem commands should (mostly) still work.

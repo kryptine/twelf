@@ -1,0 +1,16 @@
+Group is
+  ../global/sources.cm
+  ../trail/sources.cm
+  intsyn.sig
+  intsyn.fun
+  whnf.sig
+  whnf.fun
+  conv.sig
+  conv.fun 
+  constraints.sig
+  constraints.fun
+  unify.sig
+  unify.fun 
+  abstract.sig	
+  abstract.fun
+  lambda.sml
