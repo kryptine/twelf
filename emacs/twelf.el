@@ -317,7 +317,6 @@ This is used by the error message parser.")
     ("Print.length" . limit)
     ("Print.indent" . nat)
     ("Print.width" . nat)
-    ("Compile.optimize" . bool)
     ("Prover.strategy" . strategy)
     ("Prover.maxSplit" . nat)
     ("Prover.maxRecurse" . nat))
@@ -337,15 +336,11 @@ Maintained to present reasonable menus.")
 (defvar twelf-print-implicit "false"
   "Current value of Print.implicit Twelf parameter.")
 
-(defvar twelf-compile-optimize "true"
-  "Current value of Compile.optimize Twelf parameter.")
-
 (defconst *twelf-track-parms*
   '(("chatter" . twelf-chatter)
     ;("trace" . twelf-trace)
     ("doubleCheck" . twelf-double-check)
-    ("Print.implicit" . twelf-print-implicit)
-    ("Compile.optimize" . twelf-compile-optimize))
+    ("Print.implicit" . twelf-print-implicit))
   "Association between Twelf parameters and Emacs tracking variables.")
 
 ;;;----------------------------------------------------------------------
@@ -1574,8 +1569,7 @@ created if it doesn't exist."
   (setq twelf-chatter 3)
   ;;(setq twelf-trace 0)
   (setq twelf-double-check "false")
-  (setq twelf-print-implicit "false")
-  (setq twelf-compile-optimize "true"))
+  (setq twelf-print-implicit "false"))
 
 (defun twelf-server (&optional program)
   "Start an Twelf server process in a buffer named *twelf-server*.
@@ -1888,12 +1882,6 @@ Used in menus."
   (let ((value (if (string-equal twelf-print-implicit "false")
 		   "true" "false")))
     (twelf-set "Print.implicit" value)))
-
-(defun twelf-toggle-compile-optimize ()
-  "Toggles Compile.optimize parameter of Twelf."
-  (let ((value (if (string-equal twelf-compile-optimize "false")
-		   "true" "false")))
-    (twelf-set "Compile.optimize" value)))
 
 (defun twelf-get (parm)
   "Prints the value of the Twelf parameter PARM.
@@ -2531,9 +2519,6 @@ Mode map
        ["length" (twelf-set-parm "Print.length") t]
        ["indent" (twelf-set-parm "Print.indent") t]
        ["width" (twelf-set-parm "Print.width") t])
-      ("Compile."
-       (, (toggle "optimize" '(twelf-toggle-compile-optimize)
-		  '(string-equal twelf-compile-optimize "true"))))
       ("Prover."
        ["strategy" (twelf-set-parm "Prover.strategy") t]
        ["maxSplit" (twelf-set-parm "Prover.maxSplit") t]
