@@ -132,7 +132,7 @@ struct
 	  [Fmt.String "(",
 	   Fmt.HVbox (formatFor' (Psi, F1)),
 	   Fmt.String ")", Fmt.Break, Fmt.String "/\\", Fmt.Space, Fmt.String "(",
-	   Fmt.HVbox (formatFor' (Psi, F1)),
+	   Fmt.HVbox (formatFor' (Psi, F2)),
 	   Fmt.String ")"]
       | formatFor' (Psi, T.True) = 
 	[Fmt.String "true"]
