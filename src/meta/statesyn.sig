@@ -17,13 +17,12 @@ sig
 
   datatype Info =
     Splits of int
-  | RL 
-  | RLdone
     
   datatype Tag = 
     Parameter of FunSyn.label option
-  | Lemma of Info
+  | Lemma of Info * FunSyn.For
   | None
+  | ResidualAssumption
 
   datatype State =			(* S = <n, (G, B), (IH, OH), d, O, H, F> *)
     State of int			(* Part of theorem                   *)

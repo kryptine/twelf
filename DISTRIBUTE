@@ -3,20 +3,16 @@ For release:
   Edit Twelf.version in frontend/twelf.fun
   Edit version in doc/guide/twelf.texi
   Edit version in README
-  Edit instructions in INSTALL [no longer exists Sun May 23 12:51:24 1999]
+  Edit instructions in INSTALL
 
   Rebuild document in doc/guide/:
   cd doc/guide
-  make
+  ./guide2all
   ./guide2pdf (on a Sparc, eg. alonzo)
   ./install
 
-  create updated file load.sml
-  CM.mkusefile "load.sml";
-
   bin/clean
   bin/clean-cm  (ignore warning messages)
-
 
   cd ..
   find twelf -type f -print > twelf/FILES
@@ -63,10 +59,6 @@ For release:
 
 
   Archive development state:
-   (perhaps obsolete, but TAG with cvs:
-
-   cvs tag twelf-1-2R5
-   )
 
    rm twelf/bin/.heap/twelf-*.*   (remove heaps so they are not copied)
    cp -rp twelf ../research/twelf-1-2  (make sure twelf-1-2 does not exist)

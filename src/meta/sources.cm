@@ -11,7 +11,6 @@ Group is
   ../opsem/sources.cm
   ../heuristic/sources.cm
   ../timing/sources.cm
-  ../solvers/sources.cm
   ../m2/sources.cm    (* just for integetrating the new prover into
 			 Twelf *)
   funsyn.sig
@@ -48,12 +47,8 @@ Group is
   recursion.fun
   search.sig
   search.fun 
-  uniquesearch.sig
-  uniquesearch.fun
   splitting.sig
   splitting.fun
-  inference.sig
-  inference.fun
   statesyn.sig
   statesyn.fun
   strategy.sig

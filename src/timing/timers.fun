@@ -20,11 +20,10 @@ struct
   val filling  = Timing.newCenter ("Filling       ")
   val splitting= Timing.newCenter ("Splitting     ")
   val recursion= Timing.newCenter ("Recursion     ")
-  val inference= Timing.newCenter ("Inference     ")
 
   val centers = [parsing, recon, abstract, checking, modes, subordinate,
 		 terminate, printing, compiling, solving,
-		 filling, splitting, recursion, inference]
+		 filling, splitting, recursion]
 
   val total    = Timing.sumCenter ("Total         ", centers)
 

@@ -55,11 +55,8 @@ struct
 		else if (k' <= k) then strictSpine (k, p, S)
 		     else false
               | (I.Const (c)) => strictSpine (k, p, S)
-	      | (I.Def (d))  => strictSpine (k, p, S)
-              | (I.FgnConst (cs, conDec)) => strictSpine (k, p, S))
+	      | (I.Def (d))  => strictSpine (k, p, S))
 	      (* no other cases possible *)
-      | strictExp (k, p, I.FgnExp (cs, ops)) = false
-          (* this is a hack - until we investigate this further   -rv *)                        
     (* no other cases possible *)
 
     (* strictSpine (k, S) = B 
@@ -116,9 +113,9 @@ struct
 	        if strictArgParm (1, U')
 		  then strictArgParms (U', V', Paths.body occ)
 		else raise Error (occToString (ocdOpt, occ)
-				  ^ "No strict occurrence of " ^ decToVarName D ^ ", use %abbrev")
+				  ^ "No strict occurrence of " ^ decToVarName D)
 	in
-	  strictArgParms (U, V, Paths.top)
+	  (strictArgParms (U, V, Paths.top); true) handle Error _ => false
 	end
 
 

@@ -18,6 +18,8 @@ functor MetaAbstract (structure Global : GLOBAL
 		        sharing Unify.IntSyn = MetaSyn'.IntSyn
 		      structure Names : NAMES
 		        sharing Names.IntSyn = MetaSyn'.IntSyn
+         	      structure Trail : TRAIL
+			sharing Trail.IntSyn = MetaSyn'.IntSyn
 		      structure TypeCheck : TYPECHECK
 			sharing TypeCheck.IntSyn = MetaSyn'.IntSyn
 		      structure Subordinate : SUBORDINATE
@@ -207,12 +209,12 @@ struct
 	end
       | collectExpW (lG0, G, (I.Root (C, S), s), mode, Adepth) =
 	  collectSpine (lG0, G, (S, s), mode, Adepth)
-      | collectExpW (lG0, G, (I.EVar (r, GX, V, cnstrs), s), mode, 
+      | collectExpW (lG0, G, (I.EVar (r, GX, V, Cnstr), s), mode, 
 		     Adepth as (A, depth)) =
 	(case atxLookup (A, r)
 	   of NONE =>
 	      let 
-	        val _ = checkEmpty (!cnstrs)
+	        val _ = checkEmpty Cnstr
 
 	        val lGp' = I.ctxLength GX - lG0 + depth   (* lGp' >= 0 *)
 		val w = weaken (lGp', GX, I.targetFam V)
@@ -221,7 +223,7 @@ struct
 	        val lGp'' = I.ctxLength GX' - lG0 + depth   (* lGp'' >= 0 *)
 		val Vraised = raiseType (lGp'', GX', I.EClo (V, iw))
 		val X' as I.EVar (r', _, _, _) = I.newEVar (GX', I.EClo (V, iw))
-		val _ = Unify.instantiateEVar (r, I.EClo (X', w), nil)
+		val _ = Trail.instantiateEVar (r, I.EClo (X', w))
 	      (* invariant: all variables (EV) in Vraised already seen *)
 	      in
 		collectSub (lG0, G, lGp'', s, mode, 
@@ -233,9 +235,6 @@ struct
 	      in
 		collectSub (lG0, G, lGp', s, mode, Adepth)
 	      end)
-       | collectExpW (lGO, G, (I.FgnExp (cs, ops), s), mode, Adepth) =
-           collectExp (lGO, G, (#toInternal(ops)(), s), mode, Adepth)
-           (* hack - should discuss with cs    -rv *)
       
 	  
     (* collectSub (lG0, G, lG'', s, mode, (A, depth)) = (A', depth') 
@@ -574,9 +573,6 @@ struct
 		    abstractSub (A, G, depth, (Vraised, I.id), 
 				 s, I.targetFam V, I.Nil))
 	  end
-      | abstractExpW (A, G, depth, (I.FgnExp (cs, ops), s)) =
-          #map(ops)(fn U => abstractExp (A, G, depth, (U, s)))
-        (* hack - should discuss with cs     -rv *)
 
     (* abstractExp, same as abstractExpW, but (V, s) need not be in whnf *)
     and abstractExp (A, G, depth, Us) = 

@@ -1,9 +1,0 @@
-Group is
-  smlnj-lib.cm
-  field.sig
-  ordered-field.sig
-  rationals.fun
-  integers-mod.fun
-  integers.sig
-  integers.fun
-  domains.sml

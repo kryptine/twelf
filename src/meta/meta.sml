@@ -66,11 +66,11 @@ structure MTPAbstract =
 	       structure StateSyn' = StateSyn
 	       structure Whnf = Whnf
 	       structure Constraints = Constraints
-               structure Unify = UnifyTrail
 	       structure Subordinate = Subordinate
 	       structure TypeCheck = TypeCheck
 	       structure FunTypeCheck = FunTypeCheck
-	       structure Abstract = Abstract);
+	       structure Abstract = Abstract
+	       structure Trail = Trail);
 
 
 structure MTPInit = 
@@ -110,10 +110,10 @@ structure MTPSearch =
 	     structure Unify = UnifyTrail
 	     structure Index = IndexSkolem
 	     (* structure Assign = Assign *)
+	     structure Trail = Trail
 	     structure CPrint = CPrint
 	     structure Print = Print
-	     structure Names = Names
-             structure CSManager = CSManager); 
+	     structure Names = Names); 
 
 structure MTPFilling =
   MTPFilling (structure IntSyn = IntSyn
@@ -126,10 +126,6 @@ structure MTPFilling =
 	      structure Search = MTPSearch
 	      structure Whnf = Whnf)
 
-
-
-	       
-	       
 
 structure MTPSplitting = 
   MTPSplitting (structure MTPGlobal = MTPGlobal
@@ -148,62 +144,27 @@ structure MTPSplitting =
 		structure FunTypeCheck = FunTypeCheck
 		structure Index = Index
 		structure Print = Print
-		structure Unify = UnifyTrail
-                structure CSManager = CSManager); 
+		structure Unify = UnifyTrail)
 
-structure UniqueSearch =
-  UniqueSearch (structure Global = Global
-		structure IntSyn' = IntSyn
-		structure FunSyn' = FunSyn
-		structure StateSyn' = StateSyn
-		structure Abstract = Abstract
-		structure MTPGlobal = MTPGlobal
-		structure CompSyn' = CompSyn
-		structure Whnf = Whnf
-		structure Unify = Unify
-		structure Index = Index
-		structure Compile = Compile
-		structure CPrint = CPrint
-		structure Print = Print
-		structure Names = Names
-                structure CSManager = CSManager); 
-
-structure Inference = 
-  Inference (structure MTPGlobal = MTPGlobal
-	     structure IntSyn = IntSyn
-	     structure FunSyn' = FunSyn
-	     structure StateSyn' = StateSyn
-	     structure Abstract = Abstract
-	     structure TypeCheck = TypeCheck
-	     structure FunTypeCheck = FunTypeCheck
-	     structure UniqueSearch = UniqueSearch
-	     structure Whnf = Whnf
-	     structure Print = Print)
-
-		  
 structure MTPRecursion = 
   MTPRecursion (structure Global =  Global
 		structure IntSyn = IntSyn
 		structure FunSyn = FunSyn
 		structure StateSyn' = StateSyn
 		structure FunTypeCheck = FunTypeCheck
-		structure MTPSearch = MTPSearch
 		structure Abstract = Abstract
 		structure MTPAbstract = MTPAbstract
 		structure Whnf = Whnf
 		structure Unify = UnifyTrail
 		structure Conv = Conv
+		structure Trail = Trail
 		structure Names = Names
 		structure Subordinate = Subordinate
 		structure MTPrint = MTPrint
 		structure Print = Print
 		structure TypeCheck = TypeCheck
 		structure FunPrint = FunPrint
-		structure Formatter = Formatter
-                structure CSManager = CSManager); 
-
-
-
+		structure Formatter = Formatter)
 structure MTPStrategy = 
   MTPStrategy (structure MTPGlobal = MTPGlobal
 	       structure StateSyn' = StateSyn
@@ -212,7 +173,6 @@ structure MTPStrategy =
 	       structure MTPFilling = MTPFilling
 	       structure MTPSplitting = MTPSplitting
 	       structure MTPRecursion = MTPRecursion
-	       structure Inference = Inference
 	       structure Timers = Timers)
 	  
   
@@ -248,7 +208,6 @@ structure MTPi =
 	structure MTPData = MTPData
 	structure MTPSplitting = MTPSplitting
 	structure MTPRecursion = MTPRecursion
-	structure Inference = Inference
 	structure MTPStrategy = MTPStrategy
 	structure Names = Names
 	structure Order = Order

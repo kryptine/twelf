@@ -105,7 +105,7 @@ local
 
      This function prints the quantifiers and abstractions only if hide = false.
   *)
-  fun fmtConDec (I.ConDec (name, imp, _, V, L)) =
+  fun fmtConDec (I.ConDec (name, imp, V, L)) =
       let
 	val _ = Names.varReset ()
       in
@@ -124,7 +124,7 @@ local
 	      F.Break, fmtExp (I.Null, (V, I.id)),
 	      F.Break, fmtUni (L)]
       end
-    | fmtConDec (I.AbbrevDef (name, imp, U, V, L)) =
+    | fmtConDec (I.NSConDef (name, imp, U, V, L)) =
       let
 	val _ = Names.varReset ()
       in

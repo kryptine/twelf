@@ -10,8 +10,6 @@ functor MTPStrategy (structure MTPGlobal : MTPGLOBAL
 	  	       sharing MTPSplitting.StateSyn = StateSyn'
 		     structure MTPRecursion : MTPRECURSION
 		       sharing MTPRecursion.StateSyn = StateSyn'
-		     structure Inference : INFERENCE
-		       sharing Inference.StateSyn = StateSyn'
 		     structure MTPrint : MTPRINT
 		       sharing MTPrint.StateSyn = StateSyn'
 		     structure Timers : TIMERS) 
@@ -36,11 +34,6 @@ struct
     fun printRecursion () = 
         if !Global.chatter > 5 then print ("[Recursion ...")
 	else if !Global.chatter> 4 then print ("R")
-	     else ()
-
-    fun printInference () = 
-        if !Global.chatter > 5 then print ("[Inference ...")
-	else if !Global.chatter> 4 then print ("I")
 	     else ()
 
     fun printSplitting splitOp = 
@@ -107,12 +100,9 @@ struct
 	      val _ = printSplitting splitOp
 	      val SL = (Timers.time Timers.splitting MTPSplitting.apply) splitOp
 	      val _ = printCloseBracket ()
-	      val _ = printRecursion ()
 	      val SL' = map (fn S => (Timers.time Timers.recursion MTPRecursion.apply) (MTPRecursion.expand S)) SL
-	      val _ = printInference ()
-	      val SL'' = map (fn S => (Timers.time Timers.inference Inference.apply) (Inference.expand S)) SL'
 	    in
-	      fill (SL'' @ givenStates, os)
+	      fill (SL' @ givenStates, os)
 	    end
 
     and fill (nil, os) = os
