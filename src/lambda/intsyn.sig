@@ -45,6 +45,7 @@ sig
   | Root  of Head * Spine		(*     | H @ S                *)
   | Redex of Exp * Spine		(*     | U @ S                *)
   | Lam   of Dec * Exp			(*     | lam D. U             *)
+  | Pair  of Exp * Exp                  (*     | <U1 , U2>            *)
   | EVar  of Exp option ref * Dec Ctx * Exp * (Cnstr ref) list ref
                                         (*     | X<I> : G|-V, Cnstr   *)
   | EClo  of Exp * Sub			(*     | U[s]                 *)
@@ -65,7 +66,9 @@ sig
     Nil					(* S ::= Nil                  *)
   | App   of Exp * Spine		(*     | U ; S                *)
   | SClo  of Spine * Sub		(*     | S[s]                 *)
-
+  | Fst   of Spine			(*     | Fst S                *)
+  | Snd   of Spine                      (*     | Snd S                *)
+ 
   and Sub =				(* Explicit substitutions:    *)
     Shift of int			(* s ::= ^n                   *)
   | Dot   of Front * Sub		(*     | Ft.s                 *)
