@@ -1,0 +1,9 @@
+Group is
+  ../global/sources.cm
+  ../lambda/sources.cm
+  ../worldcheck/sources.cm
+  tomegaprint.sig
+  tomegaprint.fun
+  normalize.sig
+  normalize.fun
+  tomega.sml
