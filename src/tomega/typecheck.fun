@@ -683,6 +683,7 @@ struct
 	    | T.ValDec(_,P,_) => isValue P )
 
       | isValue (T.Root ((T.Var k), T.Nil)) = ()
+      | isValue (T.Rec _) = ()
       | isValue _ = raise Error "P isn't Value!"
 
 
