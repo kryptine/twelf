@@ -63,6 +63,7 @@ struct
     Uni   of Uni			(* U ::= L                    *)
   | Pi    of (Dec * Depend) * Exp       (*     | bPi (D, P). V         *)
   | Root  of Head * Spine		(*     | C @ S                *)
+  | Pair  of Exp * Exp                  (*     | <U1 , U2>            *)
   | Redex of Exp * Spine		(*     | U @ S                *)
   | Lam   of Dec * Exp			(*     | lam D. U             *)
   | EVar  of Exp option ref * Dec Ctx * Exp * (Cnstr ref) list ref
@@ -88,6 +89,8 @@ struct
     Nil					(* S ::= Nil                  *)
   | App   of Exp * Spine		(*     | U ; S                *)
   | SClo  of Spine * Sub		(*     | S[s]                 *)
+  | Fst   of Spine			(*     | Fst S                *)
+  | Snd   of Spine                      (*     | Snd S                *)
 
   and Sub =				(* Explicit substitutions:    *)
     Shift of int			(* s ::= ^n                   *)
