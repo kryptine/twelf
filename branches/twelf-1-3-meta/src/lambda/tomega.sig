@@ -27,6 +27,7 @@ sig
 
   and Prg =				(* Programs:                  *)
     Lam of Dec * Prg	 	        (*     | lam LD. P            *)
+  | New of Prg                          (*     | new P                *)
   | PairExp of IntSyn.Exp * Prg         (*     | <M, P>               *)
   | PairBlock of IntSyn.Block * Prg     (*     | <rho, P>             *) 
   | PairPrg of Prg * Prg                (*     | <P1, P2>             *)
@@ -99,6 +100,7 @@ sig
   val revCoerceSub : IntSyn.Sub -> Sub
 (*  val revCoerceCtx : IntSyn.Dec IntSyn.Ctx -> Dec IntSyn.Ctx *)
 
+  val raisePrg     : Dec IntSyn.Ctx * Prg -> Prg
 end (* Signature TOMEGA *)
 
 
