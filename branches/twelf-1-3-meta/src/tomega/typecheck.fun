@@ -230,8 +230,6 @@ struct
       | checkPrgW (Psi, (T.New (T.Lam (D as T.UDec (I.BDec (_, (cid, s))), P)), (F, t))) =
 (*	  (print "* Temporary incompleteness;  code is written but not yet clean\n") *)
 	let 
-	  val (Gsome, Lpi) = I.conDecBlock (I.sgnLookup cid)
-	                        (* Psi |- s : Gsome*)
 
 	  fun makeCtx (G, (nil, s)) = G
 	    | makeCtx (G, (D::L, s)) = 
@@ -240,6 +238,38 @@ struct
 	  fun drop n Vs = dropW n (Whnf.whnf Vs)
 	  and dropW 0 (V, s) = (V, s)
 	    | dropW n (I.Pi (_, V), s) = drop (n-1) (V, I.dot1 s)
+
+
+    (* strengthen (t, G) = G'
+
+       Invariant:
+       If   G'' |- t : G    (* and t strsub *)
+       then G' |- t : G  and G' subcontext of G
+    *)
+	  fun strengthenPi (Shift n (* = 0 *), V) = (V, I.Null)
+	    | strengthenPi (Dot (Idx k (* k = 1 *), t), Decl (G, D), V) =
+  	      let 
+		val t' = comp (t, invShift)
+		val (I.Pi (D', V'), G') = strengthenPi (t', G)
+		val _ = TypeCheck.typeCheck (G', D, D')
+ 
+	      in
+		(* G |- D dec *)
+		(* G' |- t' : G *)
+		(* G' |- D[t'] dec *)
+		(I.Pi (D', V'), Decl (G', decSub (D, t')))
+	      end
+	    | strengthenPi (Dot (Undef, t), Decl (G, D), V) = 
+  	      let 
+		val t' = t
+		val (I.Pi (D', V'), G') = strengthenPi (t', G)
+		val _ = TypeCheck.typeCheck (G', D, D')
+ 
+	      in
+	        (V', G')
+	      end
+	    | strengthenPi (Shift n, G) = 
+	        strengthenPi (Dot (Idx (n+1), Shift (n+1)), G)
 
 
 	  (* removeFor (Gpi, (F, s)) = F'
@@ -281,8 +311,12 @@ struct
 	      | makeSub (n, t) = 
 	          makeSub (n-1, T.Dot (T.Exp (I.Root (I.Proj (I.Bidx 1, n), I.Nil)), t))
 
-	  val Gpi = makeCtx (I.Null, (Lpi, s))   (* Psi |- Gpi ctx *)
-	  val F' = removeFor (Gpi, (F, T.coerceSub t))       (* Psi, Gpi |- F' for *)
+	  val (Gsome, Lpi) = I.conDecBlock (I.sgnLookup cid) 
+ 				       	                (* Psi |- s : Gsome*)
+	  val Gpi = makeCtx (I.Null, (Lpi, s))          (* Psi |- Gpi ctx *)
+	  val _ = TypeCheck.typeCheckCtx (Gpi)
+	    
+	  val F' = removeFor (Gpi, (F, T.coerceSub t))  (* Psi, Gpi |- F' for *)
 	  val t' = makeSub (List.length Lpi, T.Shift (I.ctxLength Psi + 1))
 	in
 	  checkPrgW (I.Decl (Psi, D), (P, (F', t')))
