@@ -469,7 +469,6 @@ struct
 	  | strengthen' (I.Decl (Psi1, LD as T.UDec (I.Dec (name, V))), Psi2, L, w1) =
 	    if (I.bvarSub (1, w1) = I.Idx 1) then
 	      let 
-		val _ = print "X"
 		val w1' = dot1inv w1
 		val (Psi1', w', z') = strengthen' (Psi1, LD :: Psi2, L, w1')
 		val V' = strengthenExp (V, w')
@@ -479,7 +478,6 @@ struct
 	    else 
 	      if occursInPsi (1, (Psi2, L)) then
 		let 
-		  val _ = print ("Y")
 		  val w1' = strengthenSub (w1, I.shift)
 		  val (Psi1', w', z') = strengthen' (Psi1, LD :: Psi2, L, w1')
 		  val V' = strengthenExp (V, w')
@@ -488,7 +486,6 @@ struct
 		end	    
 	      else
 		let 
-		  val _ = print "_"
 		  val w1' = strengthenSub (w1, I.shift)
 		  val w2 = I.shift
 		  val (Psi2', w2') = strengthenPsi' (Psi2, w2)
@@ -499,7 +496,6 @@ struct
 		end
 	  | strengthen' (I.Decl (Psi1, D as T.PDec (name, F)), Psi2, L, w1) =
 	    let 
-val _ = print "Z"
 	      val w1' = dot1inv w1
 	      val (Psi1', w', z') = strengthen' (Psi1, D :: Psi2, L, w1')
 	      val F' = strengthenFor (F, w')
@@ -757,10 +753,6 @@ val _ = print "Z"
 	      val n = domain (Psi1, w1)	(* n = |Psi0, G', B| *)
 	      val m = I.ctxLength Psi0  (* m = |Psi0| *)
 
-	      val _ = print ("* " ^ (Int.toString n) ^ "\n")
-	      val _ = print ("* " ^ (Int.toString m) ^ "\n")
-
-
 	      fun lookup (b :: L, a) = 
 		  if a = b then 1 + (List.length L) 
 		  else lookup (L, a)
@@ -825,8 +817,6 @@ val _ = print "Z"
 	      val (P''', F''') = lift (B, (P'', F''))
 					(* Psi0, G' |- P''' :: F''' *)
 
-val _ = print "\n\n"
-
 	      val (Psi1'', w2, z2) = strengthen (Psi1, (a, S), w1, M.Minus)
 		                        (* |- Psi0, Psi1'' ctx *)
 					(* Psi0, G'' |- w2 : Psi1'' *)
@@ -851,7 +841,6 @@ val _ = print "\n\n"
 					   at work which one has to prove 
 					   correct 
                                         *)
-	      val _ = print ("* " ^ (Int.toString (I.ctxLength Psi1)) ^ "\n")
 
 (*	      val s3 = Whnf.invert w3	(* Psi0, G3 |- s3 :  Psi0, G'*) *)
 	      val t = T.Dot (T.Prg Pat, T.embedSub z3)
