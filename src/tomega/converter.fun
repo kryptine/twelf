@@ -946,6 +946,7 @@ exception Error' of Tomega'.For
 					(* Sigma (a) = Va *)
 					(* Psi0, Psi |- S : {G} type > type *)
 	    let 
+val _ = print "[1"
 	      val Psi1 = append (Psi0, Psi)
 					(* Psi1 = Psi0, Psi *)
 	      val w0 = I.Shift (I.ctxLength Psi)
@@ -957,28 +958,25 @@ exception Error' of Tomega'.For
 					(* Psi' |- s'' : G+ *)
 					(* G |- w'' : G+ *)
 	      val _ = TomegaTypeCheck.checkCtx Psi'
+val _ = print "]"
 	    in
 	      (SOME (w', (fn P => (Psi', s'', P), transformConc ((a, S), w))))
 	    end
 	  
         and traversePos ((Psi0, Psi, G), I.Pi ((D as I.BDec (x, (c, s)), _), V), SOME (w1, (P, Q))) =
   	    let 
+val _ = print "[2"
 	      val c' = wmap c
 	      val n = I.ctxLength Psi0 + I.ctxLength G
 (*	      val s' = mediateSub (n, I.Shift (n+I.ctxLength Psi0)) *)
 
 	      val (Gsome, Lpi) = I.constBlock c
-val _ = print "*"
 	      val _ = TypeCheck.typeCheckCtx (T.coerceCtx (append(append(Psi0, Psi), T.embedCtx G)))
-val _ = print "*"
 	      val _ = TypeCheck.typeCheckSub (T.coerceCtx (append(append(Psi0, Psi), T.embedCtx G)), s, Gsome)
-val _ = print "*"
 	      val (Gsome', Lpi') = I.constBlock c'
-val _ = print "*"
 	      val _ = TypeCheck.typeCheckCtx (T.coerceCtx (append(append(Psi0, Psi), T.embedCtx G)))
-val _ = print "*"
 	      val _ = TypeCheck.typeCheckSub (T.coerceCtx (append(append(Psi0, Psi), T.embedCtx G)), s, Gsome')
-val _ = print "*"
+val _ = print "]"
 	    in
 	      traversePos ((Psi0, Psi, 
 			    I.Decl (G,  (* T.UDec *) (I.BDec (x, (c', s))))), 
@@ -990,6 +988,8 @@ val _ = print "*"
 					(* Psi0, G, B |- V : type *)
 					(* Psi0, G, B |- w1 : Psi0, G', B' *)
 	    let
+val _ = print "[3"
+
 	      val Psi1 = append (Psi0, append (G, T.embedCtx B))
 					(* Psi1 = Psi0, G, B *)
 	      val _ = TomegaTypeCheck.checkCtx (append(append(Psi0, G), T.embedCtx B))
@@ -1076,6 +1076,8 @@ val _ = print "*"
 
 	      val b = I.ctxLength B     (* b = |B| = |B'| *)
 	      val w1' = peeln (b, w1)	(* Psi0, G |- w1' : Psi0, G' *)
+
+
 	      val (B', _) = strengthenCtx (B, w1')
 					(* |- Psi0, G', B' ctx *)
 
@@ -1121,9 +1123,13 @@ val _ = print "*"
 	      val F''' = raiseFor (GB', (RR, I.id))
                                           (* Psi0, G |- w1' : Psi0, G' *)
                                           (* Psi0, G' |- F''' for *)
+val _ = print "..."
 
+	      val _ = TomegaTypeCheck.checkCtx (append (Psi0, G))
+val _ = print "..."
 	      val _ = TomegaTypeCheck.checkFor (append (Psi0, G), 
 						(Normalize.normalizeFor(F''', T.embedSub w1')))
+val _ = print "]"
 	
 	      val (Psi1'', w2, z2) = strengthen (Psi1, (a, S), w1, M.Minus)
 		                        (* |- Psi0, Psi1'' ctx *)
@@ -1207,7 +1213,7 @@ val _ = print "*"
 	  *)
 	  fun transformList (nil, w) = nil
 	    | transformList ((D as I.Dec (x, V)) :: L, w) = 
-	      if List.exists (fn a => I.targetFam V = a) fams then 
+	      if List.foldr (fn (a, b) => b andalso Subordinate.belowEq (a, I.targetFam V)) true fams then 
 		transformList (L,  I.comp (w, I.shift))
 	      else
 		let 
@@ -1358,11 +1364,8 @@ val _ = print "*"
 	      if T.eqWorlds (W, W') then W' else raise Error "Type families different in different worlds"
 	    end
 	    
-val _ = print "DEBUG"
 	val W = convertWorlds L
-val _ = print "DEBUG"
 	val (W', wmap) = transformWorlds (L, W)
-val _ = print "DEBUG"
 
 	fun convertOnePrg (a, F) =
 	  let 
