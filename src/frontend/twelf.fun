@@ -71,6 +71,10 @@ functor Twelf
    structure TomegaPrint : TOMEGAPRINT
      sharing TomegaPrint.IntSyn = IntSyn'
      sharing TomegaPrint.Tomega = Tomega
+   structure TomegaCoverage : TOMEGACOVERAGE
+     sharing TomegaCoverage.IntSyn = IntSyn'
+     sharing TomegaCoverage.Tomega = Tomega
+
    structure Total : TOTAL
      sharing Total.IntSyn = IntSyn'
 
@@ -598,7 +602,7 @@ struct
 	  val _ = if !Global.chatter >= 6
 		    then print (TomegaPrint.funToString P ^ "\n")
 		  else ()
-(*	  val _ = TomegaCoverage.coverageCheckPrg (I.Null, P) *)
+	  val _ = TomegaCoverage.coverageCheckPrg (IntSyn.Null, P)
 (* ******************************************* *)
 
 	  val _ = map Total.install La	(* pre-install for recursive checking *)
