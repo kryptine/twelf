@@ -56,6 +56,7 @@ is
   ../compile/sources.cm
   ../opsem/sources.cm
   ../subordinate/sources.cm
+  ../poly/sources.cm
   ../modules/sources.cm
   ../meta/sources.cm 
   ../solvers/sources.cm

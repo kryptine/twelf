@@ -94,6 +94,7 @@ functor Twelf
    (*! sharing Subordinate.IntSyn = IntSyn' !*)
    (*! structure CompSyn' : COMPSYN !*)
    (*! sharing CompSyn'.IntSyn = IntSyn' !*)
+   structure Poly : POLY
    structure Compile : COMPILE
    (*! sharing Compile.IntSyn = IntSyn' !*)
    (*! sharing Compile.CompSyn = CompSyn' !*)
@@ -316,6 +317,7 @@ struct
 	      | Prover.Error (msg) => abortFileMsg (fileName, msg)
 	      | Strict.Error (msg) => abortFileMsg (fileName, msg)
               | Subordinate.Error (msg) => abortFileMsg (fileName, msg)
+              | Poly.Error (msg) => abortFileMsg (fileName, msg)
 	      | WorldSyn.Error (msg) => abort (msg ^ "\n") (* includes filename *)
               | ModSyn.Error (msg) => abortFileMsg (fileName, msg)
 	      | Converter.Error (msg) => abortFileMsg (fileName, msg)
@@ -337,6 +339,8 @@ struct
           val _ = (Timers.time Timers.compiling Compile.install) fromCS cid
           val _ = (Timers.time Timers.subordinate Subordinate.install) cid
           val _ = (Timers.time Timers.subordinate Subordinate.installDef) cid
+          val _ = (Timers.time Timers.poly Poly.install) cid
+          val _ = (Timers.time Timers.poly Poly.installDef) cid
         in
           ()
         end
@@ -544,6 +548,8 @@ struct
         in
           Subordinate.installFrozen cids
           handle Subordinate.Error (msg) => raise Subordinate.Error (Paths.wrap (r, msg));
+          Poly.installFrozen cids
+          handle Poly.Error (msg) => raise Poly.Error (Paths.wrap (r, msg));
           if !Global.chatter >= 3
           then print ((if !Global.chatter >= 4 then "%" else "")
                       ^ "%freeze"
@@ -773,6 +779,7 @@ struct
 (*		       | Cover.Error (msg) => covererror (result1, msg)  disabled -cs Thu Jan 29 16:35:13 2004 *)
 		       | Reduces.Error (msg) => raise Reduces.Error (msg) (* includes filename *)
 		       | Subordinate.Error (msg) => raise Subordinate.Error (Paths.wrap (r, msg))
+		       | Poly.Error (msg) => raise Poly.Error (Paths.wrap (r, msg))
 (*	  val _ = case (result1) 
 	            of NONE => ()
 		     | SOME msg => raise Cover.Error (Paths.wrap (r, "Relational coverage succeeds, funcational fails:\n This indicates a bug in the functional checker.\n[Functional] " ^ msg))
@@ -1150,6 +1157,7 @@ struct
 		    Index.reset (); 
 		    IndexSkolem.reset ();
 		    Subordinate.reset ();
+		    Poly.reset ();
 		    Total.reset ();	(* -fp *)
 		    WorldSyn.reset ();	(* -fp *)
 		    Reduces.reset ();	(* -bp *)
