@@ -634,7 +634,7 @@ local
 	val (Gsome, Gblock) = I.constBlock cid
       in
 	F.HVbox ([Str0 (Symbol.const (nameOf (x))), sym ":"]
-		 @ fmtDecList' (G, (Gblock, s)))
+		 @ fmtDecList' (G, (Gblock, I.comp (t, s))))
       end
   and fmtDecList' (G0, (nil, s)) = nil
     | fmtDecList' (G0, (D::nil, s)) = 
