@@ -239,16 +239,12 @@ struct
                    
   and dec =
       dec of string option * term * Paths.region
-      | decRef of (string option * term * Paths.region * ((term  * Apx.Exp) option) ) ref (* ABP -- 9/12/04 *)
-      | ndec of Paths.region (* ABP -- 8/17/04 *)
 
   fun backarrow (tm1, tm2) = arrow (tm2, tm1)
              
   (* for now *)
   fun dec0 (nameOpt, r) = dec (nameOpt, omitted (r), r)
-  fun refdec (nameOpt, term, r) = decRef(ref (nameOpt, term, r, NONE))
-  fun refdec0 (nameOpt, r) = refdec (nameOpt, omitted (r), r)
-    
+
   datatype job =
       jnothing
     | jand of job * job
@@ -285,8 +281,6 @@ struct
     | termRegion (omitexact (U, V, r)) = r
 
   and decRegion (dec (name, tm, r)) = r
-    | decRegion (ndec r) = r
-    | decRegion (decRef (ref (_, _, r, _))) = r
 
   fun ctxRegion (IntSyn.Null) = NONE
     | ctxRegion (IntSyn.Decl (g, tm)) =
@@ -548,20 +542,6 @@ struct
         in
           (dec (name, tm', r), D)
         end
-      | inferApxDec (G, ndec r) = (ndec r, NDec)
-      | inferApxDec (G, decRef (X as (ref (nameOpt, tm, r, NONE)))) =
-        let
-          val (tm', V1) = checkApx (G, tm, Uni Type, Kind,
-                                    "Classifier in declaration must be a type")
-          val D = Dec (nameOpt, V1)
-	  val _ = X := (nameOpt, tm, r,  SOME(tm',  V1))
-        in
-          (dec (nameOpt, tm', r), D)
-        end
-      | inferApxDec (G, decRef (X as (ref (nameOpt, tm, r, SOME(tm', V1))))) =
-	  (dec (nameOpt, tm', r), Dec (nameOpt, V1))
-	
-
 
     fun inferApxJob (G, jnothing) = jnothing
       | inferApxJob (G, jand (j1, j2)) =
@@ -1037,7 +1017,6 @@ struct
         in
           (dec (name, tm', r), D)
         end
-      | inferExactDec (G, ndec r) = (ndec r, NDec)
 
     and checkExact1 (G, lam (dec (name, tm1, r), tm2), Vhs) =
         let
