@@ -213,5 +213,5 @@ ndh_foralle : ndhil (foralle D1 T) (mp (f1 T) H1)
 	   {nh:ndhil u v}.
 %worlds (li | lo | lndhil) (ndhil D H).
 %terminates D (ndhil D _).
-% %covers ndhil +D -H.
+%covers ndhil +D -H.
 % %total D (ndhil D _).
