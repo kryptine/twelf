@@ -49,8 +49,10 @@ struct
 (*       let 
 	 val V = evalPrg (Psi, (P1, T.id))
        in *)
+
          matchVal (Psi, (P1, T.id), 
 		   Normalize.normalizePrg (P2, T.id))
+
 (*       end *)
     (* matchVal (Psi, V1, V2) = ()
   
@@ -78,7 +80,7 @@ struct
      | matchVal (Psi, (T.PClo (P, t1'), t1), Pt) = 
 	 matchVal (Psi, (P, T.comp (t1', t1)), Pt) 
      | matchVal (Psi, (P', t1), T.EVar (_, r as ref NONE, _)) = 
-	 (r := SOME (T.PClo (P', t1)))
+	 (print "INST"; r := SOME (T.PClo (P', t1)))
      | matchVal (Psi, (T.Rec _, _), T.PairPrg _) = raise Domain
 	
 
@@ -92,8 +94,32 @@ struct
 
      | matchVal (Psi, (T.Rec (_, P1) ,t1), T.PairExp (U2, P2)) = raise Domain
 
-     | matchVal _ = raise NoMatch
 
+     (* ABP -- 1/18/02 Bad Case *)
+
+     | matchVal (Psi, (V,t), T.EVar ((D, r as ref (SOME P), F))) = matchVal (Psi, (V,t), P)
+
+     | matchVal (Psi, (V1 as T.Lam _, t), V2 as T.Lam _) = raise Domain
+
+     | matchVal (Psi, (T.Lam _, t), T.New _) = raise Domain
+     | matchVal (Psi, (T.Lam _, t), T.PairExp _) = raise Domain
+     | matchVal (Psi, (T.Lam _, t), T.PairBlock _) = raise Domain
+     | matchVal (Psi, (T.Lam _, t), T.PairPrg _) = raise Domain
+     | matchVal (Psi, (T.Lam _, t), T.Root _) = raise Domain
+     | matchVal (Psi, (T.Lam _, t), T.Redex _) = raise Domain
+     | matchVal (Psi, (T.Lam _, t), T.Rec _) = raise Domain
+     | matchVal (Psi, (T.Lam _, t), T.Case _) = raise Domain
+
+	 (* adam *)
+     | matchVal (Psi, (V,t), T.PClo (P, t')) = 
+	 matchVal (Psi, (V,t),  Normalize.normalizePrg (P, t'))
+	 
+
+     | matchVal (Psi, (T.Lam _, t), T.Let _) = raise Domain
+	 
+     (*    | matchVal (Psi, (T.Lam _, t), T.EVar _) = raise Domain *)
+    
+     | matchVal _ = raise NoMatch
 
 
 
@@ -151,8 +177,8 @@ struct
       | evalPrg (Psi, (T.Root (T.Var k, S), t)) =
           (print "root"; case T.varSub (k, t) 
              of T.Prg V =>  evalRedex (Psi, evalPrg (Psi, (V, T.id)), (S, t)))
-      | evalPrg (Psi, (T.Root (T.Const lemma, _), t)) =
-          T.lemmaDef lemma
+      | evalPrg (Psi, (T.Root (T.Const lemma, S), t)) =
+           evalPrg (Psi, (T.Redex(T.lemmaDef lemma, S), t))
       | evalPrg (Psi, (T.Lam (D, P), t)) =
 	  T.Lam (T.decSub (D, t), T.PClo (P, T.dot1 t))
 	  (* Need to add support for the NEW construct *)
@@ -163,7 +189,13 @@ struct
       | evalPrg (Psi, (T.PClo (P, t'), t)) =
 	  evalPrg (Psi, (P, T.comp (t', t)))
       | evalPrg (Psi, (T.Case O, t')) =
-          match (Psi, t', O)
+	  let 
+	    val _ = print "<"
+	    val r = match (Psi, t', O)
+	    val _ = print ">"
+	  in 
+	    r
+	  end
 
       | evalPrg (Psi, (T.EVar ((D, r as ref (SOME P), F)), t)) =
 	  evalPrg (Psi, (P, t))
@@ -232,7 +264,7 @@ struct
 	  (print "\n["; matchSub (Psi, t1, t'); print "\n]";
 	   evalPrg (Psi, (P, Normalize.normalizeSub t)))
 (*abp	  handle NoMatch => (print "\n}";match (Psi, t, T.Cases C)) *)
-	  handle NoMatch => (print "\n}";match (Psi, t1, T.Cases C))
+	  handle NoMatch => (print "\n]";match (Psi, t1, T.Cases C))
 	  
 	end
 
@@ -252,6 +284,7 @@ struct
       | createVarSub (Psi, I.Decl (Psi', T.PDec (name, F))) =
         let 
 	  val t = createVarSub (Psi, Psi')
+	  val _ = print "GEN "
 	in
           T.Dot (T.Prg (T.EVar (Psi, ref NONE, Normalize.normalizeFor (F, t))), t)
 	end
@@ -336,6 +369,11 @@ struct
 	  in
 	    evalRedex (Psi, V', (S, t))
 	  end
+
+  (* ABP -- 1/17/02 *)
+    | evalRedex (Psi, T.Lam (T.PDec _, _), R as (T.AppExp _,t)) = raise Domain
+    | evalRedex (Psi, V, _) = raise Domain 
+
 
   in
     val evalPrg = fn P => evalPrg (I.Null, (P, T.id))  

@@ -645,7 +645,7 @@ struct
 	      end
 
 	  val _ = checkFreeOut La
-	  val (lemma, projs) = Converter.installPrg La
+	  val (lemma, projs, sels) = Converter.installPrg La
 	  val P = Tomega.lemmaDef lemma
 	  val F = Converter.convertFor La
 

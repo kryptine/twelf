@@ -61,7 +61,13 @@ struct
     fun normalizePrg (P as (T.Root (T.Const _, _)), t) = P
       | normalizePrg ((P as (T.Root (T.Var n, T.Nil))), t) = 
         (case T.varSub (n, t) 
-	   of (T.Prg P) => P)
+	   of (T.Prg P) => P
+	   (* ABP -- 1/20/03 *)
+	   | (T.Idx _) => raise Domain
+	   | (T.Exp _) => raise Domain
+	   | (T.Block _) => raise Domain
+	   | (T.Undef) => raise Domain
+	     )
       |  normalizePrg (T.PairExp (U, P'), t) = 
 	  T.PairExp (Whnf.normalize (U, T.coerceSub t), normalizePrg (P', t))
       | normalizePrg (T.PairBlock (B, P'), t) = 

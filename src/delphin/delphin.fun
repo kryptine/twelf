@@ -52,10 +52,10 @@ struct
     fun runSimpleTest elfFile funcList arg isDef = 
       let
 
-	fun test names =
+	fun test (names as [name]) =
 	  (let 
 	     val La = map (fn x => valOf (Names.constLookup (valOf (Names.stringToQid x)))) names
-	     val (lemma, projs) = Converter.installPrg La
+	     val (lemma, projs, sels) = Converter.installPrg La
 	     val P = Tomega.lemmaDef lemma
 	     val F = Converter.convertFor La	       
 	     val _ = TomegaTypeCheck.checkPrg (I.Null, (P, F))
@@ -63,10 +63,21 @@ struct
 						     projs), P) ^ "\n")	
 	   in P
 	   end)
+	  | test names =
+	  (let 
+	     val La = map (fn x => valOf (Names.constLookup (valOf (Names.stringToQid x)))) names
+	     val (lemma, projs, sels) = Converter.installPrg La
+	     val P = Tomega.lemmaDef lemma
+	     val F = Converter.convertFor La	       
+	     val _ = TomegaTypeCheck.checkPrg (I.Null, (P, F))
+	     val _ = TextIO.print ("\n" ^ TomegaPrint.funToString ((map (fn (cid) => IntSyn.conDecName (IntSyn.sgnLookup cid)) La,
+						     projs), P) ^ "\n")	
+	   in Tomega.lemmaDef (hd sels)
+	   end)
 
 	val _ = Twelf.loadFile elfFile
 	val P = test funcList
-
+(*	val _ = TextIO.print ("\n" ^ TomegaPrint.funToString (([name], []), P) ^ "\n") *)
 
 	val x = valOf (Names.constLookup (valOf (Names.stringToQid arg)))
 
