@@ -56,7 +56,9 @@ in
 
   val _ = Twelf.chatter := 1
 (*  val _ = FunNames.reset(); --cs *)
-  
+
+  val _ = load "/home/carsten/people/KarlCrary/sources.cfg";
+  val _ = print ["foo"]
 
   val _ = load "examples/guide/sources.cfg"
   val _ = print ["cp"]

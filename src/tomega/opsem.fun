@@ -46,9 +46,12 @@ struct
 
 
    fun matchPrg (Psi, P1, P2) = 
+(*       let 
+	 val V = evalPrg (Psi, (P1, T.id))
+       in *)
          matchVal (Psi, (P1, T.id), 
 		   Normalize.normalizePrg (P2, T.id))
-
+(*       end *)
     (* matchVal (Psi, V1, V2) = ()
   
        Invariant:
@@ -76,7 +79,8 @@ struct
 	 matchVal (Psi, (P, T.comp (t1', t1)), Pt) 
      | matchVal (Psi, (P', t1), T.EVar (_, r as ref NONE, _)) = 
 	 (r := SOME (T.PClo (P', t1)))
-
+     | matchVal (Psi, (T.Rec _, _), T.PairPrg _) = raise Domain
+	
 
 (*
      | matchVal (Psi, (T.EVar (_, r as ref (SOME (T.PClo _)), _), t1), P2) = raise Domain
@@ -102,7 +106,7 @@ struct
        and  P = raise (G, P')   (using subordination)
        and  F = raise (G, F')   (using subordination)
     *)
-    fun raisePrg (G, T.Unit) = T.Unit
+    and raisePrg (G, T.Unit) = T.Unit
       | raisePrg (G, T.PairPrg (P1, P2)) =
         let 
 	  val P1' = raisePrg (G, P1)
@@ -318,7 +322,12 @@ struct
     | evalRedex (Psi, T.Lam (T.UDec _, P'), (T.AppBlock (B, S), t)) =
           evalRedex (Psi, evalPrg (Psi, (P', T.Dot (T.Block (I.blockSub (B, T.coerceSub t)), T.id))), (S, t))
     | evalRedex (Psi, T.Lam (T.PDec _, P'), (T.AppPrg (P, S), t)) =
-	  evalRedex (Psi, evalPrg (Psi, (P', T.Dot (T.Prg (T.PClo (P, t)), T.id))), (S, t))
+	  let
+	    val V = evalPrg (Psi, (P, t))
+	    val V' = evalPrg (Psi, (P', T.Dot (T.Prg V, T.id)))
+	  in
+	    evalRedex (Psi, V', (S, t))
+	  end
 
   in
     val evalPrg = fn P => evalPrg (I.Null, (P, T.id))  

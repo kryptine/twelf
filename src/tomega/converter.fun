@@ -1457,11 +1457,12 @@ exception Error' of Tomega.Sub
 
     fun createProjection (Psi, T.And (F1, F2), Pattern) = 
           createProjection (I.Decl (Psi, T.PDec (NONE, F1)), F2, 
-			    fn P => T.PairPrg (T.Root (T.Var (1+ I.ctxLength Psi), T.Nil),
+			    fn P => T.PairPrg (T.Root (T.Var (2+ I.ctxLength Psi), T.Nil),
 					       Pattern P))
       | createProjection (Psi, F,  Pattern) =
           fn k => T.Case (T.Cases [(I.Decl (Psi, T.PDec (NONE, F)),
-			    T.Dot (T.Prg (Pattern (T.Root (T.Var 1, T.Nil))), T.id),
+			    T.Dot (T.Prg (Pattern (T.Root (T.Var 1, T.Nil))), 
+				   T.Shift (1+ I.ctxLength Psi)),
 			    T.Root (T.Var k, T.Nil))])
 	  
     fun installMutual ([cid], F, k, Proj) = 
@@ -1474,7 +1475,7 @@ exception Error' of Tomega.Sub
       | installMutual (cid :: cids, T.And (F1, F2), k, Proj) =
         let
 	  val name = I.conDecName (I.sgnLookup cid)
-	  val _ = T.lemmaAdd (T.ValDec (name, Proj k , F1))
+	  val l = T.lemmaAdd (T.ValDec (name, Proj k , F1))
 	in
 	  installMutual (cids, F2, k+1, Proj)
 	end
