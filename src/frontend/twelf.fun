@@ -106,10 +106,14 @@ functor Twelf
    structure TableIndex : TABLEINDEX
    (*! sharing TableIndex.IntSyn = IntSyn' !*)
    structure Solve : SOLVE
-   (*! sharing Solve.IntSyn = IntSyn' !*)
      sharing type Solve.ExtQuery.query = Parser.ExtQuery.query
      sharing type Solve.ExtQuery.define = Parser.ExtQuery.define
      sharing type Solve.ExtQuery.solve = Parser.ExtQuery.solve
+   structure Fquery : FQUERY
+   (*! sharing Fquery.IntSyn = IntSyn' !*)
+     sharing type Fquery.ExtQuery.query = Parser.ExtQuery.query
+     sharing type Fquery.ExtQuery.define = Parser.ExtQuery.define
+     sharing type Fquery.ExtQuery.solve = Parser.ExtQuery.solve
 	     (*! sharing Solve.Paths = Paths !*)
 
    structure ThmSyn : THMSYN
@@ -509,8 +513,10 @@ struct
 	        => raise Solve.AbortQuery (Paths.wrap (r, msg)))
       (* %fquery <expected> <try> A or %fquery <expected> <try> X : A *)
       | install1 (fileName, (Parser.FQuery (query), r)) =
-        (* Solve.query might raise Solve.AbortQuery (msg) *)
-	raise Domain
+        (* Solve.query might raise Fquery.AbortQuery (msg) *)
+	(Fquery.run (query, Paths.Loc (fileName, r))
+	 handle Fquery.AbortQuery (msg)
+	        => raise Fquery.AbortQuery (Paths.wrap (r, msg)))
 
       (* %queryTabled <expected> <try> A or %query <expected> <try> X : A *)
       | install1 (fileName, (Parser.Querytabled(numSol, try,query), r)) =
@@ -688,6 +694,38 @@ struct
 	  val (T, rrs as (r,rs)) = ReconThm.tdeclTotDecl lterm
 	  val La = Thm.installTotal (T, rrs)
 
+(* ******************************************* *)
+	  fun checkFreeOut nil = ()
+	    | checkFreeOut (a :: La) =
+	      let 
+		val SOME ms = ModeSyn.modeLookup a
+	        val _ = ModeCheck.checkFreeOut (a, ms)
+	      in
+		checkFreeOut La 
+	      end
+
+	  val _ = checkFreeOut La
+	  val (lemma, projs, sels) = Converter.installPrg La
+
+	  (* ABP 2/28/03 -- Remove redundancy *)
+	  val _ = if (!Global.chatter >= 4) then print ("[Redundancy Checker (factoring) ...") else ()
+	  val P = Redundant.convert (Tomega.lemmaDef lemma)
+	  val _ = if (!Global.chatter >= 4) then print ("]\n") else ()
+
+	  val F = Converter.convertFor La
+
+	  val _ = if !Global.chatter >= 2
+		    then print (TomegaPrint.funToString ((map (fn (cid) => IntSyn.conDecName (IntSyn.sgnLookup cid)) La,
+							  projs), P) ^ "\n")
+		  else ()
+
+	  val _ = print "["
+	  val _ = TomegaTypeCheck.checkPrg (IntSyn.Null, (P, F))
+	  val _ = print "]"
+	      
+	  val _ = TomegaCoverage.coverageCheckPrg (WorldSyn.lookup (hd La), IntSyn.Null, P)
+
+(* ******************************************* *)
 
 	  val _ = map Total.install La	(* pre-install for recursive checking *)
 	  val _ = map Total.checkFam La

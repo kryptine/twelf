@@ -21,4 +21,11 @@ a_3   : acker (s X) (s Y) Z
 	 <- acker (s X) Y Z'
 	 <- acker X Z' Z.
 
+%worlds () (acker _ _ _).
+%compile acker.
+
+% query 1 1  (acker (s (s (s z))) (s (s (s z))) Z).
+
+%fquery (acker (s (s (s z))) (s (s (s z))) Z).
+
 
