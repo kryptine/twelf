@@ -22,7 +22,7 @@ Group is
   ../solvers/sources.cm
   ../worldcheck/sources.cm
   ../cover/sources.cm
-  ../tomega/sources.cm
+  ../tomega/sources.cm 
   ../prover/sources.cm
   lexer.sig
   lexer.fun
