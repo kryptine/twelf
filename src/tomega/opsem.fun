@@ -48,7 +48,7 @@ struct
 	  matchVal (Psi, (P1', t1), P2'))
      | matchVal (Psi, (T.PairBlock (B1, P1), t1), T.PairBlock (B2, P2)) =
 	 (matchVal (Psi, (P1, t1), P2);
-	  Unify.unifyBlock (I.blockSub (B1, T.coerceSub t1), B2)
+	  Unify.unifyBlock (T.coerceCtx Psi, I.blockSub (B1, T.coerceSub t1), B2)
 	  handle Unify.Unify _ => raise NoMatch)
      | matchVal (Psi, (T.PairExp (U1, P1), t1), T.PairExp (U2, P2)) =
 	 (matchVal (Psi, (P1, t1), P2);
