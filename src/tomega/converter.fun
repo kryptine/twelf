@@ -260,30 +260,30 @@ struct
       end
 
 
-    (* createIHCtx (Psi, L) = (Psi', P', F')
-
-       Invariant:
-       If   L is a list of type families
-       and  Psi is a context
-       then Psi' extends Psi' by declarations in L
-       and  F' is the conjunction of the formuals 
-	    that corresponds to each type family in L
-       and  Psi' |- P' in F'
-     *)
-    fun createIHCtx (Psi, nil) = raise Error "Empty theorem"
-      | createIHCtx (Psi, [a]) = 
-        let 
-	  val F = convertOneFor a
-	in
-	  (I.Decl (I.Null, T.PDec (NONE, F)),  T.Root (T.Var 1, T.Nil), F)
-	end
-      | createIHCtx (Psi, a :: L) = 
-	let
-	  val F = convertOneFor a
-	  val (Psi', P', F') = createIHCtx (I.Decl (Psi,  T.PDec (NONE, F)), L)
-	in
-	  (Psi', T.PairPrg (T.Root (T.Var (1+length L), T.Nil), P'), T.And (F, F'))
-	end
+	    (* createIHCtx (Psi, L) = (Psi', P', F')
+     
+	       Invariant:
+               If   L is a list of type families
+               and  Psi is a context
+               then Psi' extends Psi' by declarations in L
+               and  F' is the conjunction of the formuals 
+            	    that corresponds to each type family in L
+               and  Psi' |- P' in F'
+	    *)
+	    fun createIHCtx (Psi, nil) = raise Error "Empty theorem"
+	      | createIHCtx (Psi, [a]) = 
+	        let 
+		  val F = convertOneFor a
+		in
+		  (Psi,  T.Root (T.Var 1, T.Nil), F)
+		end
+	      | createIHCtx (Psi, a :: L) = 
+		let
+		  val F = convertOneFor a
+		  val (Psi', P', F') = createIHCtx (I.Decl (Psi,  T.PDec (NONE, F)), L)
+		in
+		  (Psi', T.PairPrg (T.Root (T.Var (1+length L), T.Nil), P'), T.And (F, F'))
+		end
 
 
     fun convertFor L = 
@@ -533,18 +533,6 @@ struct
 
 
 
-    fun recursion L =
-        let
-	  val (Psi, P, F) = createIHCtx (I.Null, L)
-	  val _ = chatter 4 (fn () => TomegaPrint.forToString (I.Null, F) ^ "\n")
-	  val t = T.Dot (T.Prg P, T.Shift (I.ctxLength Psi))
-
-	  fun name [a] = I.conDecName (I.sgnLookup a)
-	    | name (a :: L) = I.conDecName (I.sgnLookup a) ^ "/" ^ (name L)
-	in
-	  (Psi, fn p => T.Rec (T.PDec (SOME (name L), F), 
-			       T.Case (T.Cases [(Psi, t, p)])))
-	end
 
 
     fun lookupIH (Psi, L, a) = 
@@ -570,48 +558,6 @@ struct
     fun createIHSub (Psi, L) =
          T.Shift (I.ctxLength Psi - List.length L)
 
-    (* init a = P'
-
-       Invariant: 
-       If   a is a type family
-       and  Sigma (a) = {x1:A1}..{xn:An} type
-       then for all P s.t.    
-	    Psi0, +x1:A1, .., +xn:An |- P in [[-x1:A1]] .. [[-xn:An]] true
-	    Psi0 |- (P' P) in {{+x1:A1}} .. {{+xn:An}} [[-x1:A1]] .. [[-xn:An]] true
-    *)
-    fun init (a) = 
-
-      let 
-	val mS = case M.modeLookup a
-	           of NONE => raise Error "Mode declaration expected"
-		    | SOME mS => mS
-	val V = case I.sgnLookup a 
-	           of I.ConDec (name, _, _, _, V, I.Kind) => V
-	            | _ => raise Error "Type Constant declaration expected"
-
-
-	(* init' ((V, mS), w) = P'
-
-	   Invariant:
-	   If   Sigma (a) = {x1:A1} .. {xn:An} type
-	   and  Psi0 |- S : m1{x1:A1} .. mn{xn:An} type > type
-	   and  Gamma= x1:A1, .. x(j-1):A(j-1)
-           and  Gamma |- w : Gamma+
-	   then P' is a Lam abstraction
-	*)
-	fun init' ((_, M.Mnil), w) = (fn p => p)
-	  | init' ((I.Pi ((D, _), V2), M.Mapp (M.Marg (M.Plus, _), mS)), w) =
-	    let 
-	      val D' = strengthenDec (D, w)
-	      val P = init' ((V2, mS), I.dot1 w)
-	    in
-	      fn p => T.Lam (T.UDec D', P p)
-	    end
-	  | init' ((I.Pi (_, V2), M.Mapp (M.Marg (M.Minus, _), mS)), w) =
-	      init' ((V2, mS), I.comp (w, I.shift))
-      in
-	init' ((V, mS), I.id)
-      end
 
     (* transformInit (Psi, (a, S), w1) = (w', s')
      
@@ -941,9 +887,26 @@ struct
 
     fun convertPrg (L) = 
       let
-	val (Psi0, R) = recursion L
+	
+	fun recursion () =
+	  let
 
-	fun convertOnePrg a =
+	      
+
+	    val (Psi, P, F) = createIHCtx (I.Null, L)
+	    val _ = chatter 4 (fn () => TomegaPrint.forToString (I.Null, F) ^ "\n")
+	    val t = T.Dot (T.Prg P, T.Shift (I.ctxLength Psi))
+	      
+	    fun name [a] = I.conDecName (I.sgnLookup a)
+	      | name (a :: L) = I.conDecName (I.sgnLookup a) ^ "/" ^ (name L)
+	  in
+	    (Psi, fn p => T.Rec (T.PDec (SOME (name L), F), 
+				 T.Case (T.Cases [(Psi, t, p)])), F)
+	  end
+
+	val (Psi0, Prec, F0) = recursion ()
+
+	fun convertOnePrg (a, F) =
 	  let 
 	    val name = nameOf a
 	    val V = typeOf a		(* Psi0 |- {x1:V1} ... {xn:Vn} type *)
@@ -952,24 +915,36 @@ struct
 	    val Sig = Worldify.worldify a
 					(* Sig in LF(reg)   *)
 	    val (W', wmap) = convertWorlds (a, W)
-	    val P = init a		(* Psi0 |- P = [x1:V1] ... [xn:Vn] Q ::
-					               {x1:V1} ... {xn:Vn} F *)
-					(* for any Psi0, x1:V1, ..., xn:Vn |- Q : F*)
-	                                (* where F corresponds to V *)
+
+  	    (* init' F = P'
+
+	       Invariant:
+	       If   F = All x1:A1. ... All xn:An. F'
+	       and  f' does not start with a universal quantifier
+	       then P' P'' = Lam x1:A1. ... Lam xn:An P''
+		    for any P''
+	    *)
+	    fun init (T.All (D, F')) =
+	        let 
+		  val P' = init F'
+		in
+		  fn p => T.Lam (D, P' p)
+		end
+	      | init _ = (fn p => p)
+
+	    val Pinit = init F
 	    val C = traverse (Psi0, L, Sig, wmap)
 					(* Psi0, x1:V1, ..., xn:Vn |- C :: F *)
 	  in
-	    P (T.Case (T.Cases C))
+	    Pinit (T.Case (T.Cases C))
 	  end
 
-	fun convertPrg' nil = raise Error "Cannot convert Empty program"
-	  | convertPrg' [a] = convertOnePrg a
-	  | convertPrg' (a :: L') = T.PairPrg (convertOnePrg a, convertPrg' L')
+	fun convertPrg' (nil, _) = raise Error "Cannot convert Empty program"
+	  | convertPrg' ([a], F) = convertOnePrg (a, F)
+	  | convertPrg' (a :: L', T.And (F1, F2)) = T.PairPrg (convertOnePrg (a, F1), convertPrg' (L', F2))
 
-
-	val P = R (convertPrg' L)
-	val F = convertFor L
-	val _ = TomegaTypeCheck.check (P, F)
+	val P = Prec (convertPrg' (L, F0))
+(*	val _ = TomegaTypeCheck.check (P, F) *)
 
       in
 	P
