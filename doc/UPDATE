@@ -18,9 +18,7 @@
   (this simplified tracing and breaking)
 
 - Add Twelf.make
-- Remove strictness remarks / %abbrev
-- fixity operators can now take additional arguments
-
+- Remove strictness remarks
 ----------------------------------------------------------------------
 README for Twelf 1.2R4
 

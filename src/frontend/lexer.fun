@@ -1,6 +1,5 @@
 (* Lexer *)
 (* Author: Frank Pfenning *)
-(* Modified: Brigitte Pientka *)
 
 functor Lexer (structure Stream' : STREAM
                structure Paths' : PATHS)
@@ -37,7 +36,6 @@ struct
     | QUERY	  			(* `%query' *)
     | MODE				(* `%mode' *)
     | TERMINATES			(* `%terminates' *)
-    | REDUCES                           (* `%reduces' *)(*  -bp6/5/99. *)
     | THEOREM                           (* `%theorem' *)
     | PROVE                             (* `%prove' *)
     | ESTABLISH				(* `%establish' *)
@@ -166,14 +164,13 @@ struct
 	else if Char.isDigit(c) then lexID (Lower, P.Reg (i-1,i))
 	else if Char.isLower(c) then lexID (Lower, P.Reg (i-1,i))
 	else if isSym(c) then lexID (Lower, P.Reg (i-1,i))
-        else error (P.Reg (i-1,i), "Illegal character " ^ Char.toString (c))
+	else error (P.Reg (i-1,i), "Illegal character " ^ Char.toString (c))
         (* recover by ignoring: lexInitial (char(i), i+1) *)
 
     and lexID (idCase, P.Reg (i,j)) =
         let fun lexID' (j) =
 	        if isIdChar (char(j)) then lexID' (j+1)
-		else 
-		   idToToken (idCase, P.Reg (i,j))
+		else idToToken (idCase, P.Reg (i,j))
 	in
 	  lexID' (j)
 	end
@@ -185,13 +182,13 @@ struct
 	       (* recover by adding implicit quote? *)
 	       (* qidToToken (i, j) *)
 	else if isQuote (char(j)) then qidToToken (P.Reg (i,j))
-	     else lexQUID (P.Reg (i, j+1)) 
+	     else lexQUID (P.Reg (i, j+1))
 
     and lexPercent (#".", i) = (EOF, P.Reg (i-2,i))
       | lexPercent (#"{", i) = lexPercentBrace (char(i), i+1)
       | lexPercent (#"%", i) = lexComment (#"%", i)
       | lexPercent (c, i) =
-        if isIdChar(c) then lexPragmaKey (lexID (Quoted, P.Reg (i-1, i)))
+        if isIdChar(c) then lexPragmaKey (lexID (Quoted, P.Reg (i-1,i)))
 	else if Char.isSpace(c) then lexComment (c, i)
 	  else error (P.Reg (i-1, i), "Comment character `%' not followed by white space")
 
@@ -200,7 +197,6 @@ struct
       | lexPragmaKey (ID(_, "postfix"), r) = (POSTFIX, r)
       | lexPragmaKey (ID(_, "mode"), r) = (MODE, r)
       | lexPragmaKey (ID(_, "terminates"), r) = (TERMINATES, r)
-      | lexPragmaKey (ID(_, "reduces"), r) = (REDUCES, r) (* -bp6/5/99. *)
       | lexPragmaKey (ID(_, "theorem"), r) = (THEOREM, r)
       | lexPragmaKey (ID(_, "prove"), r) = (PROVE, r)
       | lexPragmaKey (ID(_, "establish"), r) = (ESTABLISH, r)
@@ -297,7 +293,6 @@ struct
     | toString' (QUERY) = "%query"
     | toString' (MODE) = "%mode"
     | toString' (TERMINATES) = "%terminates"
-    | toString' (REDUCES) = "%reduces"              (*  -bp6/5/99. *)
     | toString' (THEOREM) = "%theorem"
     | toString' (PROVE) = "%prove"
     | toString' (ESTABLISH) = "%establish"
