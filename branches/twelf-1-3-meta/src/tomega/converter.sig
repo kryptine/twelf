@@ -1,4 +1,4 @@
-(* Converter from relational representation to a functional
+a(* Converter from relational representation to a functional
    representation of proof terms *)
 (* Author: Carsten Schuermann *)
 
