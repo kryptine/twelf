@@ -1,6 +1,5 @@
 (* Internal syntax for functional proof term calculus *)
-(* Author: Carsten Schuermann *)
-
+(* Author: Carsten Schuermann, Adam Poswolsky *)
 
 functor Opsem ( structure Whnf : WHNF
 	       structure Abstract : ABSTRACT
@@ -10,7 +9,6 @@ functor Opsem ( structure Whnf : WHNF
 	       structure TomegaPrint : TOMEGAPRINT
 	       structure Unify : UNIFY
 		   ) : OPSEM = 
-
 struct
   structure T = Tomega
   structure I = IntSyn
@@ -172,11 +170,7 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
 	  T.Lam (T.decSub (D, t), T.PClo (P, T.dot1 t))
 
       | evalPrg (Psi, (P' as T.Rec (D, P), t)) =  
-let
-val _=print "rec"
-in
 	 evalPrg (Psi, (P, T.Dot (T.Prg (T.PClo (P', t)), t)))
-end
 
       | evalPrg (Psi, (T.PClo (P, t'), t)) = 
 	  evalPrg (Psi, (P, T.comp (t', t)))
@@ -194,11 +188,8 @@ end
 
       | evalPrg (Psi, (T.Let (D, P1, P2), t)) = 
 	  let
-	    val _ = print "LET["
 	    val V = evalPrg (Psi, (P1, t)) 
-	    val _ = print "]["
 	    val V' = evalPrg (Psi, (P2, T.Dot (T.Prg V, t)))
-	    val _ = print "]"	    
 	  in 
 	    V'
 	  end
@@ -280,7 +271,6 @@ end
 
     and match (Psi, t1, T.Cases ((Psi', t2, P) :: C)) =
         let 
-val _ = print "match"
 	  (* val I.Null = Psi *)
 	  val t = createVarSub (Psi, Psi') (* Psi |- t : Psi' *)
 		  			  (* Psi' |- t2 . shift(k) : Psi'' *)
@@ -372,6 +362,21 @@ val _ = print "match"
       | matchSub (Psi, T.Dot (T.Idx k1, t1), T.Dot (T.Idx k2, t2)) =
 	  (if k1 = k2 then matchSub (Psi, t1, t2) else raise NoMatch)
 
+      | matchSub (Psi, T.Dot (T.Idx k, t1), T.Dot (T.Block (I.LVar (r, s1, (c,s2))), t2)) = 
+	let 
+	  val s1' = Whnf.invert s1
+	  val _ = r := SOME (I.blockSub (I.Bidx k, s1'))
+	in
+	  matchSub (Psi, t1, t2)
+	end 
+      | matchSub (Psi, T.Dot (T.Block (B), t1), T.Dot (T.Block (I.LVar (r, s1, (c,s2))), t2)) = 
+	let 
+	  val s1' = Whnf.invert s1
+	  val _ = r := SOME (I.blockSub (B, s1'))
+	in
+	   matchSub (Psi, t1, t2)
+	end
+
     (* evalRedex (Psi, V, (S, t)) = V'
      
        Invariant:
@@ -390,9 +395,7 @@ val _ = print "match"
           evalRedex (Psi, V, (S, T.comp (t1, t2)))
     | evalRedex (Psi, T.Lam (T.UDec (I.Dec (_, A)), P'), (T.AppExp (U, S), t)) =  
       let
-val _ = print "redex"
         val V = evalPrg (Psi, (P', T.Dot (T.Exp (I.EClo (U, T.coerceSub t)), T.id)))
-val _  = print "|"
       in
 	evalRedex (Psi, V, (S, t))
       end

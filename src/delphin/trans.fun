@@ -190,15 +190,13 @@ struct
     *)
     fun internalizeSig () = 
         let
-	  val _ = print "Internalizing signature" 
 	  val (max, _) = I.sgnSize  ()
 	    (* we might want to save max, here to restore the original 
  	         signature after parsing is over  --cs Thu Apr 17 09:46:29 2003 *)
 	  fun internalizeSig' n = 
 	      if n>=max then ()
 	      else 
-		(print ("Currently converting " ^ Int.toString n ^ "\n");
-		 internalizeCondec (n, I.sgnLookup n); internalizeSig' (n+1))
+		(internalizeCondec (n, I.sgnLookup n); internalizeSig' (n+1))
 	in
 	  internalizeSig' 0
 	end
@@ -219,7 +217,16 @@ struct
 	  (s1 ^ " <- " ^ s2, c1 @ c2)
 	end
       | transTerm (D.Type) = ("type", nil)
-      | transTerm (D.Id s) = (s, nil)
+      | transTerm (D.Id s) = 
+        let
+          val qid = Names.Qid (nil, s)
+	in
+	  case Names.constLookup qid
+	    of NONE => (s, nil)
+	     | SOME cid => (case (I.sgnLookup cid)
+			      of I.BlockDec _ => (s ^ "'", nil)
+  	  		       | _ => (s, nil))
+	end
       | transTerm (D.Pi (D, t)) = 
         let 
 	  val (s1, c1) = transDec D
@@ -446,12 +453,9 @@ struct
 	  val ReconTerm.JWithCtx (I.Decl(I.Null, D), ReconTerm.JNothing) =
 	    ReconTerm.reconWithCtx (T.coerceCtx Psi, ReconTerm.jwithctx (I.Decl(I.Null, dec), ReconTerm.jnothing))
 	  val I.Dec (SOME n, _) = D
-	  val _ = print n 
 	in
 	  D
 	end
-
-
 
     (* transDecs ((Psi, t), dDs, sc, W) = x
        
@@ -572,7 +576,6 @@ struct
         let
 	  val s = head eH
 	  val _ = if s = s' then () else raise Error "Function defined is different from function declared." 
-	  val _ = print ("\n[fun " ^ s ^ " ")
   	in
 	  transFun2 (Psi, (s, F), D.FunDecl (D.Bar (eH, eP), Ds), sc, fn Cs => T.Case (T.Cases Cs), W)
 	end
@@ -603,7 +606,6 @@ struct
           transFun3 (Psi, (s, F), eH, eP, Ds, sc,  k, W)
       | transFun2   (Psi, (s, F), Ds, sc, k, W) =
 	  let 
-       	    val _ = print "]\n"
 	    val D = T.PDec (SOME s, F)
 	    val P' = T.Rec (D, lamClosure (F, k nil))
 	  in
@@ -633,7 +635,6 @@ struct
     *)
     and transFun3 (Psi, (s, F), eH, eP, Ds, sc, k, W) =
         let 
-	  val _ = print "[case ..."
 	  val _ = if (head eH) <> s
 		  then raise Error "Functions don't all have the same name"
 		  else ()
@@ -647,9 +648,6 @@ struct
 	  val m' = I.ctxLength Psi' 
 					(* |Psi''| = m0 + m' *)
 	  val t0 = dotn (I.Shift m0, m')
-	  val _ = print "****"
-	  val _ = print (Int.toString m0)
-	  val _ = print (Int.toString m')
 					(* Psi0, Psi'[^m0] |- t0 : Psi' *)
 (*	  val t1 = T.Dot (T.Prg (T.Root (T.Var (m'+1), T.Nil)), T.Shift (m'))   (* BUG !!!! Wed Jun 25 11:23:13 2003 *)
 					(* Psi0, Psi'[^m0] |- t1 : F[^m0]  *)
@@ -658,7 +656,6 @@ struct
 (*	  val _ = print (TomegaPrint.forToString (Names.ctxName (T.coerceCtx Psi''), myF) ^ "\n") *)
 
 	  val P = transProgI (Psi'', eP, (F', t'), W)
-	  val _ = print "]"
 	in
 	  transFun2 (Psi, (s, F), Ds, sc, fn Cs => k ((Psi'', t'', P) :: Cs), W)
 	end
@@ -714,8 +711,6 @@ struct
     *)
     and transValDec (Psi, D.Val (EPat, eP, eFopt), Ds, sc, W) =
         let 
-
-	  val _ = print "[val ..."
           val (P, (F', t')) = (case eFopt 
 	                         of NONE => transProgS (Psi, eP, W, nil)
 			          | SOME eF => let
@@ -1026,11 +1021,7 @@ struct
        the translated program, that does not do anything
     *)
     fun transProgram Ds =
-        let
-	  val _ = print "Translating program"
-	in
 	  transDecs (I.Null, Ds, fn (Psi, W) => T.Unit, T.Worlds [])
-	end
 
 
 
@@ -1049,7 +1040,6 @@ struct
         (case I.constUni c 
 	   of I.Kind => I.Root (H, externalizeSpine S)
             | I.Type => let
-			  val _ = print "[Externalizing constant]\n"
 			  val Const (n, i) = Array.sub (internal, c)
 			  val (I.App (I.Root (I.BVar b, I.Nil), S')) = dropSpine (n, S)
 			in
