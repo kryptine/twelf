@@ -21,11 +21,15 @@ struct
 	val _ = Twelf.loadFile s1
 	val _ = Trans.internalizeSig ()
 	val (DextSyn.Ast EDs) = Parse.gparse s2
-	val _ = print "* parsing completed\n"
+	val _ = print "* Parsing done\n"
 	val P = Trans.transDecs EDs
+	val _ = print "* Type reconstruction done\n"
 	val P' = Trans.externalizePrg P 
+	val _ = print "* Externalization done\n"
 	val _  = TomegaTypeCheck.checkPrg (IntSyn.Null, (P', Tomega.True))
+	val _ = print "* Typechecking done\n"
 	val V  = Opsem.evalPrg P'
+	val _ = print "* Operational semantics done\n"
       in 
 	V
       end
