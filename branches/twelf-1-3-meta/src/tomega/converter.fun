@@ -277,14 +277,16 @@ exception Error' of Tomega'.For
     fun createIHCtx (Psi, nil) = raise Error "Empty theorem"
       | createIHCtx (Psi, [a]) = 
         let 
+	  val name = I.conDecName (I.sgnLookup a)
 	  val F = convertOneFor a
 	in
-	  (I.Decl (Psi, T.PDec (NONE, F)),  T.Root (T.Var 1, T.Nil), F)
+	  (I.Decl (Psi, T.PDec (SOME name, F)),  T.Root (T.Var 1, T.Nil), F)
 	end
       | createIHCtx (Psi, a :: L) = 
 	let
 	  val F = convertOneFor a
-	  val (Psi', P', F') = createIHCtx (I.Decl (Psi,  T.PDec (NONE, F)), L)
+	  val name = I.conDecName (I.sgnLookup a)
+	  val (Psi', P', F') = createIHCtx (I.Decl (Psi,  T.PDec (SOME name, F)), L)
 	in
 	  (Psi', T.PairPrg (T.Root (T.Var (1+length L), T.Nil), P'), T.And (F, F'))
 	end

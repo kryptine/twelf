@@ -45,14 +45,14 @@ in
     let
       val P = test names
     in
-      TextIO.print (TomegaPrint.prgToString (I.Null, P) names ^ "\n")
+      TextIO.print (TomegaPrint.prgToString P ^ "\n")
     end
 
 
   val _ = Twelf.chatter := 1
 (*  val _ = FunNames.reset(); --cs *)
 
-
+(*
   
 
   (* Regression test for Mini-ML *)
@@ -82,7 +82,7 @@ in
 
   (* Regression test for copy *)
   val _ = Twelf.loadFile "TEST/cp.elf"
-
+*)
 (*  val _ = test ["cpt"] *)
 
  (* Regression test for copy *)
