@@ -24,7 +24,7 @@ ps' : plus' (s X) Y (s Z)
 %mode plus' +X +Y -Z.
 %worlds () (plus' X Y Z).
 %covers plus' +X +Y -Z.
-% next line must fail---only uniqueness guarantees totality
+% next line must fail---see next example
 %total X (plus' X Y _).
 
 %query 1 * plus' (s z) z X.
