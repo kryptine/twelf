@@ -31,7 +31,6 @@ is
   ../trail/sources.cm
   opsem.sig
   opsem.fun 
-  opsem-cont.fun
   converter.sig
   converter.fun 
   typecheck.sig

@@ -23,6 +23,8 @@ struct
 (*  local -- removed ABP 1/19/03 *)
 
   exception NoMatch
+
+  exception What of Tomega.Dec IntSyn.Ctx * Tomega.Prg
     
 (* 
  matchPrg is used to see if two values can be 'unified' for
@@ -410,9 +412,77 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
 	  end
 
 
+    (* topLevel (Psi, d, (P, t)) 
+
+       Invariant:
+       Psi |- t : Psi'
+       Psi' |- P :: F
+       d = | Psi' |
+       
+    *)
+    fun topLevel (Psi, d, (T.Unit, t)) = ()
+      | topLevel (Psi, d, (T.Let (D', P1, T.Case Cs), t)) =  
+        (* lf value definition *)
+	let
+	  (* printLF (G, s, G') k = ()
+	     Invariant:
+	     G |- s : G'
+	  *)
+
+	  fun printLF (_, _, _) 0 = ()
+	    | printLF (G, I.Dot (I.Exp U, s'), I.Decl (G', I.Dec (SOME name, V))) k = 
+	      let
+		val _ = print (Int.toString (I.ctxLength G))
+		val _ = print (Int.toString (1+ I.ctxLength G'))
+		val _ = printLF (G, s', G') (k-1)
+	      in
+		print ("def " ^ name ^ " = "  ^ (Print.expToString (G', U)) 
+		       ^ " : " ^ (Print.expToString (G, I.EClo (V, s'))) ^ "\n") 
+	      end
+
+	  fun match (Psi, t1, T.Cases ((Psi', t2, P) :: C)) =
+	      let 
+		val t = createVarSub (Psi, Psi') (* Psi |- t : Psi' *)
+		                                 (* Psi' |- t2 . shift(k) : Psi'' *)
+		val t' = T.comp (t2, t)
+		val m = I.ctxLength Psi'
+		val _ = matchSub (Psi, t1, t'); 
+		val t'' =  Normalize.normalizeSub t  (* Psi |- t'' : Psi' *)
+		val _ = printLF (T.coerceCtx Psi, T.coerceSub t'', T.coerceCtx Psi') (m-d) 
+	      in
+		topLevel (Psi, m, (P, t''))
+	      end
+	  val V = evalPrg (Psi, (P1, t)) 
+(*	  val _ = raise What (Psi, V) *)
+	  val _ = print (Int.toString (I.ctxLength Psi))
+	  val _ = print (TomegaPrint.prgToString (Psi, V) ^ "\n")
+	  val V' = match (Psi, T.Dot (T.Prg V, t), Cs)
+	in 
+	  V'
+	end
+      | topLevel (Psi, d, (T.Let (D,  T.Lam (D' as T.UDec (I.BDec (SOME name, (cid, s))), P1), P2), t)) = 
+        (* new declaration *)
+	let
+	  val _ = print ("new " ^ name ^ "\n")
+	  val D'' = T.decSub (D', t)
+	  val _ = topLevel (I.Decl (Psi, D''), d+1, (P1, T.dot1 t))
+	in 
+	  ()
+	end
+      | topLevel (Psi, d, (T.Let (D, P1, P2), t)) =  
+        (* function definition *)
+	let
+	  val T.PDec (SOME name, F) = D
+	  val V = evalPrg (Psi, (P1, t)) 
+	  val _ = print ("val " ^ name ^ " = " ^ TomegaPrint.prgToString (Psi, V) ^ " :: " ^ TomegaPrint.forToString (Psi, F) ^ "\n")
+	  val V' = topLevel (Psi, d+1, (P2, T.Dot (T.Prg V, t)))
+	in 
+	  V'
+	end
 
   (* in -- removed local *)
-    val evalPrg = fn P => (evalPrg (I.Null, (P, T.id)), T.id)
+    val evalPrg = fn P => evalPrg (I.Null, (P, T.id))
+    val topLevel = fn P => topLevel (I.Null, 0, (P, T.id))
   
   (* end -- removed local *)
 

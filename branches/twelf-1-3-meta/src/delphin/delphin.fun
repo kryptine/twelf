@@ -21,15 +21,6 @@ struct
     structure I = IntSyn
     structure T = Tomega
 
-
-    fun printFront (T.Idx k) = print "I" 
-      | printFront (T.Prg P) = print "P"
-      | printFront (T.Exp U) = print "E"
-      | printFront (T.Block B) = print "B"
-      | printFront (T.Undef) = print "U"
-
-    fun printenv (T.Shift _) = (print "|")
-      | printenv (T.Dot (F, env)) = (printFront F; printenv env)
     
     fun loadFile (s1, s2) =
       let 
@@ -45,14 +36,13 @@ struct
 	val _ = print "* Externalization done\n"
 (*	val _  = TomegaTypeCheck.checkPrg (IntSyn.Null, (P', Tomega.True))
 	val _ = print "* Typechecking done\n"
-*)	val (V, t)  = Opsem.evalPrg P'
+*)	val V  = Opsem.topLevel P'  (* was evalPrg --cs Mon Jun 30 12:09:21 2003*)
 	val _ = print "* Operational semantics done\n"
-	val _ = printenv t
       in 
-	(V, t)
+	V
       end
 
-    fun test (s1, s2) = (loadFile (s1, s2); Tomega.Unit) handle What P => P
+    fun test (s1, s2) = (loadFile (s1, s2); (I.Null, Tomega.Unit)) handle Opsem.What P => P
     fun top () = loop ()
 
     and loop () = 
@@ -148,7 +138,7 @@ Nil))) else (T.Redex(P, T.AppExp (I.Root (I.Const x, I.Nil), T.Nil)))
 
 
 (*  T.AppExp (I.Root (I.Def x, I.Nil), T.Nil) *)
-	val (result, _) = Opsem.evalPrg P'
+	val result = Opsem.evalPrg P'
 	val _ = TextIO.print "\n\nEOC\n\n"
 	val _ = TextIO.print (TomegaPrint.prgToString (I.Null, result))
 	val _ = TextIO.print "\n"
@@ -158,7 +148,7 @@ Nil))) else (T.Redex(P, T.AppExp (I.Root (I.Const x, I.Nil), T.Nil)))
 
     fun eval P = 
         let 
-	  val (V, _) = Opsem.evalPrg P
+	  val V = Opsem.evalPrg P
 	in
 	  V
 	end
