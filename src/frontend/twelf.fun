@@ -304,6 +304,7 @@ struct
               | Subordinate.Error (msg) => abortFileMsg (fileName, msg)
 	      | WorldSyn.Error (msg) => abort (msg ^ "\n") (* includes filename *)
               | ModSyn.Error (msg) => abortFileMsg (fileName, msg)
+	      | Converter.Error (msg) => abortFileMsg (fileName, msg)
               | CSManager.Error (msg) => abort ("Constraint Solver Manager error: " ^ msg ^ "\n")
 	      | exn => (abort ("Unrecognized exception\n"); raise exn))
 

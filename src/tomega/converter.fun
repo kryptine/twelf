@@ -206,6 +206,15 @@ exception Error' of Tomega.Sub
 	end
 
 
+    fun validMode (M.Mnil) = true
+      | validMode (M.Mapp (M.Marg (M.Plus, _), mS)) = 
+          validMode mS
+      | validMode (M.Mapp (M.Marg (M.Minus, _), mS)) = 
+          validMode mS
+      | validMode (M.Mapp (M.Marg (M.Star, _), mS)) = 
+          raise Error "+ or - mode expected, * found"
+
+
     fun convertOneFor cid =
       let
 	val V  = case I.sgnLookup cid 
@@ -214,6 +223,8 @@ exception Error' of Tomega.Sub
 	val mS = case M.modeLookup cid
 	           of NONE => raise Error "Mode declaration expected"
 	            | SOME mS => mS
+
+	val _ = validMode mS
 
 	(* convertFor' (V, mS, w1, w2, n) = (F', F'')
 
@@ -1353,7 +1364,7 @@ exception Error' of Tomega.Sub
 	  let 
 	    val name = nameOf a
 	    val V = typeOf a		(* Psi0 |- {x1:V1} ... {xn:Vn} type *)
-	    val mS = modeSpine a	(* |- mS : {x1:V1} ... {xn:Vn} > type  *)
+	    val mS = modeSpine a	(* |- mS : {x1:V1} ... {xn:Vn} > type *)
 	    val Sig = Worldify.worldify a
 					(* Sig in LF(reg)   *)
 	    val dynSig = dynamicSig (Psi0, L, W)
