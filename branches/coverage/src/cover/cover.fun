@@ -829,6 +829,68 @@ struct
 	  impossibleCase (XsRev, W)
 	end
 
+    fun targetBelowEq (a, I.EVar (ref(NONE), GY, VY, ref nil)) =
+          Subordinate.belowEq (a, I.targetFam VY)
+      | targetBelowEq (a, I.EVar (ref(NONE), GY, VY, ref (_::_))) =
+	  (* if contraints remain, consider recursive and thereby unsplittable *)
+	  true
+
+    fun recursive (X as I.EVar (ref(SOME(U)), GX, VX, _)) =
+        let
+	  val a = I.targetFam VX
+	  val _ = if !Global.chatter >= 6
+		    then print "?"
+		  else ()
+	  val Ys = Abstract.collectEVars (GX, (U, I.id), nil)
+	  (* handle _ => nil *)
+	  (* LVars are ignored here.  OK because never splittable? *)
+	  (* Sat Dec 15 22:42:10 2001 -fp !!! *)
+	  val recp = List.exists (fn Y => targetBelowEq (a, Y)) Ys
+	  val _ = if !Global.chatter >= 6
+		    then if recp then print "R\n"
+			 else print "N\n"
+		  else ()
+	in
+	  recp
+	end
+
+    local
+      val counter = ref 0
+    in
+      fun resetCount () = (counter := 0)
+      fun incCount () = (counter := !counter + 1)
+      fun getCount () = !counter
+    end
+
+    exception NotFinitary
+
+    fun finitary1 (X as I.EVar(r, I.Null, VX, _), k, W, cands) =
+        ( resetCount () ;
+	  if !Global.chatter >= 6
+	    then print ("Trying " ^ Print.expToString (I.Null, X) ^ " : "
+				^ Print.expToString (I.Null, VX) ^ ".\n")
+	  else () ;
+	  ( splitEVar (X, W, fn () => if recursive X
+					then raise NotFinitary
+				      else incCount ()) ;
+	    (k, getCount ())::cands )
+           handle NotFinitary => cands )
+
+    fun finitarySplits (nil, k, W, cands) = cands
+      | finitarySplits (NONE::Xs, k, W, cands) =
+        (* parameter blocks can never be split *)
+          finitarySplits (Xs, k+1, W, cands)
+      | finitarySplits (SOME(X)::Xs, k, W, cands) =
+          finitarySplits (Xs, k+1, W,
+			  CSManager.trail (fn () => finitary1 (X, k, W, cands)))
+
+    fun finitary (V, W) =
+        let
+	  val ((V1, s), XsRev) = instEVars ((V, I.id), nil)
+	in
+	  finitarySplits (XsRev, 1, W, nil)
+	end
+
     (***************************)
     (* Printing Coverage Goals *)
     (***************************)
@@ -862,6 +924,17 @@ struct
     (*********************)
     (* Coverage Checking *)
     (*********************)
+
+    (* findMin ((k1,n1),...,(km,nm)) = (ki,ni)
+       where ni is the minimum among the n1,...,nm
+       Invariant: m >= 1
+    *)
+    fun findMin ((k,n)::kns) = findMin'((k,n), kns)
+    and findMin' ((k0,n0), nil) = (k0,n0)
+      | findMin' ((k0,n0), (k',n')::kns) =
+        if n' < n0
+	  then findMin' ((k',n'), kns)
+	else findMin' ((k0,n0), kns)
 
     (* need to improve tracing with higher chatter levels *)
     (* ccs = covering clauses *)
@@ -912,6 +985,7 @@ struct
           missing )
       | split (V, SOME(nil), wms as (W, ms), ccs, missing) =
         (* no candidates: check if coverage goal is impossible *)
+	(*
 	( if !Global.chatter >= 6
 	    then print ("No candidates---check if impossible\n")
 	  else ();
@@ -922,6 +996,12 @@ struct
 		  then print ("All hypotheses possible---case not covered\n")
 		else ();
 		V::missing ))
+        *)
+	( if !Global.chatter >= 6
+	    then print ("No strong candidates---calculate weak candidates\n")
+	  else ();
+	  splitWeak (V, finitary (V, W), wms, ccs, missing)
+        )
       | split (V, SOME((k,_)::ksn), wms as (W, ms), ccs, missing) =
 	(* some candidates: split first, ignoring multiplicities *)
 	(* splitVar shows splitting as it happens *)
@@ -929,6 +1009,15 @@ struct
 	   of SOME(cases) => covers (cases, wms, ccs, missing)
 	    | NONE => (* splitting variable k generated constraints *)
 	      split (V, SOME (ksn), wms, ccs, missing)) (* try other candidates *)
+
+    and splitWeak (V, nil, wms, ccs, missing) =
+        ( if !Global.chatter >= 6
+	    then print ("No weak candidates---case not covered")
+	  else () ;
+	  V::missing )
+      | splitWeak (V, ksn, wms, ccs, missing) = (* ksn <> nil *)
+        (* commit to the minimal candidate, since no constraints can arise (?) *)
+	  split (V, SOME(findMin ksn::nil), wms, ccs, missing)
 
     and covers (nil, wms, ccs, missing) = missing
       | covers (V::cases', wms, ccs, missing) =
