@@ -9,15 +9,9 @@ sig
 
   exception Error of string
   exception Error' of Tomega.Sub
-
   val convertFor : IntSyn.cid list -> Tomega.For
-(*  val installFor : IntSyn.cid list -> unit *)
   val convertPrg : IntSyn.cid list -> Tomega.Prg 
-  val installPrg : IntSyn.cid list -> IntSyn.cid * Tomega.lemma list   (* projections *)* Tomega.lemma list   (* selections *)
-
-(*  val raiseFor : IntSyn.Dec IntSyn.Ctx * (Tomega.For * IntSyn.Sub) -> Tomega.For
-  val raisePrg : IntSyn.Dec IntSyn.Ctx * Tomega.Prg * Tomega.For -> Tomega.Prg
-*)
+  val installPrg : IntSyn.cid list -> IntSyn.cid * Tomega.lemma list   (* projections *) * Tomega.lemma list   (* selections *)
   val convertGoal : Tomega.Dec IntSyn.Ctx * IntSyn.Exp -> Tomega.Prg
 end (* Signature CONVERTER *)       
 

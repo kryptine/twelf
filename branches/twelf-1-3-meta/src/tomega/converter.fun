@@ -185,14 +185,6 @@ exception Error' of Tomega.Sub
 	in
 	  (T.UDec D' :: Psi'', s'')
 	end
-(*      | strengthenPsi' (F.Block (F.CtxBlock (l, G)) :: Psi, s) =
-	let 
-	  val (G', s') = strengthenCtx (G, s)
-	  val (Psi'', s'') = strengthenPsi' (Psi, s')
-	in 
-	  (F.Block (F.CtxBlock (l, G')) :: Psi'', s'')
-	end
-*)
 
     (* ctxSub (G, s) = (G', s')
      
@@ -295,35 +287,6 @@ exception Error' of Tomega.Sub
 	F F'
       end
 
-(* now unnecessary -cs Sun Jan  5 23:06:32 2003 
-    (* createIHCtx (Psi, L) = (Psi', P', F')
-     
-       Invariant:
-       If   L is a list of type families
-       and  Psi is a context
-       then Psi' extends Psi' by declarations in L
-       and  F' is the conjunction of the formuals 
-      	    that corresponds to each type family in L
-       and  Psi' |- P' in F'
-    *)
-    fun createIHCtx (Psi, nil) = raise Error "Empty theorem"
-      | createIHCtx (Psi, [a]) = 
-        let 
-	  val name = I.conDecName (I.sgnLookup a)
-	  val F = convertOneFor a
-	in
-	  (I.Decl (Psi, T.PDec (SOME name, F)),  T.Root (T.Var 1, T.Nil), F)
-	end
-      | createIHCtx (Psi, a :: L) = 
-	let
-	  val F = convertOneFor a
-	  val name = I.conDecName (I.sgnLookup a)
-	  val (Psi', P', F') = createIHCtx (I.Decl (Psi,  T.PDec (SOME name, F)), L)
-	in
-	  (Psi', T.PairPrg (T.Root (T.Var (1+length L), T.Nil), P'), T.And (F, F'))
-	end
-
-*)
 
 
     (* createIH L = (Psi', P', F')
@@ -359,7 +322,6 @@ exception Error' of Tomega.Sub
     fun convertFor L = 
       let
 	val (_, F') = createIH L 
-(* was:	val (Psi', P', F') = createIHCtx (I.Null, L) *)
       in
 	F'
       end
@@ -502,11 +464,6 @@ exception Error' of Tomega.Sub
 	      occursInSub (n, s, G)   (* is this ok? -- cs *)
 	  (* no other cases *)
 			 
-
-
-(*	  | occursInPsi (n, (F.Block (F.CtxBlock (l, G)) :: Psi1, L)) =
-	      occursInG (n, G, fn n' => occursInPsi (n', (Psi1, L)))
-*)	  
 	and occursInG (n, I.Null, k) = k n
 	  | occursInG (n, I.Decl (G, I.Dec (_, V)), k) =
 	      occursInG (n, G, fn n' => occursInExp (n', V) orelse k (n'+ 1))
@@ -607,30 +564,6 @@ exception Error' of Tomega.Sub
 	    in
 	      (I.Decl (Psi1', T.UDec (I.BDec (name, (cid, s')))), I.dot1 w', I.dot1 z')
 	    end
-
-(*	  | strengthen' (I.Decl (Psi1, LD as F.Block (F.CtxBlock (name, G))), Psi2, L, w1) =
-	    let 
-	      val (bw, w1') = inBlock (G, (false, w1))
-	    in
-	      if bw orelse occursBlock (G, (Psi2, L)) 
-		then 
-		  let 
-		    val (Psi1', w') = strengthen' (Psi1, LD :: Psi2, L, w1')
-                    val (G'', w'') = blockSub (G, w')  
-		  in
-		    (I.Decl (Psi1', F.Block (F.CtxBlock (name, G''))), w'')
-		  end
-	      else 
-		let
-		  val w2 = I.Shift (I.ctxLength G)
-		  val (Psi2', w2') = strengthenPsi' (Psi2, w2)
-		  val L' = strengthenArgs (L, w2')
-		in
-		  strengthen' (Psi1, Psi2', L', w1')
-		end
-	    end
-*)
-
       in
 	strengthen' (Psi, nil, args (S, mS), w)
       end
@@ -776,149 +709,6 @@ exception Error' of Tomega.Sub
 	  (G, renameExp f V)
 	end
 
-(*
-(* this is the code we need below *)
-
-
-    fun shiftCtx (I.Null, t) = (I.Null, t)
-      | shiftCtx (I.Decl (G, D), t) = 
-        let 
-	  val (G', t') =  shiftCtx (G, t)
-	in
-	  (I.Decl (G', I.decSub (D, t')), I.dot1 t')
-	end
-
-    (* dotn (t, n) = t'
-
-       Invariant:
-       If   Psi0 |- t : Psi
-       and  |G| = n   for any G
-       then Psi0, G[t] |- t : Psi, G
-    *)
-    fun dotn (t, 0) = t
-      | dotn (t, n) = I.dot1 (dotn (t, n-1))
-
-
-    fun strengthenToSpine (I.Shift _ (* =0 *), 0, (n, S)) = S
-      | strengthenToSpine (I.Dot (I.Idx _ (* = 1 *), t), l, (n, S)) =
-        let 
-	  val t' = I.comp (t, I.invShift)
-	in
-          strengthenToSpine (t', l-1, (n+1, I.App (I.Root (I.BVar n, I.Nil), S)))
-	end
-      | strengthenToSpine (I.Dot (I.Undef, t), l, (n, S)) = 
-          strengthenToSpine (t, l-1, (n+1, S))
-      | strengthenToSpine (I.Shift k, l, (n, S)) = 
-	  strengthenToSpine (I.Dot (I.Idx (k+1), I.Shift (k+1)), l, (n, S))
-
-*)
-(*
-    (* weaken (G, a) = (w')
-    *)
-    fun subweaken (I.Null, k, a, S) = (I.id, S)
-      | subweaken (I.Decl (G', D as I.Dec (name, V)), k, a, S) = 
-        if S.belowEq (I.targetFam V, a) then 
-	  let 
-	    val (w', S') = subweaken (G', k+1, a, I.App(I.Root (I.BVar k, I.Nil), S)) 
-	  in
-	   (I.dot1 w', S')
-	  end
-	else
-	  let 
-	    val (w', S') = subweaken (G', k+1, a, S) 
-	  in
-	    (I.comp (w', I.shift), S')
-	  end
-
-*)
-(*    (* raiseFor (B, (F, t)) = (P', F')) 
- 
-       Invariant:
-       If   Psi, B, G |-  F for
-       and  Psi, G', B' |- t : Psi, B, G
-       then Psi, G' |-  F' for
-       and  F' = raise (B', F[t])   (using subordination)
-    *)
-    fun raiseFor (B', (T.True, t)) = T.True
-      | raiseFor (B', (T.And (F1, F2), t)) =
-        let
-	  val F1' = raiseFor (B', (F1, t))
-	  val F2' = raiseFor (B', (F2, t))
-	in
-	  T.And (F1', F2')
-	end
-      | raiseFor (B', (T.Ex ((I.Dec (x, V), Q), F), t)) =
-					            (* Psi, G', B' |- V[t] : type *)
-				   	            (* Psi, B, G, x:V |- F for *)
-					            (* Psi, G' |- B' ctx  *)
-	let 
-(* 	  val (w, S) = subweaken (B', 1, I.targetFam V, I.Nil)     *)
-	  val w = S.weaken (B', I.targetFam V)
-                                                   (* B'  |- w  : B''    *)
-	  val iw = Whnf.invert w 	            (* B'' |- iw : B'     *)
-	  val B'' = Whnf.strengthen (iw, B')        (* Psi0, G' |- B'' ctx *)
-
-	  val V' = A.raiseType (B'', I.EClo (V, I.comp (t, iw))) (* Psi0, G' |- V' : type *)
-
-	    
-	  val (B''', _) = shiftCtx (B', I.shift)
-					            (* Psi, G', x: V' |- B''' ctx *)
-
-          val t'' = dotn (I.shift, I.ctxLength B')
-                                                    (* Psi, G', x: V', B''' |- t'' :   Psi, G', B' *)
- 					            (* Psi, G', B' |- t : Psi, B, G  *)
-          val t' = I.comp (t, t'')
-	                                            (* Psi, G', x:V', B''' |- t' : Psi, B, G *)
-
-					            (* Psi, G', x:V', B''' |- w : Psi,G', x:V', B'''' *)
-	  val S = strengthenToSpine (iw, I.ctxLength B', (1, I.Nil))
-					            (* Psi, G', x:V', B''' |- S : V' [^|B'''|] >> type  *) 
-	  val U = I.Root (I.BVar (I.ctxLength B''' + 1), S)
-					            (* Psi, G', x:V', B''' |- U : V[t'] *)
-
-          val t''' = Whnf.dotEta (I.Exp U, t')            (* Psi, G', x:V', B''' |- t''' :  Psi, B, G, x:V *)
-	  val F' = raiseFor (B''', (F, t'''))       (* Psi, G', x:V' |- F' for*)
-	in
-	  T.Ex ((I.Dec (x, V'), Q), F')(* Psi, G', x:V', B''' |- t''' :  Psi, B, G, x:V *)
-	end
-
-
-    (* raisePrg (G, P, F) = (P', F')) 
- 
-       Invariant:
-       If   Psi, G |- P in F
-       and  Psi |- G : blockctx
-       then Psi |- P' in F'
-       and  P = raise (G, P')   (using subordination)
-       and  F = raise (G, F')   (using subordination)
-    *)
-    fun raisePrg (G, T.Unit, _) = T.Unit
-      | raisePrg (G, T.PairPrg (P1, P2), T.And (F1, F2)) =
-        let 
-	  val P1' = raisePrg (G, P1, F1)
-	  val P2' = raisePrg (G, P2, F2)
-	in
-	  T.PairPrg (P1', P2')
-	end
-      | raisePrg (G, T.PairExp (U, P), T.Ex ((I.Dec (_, V), _), F)) =
-	let 
-	  val w = S.weaken (G, I.targetFam V)
-                                                   (* G  |- w  : G'    *)
-	  val iw = Whnf.invert w 	            (* G' |- iw : G     *)
-	  val G' = Whnf.strengthen (iw, G)        (* Psi0, G' |- B'' ctx *)
-
-	  val U' = A.raiseTerm (G', I.EClo (U, iw))
-	  val P' = raisePrg (G, P, F)
-	in
-	  T.PairExp (U', P')
-	end
-
-
-*)
-
-
-
-(* ****************************************************************** *)
 
 	fun append (G, I.Null) = G
 	  | append (G, I.Decl (G', D)) = I.Decl (append (G, G'), D)
@@ -964,7 +754,6 @@ exception Error' of Tomega.Sub
   	    let 
 	      val c' = wmap c
 	      val n = I.ctxLength Psi0 + I.ctxLength G
-(*	      val s' = mediateSub (n, I.Shift (n+I.ctxLength Psi0)) *)
 
 	      val (Gsome, Lpi) = I.constBlock c
 	      val _ = TypeCheck.typeCheckCtx (T.coerceCtx (append(append(Psi0, Psi), T.embedCtx G)))
@@ -1032,19 +821,7 @@ exception Error' of Tomega.Sub
 			      end
 			    else lookupbase a
 	      
-(* val (HP, F) = lookup ((L, projs, F0), a) *)
-
-
-(*	      fun lookup (b :: L, a) = 
-		  if a = b then 1 + (List.length L) 
-		  else lookup (L, a)
-		 
-
-	      val k = lookup (L, a)   
-	      val T.PDec(_, F) = I.ctxLookup (Psi0, k)
-					(* . |- F : for *)
-	      val k' = k + n - m	(* Psi0, G', B' |- k' :: F  *)
-*)		
+		
 	      (* apply ((S, mS), F')= (S'', F'')
 	        
 	         Invariant:
@@ -1105,15 +882,8 @@ exception Error' of Tomega.Sub
 	      val (B'', _) = subCtx (B', w1')
 	      val _ = TomegaTypeCheck.checkCtx (append (append (Psi0, G), T.embedCtx B''))
 
-
-
-  
               val (GB', iota) = T.deblockify  B'    (* Psi0, G' |- GB' ctx *)
 
-(*	      val b4 = I.ctxLength GB'
-	      val iota = blockToIota (T.Shift b4, B', 0)
-					(* Psi0, G', GB'  |- s' : Psi0, G', B' *)
-*)
 	      val _ = TypeCheck.typeCheckSub (GB', T.coerceSub iota, B') 
 		         handle TypeCheck.Error _ => raise Error' iota
 		
@@ -1177,9 +947,6 @@ exception Error' of Tomega.Sub
 
 	      val (B3, sigma3) = T.deblockify  B3'
 
-(*	      val sigma3 = blockToIota (T.Shift (I.ctxLength B3), B3', 0)
-					(* Psi2, B3 |- sigma3 : Psi2,  B3' *)
-*)
               val Pat'' = Normalize.normalizePrg (Pat', sigma3)
 	      val Pat = TA.raisePrg (B3, Pat'', F4)
 		                        (* Psi0, G3 |- Pat :: F4  *)
@@ -1197,7 +964,6 @@ exception Error' of Tomega.Sub
 	    end
 
 
-(* ****************************************************************** *)
 
 
     (* traverse (Psi0, L, Sig, wmap) = C'
@@ -1411,7 +1177,6 @@ exception Error' of Tomega.Sub
 	    val _ = validSig (Psi0, statSig)
 	    val _ = validSig (Psi0, dynSig)
 
-(*	    val C0 = blockCases (Psi0, a, L, Sig, wmap) *)
 	    val C0 = traverse (Psi0, L, dynSig, wmap, projs) 
   	    (* init' F = P'
 
@@ -1441,19 +1206,10 @@ exception Error' of Tomega.Sub
 	  | convertPrg' (a :: L', T.And (F1, F2)) = T.PairPrg (convertOnePrg (a, F1), convertPrg' (L', F2))
 
 	val P = Prec (convertPrg' (L, F0))
-(*	val _ = TomegaTypeCheck.checkPrg (P, F) *)
-
       in
 	P
       end
 
-(*
-    fun installIndividualFor ([], lemma) =
-        let 
-	  val 
-	in
-	end
-*)
     fun installFor [cid] = 
         let 
 	  val F = convertFor [cid]
@@ -1462,15 +1218,7 @@ exception Error' of Tomega.Sub
 	in
 	  ()
 	end
-(*      | installFor cids = 
-        let 
-	  val F = convertFor cids
-	  val T.Rec (T.PDec (name, _), _) = F
-	  val lemma = T.lemmaAdd (T.ForDec (name, F))
-	in
-	  installIndividualFor (cids, lemma)
-	end
-*)
+
 
     fun depthConj (T.And (F1, F2)) =
         1+ depthConj F2
@@ -1571,17 +1319,6 @@ exception Error' of Tomega.Sub
 
 
 
-(*    fun raiseP (G, P, F) =
-      let 
-	val (G', s) = T.deblockify G
-	val P' = Normalize.normalizePrg (P, s) (* G' |- P' : F' *)
-	val F' = Normalize.normalizeFor (F, s)
-	val P'' = raisePrg (G', P', F')
-      in
-	P''
-      end
-*)
-
     fun mkResult 0 = T.Unit
       | mkResult n = T.PairExp (I.Root (I.BVar n, I.Nil), mkResult (n-1))
 
@@ -1605,8 +1342,6 @@ exception Error' of Tomega.Sub
     val installFor = installFor
     val installPrg = installPrg
     val traverse = traverse
-(*    val raisePrg = raiseP
-    val raiseFor = raiseFor *)
     val convertGoal = convertGoal
   end
 end (* functor FunSyn *)
