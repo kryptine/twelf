@@ -466,9 +466,12 @@ struct
         let 
 	  val t' = comp (t, invShift)
 	in
+	  (* G |- D dec *)
+          (* G' |- t' : G *)
+	  (* G' |- D[t'] dec *)
           Decl (strengthen (t', G), decSub (D, t'))
 	end
-      | strengthen (Dot (Undef, t), Decl (G, d)) = 
+      | strengthen (Dot (Undef, t), Decl (G, D)) = 
           strengthen (t, G)
       | strengthen (Shift n, G) = 
 	  strengthen (Dot (Idx (n+1), Shift (n+1)), G)
