@@ -6,7 +6,6 @@ functor TomegaTypeCheck
   (structure Abstract : ABSTRACT
    structure TypeCheck : TYPECHECK
    structure Conv : CONV
-   structure Normalize : NORMALIZE
    structure Whnf : WHNF
    structure Print : PRINT
    structure TomegaPrint : TOMEGAPRINT
@@ -60,7 +59,7 @@ struct
        and  Psi  |- F'[t1] == F[t2]
        then Psi  |- F''[t1] == F'[t']
     *)
-    fun inferSpine (Psi, S, Ft) = inferSpineW (Psi, S, Normalize.whnfFor Ft)
+    fun inferSpine (Psi, S, Ft) = inferSpineW (Psi, S, T.whnfFor Ft)
     and inferSpineW (Psi, T.Nil, (F, t)) = (F, t)
       | inferSpineW (Psi, T.AppExp (M, S), (T.All ((T.UDec (I.Dec (_, A)), _), F), t)) =
 	let 
@@ -128,20 +127,12 @@ struct
       | inferPrg (Psi, T.Unit) = T.True
       | inferPrg (Psi, T.Var k) = (case T.ctxDec (Psi, k) of T.PDec (_, F') => F')
       | inferPrg (Psi, T.Const c) = inferLemma c
-(* Root's are history Thu Aug 21 14:14:17 2003 --cs 
-      | inferPrg (Psi, T.Root (H, S)) = 
-	let
-	  val F1 = inferCon (Psi, H)
-	  val F2 = inferSpine (Psi, S, (F1, T.id))
-	in 
-	  Normalize.normalizeFor F2
-	end
-*)      | inferPrg (Psi, T.Redex (P, S)) = 
+      | inferPrg (Psi, T.Redex (P, S)) = 
 	let
 	  val F1 = inferPrg (Psi, P)
 	  val F2 = inferSpine (Psi, S, (F1, T.id))
 	in 
-	  Normalize.normalizeFor F2
+	  T.forSub F2
 	end
       | inferPrg (Psi, T.Rec (D as T.PDec (_, F), P)) = 
 	let
@@ -167,22 +158,13 @@ struct
        and  P does not contain any P closures
        then checkPrg returns () iff F'[t1] == F[id]
     *)
-    and checkPrg (Psi, (P, Ft)) = checkPrgW (Psi, (P, Normalize.whnfFor Ft))
+    and checkPrg (Psi, (P, Ft)) = checkPrgW (Psi, (P, T.whnfFor Ft))
     and checkPrgW (_, (T.Unit, (T.True, _))) =
         let 
 	  val _ = chatter 4 (fn () => "[true]")
 	in
           ()
 	end
-(*      | checkPrgW (Psi, (T.Root (H, S), (F, t))) =
-	let
-	  val F' = inferCon (Psi, H)
-	  val Ft'' = inferSpine (Psi, S, (F', T.id))
-	  val _ = convFor (Psi, Ft'', (F, t))
-	in 
-	  ()
-	end
-*)
       | checkPrgW (Psi, (T.Const lemma, (F, t))) = 
 	  convFor (Psi, (inferLemma lemma, T.id), (F, t))
       | checkPrgW (Psi, (T.Var k, (F, t))) = 
@@ -331,7 +313,7 @@ struct
        and  Ps1 |- F1 for
     *)
 
-    and convFor (Psi, Ft1, Ft2) = convForW (Psi, Normalize.whnfFor Ft1, Normalize.whnfFor Ft2)
+    and convFor (Psi, Ft1, Ft2) = convForW (Psi, T.whnfFor Ft1, T.whnfFor Ft2)
     and convForW (_, (T.True, _), (T.True, _)) = ()
       | convForW (Psi, 
 		  (T.All ((D as T.UDec( I.Dec (_, A1)), _), F1), t1), 
@@ -632,7 +614,7 @@ struct
 
 
 
-(*
+(*  remove later!
     and isValue (T.Lam _) = ()
       | isValue (T.PairExp (M, P)) = isValue P
       | isValue (T.PairBlock _ ) = ()

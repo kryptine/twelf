@@ -598,7 +598,7 @@ struct
       | lookup (I.Decl (G, T.PDec (NONE, _)), n, s) =  lookup (G, n+1, s)
       | lookup (I.Decl (G, T.UDec _), n, s) =  lookup (G, n+1, s)
       | lookup (I.Decl (G, T.PDec (SOME s', F)), n, s) = 
-        if s = s' then (n, Normalize.normalizeFor (F, T.Shift n))
+        if s = s' then (n, T.forSub (F, T.Shift n))
         else lookup (G, n+1, s)
 
     (* transHead (G, T, S) = (F', t')
@@ -751,7 +751,7 @@ struct
           val _ = Names.varReset (I.Null)
 	  val Psi0 = I.Decl (Psi, T.PDec (SOME s, F))
 	  val ((F', t'), S) = transHead (Psi0, eH, nil)
-(*      	  val F' = Normalize.normalizeFor (F, t) *)
+(*      	  val F' = T.forSub (F, t) *)
 	  val (Psi', S') = Abstract.abstractSpine (S, I.id)
 	  val Psi'' = append (Psi0, T.embedCtx Psi')
 	  val m0 = I.ctxLength Psi0
@@ -791,7 +791,7 @@ struct
 
 	  val G = Names.ctxName (T.coerceCtx Psi)
 	  val F = transFor (G, eF)   
-	  val (F'' as T.World (W, F')) = Normalize.normalizeFor (F, T.id)
+	  val (F'' as T.World (W, F')) = T.forSub (F, T.id)
 (*	  val _ = print s
 	  val _ = print " :: "
 	  val _ = print (TomegaPrint.forToString (T.embedCtx G, F'') ^ "\n") *)
@@ -830,7 +830,7 @@ struct
 						 (P', (F', T.id))
 					       end)
 
-	  val F'' = Normalize.normalizeFor (F', t')
+	  val F'' = T.forSub (F', t')
 	  val Pat = transPattern (EPat, (F', t'))
       	  val D = T.PDec (NONE, F'')
 	  val (Psi', Pat') = Abstract.abstractTomegaPrg (Pat)
@@ -855,7 +855,7 @@ struct
        then Psi |- P :: F
     *)
     and transProgI (Psi, eP, Ft, W) =
-          transProgIN (Psi, eP, Normalize.normalizeFor Ft, W)
+          transProgIN (Psi, eP, T.forSub Ft, W)
 
     and transProgIN (Psi, D.Unit, T.True, W) = T.Unit
       | transProgIN (Psi, P as D.Inx (s, EP), T.Ex ((I.Dec (_, V), T.Explicit), F'), W) =
@@ -1122,7 +1122,7 @@ struct
             | universalClosure ((_, D) :: Ds, F)  = T.All (T.UDec D, universalClosure (Ds, F))
 
           val (P', (F, t)) = transProgS ((Psi, env), eP, W)
-          val F' = Normalize.normalizeFor (F, t)
+          val F' = T.forSub (F, t)
           val F'' = universalClosure (Dlist, F')
           val P'' = lamClosure (F'', P')
         in

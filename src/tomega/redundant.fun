@@ -79,7 +79,7 @@ functor Redundant (structure Opsem : OPSEM) : REDUNDANT  =
 	    in
 	      if (doMatch) then
 		let
-		  val newT = Normalize.normalizeSub t
+		  val newT = T.normalizeSub t
 		  val stillMatch = IsSubRenamingOnly(newT)
 		in
 		  (stillMatch andalso prgEqual(P1, (P2, cleanSub(newT))))
@@ -466,7 +466,7 @@ functor Redundant (structure Opsem : OPSEM) : REDUNDANT  =
       in
 	if (doMatch) then
 	  let
-	    val newT = Normalize.normalizeSub t
+	    val newT = T.normalizeSub t
 	    val stillMatch = IsSubRenamingOnly(newT)
 	  in
 	    if (stillMatch) then
@@ -537,7 +537,7 @@ functor Redundant (structure Opsem : OPSEM) : REDUNDANT  =
 	  [C,C']
 	else
 	  let 
-	    val newT = Normalize.normalizeSub t
+	    val newT = T.normalizeSub t
 	  in
 	    if (IsSubRenamingOnly(newT)) then
 	      [(Psi1, s1, mergePrgs((P1), (P2, cleanSub(newT))))]

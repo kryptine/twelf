@@ -5,9 +5,6 @@ functor TomegaCoverage
   ((*! structure IntSyn' : INTSYN !*)
    (*! structure Tomega' : TOMEGA !*)
    (*! sharing Tomega'.IntSyn = IntSyn' !*)
-   structure Normalize : NORMALIZE
-   (*! sharing Normalize.IntSyn = IntSyn' !*)
-   (*! sharing Normalize.Tomega = Tomega' !*)
    structure TomegaPrint : TOMEGAPRINT
    (*! sharing TomegaPrint.IntSyn = IntSyn' !*)
    (*! sharing TomegaPrint.Tomega = Tomega' !*)
@@ -109,7 +106,7 @@ struct
       | purifyCtx (T.Dot (T.Prg P, t), I.Decl (Psi, T.PDec (_, F))) =
         let 
 	  val (t', Psi', s') = purifyCtx (t, Psi)
-	  val (t'', Psi'', s'') = purifyFor ((P, t'), (Psi', Normalize.normalizeFor (F, s')), s')
+	  val (t'', Psi'', s'') = purifyFor ((P, t'), (Psi', T.forSub (F, s')), s')
 	in 
           (t'', Psi'', T.Dot (T.Undef, s''))
 	end

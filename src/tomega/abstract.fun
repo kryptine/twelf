@@ -145,8 +145,8 @@ struct
     fun raiseP (G, P, F) =
       let 
 	val (G', s) = T.deblockify G
-(*	val P' = Normalize.normalizePrg (P, s) (* G' |- P' : F' *) *)
-	val F' = Normalize.normalizeFor (F, s)
+(*	val P' = T.normalizePrg (P, s) (* G' |- P' : F' *) *)
+	val F' = T.forSub (F, s)
 	val P'' = raisePrg (G', (P, T.coerceSub s), F')
       in
 	P''

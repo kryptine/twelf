@@ -19,9 +19,6 @@ functor Converter
    (*! sharing Whnf.IntSyn = IntSyn' !*)
    structure Print : PRINT
    (*! sharing Print.IntSyn = IntSyn' !*)
-   structure Normalize : NORMALIZE
-   (*! sharing Normalize.IntSyn = IntSyn' !*)
-   (*! sharing Normalize.Tomega = Tomega' !*)
    structure TomegaPrint : TOMEGAPRINT
    (*! sharing TomegaPrint.IntSyn = IntSyn' !*)
    (*! sharing TomegaPrint.Tomega = Tomega' !*)
@@ -832,8 +829,8 @@ exception Error' of Tomega.Sub
 		 and  Psi0, G', B |- S'' :: F' >> F''
 	      *)
 		
-	      fun apply ((S, mS), Ft) = applyW ((S, mS), Normalize.whnfFor (Ft))
-	      and applyW ((I.Nil, M.Mnil), Ft') = (T.Nil, Normalize.normalizeFor Ft')
+	      fun apply ((S, mS), Ft) = applyW ((S, mS), T.whnfFor (Ft))
+	      and applyW ((I.Nil, M.Mnil), Ft') = (T.Nil, T.forSub Ft')
 		| applyW ((I.App (U, S), M.Mapp (M.Marg (M.Plus, _), mS)), 
 			 (T.All (D, F'), t')) =
 					(* Psi0, G', B' |- D = x:V' : type *)
@@ -856,7 +853,7 @@ exception Error' of Tomega.Sub
 					(* Psi0, G', B' |- F'' :: for *)
 					(* Psi0, G', B' |- S'' :: F' >> F'' *)
 	      val _ = TomegaTypeCheck.checkFor (append (append (Psi0, G), T.embedCtx B), 
-						(Normalize.normalizeFor(F'', T.embedSub w1)))
+						(T.forSub(F'', T.embedSub w1)))
 	
 
 
@@ -887,7 +884,7 @@ exception Error' of Tomega.Sub
 	      val _ = TypeCheck.typeCheckSub (GB', T.coerceSub iota, B') 
 		         handle TypeCheck.Error _ => raise Error' iota
 		
-	      val RR = Normalize.normalizeFor (F'', iota) 
+	      val RR = T.forSub (F'', iota) 
  					(* Psi0, G, B |- w1 : Psi0, G', B' *)	
 					(* Psi0, G', GB'  |- s' : Psi0, G', B' *)
 					(* Psi0, G', GB' |- RR for *)
@@ -918,7 +915,7 @@ exception Error' of Tomega.Sub
 
 	      val _ = TomegaTypeCheck.checkCtx (append (Psi0, G))
 	      val _ = TomegaTypeCheck.checkFor (append (Psi0, G), 
-						(Normalize.normalizeFor(F''', T.embedSub w1')))
+						(T.forSub(F''', T.embedSub w1')))
 	
 	      val (Psi1'', w2, z2) = strengthen (Psi1, (a, S), w1, M.Minus)
 		                        (* |- Psi0, Psi1'' ctx *)
@@ -937,7 +934,7 @@ exception Error' of Tomega.Sub
 	      val Pat' = transformConc ((a, S), w2)
 
 					(* Psi0, G3, B3' |- Pat' :: For *)
-	      val F4 = Normalize.normalizeFor (F''', T.embedSub z3)
+	      val F4 = T.forSub (F''', T.embedSub z3)
 					(* Psi0, G3 |- F4 for *)
 	      val _ = TomegaTypeCheck.checkCtx (Psi1'')
 	      val _ = TomegaTypeCheck.checkCtx (append (Psi2, T.embedCtx B3'))
@@ -947,7 +944,7 @@ exception Error' of Tomega.Sub
 
 	      val (B3, sigma3) = T.deblockify  B3'
 
-              val Pat'' = Normalize.normalizePrg (Pat', sigma3)
+              val Pat'' = T.normalizePrg (Pat', sigma3)
 	      val Pat = TA.raisePrg (B3, Pat'', F4)
 		                        (* Psi0, G3 |- Pat :: F4  *)
 		                        (* Here's a commutative diagram
@@ -1226,7 +1223,7 @@ exception Error' of Tomega.Sub
 
     fun createProjection (Psi, depth, F as T.And (F1, F2), Pattern) = 
           createProjection (I.Decl (Psi, T.PDec (NONE, F1)), depth+1, 
-			    Normalize.normalizeFor (F2, T.Shift 1), 
+			    T.forSub (F2, T.Shift 1), 
 			    T.PairPrg (T.Var (depth+2), Pattern))
       | createProjection (Psi, depth, F,  Pattern) =
 	  let 

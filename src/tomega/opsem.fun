@@ -4,7 +4,6 @@
 functor Opsem ( structure Whnf : WHNF
 	       structure Abstract : ABSTRACT
 	       structure Subordinate : SUBORDINATE
-	       structure Normalize : NORMALIZE
 	       structure TomegaTypeCheck : TOMEGATYPECHECK
 	       structure TomegaPrint : TOMEGAPRINT
 	       structure Unify : UNIFY
@@ -40,7 +39,7 @@ struct
        otherwise exception NoMatch is raised
 *)
     fun matchPrg (Psi, P1, P2) = 
-      matchVal (Psi, (P1, T.id), Normalize.normalizePrg (P2, T.id))
+      matchVal (Psi, (P1, T.id), T.normalizePrg (P2, T.id))
       (* ABP -- normalizePrg invariant does not state what happens to non-free EVArs,
        and there are some embedded under PClo... *)
 	 
@@ -201,7 +200,7 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
 	     val V = evalPrg (I.Decl (Psi, D'''), (P, T.dot1 t))
 	     val B = T.coerceCtx (I.Decl (I.Null, D'''))
 	     val (G, t') = T.deblockify B
-	     val newP = raisePrg (Psi, G, Normalize.normalizePrg (V, t'))
+	     val newP = raisePrg (Psi, G, T.normalizePrg (V, t'))
 	   in 
 	     newP
 	   end
@@ -279,7 +278,7 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
 	  (* Note that since we are missing the shift(k), it is possible
 	   * that t' has extra DOTs in there that weren't removed *)
 	  ( matchSub (Psi, t1, t'); 
-	   evalPrg (Psi, (P, (*Normalize.normalizeSub*) t)))
+	   evalPrg (Psi, (P, (*T.normalizeSub*) t)))
 	  handle NoMatch => match (Psi, t1, T.Cases C)	  
 	end
       | match (Psi, t1, T.Cases (nil)) = raise Abort
@@ -301,7 +300,7 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
       | createVarSub (Psi, Psi'' as I.Decl (Psi', T.PDec (name, F))) =  
         let 
 	  val t = createVarSub (Psi, Psi')
-	  val t' = T.Dot (T.Prg (T.newEVar (Psi, Normalize.normalizeFor(F,t))), t) 
+	  val t' = T.Dot (T.Prg (T.newEVar (Psi, T.forSub(F,t))), t) 
 	in
 	  t'
 	end
@@ -442,7 +441,7 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
 		val t' = T.comp (t2, t)
 		val m = I.ctxLength Psi'
 		val _ = matchSub (Psi, t1, t'); 
-		val t'' = (* Normalize.normalizeSub *) t  (* Psi |- t'' : Psi' *)
+		val t'' = (* T.normalizeSub *) t  (* Psi |- t'' : Psi' *)
 		val _ = printLF (T.coerceCtx Psi, T.coerceSub t'', T.coerceCtx Psi') (m-d)
 	      in
 		topLevel (Psi, m, (P, t''))

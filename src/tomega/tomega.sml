@@ -8,7 +8,6 @@ structure TomegaAbstract = TomegaAbstract
 structure TomegaPrint = TomegaPrint
   ((*! structure IntSyn' = IntSyn !*)
    (*! structure Tomega' = Tomega !*)
-   structure Normalize = Normalize
    structure Formatter = Formatter
    structure Names = Names
    structure Print = Print)
@@ -19,7 +18,6 @@ structure TomegaTypeCheck = TomegaTypeCheck
    structure Abstract = Abstract
    (*! structure Tomega' = Tomega !*)
    structure TypeCheck = TypeCheck
-   structure Normalize = Normalize
    structure Conv = Conv
    structure Whnf = Whnf
    structure Subordinate = Subordinate
@@ -28,7 +26,7 @@ structure TomegaTypeCheck = TomegaTypeCheck
    structure Weaken = Weaken
    structure TomegaAbstract = TomegaAbstract);
 
-structure TomegaUnify = TomegaUnify
+(* structure TomegaUnify = TomegaUnify
   (structure Global = Global
    (*! structure IntSyn' = IntSyn !*)
    structure Abstract = Abstract
@@ -41,7 +39,7 @@ structure TomegaUnify = TomegaUnify
    structure TomegaPrint = TomegaPrint
    structure Print = Print
    structure Weaken = Weaken);
-
+*)
 
 
 structure Opsem = Opsem
@@ -50,7 +48,6 @@ structure Opsem = Opsem
    structure Abstract = Abstract
    structure Tomega' = Tomega
    structure TypeCheck = TypeCheck
-   structure Normalize = Normalize
    structure Unify = UnifyNoTrail
    structure Conv = Conv
    structure Whnf = Whnf
@@ -94,7 +91,6 @@ structure Converter = Converter
    structure TomegaTypeCheck = TomegaTypeCheck
    structure Trail = Trail
    structure Unify = UnifyTrail
-   structure Normalize = Normalize
    structure TomegaPrint = TomegaPrint
    structure Whnf = Whnf
    structure WorldSyn = WorldSyn
@@ -109,7 +105,6 @@ structure TomegaCoverage = TomegaCoverage
   (structure Global = Global
    structure IntSyn' = IntSyn
    structure Tomega' = Tomega
-   structure Normalize = Normalize
    structure TomegaPrint = TomegaPrint
    structure TomegaTypeCheck = TomegaTypeCheck
    structure Cover = Cover);
