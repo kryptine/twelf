@@ -101,6 +101,7 @@ struct
     Dec of name option * Exp		(* D ::= x:V                  *)
   | BDec of name option * (cid * Sub)	(*     | v:l[s]               *)
   | ADec of name option * int   	(*     | v[^-d]               *)
+  | NDec
 
   and Block =				(* Blocks:                    *)
     Bidx of int 			(* b ::= v                    *)

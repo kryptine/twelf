@@ -371,7 +371,7 @@ struct
       | coerceCtx (I.Decl (Psi, UDec D)) = 
           I.Decl (coerceCtx Psi, D)
       | coerceCtx (I.Decl (Psi, PDec _)) = 
-	  coerceCtx Psi
+	  I.Decl (coerceCtx Psi, I.NDec) 
 
     
 

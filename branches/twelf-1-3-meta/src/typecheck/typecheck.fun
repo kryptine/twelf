@@ -225,6 +225,7 @@ struct
 	  in
 	    checkSub (G, I.comp (t, s), Gsome)
 	  end
+      | checkDec (G, (NDec, _)) = () 
 
     and checkCtx (I.Null) =  ()
       | checkCtx (I.Decl (G, D)) = 

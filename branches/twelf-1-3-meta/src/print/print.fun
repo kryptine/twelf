@@ -664,7 +664,9 @@ local
       end
     | fmtDec (G, d, (I.ADec (x, _), s)) =
       F.HVbox [Str0 (Symbol.bvar (nameOf (x))), sym ":_"]
-      (* alternative with more whitespace *)
+     | fmtDec (G, d, (I.NDec, s)) =
+      F.HVbox [ sym "XXX"]
+     (* alternative with more whitespace *)
       (* F.HVbox [Str0 (Symbol.bvar (nameOf (x))), F.Space, sym ":", F.Break,
                   fmtExp (G, d+1, noCtxt, (V,s))]
       *)

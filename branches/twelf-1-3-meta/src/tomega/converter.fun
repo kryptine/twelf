@@ -17,6 +17,8 @@ functor Converter
      sharing Unify.IntSyn = IntSyn'
    structure Whnf : WHNF
      sharing Whnf.IntSyn = IntSyn'
+   structure Print : PRINT
+     sharing Print.IntSyn = IntSyn'
    structure Normalize : NORMALIZE
      sharing Normalize.IntSyn = IntSyn'
      sharing Normalize.Tomega = Tomega'
@@ -715,10 +717,11 @@ exception Error' of Tomega'.For
 
 
 
-    (* raiseFor (G, (P, F)) = (P', F')) 
+    (* raiseFor (G, (F, t)) = (P', F')) 
  
        Invariant:
        If   Psi, G |-  F for
+       and  Psi', G' |- t : Psi, G
        and  Psi |- G : blockctx
        then Psi |-  F' for
        and  F = raise (G, F')   (using subordination)
@@ -731,16 +734,19 @@ exception Error' of Tomega'.For
 	in
 	   T.And (F1', F2')
 	end
-      | raiseFor (G,  T.Ex (I.Dec (x, V), F)) =
+      | raiseFor (G,  T.Ex (I.Dec (x, V), F)) =     (* this is wrong, we forget to substitute a fully applied term for x! *)
 	let 
  	  val w = S.weaken (G, I.targetFam V)       (* G  |- w  : G'    *)
-	  val iw = Whnf.invert w 	          (* G' |- iw : G     *)
-	  val G' = Whnf.strengthen (iw, G)
-	  val V' = A.raiseType (G', V)    (* this is wrong!  raise V, because V contains projections! *)
+	  val iw = Whnf.invert w 	            (* G' |- iw : G     *)
+	  val G' = Whnf.strengthen (iw, G)      
+	  val V' = A.raiseType (G', V)   
+(*	  val U' = I.Root (I.BVar 1, S *)
 	  val F' = raiseFor (G, F)
 	in
 	  T.Ex (I.Dec (x, V'), F')
 	end
+
+(* TODO fix raise! *)
 
 
     (* raisePrg (G, P, F) = (P', F')) 
@@ -778,10 +784,11 @@ exception Error' of Tomega'.For
        then |- G == G' 
        and  |- G' is an LF context
     *)
-    fun deblockify (I.Null) = I.Null
-      | deblockify (I.Decl (G, I.BDec (x, (c, s)))) = 
+    fun deblockify  (I.Null) = I.Null
+      | deblockify  (I.Decl (G, I.BDec (x, (c, s)))) = 
         let
-	  val G' = deblockify G
+	  val G' = deblockify  G
+	  val _ = print ("deblockify " ^ Int.toString c)
           val (_, L) = I.constBlock c
 	in 
 	  append (G', (L, s))
@@ -802,6 +809,11 @@ exception Error' of Tomega'.For
       let 
 	fun append (G, I.Null) = G
 	  | append (G, I.Decl (G', D)) = I.Decl (append (G, G'), D)
+
+
+	fun mediateSub (0, s) = s
+	  | mediateSub (m, s) = 
+	      I.Dot (I.Idx m, mediateSub (m-1, s))
 
 	(* traverseNeg (Psi0, Psi, V) = ([w', PQ'], L')    [] means optional
 	   
@@ -842,9 +854,20 @@ exception Error' of Tomega'.For
         and traversePos ((Psi0, Psi, G), I.Pi ((D as I.BDec (x, (c, s)), _), V), SOME (w1, (P, Q))) =
   	    let 
 	      val c' = wmap c
+	      val _ = print (Int.toString c ^ " is mapped to " ^ Int.toString c' ^ "\n")
+	      val n = I.ctxLength Psi0 + I.ctxLength G
+	      val s' = mediateSub (n, I.Shift (n+I.ctxLength Psi0))
+
+	      val (Gsome, Lpi) = I.constBlock c
+	      val _ = print "1"
+	      val _ = TypeCheck.typeCheckCtx (T.coerceCtx (append(append(Psi0, Psi), T.embedCtx G)))
+	      val _ = print "2"
+	      val _ = TypeCheck.typeCheckSub (T.coerceCtx (append(append(Psi0, Psi), T.embedCtx G)), I.comp(s, s'), Gsome)
+	      val _ = print "3"
+
 	    in
 	      traversePos ((Psi0, Psi, 
-			    I.Decl (G,  (* T.UDec *) (I.BDec (x, (c', s))))), 
+			    I.Decl (G,  (* T.UDec *) (I.BDec (x, (c', I.comp (s, s')))))), 
 			   V, SOME (I.dot1 w1, (P, Q)))
 	    end
           | traversePos ((Psi0, G, B), V as I.Root (I.Const a, S), SOME (w1, (P, Q))) =
@@ -857,7 +880,7 @@ exception Error' of Tomega'.For
 val  _ = print "["
 	      val Psi1 = append (Psi0, append (G, T.embedCtx B))
 					(* Psi1 = Psi0, G, B *)
-	      val _ = TomegaTypeCheck.checkCtx (Psi1)
+	      val _ = TomegaTypeCheck.checkCtx (append(append(Psi0, G), T.embedCtx B))
 val _  = print "."
 
 	      val n = domain (Psi1, w1)	(* n = |Psi0, G', B'| *)
@@ -926,7 +949,7 @@ val _ = print "&"
    and  G, V1[t] ... Vn[t] |- n ... 1.iota :  <V1; ...; <Vn ;Sigma>>
 *)
 fun mk_iota (0, t) = t
-  | mk_iota (n, t) = I.Dot (I.Idx n, mk_iota (n-1, t))
+  | mk_iota (n, t) = mk_iota (n-1, I.Dot (I.Idx n, t))
     (* blockToIota (t, G) = t'
      
        Invariant:
@@ -982,7 +1005,7 @@ val _ = print "."
               val P''' = lift (B', P'') (* Psi0, G' |- P''' :: F''' *)
   
 
-              val GB' = deblockify B'    (* Psi0, G' |- GB' ctx *)
+              val GB' = deblockify  B'    (* Psi0, G' |- GB' ctx *)
 
 	      val (GB'', _) = subCtx (GB', w1')
 	      val _ = TomegaTypeCheck.checkCtx (append (append (Psi0, G), T.embedCtx GB''))
@@ -999,12 +1022,18 @@ val iota1 = I.Shift (n' + b4)
 val s' = blockToIota (T.Shift b4, B',iota1)
 					(* Psi0, G', GB'  |- s' : Psi0, G', B' *)
 
-val _ = TomegaTypeCheck.checkSub (T.embedCtx GB', s', T.embedCtx B')
+
+
+(* val _ = TomegaTypeCheck.checkSub (T.embedCtx GB',  blockToIota (T.Shift b4, B', I.Shift b4), T.embedCtx B')  *)
 val _ = print "."
 
 
 	      val RR = Normalize.normalizeFor (F'', s')
                                         (* Psi0, G' |- F''' for *)
+val _ = print "\n"
+val _ = print (Print.ctxToString (I.Null, T.coerceCtx (append (append (Psi0, G), T.embedCtx GB'))) ^ "\n")
+val _ = print (TomegaPrint.forToString (append (append (Psi0, G), T.embedCtx GB'), Normalize.normalizeFor(RR, T.embedSub w1')) ^ "\n")
+
 	      val _ = TomegaTypeCheck.checkFor (append (append (Psi0, G), T.embedCtx GB'), 
 						(Normalize.normalizeFor(RR, T.embedSub w1')))
 		    
@@ -1012,6 +1041,8 @@ val _ = print "."
 val _ = print ";"
 	      val F''' = raiseFor (GB', Normalize.normalizeFor (F'', s'))
                                         (* Psi0, G' |- F''' for *)
+	      val _ = print (TomegaPrint.forToString (append (Psi0, G), Normalize.normalizeFor(F''', T.embedSub w1')))
+
 	      val _ = TomegaTypeCheck.checkFor (append (Psi0, G), 
 						(Normalize.normalizeFor(F''', T.embedSub w1')))
 	
@@ -1047,7 +1078,7 @@ val _ = print (TomegaPrint.forToString (Psi2, F4) ^ "\n")
 	      val _ = TomegaTypeCheck.checkFor (Psi2, F4)
 		handle _ => raise Error' F4
 val  _ = print "]"
-	      val B3 = deblockify B3'
+	      val B3 = deblockify  B3'
 
 
 (* the pattern is wrong.  Pat' might be defined in B3. But we need to remove
@@ -1110,13 +1141,14 @@ val sigma3 = blockToIota (T.Shift (I.ctxLength B3), B3', iota0)
 	  *)
 	  fun transformList (nil, w) = nil
 	    | transformList ((D as I.Dec (x, V)) :: L, w) = 
-	      if List.exists (fn a => Subordinate.below (I.targetFam V, a)) fams then
+	      if List.exists (fn a => I.targetFam V = a) fams 
+		then transformList (L,  I.comp (w, I.shift))
+	      else
 		let 
 		  val  L' = transformList (L, I.dot1 w)
 		in
 		  (I.Dec (x, strengthenExp (V, w))) :: L'
 		end
-	      else transformList (L,  I.comp (w, I.shift))
 	      
 	  fun transformWorlds' (nil) = (nil, fn c => raise Error "World not found")
 	    | transformWorlds' (cid :: cids') = 
@@ -1185,6 +1217,10 @@ val sigma3 = blockToIota (T.Shift (I.ctxLength B3), B3', iota0)
 	    val mS = modeSpine a	(* |- mS : {x1:V1} ... {xn:Vn} > type  *)
 	    val Sig = Worldify.worldify a
 					(* Sig in LF(reg)   *)
+
+	    val _ = print "[Type checking the result of worldify ..."
+	    val _ = map (fn (I.ConDec (_, _,_,_,U,V)) => TypeCheck.check (U, I.Uni  V)) Sig
+	    val _ = print "]"
 
 	    val C0 = blockCases (Psi0, a, L, Sig, wmap)
   	    (* init' F = P'
