@@ -416,6 +416,7 @@ struct
     and matchCtx' (G, s', G', V, k, ms, Covered) = Covered
       | matchCtx' (G, s', G', V, k, ms, CandList (klist)) =
           matchCtx (G, s', G', V, k, ms, CandList (klist))
+
     (* match (G, V, ms, ccs) = klist
        matching coverage goal {{G}} V against coverage clauses Vi in ccs
        yields candidates klist
@@ -490,6 +491,13 @@ struct
 	  val X1 = I.newEVar (I.Null, I.EClo (V1, s)) (* all EVars are global *)
 	in
 	  instEVars ((V2, I.Dot (I.Exp (X1), s)), X1::XsRev)
+	end
+      | instEVarsW ((I.Pi ((I.BDec (l, t), _), V2), s), XsRev) =
+	let
+	  val L1 = I.newLVar (l, I.comp(t, s))
+	  val dummy = I.Uni (I.Type)
+	in
+	  instEVars ((V2, I.Dot (I.Block (L1), s)), dummy::XsRev) (* add L1 to XsRev ??? *)
 	end
       | instEVarsW (Vs as (I.Root _, s), XsRev) = (Vs, XsRev)
 
