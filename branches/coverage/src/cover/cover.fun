@@ -75,11 +75,6 @@ struct
        If G |- V : L
        then G |- X[w] : V
     *)
-
-    (* individual createEVar function currently not used *)
-    (* Sun Dec 16 11:57:49 2001 -fp !!! *)
-    (* seems to be needed for output coverage to create cover spine *)
-    (* Tue Dec 18 20:38:56 2001 -fp !!! *)
     fun createEVar (G, V) =
         let (* G |- V : L *)
 	  val w = weaken (G, I.targetFam V) (* G |- w : G' *)
@@ -91,13 +86,63 @@ struct
 	  X
 	end
 
+    (*************************)
+    (* Coverage instructions *)
+    (*************************)
+
+    (* Coverage instructions mirror mode spines, but they
+       are set up slightly differently for input and output
+       coverage.
+
+       Match  --- call match and generate candidates
+       Assign --- call match, but it should always succeed (therefore no candidates)
+                  this is intended to establish a typing invariant on output coverage
+		  however, it fails because of non-pattern terms.
+		  instead of this option we mildly(?) violate the typing invariant
+                  on unification.
+       Skip   --- ignore this argument for purposes of coverage checking
+
+       For input coverage, match input (+) and skip ignore * and output (-).
+
+       For output coverage, assign input (+), skip ignore *, and match output (-).
+       Because of non-patters, changed input arguments to skip in output coverage
+    *)
+    datatype CoverInst =
+        Match of CoverInst
+      | Skip of CoverInst
+      (* | Assign of CoverInst *) (* current not used Fri Dec 21 20:42:19 2001 -fp !!! *)
+      | Cnil
+
+    (* inCoverInst (ms) = ci
+       converts mode spine ms to cover instructions ci for input coverage
+    *)
+    fun inCoverInst (M.Mnil) = Cnil
+      | inCoverInst (M.Mapp (M.Marg (M.Plus, x), ms')) =
+          Match (inCoverInst ms')
+      | inCoverInst (M.Mapp (M.Marg (M.Minus, x), ms')) =
+	  Skip (inCoverInst ms')
+      | inCoverInst (M.Mapp (M.Marg (M.Star, x), ms')) =
+	  Skip (inCoverInst ms')
+
+    (* outCoverInst (ms) = ci
+       converts mode spine ms to cover instructions ci for output coverage
+    *)
+    fun outCoverInst (M.Mnil) = Cnil
+      | outCoverInst (M.Mapp (M.Marg (M.Plus, x), ms')) =
+          (* should be Assign except that non-patterns prevent assignment *)
+          (* Fri Dec 21 20:42:02 2001 -fp !!! *)
+          Skip (outCoverInst ms')
+      | outCoverInst (M.Mapp (M.Marg (M.Minus, x), ms')) =
+	  Match (outCoverInst ms')
+      | outCoverInst (M.Mapp (M.Marg (M.Star, x), ms')) =
+	  Skip (outCoverInst ms')
+
     (*
        Coverage goals have the form {{G}} a @ S
     *)
-
-    (******************************************)
-    (*** Creating the Initial Coverage Goal ***)
-    (******************************************)
+    (**********************************************)
+    (* Creating the initial input coverage goal ***)
+    (**********************************************)
 
     (* buildSpine n = n; n-1; ...; 1; Nil *)
 
@@ -105,10 +150,10 @@ struct
       | buildSpine n = (* n > 0 *)
         I.App (I.Root (I.BVar(n), I.Nil), buildSpine (n-1))
 
-    (* initCGoal' (a, k, G, V) = {x1:V1}...{xn:Vn} a x1...xn
+    (* initCGoal' (a, 0, ., V) = ({x1:V1}...{xn:Vn} a x1...xn, n)
+       for |- a : V and V = {x1:V1}...{xn:Vn} type
 
-       Invariants (modulo some renaming):
-       |- a : {x1:V1}...{xn:Vn} type
+       Invariants for initCGoal' (a, k, G, V):
        G = {x1:V1}...{xk:Vk}
        V = {xk+1:Vk+1}...{xn:Vn} type 
        G |- V : type
@@ -134,7 +179,7 @@ struct
 
     datatype CoverClauses =
         Input of I.Exp list
-      | Output of I.Exp * int (* for now, no factoring *)
+      | Output of I.Exp * int (* for now, no factoring --- singleton list *)
 
     (* Equation G |- (U1,s1) = (U2,s2)
        Invariant: 
@@ -322,8 +367,10 @@ struct
 		     cands)
       | matchExpW (G, d, Us1, Us2 as (I.EVar _, s2), cands) =
 	   addEqn (Eqn (G, Us1, Us2), cands)
-      (* next 3 cases are new for output coverage *)
-      (* Tue Dec 18 20:54:58 2001 -fp !!! *)
+      (* next 3 cases are only for output coverage *)
+      (* not needed if we skip input arguments for output coverage *)
+      (* see comments on CoverInst -fp Fri Dec 21 20:58:55 2001 !!! *)
+      (*
       | matchExpW (G, d, (I.Pi ((D1, _), V1), s1), (I.Pi ((D2, _), V2), s2), cands) =
 	let 
 	  val cands' = matchDec (G, d, (D1, s1), (D2, s2), cands)
@@ -332,6 +379,7 @@ struct
 	end 
       | matchExpW (G, d, (I.Pi _, _), _, cands) = fail ()
       | matchExpW (G, d, _, (I.Pi _, _), cands) = fail ()
+      *)
       (* nothing else should be possible, by invariants *)
       (* No I.Uni, I.FgnExp, and no I.Redex by whnf *)
 
@@ -377,34 +425,47 @@ struct
 	else fail () (* fails, with no candidates since type families don't match *)
       | matchTopW (G, d, (I.Pi ((D1,_), V1), s1),
 		         (I.Pi ((D2,_), V2), s2), ms, cands) = 
-	(* this case arises in output coverage *)
-	(* the parameters should not suggest any splittable variables,
-	   perhaps but they should probably be unified *)
-	(* Tue Dec 18 19:49:47 2001 -fp ??? !!! *)
+	(* this case can only arises in output coverage *)
+	(* the parameters should not suggest any splittable variables *)
+	(* see comments on CoverInst Fri Dec 21 20:59:46 2001 -fp !!! *)
 	let
-	  (* val cands' = matchDec (G, d, (D1, s1), (D2, s2), cands) *)
+	  (*
+	  val cands' = matchDec (G, d, (D1, s1), (D2, s2), cands)
+	  *)
 	  val cands' = cands
 	in
 	  matchTopW (I.Decl (G, D1), d+1, (V1, I.dot1 s1), (V2, I.dot1 s2), ms, cands')
 	end
-    and matchTopSpine (G, d, (I.Nil, _), (I.Nil, _), M.Mnil, cands) = cands
+    and matchTopSpine (G, d, (I.Nil, _), (I.Nil, _), Cnil, cands) = cands
       | matchTopSpine (G, d, (I.SClo (S1, s1'), s1), Ss2, ms, cands) =
           matchTopSpine (G, d, (S1, I.comp (s1', s1)), Ss2, ms, cands)
       | matchTopSpine (G, d, Ss1, (I.SClo (S2, s2'), s2), ms, cands) =
           matchTopSpine (G, d, Ss1, (S2, I.comp (s2', s2)), ms, cands)
       | matchTopSpine (G, d, (I.App (U1, S1), s1), (I.App (U2, S2), s2),
-		       M.Mapp (M.Marg (M.Plus, _), ms'), cands) =
+		       Match (ms'), cands) =
+        (* an argument that must be covered (Match) *)
         let
 	  val cands' = matchExp (G, d, (U1, s1), (U2, s2), cands)
 	in
 	   matchTopSpine (G, d, (S1, s1), (S2, s2), ms', cands')
 	end
       | matchTopSpine (G, d, (I.App (U1, S1), s1), (I.App (U2, S2), s2),
-		       M.Mapp (_, ms'), cands) =
-	(* skip "ignore" and "output" arguments *)
-	(* this seems questionable during output coverage *)
-	(* Tue Dec 18 19:20:47 2001 -fp ??? !!! *)
+		       Skip (ms'), cands) =
+	(* an argument that need not be covered (Skip) *)
 	   matchTopSpine (G, d, (S1, s1), (S2, s2), ms', cands)
+      (* assigning variables that need not be covered *)
+      (* currently not used; see comments on CoverInst Fri Dec 21 21:00:05 2001 -fp *)
+      (*
+      | matchTopSpine (G, d, (I.App (U1, S1), s1), (I.App (U2, S2), s2),
+		       Assign (ms'), cands) =
+        (* an argument that much always match *)
+        let
+	  val cands' = matchExp (G, d, (U1, s1), (U2, s2), cands)
+	  (* cands' = cands by invariant *)
+	in
+	   matchTopSpine (G, d, (S1, s1), (S2, s2), ms', cands')
+	end
+      *)
 
     (* matchClause (G, (a @ S1, s1), V, ms) = cands
        as in matchTop, but r is compiled clause
@@ -1247,30 +1308,11 @@ struct
        checks if the most general goal V' is locally output-covered by V
        Effect: raises Error (msg) otherwise
     *)
-    (*
-    fun checkOut (G, (V as I.Root (I.Const (a), S), s)) = (* s = id *)
-        let (* eventually, this special case shold be obsolete *)
-	  (* already know that subgoal is well-moded *)
-	  val SOME(ms) = ModeSyn.modeLookup a
-	  val negMs = negateMode ms	(* swap input/output modes *)
-	  val V' = createCoverClause (G, V)
-	  val V0 = createCoverGoal ((V', I.id), ms) (* replace output by new EVars *)
-	  val V0' = abstract (V0, I.id)	(* abstract will double-check *)
-	  val W = W.lookup a
-	  val missing = cover (V0', (W, negMs), V'::nil, nil)
-	  val _ = case missing
-	            of nil => ()
-		     | _::_ => raise Error ("Output coverage error --- missing cases:\n"
-					    ^ missingToString (missing, ms) ^ "\n")
-	in
-	  ()
-	end
-     *)
     fun checkOut (G, (V, s)) =
 	let
 	  val a = I.targetFam V
 	  val SOME(ms) = ModeSyn.modeLookup a (* must be defined and well-moded *)
-	  val negMs = negateMode ms	(* swap input/output modes *)
+	  val cOut = outCoverInst ms	(* determine cover instructions *)
 	  val (V', q) = createCoverClause (G, I.EClo(V, s), 0) (* abstract all variables in G *)
 	  val _ = if !Global.doubleCheck
 		    then TypeCheck.typeCheck (I.Null, (V', I.Uni (I.Type)))
@@ -1278,7 +1320,7 @@ struct
 	  val V0 = createCoverGoal (I.Null, (V', I.id), q, ms) (* replace output by new EVars *)
 	  val (V0', p) = abstract (V0, I.id)	(* abstract will double-check *)
 	  val W = W.lookup a
-	  val missing = cover (V0', p, (W, negMs), Output(V',q), nil)
+	  val missing = cover (V0', p, (W, cOut), Output(V',q), nil)
 	  val _ = case missing
 	            of nil => ()
 		     | _::_ => raise Error ("Output coverage error --- missing cases:\n"
@@ -1286,6 +1328,10 @@ struct
 	in
 	  ()
 	end
+
+    (******************)
+    (* Input Coverage *)
+    (******************)
 
     (* checkCovers (a, ms) = ()
        checks coverage for type family a with respect to mode spine ms
@@ -1298,10 +1344,11 @@ struct
 		    then TypeCheck.typeCheck (I.Null, (V0, I.Uni (I.Type)))
 		  else ()
 	  val _ = CSManager.reset ()
+	  val cIn = inCoverInst ms
 	  val cs = Index.lookup a
 	  val ccs = constsToTypes cs	(* calculate covering clauses *)
 	  val W = W.lookup a		(* must be defined, possibly empty *)
-	  val missing = cover (V0, p, (W, ms), Input(ccs), nil)
+	  val missing = cover (V0, p, (W, cIn), Input(ccs), nil)
 	  val _ = case missing
 	            of nil => ()	(* all cases covered *)
 		     | _::_ => raise Error ("Coverage error --- missing cases:\n"

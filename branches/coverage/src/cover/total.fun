@@ -147,8 +147,8 @@ struct
 
           (* Checking input coverage *)
 	  (* by termination invariant, there must be consistent mode for a *)
-	  val SOME(ms) = ModeSyn.modeLookup a
-	  val _ = (Cover.checkCovers (a, ms);
+	  val SOME(ms) = ModeSyn.modeLookup a	(* must be defined and well-moded *)
+	  val _ = (Cover.checkCovers (a, ms) ;
 		   if !Global.chatter >= 4
 		     then print ("Covers (+): " ^ Names.qidToString (Names.constQid a) ^ "\n")
 		   else ())
