@@ -855,8 +855,7 @@ exception Error' of Tomega'.For
 	    let
 
 val  _ = print "["
-	      val G'' = append (G, T.embedCtx B)	(* G'' = G, B *)
-	      val Psi1 = append (Psi0, G'')
+	      val Psi1 = append (Psi0, append (G, T.embedCtx B))
 					(* Psi1 = Psi0, G, B *)
 
 	      val n = domain (Psi1, w1)	(* n = |Psi0, G', B'| *)
@@ -910,34 +909,6 @@ val  _ = print "["
 
 
 
-
-	      (* lift (B, (P, F)) = (P', F')
-	        
-	         Invariant:
-		 If   Psi0, G, B |- P :: F
-		 then Psi0, G |- P'  :: F'
-		 and  P' =  (lam B. P)
-		 and  F' = raiseFor (B, F)
-	      *)
-	      fun lift (I.Null, P) = P
-		| lift (I.Decl (G, D), P) = 
-		    lift (G, T.New (T.Lam (T.UDec D, P)))
-		    
-	      val b = I.ctxLength B     (* b = |B| = |B'| *)
-	      val w1' = peeln (b, w1)	(* Psi0, G |- w1' : Psi0, G' *)
-	      val (B', _) = strengthenCtx (B, w1')
-					(* |- Psi0, G', B' ctx *)
-
-	      val n' = n - I.ctxLength B'   (* n' = |Psi0, G'| *)
-	      val _ = TomegaTypeCheck.checkCtx (Psi1)
-val _ = print "."
-              val Psi1' = append (append (Psi0, G), T.embedCtx (deblockify B))
-
-	      val _ = TomegaTypeCheck.checkCtx (Psi1')
-              val P''' = lift (B', P'') (* Psi0, G' |- P''' :: F''' *)
-val _ = print "."
-
-
 (* ---------------- *)
 
 (* mk_iota (n, t) = t'
@@ -967,27 +938,63 @@ fun mk_iota (0, t) = t
 
 (* ---------------- *)
 
-              val B4 = deblockify B'    (* Psi0, G' |- B4 ctx *)
+	      val b = I.ctxLength B     (* b = |B| = |B'| *)
+	      val w1' = peeln (b, w1)	(* Psi0, G |- w1' : Psi0, G' *)
+	      val (B', _) = strengthenCtx (B, w1')
+					(* |- Psi0, G', B' ctx *)
 
-	      val b4 = I.ctxLength B4
-val iota1 = I.Shift (n' + b4)
-					(* Psi0, G', deb (B') |- iota1 : . *)
+	      val n' = n - I.ctxLength B'   (* n' = |Psi0, G'| *)
+	      val _ = TomegaTypeCheck.checkCtx (Psi1)
+(*val _ = print "."
+              val Psi1' = append (append (Psi0, G), T.embedCtx (deblockify B))
 
-val sigma4 = blockToIota (T.Shift b4, B',iota1)
-					(* Psi0, G, deb  |- sigma3 : Psi2, B3' *)
+	      val _ = TomegaTypeCheck.checkCtx (Psi1')
+
+*)
+
+
+	      (* lift (B, (P, F)) = (P', F')
+	        
+	         Invariant:
+		 If   Psi0, G, B |- P :: F
+		 then Psi0, G |- P'  :: F'
+		 and  P' =  (lam B. P)
+		 and  F' = raiseFor (B, F)
+	      *)
+	      fun lift (I.Null, P) = P
+		| lift (I.Decl (G, D), P) = 
+		    lift (G, T.New (T.Lam (T.UDec D, P)))
+
+
+              val P''' = lift (B', P'') (* Psi0, G' |- P''' :: F''' *)
 val _ = print "."
 
+
+
+              val GB' = deblockify B'    (* Psi0, G' |- GB' ctx *)
+
+	      val b4 = I.ctxLength GB'
+val iota1 = I.Shift (n' + b4)
+					(* Psi0, G', GB') |- iota1 : . *)
+
+val s' = blockToIota (T.Shift b4, B',iota1)
+					(* Psi0, G', GB'  |- s' : Psi0, G', B' *)
+val _ = print "."
+
+
+		    
+
 val _ = print ";"
-	      val F''' = raiseFor (B4, Normalize.normalizeFor (F'', sigma4))
+	      val F''' = raiseFor (GB', Normalize.normalizeFor (F'', s'))
                                         (* Psi0, G' |- F''' for *)
 
 val _ = print "."
 
 	      val (Psi1'', w2, z2) = strengthen (Psi1, (a, S), w1, M.Minus)
 		                        (* |- Psi0, Psi1'' ctx *)
-					(* Psi0, G'' |- w2 : Psi1'' *)
+					(* Psi0, G, B |- w2 : Psi1'' *)
 		                        (* Psi1'' = Psi0, G3, B3' *)
-		                        (* |B| = |B4| *)
+		                        (* |B| = |GB'| *)
 					(* Psi'' |-  z2 : Psi0, G', B' *)
 					(* Psi0, G, B |- w2 : Psi0, G3, B3' *)
 	      val w3 = peeln (b, w2)	(* Psi0, G |- w3 : Psi0, G3 *)
@@ -1006,9 +1013,9 @@ val _ = print "."
 val _ = print "."
 	      val _ = TomegaTypeCheck.checkCtx (append (Psi2, T.embedCtx B3'))
 val _ = print ".\n"
+val _ = print (TomegaPrint.forToString (Psi2, F4) ^ "\n")
 	      val _ = TomegaTypeCheck.checkFor (Psi2, F4)
 		handle _ => raise Error' F4
-val _ = print (TomegaPrint.forToString (Psi2, F4) ^ "\n")
 val  _ = print "]"
 	      val B3 = deblockify B3'
 
