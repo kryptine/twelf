@@ -15,6 +15,9 @@ functor Converter
      sharing Unify.IntSyn = IntSyn'
    structure Whnf : WHNF
      sharing Whnf.IntSyn = IntSyn'
+   structure WorldSyn : WORLDSYN
+     sharing WorldSyn.IntSyn = IntSyn'
+     sharing WorldSyn.Tomega = Tomega'
    structure Worldify : WORLDIFY
      sharing Worldify.IntSyn = IntSyn'
      sharing Worldify.Tomega = Tomega'
@@ -42,6 +45,8 @@ struct
     *)
     fun strengthenExp (U, s) = Whnf.normalize (Whnf.cloInv (U, s), I.id)
 
+    fun strengthenSub (s, t) = Whnf.compInv (s, t)
+
     (* strengthenDec (x:V, s) = x:V'
      
        Invariant:
@@ -50,6 +55,8 @@ struct
        then G' |- V' = V[s^-1] : L
     *)
     fun strengthenDec (I.Dec (name, V), s) = I.Dec (name, strengthenExp (V, s))
+      | strengthenDec (I.BDec (name, (L, t)), s) = 
+          I.BDec (name, (L, strengthenSub (t, s)))
 
     (* strengthenCtx (G, s) = (G', s')
      
@@ -66,7 +73,6 @@ struct
 	  (I.Decl (G', strengthenDec (D, s')), I.dot1 s')
 	end
 
-    fun strengthenSub (s, t) = Whnf.compInv (s, t)
 
     fun strengthenSpine (I.Nil, t) = I.Nil
       | strengthenSpine (I.App (U, S), t) = I.App (strengthenExp (U, t), strengthenSpine (S, t))
@@ -551,7 +557,7 @@ struct
       end
     
  
-    fun tranformDec (Psi, (a, S)) = raise Error "not yet implemented"
+    fun transformDec (Ts, (Psi, G0), d, (a, S), w1, w2, t0) = raise Error "not yet implemented"
 
 (*
     (* transformDec (c'', (Psi+-, G0), d, (a, S), w1, w2, t) = (d', w', s', t', Ds)
@@ -829,14 +835,13 @@ struct
        and  c is a type family which entries are currently traversed
        then L' is a list of cases
     *)
-    fun traverse (Ts, c, Sig) =
+    fun traverse (Ts, c, Sig, wmap) =
       let 
 
-	(* traverseNeg (c'', Psi, (V, v), L) = ([w', d', PQ'], L')    [] means optional
+	(* traverseNeg (Psi0, V, L) = ([w', d', PQ'], L')    [] means optional
 	   
 	   Invariant:
 	   If   Psi0 |- V : type
-	   and  Psi0 |- v : Psi
 	   and  V[v^-1] does not contain Skolem constants
 	   and  c'' is the name of the object constant currently considered
 	   and  L is a list of cases
@@ -846,38 +851,24 @@ struct
 	   and  PQ'  is a pair, generating the proof term
 	*)
 
-	fun traverseNeg (c'', Psi, (I.Pi ((D as I.Dec (_, V1), I.Maybe), V2), v), L) =
-	    (case traverseNeg (c'', I.Decl (Psi, T.UDec (strengthenDec (D, v))), 
-(*				     (Names.decNambe (F.makectx Psi, strengthenDec (D, v)))), 
-*)			       (V2, I.dot1 v), L)
-	       of (SOME (w', d', PQ'), L') => (SOME (peel w', d', PQ'), L')
-	        | (NONE, L') => (NONE, L'))
+	fun traverseNeg (Psi, I.Pi ((D as I.Dec (_, V1), I.Maybe), V2)) =
+	    (case traverseNeg (I.Decl (Psi, T.UDec D), V2)
+	       of (SOME (w', d', PQ')) => (SOME (peel w', d', PQ'))
+  	        | (NONE) => (NONE))
 
-	  | traverseNeg (c'', Psi, (I.Pi ((D as I.Dec (_, V1), I.No), V2), v), L) =
-	    (case traverseNeg (c'', Psi, (V2, I.comp (v, I.shift)), L) 
-	       of (SOME (w', d', PQ'), L') => traversePos (c'', Psi, 
-							   (strengthenExp (V1, v), I.id), 
-							   SOME (w', d', PQ'), L')
-	        | (NONE, L') => traversePos (c'', Psi, 
-					     (strengthenExp (V1, v), I.id), NONE, L'))
-
-	  | traverseNeg (c'', Psi, (V as I.Root (I.Const c', S) , v), L) = 
-	    let (* Clause head found c = c'' *)
-	      val S' = strengthenSpine (S, v)
-		(* Psi0 |- V : type *)
-		(* Psi  |- V [v-1] : type *)
-		(* Psi corresponds to the context Psi0, in such a way, 
-		   that pi quantified assumptions are in, 
-                   and -> qunatified assumptions are elided
-		   Psi0 |- v : Psi
-		   Psi  |- v^-1 : Psi0
-		   Psi  |- S' valid spine
-		*)		
-	      val (Psi', w') = strengthen (Psi, (c', S'), I.Shift (I.ctxLength Psi), M.Plus)
+	  | traverseNeg (Psi, I.Pi ((D as I.Dec (_, V1), I.No), V2)) =
+	    (case traverseNeg (Psi, V2) 
+	       of (SOME (w', d', PQ')) => traversePos (Psi, (V1, I.id), 
+						       SOME (w', d', PQ'))
+	        | (NONE) => traversePos (Psi, (V1, I.id), NONE))
+	       
+	  | traverseNeg (Psi, I.Root (I.Const a, S)) = 
+	    let 
+	      val (Psi', w') = strengthen (Psi, (a, S), I.Shift (I.ctxLength Psi), M.Plus)
 		(* Psi  |- w' : Psi' *)
 		(* Psi' is a subcontext of Psi', which contains all those
 		   variables that occur in a M.Plus position *)	 
-	      val (w'', s'') = transformInit (Psi', (c', S'), w')
+	      val (w'', s'') = transformInit (Psi', (a, S), w')
 		(* Let Sigma (a) = PI{PsiDef} type *)
 		(* Psi+ is a subset of PsiDef, of all the parameters that occur in a 
 		   plus position *)
@@ -886,9 +877,27 @@ struct
 		(* s'' is the substitution in a case *)
 		(* Psi' is the context in a case *) 
 	    in
-	      (SOME (w', 1, (fn p => (Psi', s'', p), fn wf => transformConc ((c', S'), wf))), L)
+	      (SOME (w', 1, (fn p => (Psi', s'', p), fn wf => transformConc ((a, S), wf))))
 	    end
 	  
+        and traversePos (Psi, (I.Pi ((D as I.BDec (x, (c, s)), _), V), v), SOME (w1, d, (P, Q))) =
+  	    let 
+	      val c' = wmap c
+	      val _ = traversePos (I.Decl (Psi, T.UDec (strengthenDec (D, v))), (V, I.dot1 v), SOME (w1, d, (P, Q)))
+	    in
+	      NONE
+	    end
+          | traversePos (Psi, (V as I.Root _, v), SOME (w1, d, (P, Q))) =
+	    let 
+	      val I.Root (I.Const a', S) = Whnf.normalize (strengthenExp (V, v), I.id)
+	      val (Psi', w2) = strengthen (Psi, (a', S), w1, M.Minus)
+	      val w3 = strengthenSub (w1, w2)
+	      val (d4, w4, t4, Ds) = transformDec (Ts, (Psi', I.Null), d, (a', S), w1, w2, w3) 
+	    in     
+	      (SOME (w2, d4, (fn p => P ( (* T.Let (Ds,  *)
+						T.Case (T.Cases [(Psi', t4, p)])), Q)))
+	    end
+
 	(* traversePos (c, Psi, (V, v), [w', d', PQ'], L) =  ([w'', d'', PQ''], L'') 
 	   
 	   Invariant:
@@ -906,20 +915,20 @@ struct
 	   and  |Delta''| = d''  for a Delta'
 	   and  PQ'' can genreate the proof term so far in Delta''; Psi2
 	*)
-	and traversePos (c'', Psi, (I.Pi ((D as I.Dec (_, V1), I.Maybe), V2), v), 
+(*	and traversePos (c'', Psi, (I.Pi ((D as I.Dec (_, V1), I.Maybe), V2), v), 
 			 SOME (w, d, PQ), L) = 
 	    (case traversePos (c'', I.Decl (Psi,  T.UDec (strengthenDec (D, v))), 
 			       (V2, I.dot1 v), 
 			       SOME (I.dot1 w, d, PQ), L)
 	       of (SOME (w', d', PQ'), L') => (SOME  (w', d', PQ'), L'))
-(*	  | traversePos (c'', Psi, G, (I.Pi ((D as I.Dec (_, V1), I.No), V2), v), SOME (w, d, PQ), L) =
+	  | traversePos (c'', Psi, G, (I.Pi ((D as I.Dec (_, V1), I.No), V2), v), SOME (w, d, PQ), L) =
 	    (case traversePos (c'', Psi, G, (V2, I.comp (v, I.shift)), SOME (w, d, PQ), L)
 	       of (SOME (w', d', PQ'), L') => 
 		 (case traverseNeg (c'', I.Decl (Psi, F.Block (F.CtxBlock (NONE, G))), 
 				    (V1, v), L')
 		    of (SOME (w'', d'', (P'', Q'')), L'') => (SOME (w', d', PQ'), (P'' (Q'' w'')) :: L'')
 	             | (NONE, L'') => (SOME (w', d', PQ'), L'')))
-*)
+
 	  | traversePos (c'', Psi, (V, v), SOME (w1, d, (P, Q)), L) = 
 	    let (* Lemma calls (no context block) *)
 	      val I.Root (I.Const a', S) = Whnf.normalize (strengthenExp (V, v), I.id)
@@ -938,7 +947,7 @@ struct
 	    end
 
 
-(*	  | traversePos (c'', Psi, G, (V, v), SOME (w1, d, (P, Q)), L) = 
+	  | traversePos (c'', Psi, G, (V, v), SOME (w1, d, (P, Q)), L) = 
 	    let (* Lemma calls (under a context block) *)
 	      val I.Root (I.Const a', S) = strengthenExp (V, v)
 	      val (dummy as I.Decl (Psi', F.Block (F.CtxBlock (name, G2))), w2) = 
@@ -979,13 +988,41 @@ struct
 	  | traversePos (c'', Psi, (V, v), NONE, L) =
 	    (NONE, L) *)
 
-	fun traverseSig' (nil, L) = L
-          | traverseSig' (I.ConDec (name, _, _, _, V, I.Type) :: Sig, L) = 
-  	    (case traverseNeg (~1, I.Null, (V, I.id), L) 
-	       of (SOME (wf, d', (P', Q')), L') =>  traverseSig' (Sig, (P' (Q' wf)) :: L'))
+	fun traverseSig' nil = nil
+          | traverseSig' (I.ConDec (name, _, _, _, V, I.Type) :: Sig) = 
+  	    (case traverseNeg (I.Null, V)
+	       of (SOME (wf, d', (P', Q'))) =>  (P' (Q' wf)) :: traverseSig' Sig)
       in
-	traverseSig' (Sig, nil)
+	traverseSig' Sig
       end
+
+
+
+
+    fun convertWorlds (a, T.Worlds cids) = 
+          (fn (cids', wmap) => (T.Worlds cids', wmap)) (convertWorlds' (a, cids))
+    and convertWorlds' (a, nil) = (nil, fn c => raise Error "World not found")
+      | convertWorlds' (a, cid :: cids) = 
+        let 
+	  val I.BlockDec (s, m, G, L) = I.sgnLookup cid
+	  (* Design decision: Let's keep all of G *)
+	  val L' = convertList (a, (L, I.id))
+	  val (cids', wmap) = convertWorlds' (a, cids)
+	  val cid' = I.sgnAdd (I.BlockDec (s, m, G, L'))
+	in
+	  (cid' :: cids', fn c => if c = cid then cid' else wmap c)
+	end
+    and convertList (a, (nil, s)) = nil
+      | convertList (a, (I.Dec (x, V) :: L, w)) = 
+        if I.targetFam V = a then 
+	  I.Dec (x, strengthenExp (V, w)) :: convertList (a, (L, I.dot1 w))
+	else 
+	  (* here we need to generate a case *)
+	  convertList (a, (L, I.comp (w, I.shift)))
+        
+        
+
+		
 
 
     (* convertPrg Ts = P'
@@ -1009,8 +1046,10 @@ struct
 	               of NONE => raise Error "Mode declaration expected"
 		        | SOME mS => mS
 	    val Sig = Worldify.worldify a
+	    val W = WorldSyn.lookup a
+	    val (W', wmap) = convertWorlds (a, W)
 	    val P = abstract a
-	    val C = traverse (Ts, a, Sig)
+	    val C = traverse (Ts, a, Sig, wmap)
 	  in
 	    P (T.Case (T.Cases (nil (* C -cs *))))
 	  end
