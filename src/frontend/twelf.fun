@@ -305,7 +305,9 @@ struct
 	      | Lexer.Error (msg) => abortFileMsg (fileName, msg)
 	      | IntSyn.Error (msg) => abort ("Signature error: " ^ msg ^ "\n")
 	      | Names.Error (msg) => abortFileMsg (fileName, msg)
-	      | IO.Io (ioError) => abortIO (fileName, ioError)
+	      (* - Not supported in polyML ABP - 4/20/03 
+ 	      * | IO.Io (ioError) => abortIO (fileName, ioError)
+	      *)
 	      | Solve.AbortQuery (msg) => abortFileMsg (fileName, msg)
 	      | ThmSyn.Error (msg) => abortFileMsg (fileName, msg)
 	      | Prover.Error (msg) => abortFileMsg (fileName, msg)

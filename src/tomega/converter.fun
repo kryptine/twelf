@@ -56,7 +56,9 @@ exception Error' of Tomega.Sub
     structure S = Subordinate    
     structure A = Abstract
  
-
+    (* ABP - 4/20/03, determine if Front is (I.Idx 1) *)
+    fun isIdx1 (I.Idx 1) = true
+      | isIdx1 _ = false
 
     fun modeSpine a =
         case M.modeLookup a
@@ -410,7 +412,7 @@ exception Error' of Tomega.Sub
     fun shiftinv (w) = strengthenSub (w, I.shift)
 
     fun peel w = 
-      if (I.bvarSub (1, w) = I.Idx 1) then dot1inv w else shiftinv w
+      if isIdx1(I.bvarSub (1, w)) then dot1inv w else shiftinv w
 
     fun peeln (0, w) = w
       | peeln (n, w) = peeln (n-1, peel w)
@@ -531,7 +533,7 @@ exception Error' of Tomega.Sub
 	 *)
 	fun inBlock (I.Null, (bw, w1)) = (bw, w1)
 	  | inBlock (I.Decl (G, D), (bw, w1)) = 
-	    if I.bvarSub (1, w1) = I.Idx 1 then
+	    if isIdx1(I.bvarSub (1, w1)) then
 	      inBlock (G, (true, dot1inv w1))
 	    else inBlock (G, (bw, strengthenSub (w1, I.shift)))
 	  
@@ -560,7 +562,7 @@ exception Error' of Tomega.Sub
 	*)
       	fun strengthen' (I.Null, Psi2, L, w1 (* =  I.id *)) = (I.Null, I.id, I.id)    
 	  | strengthen' (I.Decl (Psi1, LD as T.UDec (I.Dec (name, V))), Psi2, L, w1) =
-	    if (I.bvarSub (1, w1) = I.Idx 1) then
+	    if isIdx1(I.bvarSub (1, w1)) then
 	      let 
 		val w1' = dot1inv w1
 		val (Psi1', w', z') = strengthen' (Psi1, LD :: Psi2, L, w1')

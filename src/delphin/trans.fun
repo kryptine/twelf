@@ -1052,7 +1052,7 @@ struct
       | externalizePrg (T.Unit) =  T.Unit
       | externalizePrg (T.Root (H, S)) = T.Root (H, externalizeMSpine S)
       | externalizePrg (T.Redex (P, S)) = T.Redex  (externalizePrg P, externalizeMSpine S)
-      | externalizePrg (T.Rec (D, P)) = T. Rec (externalizeMDec D, externalizePrg P)
+      | externalizePrg (T.Rec (D, P)) = T.Rec (externalizeMDec D, externalizePrg P)
       | externalizePrg (T.Case (T.Cases O)) = T.Case (T.Cases (externalizeCases O))
       | externalizePrg (T.Let (D, P1, P2)) = T.Let (externalizeMDec D, externalizePrg P1, externalizePrg P2)
       (* PClo should not be possible, since by invariant, parser
