@@ -42,14 +42,13 @@ struct
     structure T = Tomega
 
   (* input:
-      elfFile = .elf file to load
+      sourcesFile = .elf file to load
       funcList = list of functions that need to be loaded
                  first element is the function that will be called
       arg = LF object which is the argument
-      isDef = if false, it is a Const
    *)
 
-    fun runSimpleTest elfFile funcList arg isDef = 
+    fun runSimpleTest sourcesFile funcList args  = 
       let
 
 	fun test (names as [name]) =
@@ -62,7 +61,7 @@ struct
 	     val _ = TomegaTypeCheck.checkPrg (I.Null, (P, F))
 	     val _ = TextIO.print ("\n" ^ TomegaPrint.funToString ((map (fn (cid) => IntSyn.conDecName (IntSyn.sgnLookup cid)) La,
 						     projs), P) ^ "\n")	
-	   in P
+	   in (P, F)
 	   end)
 	  | test names =
 	  (let 
@@ -74,17 +73,55 @@ struct
 	     val _ = TomegaTypeCheck.checkPrg (I.Null, (P, F))
 	     val _ = TextIO.print ("\n" ^ TomegaPrint.funToString ((map (fn (cid) => IntSyn.conDecName (IntSyn.sgnLookup cid)) La,
 						     projs), P) ^ "\n")	
-	   in Tomega.lemmaDef (hd sels)
+	   in (Tomega.lemmaDef (hd sels), F)
 	   end)
 
-	val _ = Twelf.loadFile elfFile
-	val P = test funcList
+	fun checkDec (u, D as T.UDec (I.Dec (_, V))) =  (print "$"; TypeCheck.typeCheck (I.Null, (u, V)))
+(*	  | checkDec (u, D as PDec (_, T.All (D, F')))) = ???  *)
+	  
+	  
+
+	fun makeSpine ([], F) = (T.Nil, F)
+	  | makeSpine (x :: L, F' as T.And (F1, F2)) =
+	    let 
+	      val (S', F') =  makeSpine (L, Normalize.normalizeFor (F', T.Dot (T.Exp (I.Root (I.Def x, I.Nil)), T.id)))
+	    in
+	      (T.AppExp (I.Root (I.Def x, I.Nil), S'), F')
+	    end
+
+	  | makeSpine (x :: L, T.All (D, F')) = 
+	    let 
+	      val _ = checkDec(I.Root (I.Def x, I.Nil), D)
+	      val (S', F') =  makeSpine (L, Normalize.normalizeFor (F', T.Dot (T.Exp (I.Root (I.Def x, I.Nil)), T.id)))
+	    in
+	      (T.AppExp (I.Root (I.Def x, I.Nil), S'), F')
+	    end
+	val _ = Twelf.make sourcesFile
+	val (P, F) = test funcList
+
+	val _ = print ((TomegaPrint.forToString (I.Null, F)) ^ "\n")
 (*	val _ = TextIO.print ("\n" ^ TomegaPrint.funToString (([name], []), P) ^ "\n") *)
 
-	val x = valOf (Names.constLookup (valOf (Names.stringToQid arg)))
+	val xs = map (fn a => valOf (Names.constLookup (valOf (Names.stringToQid a)))) args
 
-	val P' = if isDef then (T.Redex(P, T.AppExp (I.Root (I.Def x, I.Nil), T.Nil))) else (T.Redex(P, T.AppExp (I.Root (I.Const x, I.Nil), T.Nil))) 
+	val  (S', F') = makeSpine (xs, F) 
+	val P' = T.Redex(P, S')
 
+	val _ = TomegaTypeCheck.checkPrg (I.Null, (P', F'))
+
+
+(*	val P' = if isDef then (T.Redex(P, T.AppExp (I.Root (I.Def x, I.Nil), T.
+Nil))) else (T.Redex(P, T.AppExp (I.Root (I.Const x, I.Nil), T.Nil))) 
+*)
+
+	  (*
+	val _ = TextIO.print "\n"
+	val _ = TextIO.print (TomegaPrint.prgToString (I.Null, P'))
+	val _ = TextIO.print "\n"
+	   *)
+
+
+(*  T.AppExp (I.Root (I.Def x, I.Nil), T.Nil) *)
 	val result = Opsem.evalPrg P'
 	val _ = TextIO.print "\n\nEOC\n\n"
 	val _ = TextIO.print (TomegaPrint.prgToString (I.Null, result))

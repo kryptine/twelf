@@ -8,6 +8,6 @@ sig
     
   val top : unit -> unit
 
-  val runSimpleTest : string -> (string list) -> string -> bool -> unit
+  val runSimpleTest : string -> (string list) -> string list -> unit
   val eval : Tomega.Prg -> Tomega.Prg
 end
