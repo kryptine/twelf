@@ -325,11 +325,12 @@ struct
 	(* Fri Dec 28 10:03:12 2001 -fp !!! *)
 	(case blockSub (B, ss)
 	   of Bidx(k') => Proj (Bidx (k'), i))
-      | pruneHead (G, H as Proj (LVar (r, (l, t)), i), ss, rOccur, prunable) = 
+      | pruneHead (G, H as Proj (LVar (r, (l, t), s), i), ss, rOccur, prunable) = 
         (* claim: LVar does not need to be pruned since . |- t : Gsome *)
 	(* so we perform only the occurs-check here as for FVars *)
 	(* Sat Dec  8 13:39:41 2001 -fp !!! *)
-	   ( pruneSub (Null, t, id, rOccur, prunable) ;
+	(* this is not true any more, Sun Dec  1 11:28:47 2002 -cs  *)
+	   ( pruneSub (Null, comp (t, s), id, rOccur, prunable) ;
 	     H )
       | pruneHead (G, H as Skonst _, ss, rOccur, prunable) = H
       | pruneHead (G, H as Def _, ss, rOccur, prunable) = H
@@ -628,14 +629,14 @@ struct
 
     (* substitutions s1 and s2 were redundant here --- removed *)
     (* Sat Dec  8 11:47:12 2001 -fp !!! *)
-    and unifyBlock (LVar (r1, (l1, t1)), L as LVar (r2, (l2, t2))) = 
+    and unifyBlock (LVar (r1, (l1, t1), s1), L as LVar (r2, (l2, t2), s2)) = 
         if l1 <> l2 then
   	  raise Unify "Label clash"
         else
 	  if r1 = r2
 	    then ()
 	  else
-	    ( unifySub (Null, t1, t2) ;
+	    ( unifySub (Null, comp (t1, s1), comp (t2, s2)) ;
 	      instantiateLVar (r1, L) )
       (* How can the next case arise? *)
       (* Sat Dec  8 11:49:16 2001 -fp !!! *)
@@ -643,10 +644,16 @@ struct
 	 if n1 <> n2
 	   then raise Unify "Block index clash"
 	 else ()
-      (* next two should be impossible *)
-      (* | unifyBlock (LVar _, Bidx _) *)
-      (* | unifyBlock (Bidx _, LVar _) *)
+(*
+      | unifyBlock (LVar (r1, _, _), B as Bidx _) = instantiate (r1, B) 
+      | unifyBlock (B as Bidx _, LVar (r2, _, _)) = 
 
+      This is still difficult --- B must make sense in the context of the LVar
+      Shall we use the inverse of a pattern substitution? Or postpone as 
+      a constraint if pattern substitution does not exist?
+      Sun Dec  1 11:33:13 2002 -cs 
+      
+*)
     fun unify1W (G, Us1, Us2) =
           (unifyExpW (G, Us1, Us2); awakeCnstr (nextCnstr ()))
 

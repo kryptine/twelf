@@ -508,14 +508,16 @@ struct
     and matchBlock (G, d, I.Bidx(k), I.Bidx(k'), cands) =
         if (k = k') then cands
 	  else fail ()
-      | matchBlock (G, d, B1 as I.Bidx(k), I.LVar (r2, (l2, t2)), cands) =
+      | matchBlock (G, d, B1 as I.Bidx(k), I.LVar (r2, (l2, t2), t3), cands) =
+					(* Updated LVar --cs
+					   Sun Dec  1 06:24:41 2002 *)
 	let
 	  val I.BDec (bOpt, (l1, t1)) = I.ctxDec (G, k)
 	  (* val _ = print (candsToString (cands) ^ "\n")*)
 	in
 	  if l1 <> l2 then fail ()
 	  else let 
-		 val cands2 = matchSub (G, d, t1, t2, cands)
+		 val cands2 = matchSub (G, d, t1, I.comp (t2, t3), cands)
 		 (* instantiate if matching is successful *)
 		 (* val _ = print (candsToString (cands2) ^ "\n") *)
 		 (* instantiate, instead of postponing because *)
@@ -795,7 +797,7 @@ struct
         (* G0 |- t : Gsome *)
 	(* . |- s : G0 *)
 	let (* p > 0 *)
-	  val L1 = I.newLVar (l, I.comp(t, s))
+	  val L1 = I.newLVar ((l, t), s) (* new -cs  Sun Dec  1 06:27:57 2002 *)
 	in
 	  instEVars ((V2, I.Dot (I.Block (L1), s)), p-1, NONE::XsRev)
 	end
@@ -940,7 +942,7 @@ struct
         let
 	  val t = createEVarSub Gsome
 	  (* . |- t : Gsome *)
-	  val lvar = I.newLVar (cid, t)
+	  val lvar = I.newLVar ((cid, t), I.id) (* --cs Sun Dec  1 06:30:06 2002 *)
 	  val t' = I.comp (t, I.Shift (I.ctxLength (G)))
 	  (* G |- t' : Gsome *)
 	in
@@ -1111,7 +1113,7 @@ struct
         (* G0 |- t : Gsome *)
 	(* . |- s : G0 *)
 	let (* p > 0 *)
-	  val L1 = I.newLVar (l, I.comp(t, s))
+	  val L1 = I.newLVar ((l, t), s) (* -cs Sun Dec  1 06:30:59 2002 *)
 	in
 	  instEVarsSkip ((V2, I.Dot (I.Block (L1), s)), p-1, NONE::XsRev, ci)
 	end
@@ -1458,7 +1460,7 @@ struct
       | newEVarSubst (G, I.Decl(G', D as I.BDec (_, (b, t)))) =
 	let
 	  val s' = newEVarSubst (G, G')
-	  val L1 = I.newLVar (b, I.comp(t, s'))
+	  val L1 = I.newLVar ((b, t), s') (* --cs Sun Dec  1 06:31:23 2002 *)
 	in
 	  I.Dot (I.Block (L1), s')
 	end

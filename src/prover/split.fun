@@ -105,7 +105,7 @@ struct
         (* G0 |- t : Gsome *)
 	(* . |- s : G0 *)
 	let (* p > 0 *)
-	  val L1 = I.newLVar (l, I.comp(t, s))
+	  val L1 = I.newLVar ((l, t), s) (* --cs Sun Dec  1 06:33:27 2002 *)
 	in
 	  instEVars ((V2, I.Dot (I.Block (L1), s)), p-1, NONE::XsRev)
 	end
@@ -247,7 +247,7 @@ struct
         let
 	  val t = createEVarSub Gsome	(* accounts for subordination *)
 	  (* . |- t : Gsome *)
-	  val lvar = I.newLVar (cid, t)
+	  val lvar = I.newLVar ((cid, t), I.id)  (* --cs Sun Dec  1 06:33:41 2002 *)
 	  val t' = I.comp (t, I.Shift (I.ctxLength (G)))
 	  (* G |- t' : Gsome *)
 	in
@@ -336,7 +336,8 @@ struct
 	(* . |- s : Psi0 *)
 	let
 	  val (t', Xs) = createSub Psi
-	  val L = I.newLVar (l, I.comp (s, T.coerceSub t'))
+	  val L = I.newLVar ((l, s), T.coerceSub t')
+					(* --cs Sun Dec  1 06:34:00 2002 *)
 	in
 	  (T.Dot (T.Block L, t'), Xs)
 	end
