@@ -1311,10 +1311,49 @@ exception Error' of Tomega'.For
       in
 	P
       end
+
+(*
+    fun installIndividualFor ([], lemma) =
+        let 
+	  val 
+	in
+	end
+*)
+    fun installFor [cid] = 
+        let 
+	  val F = convertFor [cid]
+	  val name = I.conDecName (I.sgnLookup cid)
+	  val _ = T.lemmaAdd (T.ForDec (name, F))
+	in
+	  ()
+	end
+(*      | installFor cids = 
+        let 
+	  val F = convertFor cids
+	  val T.Rec (T.PDec (name, _), _) = F
+	  val lemma = T.lemmaAdd (T.ForDec (name, F))
+	in
+	  installIndividualFor (cids, lemma)
+	end
+*)
+
+    fun installPrg [cid] = 
+        let 
+	  val F = convertFor [cid]
+	  val P = convertPrg [cid]
+	  val name = I.conDecName (I.sgnLookup cid)
+	  val _ = T.lemmaAdd (T.ValDec (name, P, F))
+	in
+	  ()
+	end
+
+
 	  
   in 
     val convertFor = convertFor
     val convertPrg = convertPrg
+    val installFor = installFor
+    val installPrg = installPrg
     val traverse = traverse
   end
 end (* functor FunSyn *)

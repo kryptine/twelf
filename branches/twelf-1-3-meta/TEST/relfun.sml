@@ -30,6 +30,7 @@ in
       val P = Converter.convertPrg a
       val _ = TextIO.print "Checking: "
       val F = Converter.convertFor a
+      val _ = Converter.installPrg a
       val _ = TextIO.print (TomegaPrint.forToString (I.Null, F) ^ "\n")
 
       val _ = TomegaTypeCheck.checkPrg (I.Null, (P, F))
@@ -52,7 +53,7 @@ in
   val _ = Twelf.chatter := 1
 (*  val _ = FunNames.reset(); --cs *)
   
-
+(*
   (* Regression print for Mini-ML *)
   val _ = load "examples/mini-ml/sources.cfg"
   val _ = Twelf.loadFile "examples/mini-ml/reduce.elf"
@@ -86,14 +87,16 @@ in
   val _ = print ["cpt"] 
   val _ = print ["new"]
 
+*)
+
   (* Regression test for Church-Rosser *)
   val _ = load "examples/church-rosser/sources.cfg"
   val _ = print ["identity"]
   val _ = print ["append"]
   val _ = print ["subst"] 
+  val _ = print ["dia"] 
 
-
-(*  val _ = print ["dia"]      -- problem here.  Lemmas not yet supported
+(*      -- problem here.  Lemmas not yet supported
 
   val _ = print ["strip"] 
   val _ = print ["conf"]
