@@ -4,8 +4,8 @@
 signature  DELPHIN =
 sig
   val version : string
-  val loadFile : string * string -> (Tomega.Prg * Tomega.Sub)
-  val test : string * string -> Tomega.Prg
+  val loadFile : string * string -> unit
+  val test : string * string -> (Tomega.Dec IntSyn.Ctx * Tomega.Prg)
     
   val top : unit -> unit
 

@@ -595,6 +595,7 @@ struct
 	  | formatPrg3 callname  (Psi, P as T.New (T.Lam (T.UDec (I.BDec (l, (c, s))), _))) = 
 	      formatNew callname (Psi, P, nil)
 	  | formatPrg3 callname  (Psi, T.Redex (P, S)) =  formatRedex callname (Psi, P, S)
+	  | formatPrg3 callname  (Psi, T.Lam _) = Fmt.String "fn"
 	  | formatPrg3 callname  _ = Fmt.String "missing case"
 
 
