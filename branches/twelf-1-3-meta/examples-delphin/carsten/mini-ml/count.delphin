@@ -6,18 +6,16 @@
 id :: world (base)
 	all {N:exp} exists {M:exp} true
 
-fun id  (A.z) = <A.z, <>>
+fun id X = <X, <>>
 
-new (b:base')
+new (b:base)
 
-val <Y, <>> = id (b.z) 
+val <Y, <>> = id (b.z)  
 
-(*
 id2 :: world (base)
 	all {N:exp} all {M:exp} exists {Y:exp} true
 
 fun id2 X Y = <X, <>>
-
 
 
 add :: world (base) 
@@ -48,19 +46,19 @@ count :: world (param base)
 fun count (B.of_z) = <B.z, <>>
 
 
-  | count ((A:param' T).u) = 
-    choose (B:base')
+  | count ((A:param T).u) = 
+    choose (B:base)
     in 
       <(B.s) (B.z), <>>
     end
 
   | count ((B.of_fn) T1 T2 E P) =
-    new (a: param' T1)
+    new (a: param T1)
     in
       count (P (a.x) (a.u))
     end
   | count ((B.of_fix) T E D) = 
-    new (a: param' T)
+    new (a: param T)
     in
       count (D (a.x) (a.u))
     end
@@ -72,4 +70,4 @@ fun count (B.of_z) = <B.z, <>>
     in
       add N1 N2
     end
-*)
+ 
