@@ -319,14 +319,17 @@ struct
         *)
         (* claim: LVar does not need to be pruned since . |- t : Gsome *)
 	(* was:  Proj (LVar (r, (l, pruneSub (G, t, ss, rOccur, prunable))), i) *)
-	 ( pruneSub (Null, t, comp (ss, Shift (ctxLength G)), rOccur, false) ;
+        (* is it comp (ss, Shift (ctxLength G)) or vice versa? -fp *)
+	(* pruneSub (Null, t, comp (Shift (ctxLength G), ss), rOccur, prunable) *)
+	   ( pruneSub (Null, t, id, rOccur, prunable) ;
+	   (* pruning here is an effect?  Sat Dec  8 11:06:50 2001 -fp !!! *)
 	   H )
       | pruneHead (G, H as Skonst _, ss, rOccur, prunable) = H
       | pruneHead (G, H as Def _, ss, rOccur, prunable) = H
       | pruneHead (G, FVar (x, V, s'), ss, rOccur, prunable) =
 	  (* V does not to be pruned, since . |- V : type and s' = ^k *)
 	  (* perform occurs-check for r only *)
-	  (pruneExp (G, (V, id), id, rOccur, prunable);
+	  (pruneExp (G, (V, id), id, rOccur, prunable);  (* why G here? -fp !!! *)
 	   FVar (x, V, comp (s', ss)))
       | pruneHead (G, H as FgnConst _, ss, rOccur, prunable) = H
     (* pruneSub never allows pruning OUTDATED *)
@@ -676,6 +679,8 @@ struct
 	   | _ => false *)   (* not possible because of invariant? -cs *)
 	  unifySub (G, s1, s2))
 
+    (* substitutions s1 and s2 are redundant here *)
+    (* Sat Dec  8 11:47:12 2001 -fp !!!??? *)
     and unifyBlock (G, (LVar (r1, (l1, t1)), s1), (L as LVar (r2, (l2, t2)), s2)) = 
         if l1 <> l2 then
   	  raise Unify "Label clash"
@@ -697,7 +702,15 @@ struct
 	     (* Thu Dec  6 20:33:24 2001 -fp !!! *)
 	     unifySub (Null, t1, t2);
 	     instantiateLVar (r1, L))
-
+      (* how can the next case arise?? *)
+      (* Sat Dec  8 11:49:16 2001 -fp !!!??? *)
+      | unifyBlock (G, (Bidx (n1), _), (Bidx (n2), _)) =
+	 if n1 <> n2
+	   then raise Unify "Block index clash"
+	 else ()
+      (* next two should be impossible *)
+      (* | unifyBlock (G, (LVar _, _), (Bidx _, _)) = (print "LB"; raise Match) *)
+      (* | unifyBlock (G, (Bidx _, _), (LVar _, _)) = (print "BL"; raise Match) *)
 
     fun unify1W (G, Us1, Us2) =
           (unifyExpW (G, Us1, Us2); awakeCnstr (nextCnstr ()))

@@ -221,10 +221,12 @@ struct
 	    (* G  |- s : G1 *)
 	    val (Gsome, piDecs) = I.constBlock c
 	    (* Debugging output --- remove !!! -fp *)
+	    (*
 	    val G' = Names.ctxName G
 	    val _ = print (Print.ctxToString (I.Null, G') ^ " |- "
 			   ^ subToString (G', I.comp (t, s)) ^ " : "
 			   ^ Print.ctxToString (I.Null, Gsome) ^ ".\n")
+	    *)
 	  in
 	    checkSub (G, I.comp (t, s), Gsome)
 	  end
