@@ -39,6 +39,11 @@
 %\newcommand{\eqalLF}{\;\textsf{eqa1}\;}
 %\newcommand{\eqarLF}{\;\textsf{eqa2}\;}
 
+% spine notation
+% \newcommand{\nil}{\textsc{nil}}
+\newcommand{\comb}{\cdot}
+
+
 \newcommand{\pfLF}{\tt{prov}}
 \newcommand{\typeLF}{\tt{type}}
 \newcommand{\propLF}{\tt{prop}}
@@ -284,15 +289,41 @@ axioms and inference rules and executing them.
 
 The theoretical foundation underlying higher-order logic programming
 within Twelf is the LF type theory, a dependently typed lambda
-calculus. However, other higher-order logic programming languages of
-the same flavor are $\lambda$-Prolog or Isabelle. We will first give
-an example of encoding the natural deduction calculus in the logical
-framework LF using higher-order logic programming following the
-methodology in \cite{Harper93jacm}. For more information on how to
-encode formal systems in LF see \cite{Pfenning97}. 
+calculus. In this setting types are interpreted as clauses and goals and
+typing context represents the store of program clauses available. We
+will use types and formulas interchangeably. Types and programs are
+defined as follows: 
 
-Using this example, we will explain oracle-based proof generation and
-proof-checking. 
+\begin{center}
+\begin{tabular}[h]{lcl}
+Types  $A$ & ::= & $P \mid  A_1 \rightarrow A_2 \mid \Pi x:A_1.A_2$ \\
+Programs  $\Gamma$ & ::= & $\cdot \mid \Gamma, x:A$ 
+\end{tabular}
+\end{center}
+
+$P$ ranges over atomic formulas and we interpreter the function arrow
+$A_1 \impl A_2$ as implication. The $\Pi$-quantifier, denoting
+dependent function type, corresponds to the  universal
+$\forall$-quantifier. Every type has a corresponding proof term $M$
+and we assume that all proof terms are in normal form. To represent
+proof terms, we use the spine notation~\cite{CervesatoPfenning01}. 
+
+\begin{center}
+\begin{tabular}[h]{lcl}
+Terms  $M$ & ::= & $c \comb S \mid x \comb S \mid \lambda x. M $  \\ 
+Spines $S$ & ::= & $\nil \mid M;S\;$
+\end{tabular}
+\end{center}
+
+Other higher-order logic programming languages of a similar
+flavor are $\lambda$-Prolog \cite{Nadathur99cade} or
+Isabelle\cite{Paulson86}. To illustrate the notation and explain the
+problem of small proof witnesses, we will first give an example of
+encoding the natural deduction calculus in the logical framework LF
+using higher-order logic programming following the methodology in
+\cite{Harper93jacm}. For more information on how to encode formal
+systems in LF see \cite{Pfenning97}.  Using this example, we will
+explain oracle-based proof generation and proof-checking.  
 
 \subsection{Representing Logics}
 As a running example, we will consider intuitionistic logic formulated
@@ -338,7 +369,7 @@ construct terms for the objects we are talking about, in this case,
 propositions. We declare a new type {\tt prop} for propositions and a
 type {\tt i} for individuals. We intend that terms belonging to {\tt
   prop} represent well-formed propositions. The rules are given below,
-in concrete Twelf syntax. 
+in concrete Twelf syntax. Throughout the example we reverse the arrow {\tt{A -> B}} writing instead {\tt{B <- A}}. From a logic programming view, it might be more intuitive to think of the clause {\tt{H <- A$_1$ <- A$_2$ <- $\ldots$ <- A$_n$}} as {\tt{H <- A$_1$, A$_2$, $\ldots$, A$_n$}}.
 
 %prop : type.
 %i    : type.
@@ -358,13 +389,13 @@ variables in the object language (logic) with bound variables in the
 meta-language (higher-order logic programming). 
 
 Next we turn our attention to the proofs in our system. We have a
-judgment for provability within this logic. We map this judgment to
-a type family {\tt prov}, which has a (dependent) kind.
-
-\begin{code}
-prov : prop -> type.
-\end{code}
-
+judgment for provability within this logic, which we denote by the
+type family {\tt prov}.
+%
+%\begin{code}
+% prov : prop -> type.
+%\end{code}%
+%
 Each clause will correspond to an inference rule in the object
 logic. For convenience, we give the constructors 
 descriptive names, and follow the order of the rules in
@@ -395,8 +426,8 @@ search. There are two key ideas which make the encoding of the sequent
 calculus elegant and direct. First, we use the power of dynamic
 assumptions which higher-order logic programming provides, to
 eliminate the need to manage assumptions in a list explicitely. To
-illustrate, we consider the clause {\tt impI}. To  prove {\tt prov (A
-  => B)}, we prove {\tt prov B} assuming {\tt prov A} In other words,
+illustrate, we consider the clause {\tt impI}. To  prove {\tt prov
+  (imp A B)}, we prove {\tt prov B} assuming {\tt prov A} In other words,
 the proof for {\tt prov B} may use the dynamic assumption {\tt prov A}. 
 
 Second, we use higher-order abstract syntax to encode the bound
@@ -422,9 +453,26 @@ unify clause heads with current goal. Finally, proof terms are
 generated.
 
 Let us briefly describe the depth-first proof search procedure of
-the higher-order logic programming interpreter. 
-To solve a goal $G$ from a set of clauses $\Gamma$ (written as $\Gamma
-\vd G$), we have the following three possible actions:  
+the higher-order logic programming interpreter. Computation in logic
+programmin is achieved through proof search. Given a goal (or query)
+$G$ and a program $\Gamma$, we derive $G$ by successive application of
+clauses of the program $\Gamma$. Following Miller {\em{et al}}
+\cite{Miller91apal}, we interprete the connectives in a goal $G$ as
+{\em{search instructions}} and the clauese in $\Gamma$ as
+specifications of how to continue search when the goal is atomic. A
+proof is {\em{goal-oriented}} if every compound goal is immediately
+decomposed and the program is accessed only after the goal has been
+reduced to an atomic formula. A proof is {\em{focused}} if every time
+a program formula is consiedered, it is processed up to the atoms it
+defines without need tp access any other program formula. A proof
+having both these properties is {\em{uniform}} and a formalism such
+that every provable goal has a uniform proof is called an abstract
+logic programming language.
+
+In the subsequent description, we will concentrate on the
+goal-oriented step. To solve a goal $G$ from a set of clauses $\Gamma$
+(written as $\Gamma \vd G$), we have the following three possible
+actions:   
 
 \begin{table}[h]
 \fighead
@@ -466,14 +514,13 @@ head of the clause $A$ with $G$ and solving the $A$'s subgoals.
 Note that during proof search we typically have the program
 clauses $\Gamma$ and the goal $G$ we are trying to prove from the
 clauses in $\Gamma$ as inputs, while the proof term $M$ is the output
-of the search. 
-
-
-We will illustrate proof search by considering the following example: 
+of the search. We will illustrate proof search by considering the
+following example:  
 
 \begin{code}
- prov (forall $\lambda$y. (imp (forall $\lambda$ x. P x) (P y)))  
+prov (forall $\lambda$y. (imp (forall $\lambda$ x. P x) (P y)))  
 \end{code}
+
 
 which corresponds to $(\forall y. (\forall x.P(x)) \impl P(y)$).  The
 proof tree for this is shown in Figure~\ref{prooftree1}.
@@ -541,26 +588,33 @@ proof tree for this is shown in Figure~\ref{prooftree1}.
 %\figfoot
 %\end{figure}
       
-The top node states the conjecture we are trying to prove. At least three clause heads will
-unify with the current goal, namely {\tt allI}, {\tt allE} and {\tt
+The top node states the conjecture we are trying to prove. 
+Each node is labelled with a goal statement we are trying to prove and
+each child node is the result of applying a clause from the program or
+from the dynamic clauses. We keep track of which clause has been used
+to derive the stement in the child node, by labelling the edge with
+the corresponding clause name. The heads of three clauses will unify
+with the current goal, namely {\tt allI}, {\tt allE} and {\tt
   impE}. We pick the first of these applicable clauses ({\tt
-  allI}). This means we need to solve $\Pi a. \pfLF ( \impLF (\forallLF \lambda
-y. P\; y)\; (P a))$. After introducing a new parameter $a$
-applying the {\sf{Universal}} step in out search procedure, we yield
-the subgoal $\vd \pfLF ( \impLF (\forallLF \lambda y. P\; y)\; (P a))$.
-To prove this subgoal will again inspect our clauses. Three of them will
-be applicable, namely {\tt allE}, {\tt impI}, and {\tt impE}. This
-time we will pick the second clause {\tt impI}. Hence we will
-introduce the dynamic assumption {\tt{u}}$ : \pfLF (\forallLF \lambda y. P\; y)$
-and show $\pfLF (P\; y)$ using the dynamic assumption {\tt{u}}. In the third step,
+  allI}). This means we need to solve $\Pi a. \pfLF ( \impLF
+(\forallLF \lambda y. P\; y)\; (P a))$. After introducing a new
+parameter $a$ applying the {\sf{Universal}} step in out search
+procedure, we yield the subgoal $\vd \pfLF ( \impLF (\forallLF \lambda
+y. P\; y)\; (P a))$. To prove this subgoal will again inspect our
+clauses. Three of them will be applicable, namely {\tt allE}, {\tt
+  impI}, and {\tt impE}. This time we will pick the second clause {\tt
+  impI}. Hence we will introduce the dynamic assumption {\tt{u}}$ :
+\pfLF (\forallLF \lambda y. P\; y)$ and show $\pfLF (P\; y)$ using the
+dynamic assumption {\tt{u}}. In the third step, 
 again two clauses are applicable,  {\tt allE}, and {\tt
   impE}. Using the first one, {\tt allE}, we need to show that we can
 prove $\pfLF (\forallLF \lambda y. P\; y)$. There are four
 possible clauses whose clause head will unify: the dynamic clause
 {\tt u} and the three program clauses {\tt alli}, {\tt alle}, and {\tt
   impe}. Using the dynamic assumption {\tt u}, we can finish the
-proof. The final proof term in explicit form which will be generated by Twelf's
-higher-order logic programming engine is : 
+proof. Using the labels at the edges we can reconstruct a proof term
+for the given query. Twelf's higher-order logic programming engine
+will generate the following proof term in explicit form:
 
 % \hspace{-1.25cm}
 % \begin{minipage}[h]{6cm}
@@ -1193,14 +1247,17 @@ table\ednote{Give an example? -bp}.
   Susmit: Are we really first checking if $\Gamma \vd G$ is in the
   table, and then later on we insert it???
   
-   Maybe the answer is: In proof compression, we care more about obtaining the shortest
-possible proof witness than the performance of compressing proofs.
+   Maybe the answer is: In proof compression, we care more about
+   obtaining the shortest possible proof witness than the performance
+   of compressing proofs. 
 
   Susmit: Are you only using variant checking or are you also using
   subsumption?
 
   Susmit: How big is the table? Are we just memoizing *every* possible
   subgoal encountered or are we selectively memoizing?
+
+  Susmit: Are we caching everythin or are we caching selectively?
 \end{note}
 
 The following important invariants hold about the table
@@ -1248,30 +1305,30 @@ choices is also the same in both the prover and verifier. We just need
 a convention on how to specify a tabled answer, and we choose the
 choices appearing in the table to precede the other choices.
 
-%\begin{figure}
-%\fighead
-%\hspace{-0.5in}
-%\psfig{file=prooftree3.ps,width=2.7in,height=2.5in}
-%\vspace{1.5in}
-%\caption{\label{prooftree3}
-%$(\top\impl((\top\impl\perp)\impl\perp) \andl
-%(\top\impl((\top\impl\perp)\impl\perp)$}
-%\figfoot
-%\end{figure}
-
-%To take an example, look at the proposition
-%$(\top\impl((\top\impl\perp)\impl\perp) \andl
-%(\top\impl((\top\impl\perp)\impl\perp)$, whose proof tree is
-%given in Figure~\ref{prooftree3}. Notice the common subtrees marked
-%with dotted lines.  In the absence of caching results, the sequence of
-%choices would be 3/5, 1/5, 2/6, 3/6, 1/7, 2/6, 1/5, 2/6, 3/6, 1/7, and
-%2/6. With caching of results, we get the substantially shorter oracle
-%3/5, 1/5, 2/6, 3/6, 1/7, 2/6, and 1/6.
-
+\begin{note}
+  Say more about strengthening; is it critical in the proofs about the
+  sequent calculus?  
+\end{note}
 \section{Experimental Results}
 
 We show an extensive experimental evaluation of the generating and
 checking proofs using compact proof witnesses.
+
+\begin{note}
+This evaluation should show:
+\begin{itemize}
+\item Time of proof checking vs proof reconstruction using small
+  witnesses
+\item Size of proof term vs Size of witness 
+\item Size of witness without caching vs Size of witnesses with
+  caching
+\item Size of the cache
+\item Time for proof compression using caching vs Time for proof
+  compression withoug caching (is there a performance penalty?)
+\item Overhead of using Twelf for proof compression vs using a
+  specialized system like Fleet?
+\end{itemize}
+\end{note}
 
 \subsection{Foundational Proof Carrying Code}
 Here we consider the typed assembly language. The type system
