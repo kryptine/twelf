@@ -38,7 +38,6 @@ structure Search =
 	  structure Compile = Compile
 	  structure Whnf = Whnf
 	  structure Unify = UnifyTrail
-	  structure Assign = Assign
 	  structure Trail = Trail
 	  structure CPrint = CPrint
 	  structure Print = Print
