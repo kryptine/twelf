@@ -29,16 +29,39 @@ in
       val P = Converter.convertPrg a
       val _ = print "*"
       val F = Converter.convertFor a
-      val _ = print "*"
-      val _ = TomegaTypeCheck.check (P, F)
+      val _ = TextIO.print (TomegaPrint.forToString (I.Null, F) ^ "\n") 
+(*      val _ = TomegaTypeCheck.check (P, F) *)
       val _ = print "]"
-(*      val _ = TextIO.print (TomegaPrint.forToString (I.Null, F) ^ "\n") *)
 (*      val _ = (FunTypeCheck.check (P, F); Twelf.OK)   *)
 (*      val LD = F.LemmaDec (names, P, F) *)
 (*      val _ = TextIO.print (FunPrint.lemmaDecToString LD) *)
     in P
 (*      FunNames.installName (name, F.lemmaAdd LD) *)
     end)
+
+  fun check names =
+    (let 
+      val a = map (fn x => valOf (Names.constLookup (valOf (Names.stringToQid x)))) names
+      val name = foldr op^ "" names
+      val _ = Names.varReset IntSyn.Null 
+      val Ss = map Worldify.worldify a
+      val S = foldr op@ nil Ss
+      val _ = printS S
+      val _ = print "[CHECKING "
+      val P = Converter.convertPrg a
+      val _ = print "*"
+      val F = Converter.convertFor a
+      val _ = TextIO.print (TomegaPrint.forToString (I.Null, F) ^ "\n")
+
+      val _ = TomegaTypeCheck.checkPrg (I.Null, (P, F))
+      val _ = print "]"
+(*      val _ = (FunTypeCheck.check (P, F); Twelf.OK)   *)
+(*      val LD = F.LemmaDec (names, P, F) *)
+(*      val _ = TextIO.print (FunPrint.lemmaDecToString LD) *)
+    in P
+(*      FunNames.installName (name, F.lemmaAdd LD) *)
+    end)
+
   val _ = Twelf.chatter := 4
 (*  val _ = FunNames.reset(); --cs *)
 

@@ -365,7 +365,7 @@ struct
     (* strengthen (Psi, (a, S), w, m) = (Psi', w')       
      
        This function traverses the spine, and finds 
-       all variables in a position input/output position
+       all variables in a position input/output position m
        (hence strenghten might not be a good name for it, because it is to general.)
 
        Invariant:
@@ -442,9 +442,6 @@ struct
 	      inBlock (G, (true, dot1inv w1))
 	    else inBlock (G, (bw, strengthenSub (w1, I.shift)))
 	  
-	  
-
-
 	fun blockSub (I.Null, w) = (I.Null, w) 
 	  | blockSub (I.Decl (G, I.Dec (name, V)), w) =
 	    let 
@@ -468,37 +465,46 @@ struct
 	                               and all variables occuring in m
 				       position in S)
 	*)
-      	fun strengthen' (I.Null, Psi2, L, w1 (* =  I.id *)) = (I.Null, I.id)    
+      	fun strengthen' (I.Null, Psi2, L, w1 (* =  I.id *)) = (I.Null, I.id, I.id)    
 	  | strengthen' (I.Decl (Psi1, LD as T.UDec (I.Dec (name, V))), Psi2, L, w1) =
-	    let 
-	      val (bw, w1') = if (I.bvarSub (1, w1) = I.Idx 1) then (true, dot1inv w1)
-			      else (false, strengthenSub (w1, I.shift))
-	    in
-	      if bw orelse occursInPsi (1, (Psi2, L)) then
+	    if (I.bvarSub (1, w1) = I.Idx 1) then
+	      let 
+		val _ = print "X"
+		val w1' = dot1inv w1
+		val (Psi1', w', z') = strengthen' (Psi1, LD :: Psi2, L, w1')
+		val V' = strengthenExp (V, w')
+	      in
+		(I.Decl (Psi1', T.UDec (I.Dec (name, V'))), I.dot1 w', I.dot1 z')
+	      end	    
+	    else 
+	      if occursInPsi (1, (Psi2, L)) then
 		let 
-		  val (Psi1', w') = strengthen' (Psi1, LD :: Psi2, L, w1')
+		  val _ = print ("Y")
+		  val w1' = strengthenSub (w1, I.shift)
+		  val (Psi1', w', z') = strengthen' (Psi1, LD :: Psi2, L, w1')
 		  val V' = strengthenExp (V, w')
 		in
-		  (I.Decl (Psi1', T.UDec (I.Dec (name, V'))), I.dot1 w')
+		  (I.Decl (Psi1', T.UDec (I.Dec (name, V'))), I.dot1 w', I.comp (z', I.shift))
 		end	    
 	      else
 		let 
+		  val _ = print "_"
+		  val w1' = strengthenSub (w1, I.shift)
 		  val w2 = I.shift
 		  val (Psi2', w2') = strengthenPsi' (Psi2, w2)
 		  val L' = strengthenArgs (L, w2')
-		  val (Psi1'', w') = strengthen' (Psi1, Psi2', L', w1')
+		  val (Psi1'', w', z') = strengthen' (Psi1, Psi2', L', w1')
 		in
-		  (Psi1'', I.comp (w', I.shift))
+		  (Psi1'', I.comp (w', I.shift), z')
 		end
-	    end
-	  | strengthen' (I.Decl (Psi1, LD as T.PDec (name, F)), Psi2, L, w1) =
+	  | strengthen' (I.Decl (Psi1, D as T.PDec (name, F)), Psi2, L, w1) =
 	    let 
-	      val (bw, w1') = if (I.bvarSub (1, w1) = I.Idx 1) then (true, dot1inv w1)
-			      else (false, strengthenSub (w1, I.shift))
-	      val (Psi1', w') = strengthen' (Psi1, LD :: Psi2, L, w1')
+val _ = print "Z"
+	      val w1' = dot1inv w1
+	      val (Psi1', w', z') = strengthen' (Psi1, D :: Psi2, L, w1')
 	      val F' = strengthenFor (F, w')
 	    in
-	      (I.Decl (Psi1', T.PDec (name, F')), I.dot1 w')
+	      (I.Decl (Psi1', T.PDec (name, F')), I.dot1 w', I.dot1 z')
 	    end	    
 	  
 
@@ -681,7 +687,6 @@ struct
           append (I.Decl (G', I.decSub (D, s)), (L, I.dot1 s))
 
 
-
     (* traverse (Ts, c) = L'
 
        Invariant:
@@ -702,30 +707,40 @@ struct
 	   and  Psi0, Psi |- V : type
 	   then L' list of cases 
 	   and  Psi0, Psi |- w' : Psi0, Psi'  
-	   and  PQ'  is a pair, generating the proof term
+	   and  PQ'  is a pair that can generate a proof term
 	*)
-	fun traverseNeg ((Psi0, Psi), I.Pi ((D as I.Dec (_, V1), I.Maybe), V2)) =
-	    (case traverseNeg ((Psi0, I.Decl (Psi, T.UDec D)), V2)
+	fun traverseNeg ((Psi0, Psi), I.Pi ((D as I.Dec (_, V1), I.Maybe), V2), w) =
+	    (case traverseNeg ((Psi0, I.Decl (Psi, T.UDec D)), V2, I.dot1 w)
 	       of (SOME (w', PQ')) => SOME (peel w', PQ'))
-	  | traverseNeg ((Psi0, Psi), I.Pi ((D as I.Dec (_, V1), I.No), V2)) =
-	    (case traverseNeg ((Psi0, Psi), V2) 
+	  | traverseNeg ((Psi0, Psi), I.Pi ((D as I.Dec (_, V1), I.No), V2), w) =
+	    (case traverseNeg ((Psi0, I.Decl (Psi, T.UDec D)), V2, I.comp (w, I.shift))
 	       of (SOME (w', PQ')) => traversePos ((Psi0, Psi, I.Null), V1, SOME (peel w', PQ')))
-	  | traverseNeg ((Psi0, Psi), I.Root (I.Const a, S)) =  
+	  | traverseNeg ((Psi0, Psi), I.Root (I.Const a, S), w) =
+	                                (* Psi0, Psi |- w : Psi0, Psi' *)
 					(* Sigma (a) = Va *)
-					(* Psi0, Psi |- S : Va > type *)
+					(* Psi0, Psi |- S : {G} type > type *)
 	    let 
 	      val Psi1 = append (Psi0, Psi)
-	      val (Psi', w') = strengthen (Psi1, (a, S), I.Shift (I.ctxLength Psi), M.Plus)
+					(* Psi1 = Psi0, Psi *)
+	      val w0 = I.Shift (I.ctxLength Psi)
+					(* Psi1 |- w0 : Psi0 *)
+	      val (Psi', w', _) = strengthen (Psi1, (a, S), w0, M.Plus)
+					(* |- Psi' ctx *)
+					(* Psi1 |- w' : Psi' *)
 	      val (w'', s'') = transformInit (Psi', L, (a, S), w')
+					(* Psi' |- s'' : G+ *)
+					(* G |- w'' : G+ *)
+	      val _ = TomegaTypeCheck.checkCtx Psi'
 	    in
-	      (SOME (w', (fn P => (Psi', s'', P), fn wf => transformConc ((a, S), wf))))
+	      (SOME (w', (fn P => (Psi', s'', P), transformConc ((a, S), w))))
 	    end
 	  
         and traversePos ((Psi0, Psi, G), I.Pi ((D as I.BDec (x, (c, s)), _), V), SOME (w1, (P, Q))) =
   	    let 
 	      val c' = wmap c
 	    in
-	      traversePos ((Psi0, Psi, I.Decl (G, T.UDec (I.BDec (x, (c', s))))), 
+	      traversePos ((Psi0, Psi, 
+			    I.Decl (G, T.UDec (I.BDec (x, (c', s))))), 
 			   V, SOME (I.dot1 w1, (P, Q)))
 	    end
           | traversePos ((Psi0, G, B), V as I.Root (I.Const a, S), SOME (w1, (P, Q))) =
@@ -742,15 +757,19 @@ struct
 	      val n = domain (Psi1, w1)	(* n = |Psi0, G', B| *)
 	      val m = I.ctxLength Psi0  (* m = |Psi0| *)
 
+	      val _ = print ("* " ^ (Int.toString n) ^ "\n")
+	      val _ = print ("* " ^ (Int.toString m) ^ "\n")
+
+
 	      fun lookup (b :: L, a) = 
 		  if a = b then 1 + (List.length L) 
 		  else lookup (L, a)
 
 	      val k = lookup (L, a)   
 	      val T.PDec(_, F) = I.ctxLookup (Psi0, k)
-					(* Psi0 |- F : for *)
-	      val t = T.Shift (n-m)	(* Psi0 |- t : Psi0, G', B *)
-	      val F' = Normalize.normalizeFor (F, t)  (* Psi0, G', B |- F' :: for *)
+					(* . |- F : for *)
+(*	      val t = T.Shift (n-m)	(* Psi0 |- t : Psi0, G', B *) *)
+	      val F' = F (* Normalize.normalizeFor (F, t)  (* Psi0, G', B |- F' :: for *) *)
 	      val k' = k + n - m	(* Psi0, G', B |- k' :: F'  *)
 		
 	      (* apply ((S, mS), F')= (S'', F'')
@@ -762,17 +781,17 @@ struct
 		 then Psi0, G', B |- F'' :: for
 		 and  Psi0, G', B |- S'' :: F' >> F''
 	      *)
-	      fun apply ((I.Nil, M.Mnil), F') = (T.Nil, F')
-		| apply ((I.App (U, S), M.Mapp (M.Marg (M.Plus, _), mS)), 
-			 T.All (D, F')) =
+		
+	      fun apply ((S, mS), Ft) = applyW ((S, mS), Normalize.whnfFor (Ft))
+	      and applyW ((I.Nil, M.Mnil), Ft') = (T.Nil, Normalize.normalizeFor Ft')
+		| applyW ((I.App (U, S), M.Mapp (M.Marg (M.Plus, _), mS)), 
+			 (T.All (D, F'), t')) =
 					(* Psi0, G', B |- D = x:V' : type *)
 					(* Psi0, G', B, x:V' |- F' :: for *)
 		  let 
 		    val U' = strengthenExp (U, w1)
 					(* Psi0, G', B |- U' : V' *)
-		    val t' = T.Dot (T.Exp U', T.id)
-					(* Psi0, G', B |- t' : Psi0, G', B, x:V' *)
-		    val (S'', F'') = apply ((S, mS), Normalize.normalizeFor (F', t'))
+		    val (S'', F'') = apply ((S, mS), (F', T.Dot (T.Exp U', t')))
 		                        (* Psi0, G', B |- F'' :: for *)
 					(* Psi0, G', B |- S'' : F' [t'] >> F'' *)
 		  in
@@ -780,16 +799,15 @@ struct
 					(* Psi0, G', B |- U' ; S'' 
 					               : all {x:V'} F' >> F'' *)
 		  end
-		| apply ((I.App (U, S), M.Mapp (M.Marg (M.Minus, _), mS)), F) = 
-		    apply ((S, mS), F) 
+		| applyW ((I.App (U, S), M.Mapp (M.Marg (M.Minus, _), mS)), Ft) = 
+		    applyW ((S, mS), Ft) 
 
-	      val (S'', F'') = apply ((S, modeSpine a), F')
+	      val (S'', F'') = apply ((S, modeSpine a), (F', T.id))
 					(* Psi0, G', B |- F'' :: for *)
 					(* Psi0, G', B |- S'' :: F' >> F'' *)
 
 	      val P'' = T.Root (T.Var k', S'')
 					(* Psi0, G', B |- P'' :: F'' *)
-
 
 
 	      (* lift (B, (P, F)) = (P', F')
@@ -802,49 +820,53 @@ struct
 	      *)
 	      fun lift (I.Null, (P, F)) = (P, F)
 		| lift (I.Decl (G, T.UDec D), (P, F)) = 
-		    (lift (G, (T.Lam (T.UDec D, P), T.All (T.UDec D, F))))
+		    (lift (G, (T.New (T.Lam (T.UDec D, P)), T.All (T.UDec D, F))))
 
 	      val (P''', F''') = lift (B, (P'', F''))
 					(* Psi0, G' |- P''' :: F''' *)
 
+val _ = print "\n\n"
 
-	      val (Psi1'', w2) = strengthen (G'', (a, S), w1, M.Minus)
+	      val (Psi1'', w2, z2) = strengthen (Psi1, (a, S), w1, M.Minus)
 		                        (* |- Psi0, Psi1'' ctx *)
-					(* Psi0, G'' |- w2 : Psi0, Psi1'' *)
-		                        (* Psi1'' = G3, B4 *)
+					(* Psi0, G'' |- w2 : Psi1'' *)
+		                        (* Psi1'' = Psi0, G3, B4 *)
 		                        (* |B| = |B4| *)
-					(* Psi0, G', B |- w2 : Psi0, G3, B4 *)
+					(* Psi'' |-  z2 : Psi0, G', B *)
+					(* Psi0, G, B |- w2 : Psi0, G3, B4 *)
 	      val b = I.ctxLength B     (* b = |B| *)
-	      val w3 = peeln (b, w2)	(* Psi0, G' |- w3 : Psi0, G3 *)
-	      val G3 = popn (b, Psi1'')	
+	      val w3 = peeln (b, w2)	(* Psi0, G |- w3 : Psi0, G3 *)
+	      val z3 = peeln (b, z2)	(* Psi0, G3 |-  z3 : Psi0, G' *)
+	      val Psi2 = popn (b, Psi1'') 
+					(* Psi2 = Psi0, G3 *)
 
-	      val B4 = deblockify (Psi1'', I.ctxLength B)
+	      val B4 = deblockify (Psi1'', b)
 					(* Psi0, G3 |- B' ctx *)
 	      val Pat' = transformConc ((a, S), w2)
 					(* Psi0, G3, B4 |- Pat' :: For *)
 	      val (Pat, F4) = raisePrg (B4, (Pat', F'''))
 					(* Psi0 |- F4 = abstract (F''') *)
 		                        (* Psi0, G3 |- Pat :: F4  *)
-		                        (* Here's a communtitative diagram
+		                        (* Here's a commutative diagram
 					   at work which one has to prove 
 					   correct 
                                         *)
-	      val s3 = Whnf.invert w3	(* Psi0, G3 |- w3 :  Psi0, G'*)
-	      val t = T.Dot (T.Prg Pat, T.revCoerceSub s3)
-                                        (* Psi0, G3 |- t :: Psi0, G', x :: F4  *)
-	      val Psi2 = append (Psi0, G3)
-					(* |- Psi2 = Psi0, G3 ctx *)
+	      val _ = print ("* " ^ (Int.toString (I.ctxLength Psi1)) ^ "\n")
 
+(*	      val s3 = Whnf.invert w3	(* Psi0, G3 |- s3 :  Psi0, G'*) *)
+	      val t = T.Dot (T.Prg Pat, T.embedSub z3)
+                                        (* Psi0, G3 |- t :: Psi0, G', x :: F4  *)
+		
 	    in     
 	      (SOME (w3, 
-		     (fn p => P (T.Let (T.PDec (NONE, F4), T.New P''', 
+		     (fn p => P (T.Let (T.PDec (NONE, F4), P''', 
 					T.Case (T.Cases [(Psi2, t, p)]))), Q)))
 	    end
 
 	fun traverseSig' nil = nil
-          | traverseSig' (I.ConDec (name, _, _, _, V, I.Type) :: Sig) = 
-  	    (case traverseNeg ((Psi0, I.Null), V)
-	       of (SOME (wf, (P', Q'))) =>  (P' (Q' wf)) :: traverseSig' Sig)
+          | traverseSig' (I.ConDec (name, _, _, _, V, I.Type) :: Sig) =
+  	    (case traverseNeg ((Psi0, I.Null), V, I.id)
+	       of (SOME (wf, (P', Q'))) =>  (P' Q') :: traverseSig' Sig)
       in
 	traverseSig' Sig
       end
