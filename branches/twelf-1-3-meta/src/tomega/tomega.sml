@@ -1,4 +1,4 @@
-(* structure Converter = Converter
+structure Converter = Converter
   (structure Global = Global
    structure IntSyn' = IntSyn
    structure Tomega' = Tomega
@@ -8,11 +8,10 @@
    structure Trail = Trail
    structure Unify = UnifyTrail
    structure Whnf = Whnf
+   structure WorldSyn = WorldSyn
    structure Worldify = Worldify
    structure Print = Print
    structure Weaken = Weaken);
-
-*)
 
 
 structure TomegaPrint = TomegaPrint

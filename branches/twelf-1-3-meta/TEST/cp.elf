@@ -51,5 +51,7 @@ cpt_app : cpt (app E1 E2) (app' E1' E2') (cp_app D2 D1)
 cpt_lam : cpt (lam E) (lam' E') (cp_lam D)
 	   <- ({x:exp}{x':exp'}{u:cp x x'} cpt x x' u -> cpt (E x) (E' x') (D x x' u)).
 
+%block l : block {x:exp}{x':exp'}{u:cp x x'}{hyp: cpt x x' u}.
+%worlds (l) (cpt _ _ _).
 %terminates (E) (cpt E _ _).
 

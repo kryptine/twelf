@@ -2,8 +2,8 @@ Group is
   ../global/sources.cm
   ../lambda/sources.cm
   ../worldcheck/sources.cm
-(*  converter.sig
-  converter.fun *)
+  converter.sig
+  converter.fun 
   tomegaprint.sig
   tomegaprint.fun 
   tomega.sml 
