@@ -232,12 +232,9 @@ struct
 	   of Idx (k) => (Root (BVar (k), SClo (S, s)), id)
 	    | Exp (U) => whnfRedex (whnf (U, id), (S, s)))
       (* Undef should be impossible *)
-      | whnfRoot ((Proj (Bidx v, i), S), s) = 
-	(case bvarSub (v, s)
-	   of Idx (w) => (Root (Proj (Bidx w, i), SClo (S, s)), id)
-	    | Block B => (Root (Proj (B, i), SClo (S, s)), id))
-        (* second declaration added.  Representation of Block indices not unique 
-	   -cs !!! *)
+      | whnfRoot ((Proj (B as Bidx _, i), S), s) = 
+	 (Root (Proj (blockSub (B, s), i), SClo (S, s)), id)
+        (* rewritten this piece of code -cs !!! *)
       | whnfRoot ((Proj (LVar (ref (SOME L), l, t), i), S), s) =
 	 whnfRoot ((Proj (L, i), S), s) 
       | whnfRoot ((Proj (LVar (r, l, t), i), S), s) = (* r = ref NONE *)
