@@ -348,6 +348,8 @@ struct
   and frontSub (Idx (n), s) = bvarSub (n, s)
     | frontSub (Exp (U), s) = Exp (EClo (U, s))
     | frontSub (Undef, s) = Undef
+  (* omitted case?  -cs !!! *)
+  (*| frontSub (Block (B), s) = Block (BClo (B, s)) *)  
 
   (* decSub (x:V, s) = D'
 
