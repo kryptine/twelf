@@ -52,7 +52,8 @@ and Prog
   | Const of string
   | Case of  (Pat list * Prog) list
   | Let of Decs * Prog 
-  | New of Dec * Prog 
+  | Par of Prog * Prog
+  | New of Dec list * Prog 
   | Choose of Dec * Prog 
 (* | Rec of MDec * Prog *)
 

@@ -54,6 +54,7 @@ catchall = .;
 <INITIAL>"{"                    => (Tokens.LTBRACE(!line,!line));
 <INITIAL>"}"                    => (Tokens.RTBRACE(!line,!line));
 <INITIAL>","                    => (Tokens.COMMA(!line,!line));
+<INITIAL>"||"                   => (Tokens.PAR(!line,!line));
 <INITIAL>"|"                    => (Tokens.BAR(!line,!line));
 <INITIAL>"type"                 => (Tokens.TYPE(!line,!line));
 <INITIAL>"world"                => (Tokens.WORLD(!line,!line));
