@@ -235,10 +235,10 @@ struct
       | whnfRoot ((Proj (Bidx v, i), S), s) = 
 	(case bvarSub (v, s)
 	   of Idx (w) => (Root (Proj (Bidx w, i), SClo (S, s)), id))
-      | whnfRoot ((Proj (LVar (ref NONE, l, t), i), S), s) =
-	 (Root (Proj (LVar (ref NONE, l, comp (t, s)), i), SClo (S, s)), id)
       | whnfRoot ((Proj (LVar (ref (SOME L), l, t), i), S), s) =
-	 whnfRoot ((Proj (L, i), S), s)
+	 whnfRoot ((Proj (L, i), S), s) 
+      | whnfRoot ((Proj (LVar (r, l, t), i), S), s) = (* r = ref NONE *)
+	 (Root (Proj (LVar (r, l, comp (t, s)), i), SClo (S, s)), id)
       (* Undef and Exp should be impossible by definition of substitution -cs *)
       | whnfRoot ((FVar (name, V, s'), S), s) =
 	 (Root (FVar (name, V, comp (s', s)), SClo (S, s)), id)

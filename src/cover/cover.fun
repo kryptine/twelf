@@ -704,8 +704,17 @@ struct
 	  val ((V1, s), XsRev) = instEVars ((V, I.id), nil)
           (* split on k'th variable, counting from innermost *)
 	  val X = List.nth (XsRev, k-1)
+	  val _ = if !Global.chatter >= 6
+		    then print ("Splitting on " ^ Print.expToString (I.Null, X) ^ " in\n"
+				^ Print.expToString (I.Null, I.EClo(V1, s)) ^ ".\n")
+		  else ()
 	  val _ = resetCases ()
-	  val _ = splitEVar (X, W, fn () => addCase (abstract (V1, s)))
+	  val _ = splitEVar (X, W, fn () => 
+			     (if !Global.chatter >= 6
+				then print ("Case: " ^ Print.expToString (I.Null, X) ^ " where\n"
+				     ^ Print.expToString (I.Null, I.EClo(V1,s)) ^ ".\n")
+			      else () ;
+			      addCase (abstract (V1, s))))
 	in
 	  SOME (getCases ())
 	end
