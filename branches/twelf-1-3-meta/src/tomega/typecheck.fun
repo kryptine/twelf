@@ -229,6 +229,8 @@ struct
 	in
           ()
 	end
+(*      | checkPrgW (Psi, (P, (T.World (W, F), t))) = 
+	  checkPrgW (Psi, (P, (F, t))) *)
       | checkPrgW (Psi, (T.Root (H, S), (F, t))) =
 	let
 	  val F' = inferCon (Psi, H)
@@ -279,7 +281,6 @@ struct
 	  val _ = chatter 4 (fn () => "...")	  
 	  val _ = checkPrg (Psi, (P2, (F2, t)))
 	  val _ = chatter 4 (fn () => "]")
-
 	in
 	  ()
 	end
@@ -317,6 +318,11 @@ struct
 	  (print "* Temporary incompleteness;  code is written but not yet clean\n") 
       | checkPrgW (Psi, (T.Redex (P1, P2), (F, t))) =
 	  (print "* Temporary incompleteness; redex not checkable")
+      | checkPrgW (Psi, (T.Box (W, P), (T.World (W', F), t))) =
+	  checkPrgW (Psi, (P, (F, t)))
+	  (* don't forget to check if the worlds match up --cs Mon Apr 21 01:51:58 2003 *)
+
+
 (*	let 
 
 	  fun makeCtx (G, (nil, s)) = G
@@ -541,6 +547,16 @@ struct
 	in
 	  ()  
 	end
+      | convForW (Psi, 
+		  (T.World (W1, F1), t1), 
+		  (T.World (W2, F2), t2)) = 
+	let
+	  val _ = convFor (Psi, (F1, t1), (F2, t2))
+	  (* also check that both worlds are equal -- cs Mon Apr 21 01:28:01 2003 *)
+	in
+	  ()
+	end
+	
       | convForW _ = raise Error "Typecheck error"
 
     and convSub(G, T.Shift k1, T.Shift k2, G') = if k1=k2 then () else raise Error "Sub not equivalent"
