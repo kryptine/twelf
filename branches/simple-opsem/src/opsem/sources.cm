@@ -7,16 +7,17 @@ Group is
   ../solvers/sources.cm
   compsyn.sig
   compsyn.fun
+  ptcompile.sig
+  ptcompile.fun
   compile.sig
-  compile.fun
+  fullcomp.sig
+  fullcomp.fun
+  elabsolution.sig
+  elabsolution.fun
   cprint.sig
   cprint.fun
-  (*
-  assign.sig
-  assign.fun
-  *)
   absmachine.sig
-  absmachine.fun
+  fullmachine.fun
   trace.sig
   trace.fun
   tmachine.fun

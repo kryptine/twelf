@@ -1,5 +1,6 @@
 (* Abstraction *)
 (* Author: Frank Pfenning, Carsten Schuermann *)
+(* Modified: Kevin Watkins *)
 
 signature ABSTRACT =
 sig
@@ -18,5 +19,7 @@ sig
                        (int * (IntSyn.Exp * IntSyn.Exp))
 
   val collectEVars : IntSyn.dctx * IntSyn.eclo * IntSyn.Exp list -> IntSyn.Exp list
+
+  val abstractQuery : IntSyn.Exp -> (IntSyn.Dec IntSyn.Ctx * IntSyn.eclo)
 
 end;  (* signature ABSTRACT *)

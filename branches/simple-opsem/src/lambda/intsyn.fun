@@ -1,6 +1,7 @@
 (* Internal Syntax *)
 (* Author: Frank Pfenning, Carsten Schuermann *)
 (* Modified: Roberto Virga *)
+(* Modified: Kevin Watkins *)
 
 functor IntSyn (structure Global : GLOBAL) :> INTSYN =
 struct
@@ -25,6 +26,12 @@ struct
   fun ctxLookup (Decl (G', D), 1) = D
     | ctxLookup (Decl (G', _), k') = ctxLookup (G', k'-1)
     (* ctxLookup (Null, k')  should not occur by invariant *)
+
+  (* ctxDrop (G, k) = G'
+     Invariant: If 0 <= k <= |G| then G = G',GX and |GX| = k
+  *)
+  fun ctxDrop (G, 0) = G
+    | ctxDrop (Decl(G, _), n) = ctxDrop (G, n-1)
 
   (* ctxLength G = |G|, the number of declarations in G *)
   fun ctxLength G =
@@ -388,5 +395,9 @@ struct
      as in targetFamOpt, except V must be a valid type
   *)
   fun targetFam (A) = valOf (targetFamOpt A)
+
+  fun abstractions (Pi (_, V)) = abstractions(V) + 1
+    | abstractions _ = 0
+    (* more cases? *)
 
 end;  (* functor IntSyn *)

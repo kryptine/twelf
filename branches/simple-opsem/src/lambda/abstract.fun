@@ -1,6 +1,7 @@
 (* Abstraction *)
 (* Author: Frank Pfenning, Carsten Schuermann *)
 (* Modified: Roberto Virga *)
+(* Modified: Kevin Watkins *)
 
 functor Abstract (structure IntSyn' : INTSYN
 		  structure Whnf    : WHNF
@@ -496,6 +497,62 @@ struct
     fun collectEVars (G, Us, Xs) =
           KToEVars (collectExp (G, Us, evarsToK (Xs)))
 
+    (* raiseExp (G, U) = [[G]] U
+
+       Invariant:
+       If G |- U : V
+       then  . |- [[G]] U : {{G}} V
+    *)
+    fun raiseExp (I.Null, U) = U
+      | raiseExp (I.Decl (G, D), U) = raiseExp (G, I.Lam (D, U))
+
+    (* KToSubst (K) = (G, s)
+       G = {{K}}
+
+       Invariant:
+       If K contains only EVars
+       then  . |- s : G
+       and   . |- {{U}}_K [s] == U : V
+       whenever  K ||- U and K ||- V and . |- U : V
+    *)
+    fun KToSubst (I.Null) = (I.Null, I.id)
+      | KToSubst (I.Decl (K, EV (U as I.EVar (_, GX, VX, _)))) =
+        let
+          val U' = raiseExp (GX, U)
+          val VX' = raiseType (GX, VX)
+          val (G', s') = KToSubst (K)
+        in
+          (I.Decl (G', I.Dec(NONE, abstractExp(K, 0, (VX', I.id)))),
+           I.Dot (I.Exp (U'), s'))
+        end
+      | KToSubst _ = raise Fail ""
+
+    (* abstractQuery (U) = (G, (U', s))
+       G = {{K}}
+       U' = {{U}}_K
+
+       Invariant:
+       If U contains no FVars
+       and    . |- U : V
+       and    K ||- U
+       then   G |- U' : V' and . |- s : G
+       and    . ||- U' and . ||- G
+       and    . |- U'[s] == U : V
+       and    U is in nf
+    *)
+    fun abstractQuery (U) =
+        let
+	  val K = collectExp (I.Null, (U, I.id), I.Null)
+          val (G, s) = KToSubst (K)
+          (* we just hope the constraints are satisfied enough to
+             yield approximate typing  -kw
+	  val constraints = collectConstraints K
+          val _ = if (constraints = nil) then () else raise C.Error constraints
+          *)
+	in
+	  (G, (abstractExp (K, 0, (U, I.id)), s))
+	end 
+
   in
 
     val piDepend = piDepend
@@ -509,5 +566,7 @@ struct
     val collectEVars = collectEVars
 
     val closedCtx = closedCtx
+
+    val abstractQuery = abstractQuery
   end
 end;  (* functor Abstract *)

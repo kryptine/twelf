@@ -1,8 +1,9 @@
-(* Compiler *)
+(* Compiler (signature common to all compilers) *)
 (* Author: Iliano Cervesato *)
 (* Modified: Jeff Polakow *)
 (* Modified: Carsten Schuermann *)
 (* Modified: Frank Pfenning *)
+(* Modified: Kevin Watkins *)
 
 signature COMPILE =
 sig
@@ -10,15 +11,8 @@ sig
   structure IntSyn: INTSYN
   structure CompSyn: COMPSYN
 
-  exception Error of string
-
-  val optimize : bool ref
-
+  val installResGoal : IntSyn.cid * CompSyn.ResGoal -> unit
   val install : bool -> IntSyn.cid -> unit
-
-  val compileClause: bool -> (IntSyn.Dec IntSyn.Ctx * IntSyn.Exp)
-                          -> CompSyn.ResGoal
-  val compileCtx: bool -> (IntSyn.Dec IntSyn.Ctx) -> CompSyn.DProg
-  val compileGoal: (IntSyn.Dec IntSyn.Ctx * IntSyn.Exp) -> CompSyn.Goal
+  val reset : unit -> unit
 
 end; (* signature COMPILE *)

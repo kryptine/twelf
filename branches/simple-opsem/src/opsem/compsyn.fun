@@ -2,11 +2,9 @@
 (* Author: Iliano Cervesato *)
 (* Modified: Jeff Polakow *)
 (* Modified: Frank Pfenning *)
+(* Modified: Kevin Watkins *)
 
-functor CompSyn (structure Global : GLOBAL
-                 structure IntSyn' : INTSYN
-		 structure Names : NAMES
-		   sharing Names.IntSyn = IntSyn')
+functor CompSyn (structure IntSyn' : INTSYN)
   : COMPSYN =
 struct
 
@@ -20,20 +18,27 @@ struct
 
   and ResGoal =                         (* Residual Goals             *)
     Eq     of IntSyn.Exp                (* r ::= p = ?                *)
-  | Assign of IntSyn.Exp * AuxGoal      (*     | p = ?, where p has   *)
-					(* only new vars,             *)  
-                                        (* then unify all the vars    *)
   | And    of ResGoal                   (*     | r & (A,g)            *)
               * IntSyn.Exp * Goal       
   | In     of ResGoal                   (*     | r && (A,g)           *)
               * IntSyn.Exp * Goal       
   | Exists of IntSyn.Dec * ResGoal      (*     | exists x:A. r        *)
-  | Exists' of IntSyn.Dec * ResGoal	(*     | exists x:A. r        *)
 
-  and AuxGoal =
-    Trivial				(* trivially done *)
-  | Unify of IntSyn.dctx * IntSyn.Exp   (* call unify *)
-             * IntSyn.Exp * AuxGoal
+  and Query =
+    QueryGoal of Goal
+  | QueryVar  of IntSyn.Exp * IntSyn.Dec * Query
+
+  datatype GoalSol =
+    DynAtom   of int * ResGoalSol
+  | SigAtom   of IntSyn.cid * ResGoalSol
+  | ConstrSol of int (* which try? *)
+  | ImplSol   of GoalSol
+  | AllSol    of GoalSol
+
+  and ResGoalSol =
+    EqSol
+  | AndSol    of ResGoalSol * GoalSol
+  | ExistsSol of ResGoalSol
 
   (* Representation invariants for compiled syntax:
      Judgments:
@@ -73,28 +78,6 @@ struct
      if  G |- A : type
          G, x:A |- r  resgoal
   *)
-
-  (* The dynamic clause pool --- compiled version of the context *)
-  (* Dynamic programs: context with synchronous clause pool *)
-
-  datatype DProg = DProg of IntSyn.dctx * (ResGoal * IntSyn.Sub * IntSyn.cid) option IntSyn.Ctx
-
-  (* Static programs --- compiled version of the signature *)
-  datatype ConDec =			(* Compiled constant declaration *)
-    SClause of ResGoal	                (* c : A                      *)
-  | Void 		                (* Other declarations are ignored  *)
-
-  local
-    val maxCid = Global.maxCid
-    val sProgArray = Array.array (maxCid+1, Void) : ConDec Array.array
-  in
-    (* Invariants *)
-    (* 0 <= cid < I.sgnSize () *)
-
-    fun sProgInstall (cid, conDec) = Array.update (sProgArray, cid, conDec)
-    fun sProgLookup (cid) = Array.sub (sProgArray, cid)
-    fun sProgReset () = Array.modify (fn _ => Void) sProgArray
-  end
 
   (* goalSub (g, s) = g'
 

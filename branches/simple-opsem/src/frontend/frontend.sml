@@ -160,8 +160,12 @@ structure Solve =
 	 structure TpReconQ = TpTraceQ
 	 structure Timers = Timers
 	 structure CompSyn = CompSyn
-	 structure Compile = Compile
-	 structure AbsMachine = TMachine
+	 structure PTCompile = PTCompile
+(*
+         structure AbsMachine = TMachine
+*)
+	 structure AbsMachine = SimpMachine
+
 	 structure Strict = Strict
 	 structure Print = Print
          structure CSManager = CSManager);
@@ -197,9 +201,12 @@ structure Twelf =
 	 structure Index = Index
 	 structure IndexSkolem = IndexSkolem
 	 structure Subordinate = Subordinate
-	 structure CompSyn' = CompSyn
-	 structure Compile = Compile
-	 structure AbsMachine = TMachine
+	 structure PTCompile = PTCompile
+(*
+         structure AbsMachine = TMachine
+*)
+	 structure AbsMachine = SimpMachine
+
 	 structure Solve = Solve
 
 	 structure ThmSyn = ThmSyn

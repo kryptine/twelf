@@ -11,15 +11,11 @@ functor Search (structure IntSyn' : INTSYN
 		sharing Whnf.IntSyn = IntSyn'
 		structure Unify : UNIFY
 		sharing Unify.IntSyn = IntSyn'
-		(*
-		structure Assign : ASSIGN
-		sharing Assign.IntSyn = IntSyn'
-		*)
 		structure Index : INDEX
 		sharing Index.IntSyn = IntSyn'
-		structure Compile : COMPILE
-		sharing Compile.IntSyn = IntSyn'
-		sharing Compile.CompSyn = CompSyn'
+		structure FullComp : FULLCOMP
+		sharing FullComp.IntSyn = IntSyn'
+		sharing FullComp.CompSyn = CompSyn'
 		structure CPrint : CPRINT
 		sharing CPrint.IntSyn = IntSyn'
 		sharing CPrint.CompSyn = CompSyn'
@@ -57,20 +53,20 @@ struct
        if  G |- M :: g[s] then G |- sc :: g[s] => Answer, Answer closed
   *)
   fun solve ((C.Atom p, s), dp, sc, acck) = matchAtom ((p,s), dp, sc, acck)
-    | solve ((C.Impl (r, A, cid, g), s), C.DProg(G, dPool), sc, acck) =
+    | solve ((C.Impl (r, A, cid, g), s), FullComp.DProg(G, dPool), sc, acck) =
        let
 	 val D' = I.Dec (NONE, I.EClo (A, s))
        in
 	 solve ((g, I.dot1 s), 
-		C.DProg (I.Decl(G, D'), I.Decl (dPool, SOME(r, s, cid))),
+		FullComp.DProg (I.Decl(G, D'), I.Decl (dPool, SOME(r, s, cid))),
 		(fn (M, acck') => sc (I.Lam (D', M), acck')), acck)
        end
-    | solve ((C.All (D, g), s), C.DProg (G, dPool), sc, acck) =
+    | solve ((C.All (D, g), s), FullComp.DProg (G, dPool), sc, acck) =
        let
 	 val D' = I.decSub (D, s)
        in
 	 solve ((g, I.dot1 s), 
-		C.DProg (I.Decl (G, D'), I.Decl (dPool, NONE)),
+		FullComp.DProg (I.Decl (G, D'), I.Decl (dPool, NONE)),
 		(fn (M, acck') => sc (I.Lam (D', M), acck')), acck)
        end
 
@@ -87,20 +83,13 @@ struct
 	    used in the universal case for max search depth)
        if G |- S :: r[s] then G |- sc : (r >> p[s']) => Answer
   *)
-  and rSolve (ps', (C.Eq Q, s), C.DProg (G, dPool), sc, acck as (acc, k)) =
+  and rSolve (ps', (C.Eq Q, s), FullComp.DProg (G, dPool), sc, acck as (acc, k)) =
       if Unify.unifiable (G, ps', (Q, s))
 	then sc (I.Nil, acck)
       else acc
       (* replaced below by above.  -fp Mon Aug 17 10:41:09 1998
         ((Unify.unify (ps', (Q, s)); sc (I.Nil, acck)) handle Unify.Unify _ => acc) *)
-    (*
-    | rSolve (ps', (C.Assign (Q, ag), s), dp, sc, acck as (acc, k)) =
-        ((Assign.assign (ps', (Q, s));
-	  aSolve ((ag, s), dp, (fn () => sc (I.Nil, acck)) , acc))
-	  handle Unify.Unify _ => acc
-	       | Assign.Assign _ => acc)
-    *)
-    | rSolve (ps', (C.And (r, A, g), s), dp as C.DProg (G, dPool), sc, acck) =
+    | rSolve (ps', (C.And (r, A, g), s), dp as FullComp.DProg (G, dPool), sc, acck) =
       let
 	val X = I.newEVar (G, I.EClo(A, s))
       in
@@ -113,29 +102,13 @@ struct
 							     handle Unify.Unify _ => [])), 
 					 acck')), acck)
       end
-    | rSolve (ps', (C.Exists (I.Dec (_, A), r), s), dp as C.DProg (G, dPool), sc, acck) =
+    | rSolve (ps', (C.Exists (I.Dec (_, A), r), s), dp as FullComp.DProg (G, dPool), sc, acck) =
         let
 	  val X = I.newEVar (G, I.EClo (A, s))
 	in
 	  rSolve (ps', (r, I.Dot (I.Exp (X), s)), dp,
 		  (fn (S, acck') => sc (I.App (X, S), acck')), acck)
 	end
-    | rSolve (ps', (C.Exists' (I.Dec (_, A), r), s), dp as C.DProg (G, dPool), sc, acck) =
-        let
-	  val X = I.newEVar (G, I.EClo (A, s))
-	in
-	  rSolve (ps', (r, I.Dot (I.Exp (X), s)), dp,
-		  (fn (S, acck') => sc (S, acck')), acck)
-	end
-
-  (* aSolve ... *)
-  and aSolve ((C.Trivial, s), dp, sc, acc) = sc ()
-    (* Fri Jan 15 16:04:39 1999 -fp,cs
-    | aSolve ((C.Unify(I.Eqn(e1, e2), ag), s), dp, sc, acc) =
-      ((Unify.unify ((e1, s), (e2, s));
-        aSolve ((ag, s), dp, sc, acc))
-       handle Unify.Unify _ => acc)
-     *)
 
   (* matchatom ((p, s), (G, dPool), sc, (acc, k)) => ()
      G |- s : G'
@@ -148,7 +121,7 @@ struct
      if G |- M :: p[s] then G |- sc :: p[s] => Answer
   *)
   and matchAtom (ps' as (I.Root (I.Const cid, _), _), 
-		 dp as C.DProg (G, dPool), sc, (acc, k)) =
+		 dp as FullComp.DProg (G, dPool), sc, (acc, k)) =
       let
 	fun matchSig acc' =
 	    let
@@ -159,7 +132,7 @@ struct
 				  of I.Const cid => cid
 				   | I.Skonst cid => cid)
 				  
-		    val C.SClause(r) = C.sProgLookup cid'
+		    val FullComp.SClause(r) = FullComp.sProgLookup cid'
 		    val acc''' = CSManager.trail
 		                 (fn () =>
 				    rSolve (ps', (r, I.id), dp,
@@ -262,8 +235,8 @@ struct
 	   Check if there are still variables left over
 	*)
       | searchEx' max (I.EVar (r, G, V, _) :: GE, sc) = 
-	  solve ((Compile.compileGoal (G, V), I.id), 
-		 Compile.compileCtx false G, 
+	  solve ((FullComp.compileGoal V, I.id), 
+		 FullComp.compileCtx G, 
 		 (fn (U', (acc', _)) => (Unify.instantiateEVar (r, U', nil); 
 					 searchEx' max (GE, sc))),
 		 (nil, max))
@@ -317,8 +290,8 @@ struct
 
     fun searchAll' (nil, acc, sc) = sc (acc)
       | searchAll' (I.EVar (r, G, V, _) :: GE, acc, sc) = 
-	  solve ((Compile.compileGoal (G, V), I.id), 
-		 Compile.compileCtx false G, 
+	  solve ((FullComp.compileGoal V, I.id), 
+		 FullComp.compileCtx G, 
 		 (fn (U', (acc', _)) => (Unify.instantiateEVar (r, U', nil); 
 					 searchAll' (GE, acc', sc))),
 		 (acc, !MetaGlobal.maxFill))
