@@ -669,7 +669,7 @@ struct
 	   | _ => false *)   (* not possible because of invariant? -cs *)
 	  unifySub (G, s1, s2))
 
-    (* substitutions s1 and s2 are redundant here *)
+    (* substitutions s1 and s2 were redundant here --- removed *)
     (* Sat Dec  8 11:47:12 2001 -fp !!! *)
     and unifyBlock (LVar (r1, (l1, t1)), L as LVar (r2, (l2, t2))) = 
         if l1 <> l2 then

@@ -202,7 +202,10 @@ struct
 	  collectSpine (G, (S, s), I.Decl (collectExp (I.Null, (V, I.id), K), FV (name, V)))
       | collectExpW (G, (I.Root (I.Proj (L as I.LVar (r, (l, t)), i), S), s), K) =
 	if exists (eqLVar L) K
-	  then collectSpine (G, (S, s), collectSub (I.Null, t, K))
+	  (* note: don't collect t again below *)
+	  (* was: collectSpine (G, (S, s), collectSub (I.Null, t, K)) *)
+	  (* Sun Dec 16 10:54:52 2001 -fp !!! *)
+	  then collectSpine (G, (S, s), K)
 	else 
 	  collectSpine (G, (S, s), I.Decl (collectSub (I.Null, t, K), LV L))
       | collectExpW (G, (I.Root (_ , S), s), K) =
@@ -215,8 +218,9 @@ struct
 	else let
 	       (* val _ = checkEmpty !cnstrs *)
 	       val V' = raiseType (GX, V) (* inefficient *)
+	       val K' = collectExp (I.Null, (V', I.id), K)
 	     in
-	       collectSub(G, s, I.Decl (collectExp (I.Null, (V', I.id), K), EV (X)))
+	       collectSub(G, s, I.Decl (K', EV (X)))
 	     end
       | collectExpW (G, (I.FgnExp (cs, ops), s), K) =
           collectExp (G, (#toInternal(ops) (), s), K)

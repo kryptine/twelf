@@ -41,6 +41,51 @@ struct
     structure P = Paths
     structure F = Print.Formatter
 
+    (*****************)
+    (* Strengthening *)
+    (*****************)
+
+    (* next section adapted from m2/metasyn.fun *)
+
+    (* weaken (depth,  G, a) = w'
+
+       Invariant:
+       If   a is a type family
+       then G |- w' : G'
+       and  forall x:A in G'  A subordinate to a
+     *)
+    fun weaken (I.Null, a) = I.id
+      | weaken (I.Decl (G', D as I.Dec (name, V)), a) =
+	let
+	  val w' = weaken (G', a)
+	in
+	  if Subordinate.belowEq (I.targetFam V, a) then I.dot1 w'
+	  else I.comp (w', I.shift)
+	end
+      (* added next case, probably wrong *)
+      (* Sun Dec 16 10:42:05 2001 -fp !!! *)
+      (*
+      | weaken (I.Decl (G', D as I.BDec _), a) =
+	   I.dot1 (weaken (G', a))
+      *)
+
+    (* createEVar (G, V) = X[w] where G |- X[w] : V
+
+       Invariant:
+       If G |- V : L
+       then G |- X[w] : V
+    *)
+    fun createEVar (G, V) =
+        let (* G |- V : L *)
+	  val w = weaken (G, I.targetFam V) (* G |- w : G' *)
+	  val iw = Whnf.invert w	(* G' |- iw : G *)
+	  val G' = Whnf.strengthen (iw, G)
+	  val X' = I.newEVar (G', I.EClo (V, iw)) (* G' |- X' : V[iw] *)
+	  val X = I.EClo (X', w)	(* G |- X : V *)
+	in
+	  X
+	end
+
     (*
        Coverage goals have the form {{G}} a @ S
     *)
@@ -162,6 +207,8 @@ struct
 
        Invariants: if cands = Eqns (es) then es = nil.
     *)
+    (* This ignores LVars, because collectEVars does *)
+    (* Why is that OK?  Sun Dec 16 09:01:40 2001 -fp !!! *)
     fun checkConstraints (G, Qs, Cands (ks)) = Cands (ks)
       | checkConstraints (G, Qs, Fail) = Fail
       | checkConstraints (G, Qs, Eqns _) = (* _ = nil *)
@@ -329,6 +376,10 @@ struct
           checkConstraints (G, qs, resolveCands (matchTop (G, ps', qs, ms)))
       | matchClause (G, ps', (I.Pi ((I.Dec(_, V1), _), V2), s), ms) =
         let
+	  (* changed to use subordination and strengthening here *)
+	  (* Sun Dec 16 10:39:34 2001 -fp *)
+	  (* val X1 = createEVar (G, I.EClo (V1, s)) *)
+	  (* changed back --- no effect *)
 	  val X1 = I.newEVar (G, I.EClo (V1, s))
 	  (* was: I.Null instead of G in line above Wed Nov 21 16:40:40 2001 *)
 	in
@@ -522,23 +573,7 @@ struct
 
     (* next section adapted from m2/metasyn.fun *)
 
-    (* weaken (depth,  G, a) = w'
-
-       Invariant:
-       If   a is a type family
-       then G |- w' : G'
-       and  forall x:A in G'  A subordinate to a
-     *)
-    fun weaken (I.Null, a) = I.id
-      | weaken (I.Decl (G', D as I.Dec (name, V)), a) =
-	let
-	  val w' = weaken (G', a)
-	in
-	  if Subordinate.belowEq (I.targetFam V, a) then I.dot1 w'
-	  else I.comp (w', I.shift)
-	end
-
-    (* createEVarSpineW (G, (V, s)) = ((V', s') , S')
+    (* createEVarSpineW (G, (V, s)) = (S', (V', s'))
 
        Invariant:
        If   G |- s : G1   and  G1 |- V = Pi {V1 .. Vn}. W : L
@@ -548,16 +583,24 @@ struct
        and  G |- W [1.2...n. s o ^n] = V' [s']
        and  G |- S : V [s] >  V' [s']
     *)
+    (* change to use createEVar? *)
+    (* Sun Dec 16 10:36:59 2001 -fp !!! *)
     fun createEVarSpine (G, Vs) = createEVarSpineW (G, Whnf.whnf Vs)
     and createEVarSpineW (G, Vs as (I.Root _, s)) = (I.Nil, Vs)   (* s = id *)
       | createEVarSpineW (G, (I.Pi ((D as I.Dec (_, V1), _), V2), s)) =  
-	let 
+	let (* G |- V1[s] : L *)
           val w = weaken (G, I.targetFam V1) (* G |- w : G' *)
           val iw = Whnf.invert w        (* G' |- iw : G *)
           val G' = Whnf.strengthen (iw, G)
 
-          val X' = I.newEVar (G', I.EClo (V1, I.comp (s, iw))) (* G' |- X' : V1. *)
-	  val X = I.EClo (X', w)
+	  (*
+          val _ = print ("V = " ^ Print.expToString (G, I.EClo (V1, s)) ^ ".\n")
+	  val _ = print ("G = " ^ Print.ctxToString (I.Null, G) ^ ".\n")
+	  val _ = print ("G' = " ^ Print.ctxToString (I.Null, G') ^ ".\n")
+          *)
+
+          val X' = I.newEVar (G', I.EClo (V1, I.comp (s, iw))) (* G' |- X' : V1[s][iw] *)
+	  val X = I.EClo (X', w)  (* G |- X : V1[s] *)
 	  val (S, Vs) = createEVarSpine (G, (V2, I.Dot (I.Exp (X), s)))
 	in
 	  (I.App (X, S), Vs)
@@ -836,20 +879,14 @@ struct
 	  true
 
     fun recursive (X as I.EVar (ref(SOME(U)), GX, VX, _)) =
-        let
+        let (* GX = I.Null *)
 	  val a = I.targetFam VX
-	  val _ = if !Global.chatter >= 6
-		    then print "?"
-		  else ()
-	  val Ys = Abstract.collectEVars (GX, (U, I.id), nil)
-	  (* handle _ => nil *)
+	  (* Bug here: Sat Dec 15 23:16:23 2001 -fp !!! *)
+	  (* I.Undef in substitution leads to problem in collectEVars *)
+	  val Ys = Abstract.collectEVars (GX, (X, I.id), nil)
 	  (* LVars are ignored here.  OK because never splittable? *)
 	  (* Sat Dec 15 22:42:10 2001 -fp !!! *)
 	  val recp = List.exists (fn Y => targetBelowEq (a, Y)) Ys
-	  val _ = if !Global.chatter >= 6
-		    then if recp then print "R\n"
-			 else print "N\n"
-		  else ()
 	in
 	  recp
 	end
@@ -873,8 +910,15 @@ struct
 	  ( splitEVar (X, W, fn () => if recursive X
 					then raise NotFinitary
 				      else incCount ()) ;
+	    if !Global.chatter >= 6
+	      then print ("Finitary with " ^ Int.toString (k) ^ " candidates.\n")
+	    else () ;
 	    (k, getCount ())::cands )
-           handle NotFinitary => cands )
+           handle NotFinitary => ( if !Global.chatter >= 6
+				     then print ("Not finitary.\n")
+				   else () ;
+				   cands )
+	)
 
     fun finitarySplits (nil, k, W, cands) = cands
       | finitarySplits (NONE::Xs, k, W, cands) =
@@ -998,7 +1042,7 @@ struct
 		V::missing ))
         *)
 	( if !Global.chatter >= 6
-	    then print ("No strong candidates---calculate weak candidates\n")
+	    then print ("No strong candidates---calculating weak candidates:\n")
 	  else ();
 	  splitWeak (V, finitary (V, W), wms, ccs, missing)
         )
