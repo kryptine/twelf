@@ -330,17 +330,16 @@ structure Redundant : REDUNDANT  =
       | mergeCase (L as (Psi1, t1, P1)::O,  C as ((Psi2, t2, P2), tAfter)) = 
       let
 
-	(* Psi1 |- t1 o Shift^k1 : Psi1' *)
-        (* Psi
-
-	(* val _ = printCtx(Psi1)
+	(* 
+        val _ = printCtx(Psi1)
 	val _ = printCtx(Psi2)
 	  *)
 
-	(* Psi1 |- t1: Psi1' *)
 	(* Psi1 |- P1 : F[t1] *)
-	(* Psi2 |- t2 : Psi2' *)
 	(* Psi2 |- P2 : F[t2] *)
+
+	(* Psi1 |- t1 : Psi1' *)
+        (* Psi2 |- t2 : Psi2' *)
 
 	(* By invariant,we assume *)
 	(* Psi1' |- tAfter: Psi2' *)
@@ -354,48 +353,15 @@ structure Redundant : REDUNDANT  =
 
 	(* So now we have 
 	 P1 makes sense in Psi1, t1 goes from Psi1' to Psi1. 
-
-	 Psi1 |- t1 : P1 => Psi1'
-	 Psi2 |- t3 : P2 => Psi1'
+	 
+	 Psi1 |- t1 : Psi1'	 
+	 Psi2 |- t3 : Psi1'
 	 *)
 
 	val t = Opsem.createVarSub (Psi1, Psi2) (* Psi1 |- t : Psi2 *)
 	val t' = T.comp (t3, t) (* Psi1 |- t' : Psi1' *)
 
-
-	(*
-	val _ = print"\nt3="
-	val _ = printSub(cleanSub(t3))
-
-	val _ = print"\nt="
-	val _ = printSub(cleanSub(t))
-
-      
-
-
-	val _ = print"\nt'="
-	val _ = printSub(T.comp(cleanSub(t3), cleanSub(t)))
-
-	val _ = print "\nLOOK HERE!!!"
-	val _ = print"\ntAfter="
-	val _ = printSub(cleanSub(tAfter))
-
-	val _ = print"\ntAfterInv="
-	val _ = printSub(cleanSub(tAfterInv))
-
-	val _ = print"\nt1="
-	val _ = printSub(cleanSub(t1))
-
-	val _ = print"\nt2="
-	val _ = printSub(cleanSub(t2))
-
-	val _ = print"\nt3 = tAfterInv o t2 = "
-	val _ = printSub(cleanSub(t3))
-
-	val _ = print"\nt' = "
-	val _ = printSub(cleanSub(t'))
-	  *)
-
+	(* If we can get this to match, then Psi1 |- P2[t] *)
 	val doMatch = (Opsem.matchSub (Psi1, t1, t') ; true)
 	  handle NoMatch => false  
 
@@ -438,13 +404,27 @@ structure Redundant : REDUNDANT  =
    *)
     and mergeIfNecessary(C as (Psi1, s1, P1), C' as (Psi2, s2, P2)) = 
       let
-     (* Note that s1 is a substitution s.t.  Psi1 |- s1: Psi
-        and s2 is a substitution s.t.         Psi2 |- s2: Psi
-	for a given Psi.
+     (* Note that s1 is a substitution s.t.  Psi1 |- s1: Psi0
+        and s2 is a substitution s.t.         Psi2 |- s2: Psi0
+
+	It is possible that this property is lost when the case is executed
+	with a different Psi0 which can happen during recursive calls
+	(as the context grows).
 	
+	In that case:
+	  Psi, Psi1 |- X1...Xn, id{Psi} : Psi, Psi2
+
+	Therefore, the X's are not dependent on the extra Psi introduced
+	by recursive calls, which is why they are ignored in matchSub as well.
+
 	We will generate a substitution t s.t. Psi1 |- t: Psi2
-	Therefore  Psi1 |- (s2 o t) : Psi
+	Therefore  Psi1 |- (s2 o t) : Psi0
+	
+	And we are trying to match it with
+	           Psi1 |- s1 : Psi0        
+
       *)
+
 	val t = Opsem.createVarSub (Psi1, Psi2) (* Psi1 |- t : Psi2 *)
 
 	val t' = T.comp (s2, t)
