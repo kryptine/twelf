@@ -444,9 +444,20 @@ Functions:
 init (G) = (H0, r0)  such that  H0 |- r0 : G
 [eta-expanded identity]
 
+-- with spines:  H0 |- R0 : {{G}} a >> a with H0 = G0
+
 evarInst (Hi, Gk) = (X1/x1,...,Xn/xn) = tk,  ((Hi)) |- tk : Gk
 where Hi |- Xi : Ai[..]  if Gk = x1:A1,...,xn:An
 
+-- with spines: 
+   each clause is translated from  Gk |- sk : G
+   to  Gk |- Sk : {{G}} a >> a
+
 match (Hi, sk[tk], ri) = success or splitting candidates (indices into Hi)
 
+-- with spines:
+   match (Hi, Sk[tk], Ri)
+
 split (Hi, k) = [(Hi+1/1 |- ri+1/1),...,(Hi+1/1 |- ri+1/m)]
+
+-- with spines: identical

@@ -411,10 +411,17 @@ struct
 		then failAdd (k1-d, cands) (* k1 is coverage variable, new candidate *)
 	      else fail ()		(* otherwise fail with no candidates *)
 	    | (I.Const _, I.BVar _) => fail ()
+	    | (I.Proj (b1, i1), I.Proj (b2, i2)) =>
+	       if (i1 = i2) then
+		 ( matchBlock (b1, b2) ; matchSpine (G, d, (S1, s1), (S2, s2), cands) )
+	       else fail ()
+	    (* handled by matchBlock now *)
+	    (*
 	    | (I.Proj (I.Bidx (k), i), I.Proj (I.Bidx (k'), i')) =>
 		if (k = k') andalso (i = i')
 		  then matchSpine (G, d, (S1, s1), (S2, s2), cands)
 		else fail ()		(* fail with no candidates *)
+            *)
             | (I.BVar (k1), I.Proj _) =>
 	      if k1 > d
 		then failAdd (k1-d, cands) (* k1 is splittable, new candidate *)
@@ -475,6 +482,10 @@ struct
     and matchDec (G, d, (I.Dec (_, V1), s1), (I.Dec (_, V2), s2), cands) =
           matchExp (G, d, (V1, s1), (V2, s2), cands)
         (* BDec should be impossible here *)
+
+    (* needs to be written !!! *)
+    (* needs to pass candidates *)
+    and matchBlock (b1, b2) = ()
 
     (* matchTop (G, (a @ S1, s1), (a @ S2, s2), ci) = cands
        matches S1[s1] (spine of coverage goal)
@@ -1322,6 +1333,244 @@ struct
 	  ()
 	end
 
+    (* New code for coverage checking of Tomega *)
+    (* Sun Nov 24 11:02:25 2002  -fp *)
+
+    datatype CoverGoal =
+      CGoal of I.dctx * I.Spine
+
+    datatype CoverClause =
+      CClause of I.dctx * I.Spine
+
+    fun formatCGoal (CGoal (G, S)) =
+        let
+	  val _ = N.varReset I.Null
+	in
+	  F.HVbox ([Print.formatCtx (I.Null, G), F.Break, F.Break, F.String "|-",
+		    F.Space] @ Print.formatSpine (G, S))
+	end
+
+    fun showPendingCGoal (CGoal (G, S), lab) =
+        F.makestring_fmt (F.Hbox [F.String(labToString(lab)), F.Space, F.String "?- ",
+				  formatCGoal (CGoal (G, S)), F.String "."])
+
+    fun showCClause (G, (S, t)) =
+        let
+	  val _ = N.varReset I.Null
+	in
+	  F.makestring_fmt (F.Hbox ([F.String "!- "] @ Print.formatSpine (G, I.SClo (S, t))))
+	end
+
+    fun showCands (Fail) = "Fail - irrecoverable failure of coverage"
+      | showCands (Cands(ks)) = "Cands - " ^ List.foldl (fn (k,str) => Int.toString k ^ str) "" ks
+      | showCands (Eqns(eqns)) = "Eqns - residual"
+
+    fun newEVarSubst (G, I.Null) = I.Shift(I.ctxLength(G))
+      | newEVarSubst (G, I.Decl(G', D as I.Dec (_, V))) =
+        let
+	  val s' = newEVarSubst (G, G')
+	  val V' = I.EClo (V, s')
+	  val X = I.newEVar (G, V')
+	in 
+	  I.Dot (I.Exp (X), s')
+	end
+      | newEVarSubst (G, I.Decl(G', D as I.NDec)) =
+	let
+	  val s' = newEVarSubst (G, G')
+	in
+	  I.Dot (I.Undef, s')
+	end
+      | newEVarSubst (G, I.Decl(G', D as I.BDec (_, (b, t)))) =
+	(* correct??? what does this mean??? *)
+	(* Mon Nov 25 22:52:48 2002 -fp *)
+	let
+	  val s' = newEVarSubst (G, G')
+	  val L1 = I.newLVar (b, I.comp(t, s'))
+	in
+	  I.Dot (I.Block (L1), s')
+	end
+      (* ADec should be impossible *)
+
+    (* checkConstraints (cands, (Q, s)) = cands'
+       failure if constraints remain in Q[s] which indicates only partial match
+       Q[s] is the clause head after matching the coverage goal.
+
+       Invariants: if cands = Eqns (es) then es = nil.
+    *)
+    (* This ignores LVars, because collectEVars does *)
+    (* Why is that OK?  Sun Dec 16 09:01:40 2001 -fp !!! *)
+    fun checkConstraints (G, (Si, ti), Cands (ks)) = Cands (ks)
+      | checkConstraints (G, (Si, ti), Fail) = Fail
+      | checkConstraints (G, (Si, ti), Eqns _) = (* _ = nil *)
+        let
+	  val Xs = Abstract.collectEVarsSpine (G, (Si, ti), nil)
+	  val constrs = collectConstraints Xs
+	in
+	  case constrs
+	    of nil => Eqns (nil)
+	     | _ => Fail		(* constraints remained: Fail without candidates *)
+	end
+
+    fun matchClause (CGoal (G, S), (Si, ti)) = 
+        let
+	  val _ = chatter 3 (fn () => showCClause (G, (Si, ti)) ^ "\n")
+	  val cands1 = matchSpine (G, 0, (S, I.id), (Si, ti), Eqns (nil))
+	  val _ = chatter 7 (fn () => "[1] " ^ showCands cands1 ^ "\n")
+	  val cands2 = resolveCands cands1
+	  val _ = chatter 7 (fn () => "[2] " ^ showCands cands2 ^ "\n")
+	  val cands3 = checkConstraints (G, (Si, ti), cands2)
+	  val _ = chatter 3 (fn () => showCands cands3 ^ "\n")
+	in
+	  cands3
+	end
+
+    fun matchClauses (cg, nil, klist) = klist
+      | matchClauses (cg as CGoal(G, S), (CClause (Gi, Si)::ccs), klist) =
+        let
+	  val ti = newEVarSubst (G, Gi) (* G |- ti : Gi *)
+	  val cands = CSManager.trail (fn () => matchClause (cg, (Si, ti)))
+	in
+	  matchClauses' (cg, ccs, addKs (cands, klist))
+	end
+    and matchClauses' (cg, ccs, Covered) = Covered
+      | matchClauses' (cg, ccs, klist as CandList _) =
+          matchClauses (cg, ccs, klist)
+
+    fun match (CGoal (G, S), ccs) =
+          matchClauses (CGoal (G, S), ccs, CandList (nil))
+
+    fun abstractSpine (S, s) =
+        let
+	  val (G', S') = Abstract.abstractSpine (S, s)
+	  val namedG' = N.ctxName G' (* for printing purposes *)
+	  val _ = if !Global.doubleCheck
+		    then ( TypeCheck.typeCheckCtx (namedG')
+			  (* TypeCheck.typeCheckSpine (namedG', S') *)
+			  )
+		  else ()
+	in
+	  CGoal (namedG', S')
+	end
+
+    fun kthSub (I.Dot (I.Exp(X), s), 1) = X
+      | kthSub (I.Dot (_, s), k) = kthSub (s, k-1)
+
+    local 
+      val caseList : CoverGoal list ref = ref nil
+    in
+      fun resetCases () = (caseList := nil)
+      fun addCase cc = (caseList := cc :: !caseList)
+      fun getCases () = (!caseList)
+    end
+
+    fun splitVar (CGoal (G, S), k, w) =
+        let
+	  val _ = chatter 3 (fn () => (* showSplitVar *)"")
+	  val s = newEVarSubst (I.Null, G) (* for splitting, EVars are always global *)
+	  (* G = xn:V1,...,x1:Vn *)
+	  (* s = X1....Xn.^0, where . |- s : G *)
+	  val X = kthSub (s, k) (* starts with k = 1 (a la deBruijn) *)
+	  val _ = resetCases ()
+	  val _ = splitEVar (X, w, fn () => addCase (abstractSpine (S, s)))
+	in
+	  SOME (getCases ())
+	end
+        (* Constraints.Error could be raised by abstract *)
+        handle Constraints.Error (constrs) =>
+	  (chatter 3 (fn () => "Inactive split:\n" ^ Print.cnstrsToString (constrs) ^ "\n");
+	   NONE)
+
+    fun finitary (CGoal (G, S), w) = nil (* !!! *)
+
+    fun cover (cg, w, ccs,  lab, missing) =
+        ( chatter 3 (fn () => showPendingCGoal (cg, lab) ^ "\n");
+	  cover' (cg, w, ccs, lab, missing) )
+    and cover' (cg, w, ccs, lab, missing) =
+        let val cands = match (cg, ccs)	(* determine splitting candidates *)
+	    val cand = selectCand cands	(* select one candidate *)
+	in split (cg, cand, w, ccs, lab, missing) end
+    and split (cg, NONE, w, ccs, lab, missing) =
+        (* cg is covered: return missing patterns from other cases *)
+        ( chatter 3 (fn () => "Covered\n");
+	  missing )
+      | split (cg, SOME(nil), w, ccs, lab, missing) =
+	(* no strong candidates: check for finitary splitting candidates *)
+	( chatter 3 (fn () => "No strong candidates --- calculating weak candidates\n");
+	  splitWeak (cg, finitary (cg, w), w, ccs, lab, missing) )
+      | split (cg, SOME((k,_)::ksn), w, ccs, lab, missing) =
+	(* some candidates: split first candidate, ignoring multiplicities *)
+	(* candidates are in reverse order, so non-index candidates are split first *)
+	(* splitVar shows splitting as it happens *)
+	( chatter 3 (fn () => "Splitting on " ^ Int.toString (k) ^ "\n");
+	  case splitVar (cg, k, w)
+	    of SOME(cases) => covers (cases, w, ccs, lab, missing)
+	     | NONE => (* splitting variable k generated constraints *)
+	         split (cg, SOME(ksn), w, ccs, lab,missing))
+
+    and splitWeak (cg, nil, w, ccs, lab, missing) =
+        ( chatter  3 (fn () => "No weak candidates---case " ^ labToString(lab) ^ " not covered\n");
+	  cg::missing )
+      | splitWeak (cg, ksn, w, ccs, lab, missing) = (* ksn <> nil *)
+	  split (cg, SOME(findMin ksn::nil), w, ccs, lab, missing)
+
+    and covers (cases, w, ccs, lab, missing) =
+        ( chatter 3 (fn () => "Found " ^ Int.toString (List.length cases)
+		     ^ pluralize (List.length cases, " case") ^ "\n");
+	  covers' (cases, 1, w, ccs, lab, missing) )
+    and covers' (nil, n, w, ccs, lab, missing) =
+        ( chatter 3 (fn () => "All subcases of " ^ labToString(lab) ^ " covered\n");
+	  missing )
+      | covers' (cg::cases', n, w, ccs, lab, missing) =
+	let
+	  val missing1 = cover (cg, w, ccs, Child(lab, n), missing)
+	in
+	  covers' (cases', n+1, w, ccs, lab, missing1)
+	end
+
+    (* substToSpine (s, G) = S
+       If   G' |- s : G
+       then G' |- S : {{G}} a >> a  for arbitrary a
+
+       Note {{G}} erases void declarations in G
+     *)
+    fun substToSpine' (I.Shift(n), I.Null, T) = T
+      | substToSpine' (I.Shift(n), G as I.Decl _, T) =
+          substToSpine' (I.Dot (I.Idx (n+1), I.Shift(n+1)), G, T)
+      | substToSpine' (I.Dot(_, s), I.Decl(G, I.NDec), T) =
+	  (* Skip over NDec's; must be either Undef or Idx [from eta-expansion] *)
+	  (* Unusable meta-decs are eliminated here *)
+          substToSpine' (s, G, T)
+      | substToSpine' (I.Dot(I.Exp(U),s), I.Decl(G,V), T) =
+	  substToSpine' (s, G, I.App(U, T))
+      | substToSpine' (I.Dot(I.Idx(n),s), I.Decl(G,V), T) =
+	  (* FIX: should eta-expand below -fp *)
+	  substToSpine' (s, G, I.App (I.Root (I.BVar(n), I.Nil), T))
+      (* I.Axp, I.Block(B) or other I.Undef impossible *)
+
+    fun substToSpine (s, G) = substToSpine' (s, G, I.Nil)
+
+    fun purify' (I.Null) = (I.Null, I.id)
+      | purify' (I.Decl (G, I.NDec)) =
+        let val (G', s) = purify' G
+	  (* G' |- s : G *)
+	in
+	  (G', I.Dot (I.Undef, s))
+	  (* G' |- _.s : G,_ *)
+	end
+      | purify' (I.Decl (G, D)) =
+        let val (G', s) = purify' G
+	  (* G' |- s : G *)
+	  (* G |- D : type *)
+	in
+	  (I.Decl (G', I.decSub(D, s)), I.dot1 s)
+	  (* G' |- D[s] : type *)
+	  (* G', D[s] |- 1 : D[s][^] *)
+	  (* G', D[s] |- s o ^ : G *)
+	  (* G', D[s] |- 1.s o ^ : G, D *)
+	end
+
+    fun purify (G) = #1 (purify' (G))
+
     (* coverageCheckCases (Cs, G) = R
      
        Invariant:
@@ -1332,8 +1581,25 @@ struct
        there exists at least one index k and substitution   Phi |- t : Gk
        s.t.  sk o t = s        
     *)
-    fun coverageCheckCases (W, Cs, Psi) = 
-      raise Error "Link still to be completed"
+    fun coverageCheckCases (w, Cs, G) = 
+        let
+	  val ccs = List.map (fn (Gi, si) => CClause (Gi, substToSpine (si, G))) Cs
+	  val pureG = purify (G)
+	  val namedG = N.ctxLUName (pureG)
+	  val R0 = substToSpine (I.id, namedG)
+	  val cg0 = CGoal (namedG, R0)
+	  val _ = print "Skipping Tomega coverage\n"
+          (* Sanitized, for check-in *)
+	  (*
+	  val missing = cover (cg0, w, ccs, Top, nil)
+	  *)
+	  val missing = nil
+	  val _ = case missing
+	            of nil => ()	(* all cases covered *)
+		     | _::_ => raise Error ("Coverage error")
+	in
+	  ()
+	end
 
   end
 end;  (* functor Cover *)

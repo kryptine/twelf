@@ -681,6 +681,7 @@ struct
     val delay = delayExp
 
     val instantiateEVar = instantiateEVar
+    val instantiateLVar = instantiateLVar
     val addConstraint = addConstraint
     val solveConstraint = solveConstraint
 
