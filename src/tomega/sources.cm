@@ -43,4 +43,6 @@ is
   coverage.fun
   redundant.sig
   redundant.fun
+  abstract.sig
+  abstract.fun
   tomega.sml 
