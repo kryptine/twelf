@@ -127,7 +127,7 @@ have employed the logical framework LF as a general safety
 infrastructure for encoding safety polcies and representing safety
 proofs\cite{AppelFelty00,Crary:POPL03,AppelFelten99,Crary:CADE03}.
 The main advantage of using a logical framework is its flexibility
-and its smal trusted computing base. Hence, it reduces the effort
+and its small trusted computing base. Hence, it reduces the effort
 required for each particular safety policy. However, proofs within the
 logical framework may be large in size 
 % several mega-bytes - with LFi few tens of kilobytes (=two orders of
@@ -136,8 +136,8 @@ logical framework may be large in size
 actual machine code. This has spawned a number of research
 contributions to reduce proof size and proof checking time for
 proof-carrying code applications. However, all these contributions
-trade the expressive power and complexitity of LF against
-simplicitiy. 
+trade the expressive power and complexity of LF against
+simplicity. 
 In a first step, Necula and Lee's \cite{Necula98lics} developed a
 proof representation for LF$_i$, essentially a restriction to 2-level
 logical framework, which eliminated many implicit type information in
@@ -153,7 +153,7 @@ Open Verifier Framework \cite{Necula}. Appel et al. use a similar idea
 for creating a foundational proof checker with small
 witnesses. However, all these approaches are restricted to simply 
 typed Prolog-like engines which work on the fragment of hereditary
-harrop formulas. Although thses approaches allow dynamic assumptions,
+harrop formulas. Although theses approaches allow dynamic assumptions,
 this is only one dimension in higher-order logic programming. The
 other dimension, namely enriching the term language to allow terms
 defined by $\lambda$-abstraction  to support encodings using higher-order
@@ -194,7 +194,7 @@ fragment, where for example unification is decidable and easily
 implemented and efficient term indexing operations are known to make
 it practical. In this paper, we show that this restriction to
 first-order terms is unnecessary. Moreover we demonstrate it is
-possible to extend Twelf with making it unnecessary to build seperate
+possible to extend Twelf with making it unnecessary to build separate
 proof checking engines.
 We propose the use of higher-order substitution tree indexing together
 with linear higher-order pattern unification to extend oracle-based
@@ -203,7 +203,7 @@ the size of oracle-proofs by factoring out common
 sub-proofs\footnote{Eliminating common sub-proofs is an orthogonal
   problem to eliminating redundant implicit type 
   information, as is   proposed in \cite{Necula98lics}.} by
-incorporating memoization techniques. Identifying and factoring out
+incorporating memorization techniques. Identifying and factoring out
 common sub-proofs leads to more compact oracles and can  
 decrease proof-checking time by a factor of ?? since common sub-proofs
 are only checked once.  
@@ -212,7 +212,7 @@ We hope this will provide a comprehensive guide for future
 implementations of proof checkers which need not be restricted to
 first-order prolog-like systems. In particular, various
 certified code systems can exploit this idea. However, small proof
-witnesses not only play a role in certifiyng code, but are useful and
+witnesses not only play a role in certifying code, but are useful and
 sometimes necessary in building in certifying theorem proving and
 logic programming engines. First, constructing and possibly storing
 full proof terms is expensive, considering the fact that the size of
@@ -268,7 +268,7 @@ proof-checking.
 As a running example, we will consider intuitionistic logic formulated
 in the natural deduction style. We will only concentrate on the fragment
 consisting of implications and universal quantifiers. Propositions can
-be then described as followsL
+be then described as follows
 \[
 \begin{array}{llll}
 \mbox{Propositions} & A,B, C & := & \top \mid A \impl B \mid \forall x.A \\
@@ -406,7 +406,7 @@ Second, we use higher-order abstract syntax to encode the bound
 variables in the universal quantifier. As a consequence substitution
 in the object language can be reduced to application and
 $\beta$-reduction in the meta-language (higher-order logic
-programmining). Consider the rule for all-elimination. If we have a proof of
+programming). Consider the rule for all-elimination. If we have a proof of
 $\forall x.A$ , then we know that $[T/x]A$ is true for any term
 $T$. The substitution $[T/x]A$ in the object language is achieved via
 application in the meta-language {\tt A T}. 
@@ -553,7 +553,7 @@ In this section, we describe the oracle-based proof generation and
 checking. To generate oracles we can follow two ways. First, we may
 modify the logic-programming proof search procedure available to generate
 a bit-string during proof search directly. As in general logic
-programming's depth-forst search is incomplete, this may not work
+programming's depth-first search is incomplete, this may not work
 general, although it can be often done with more sophisticated theorem
 proving  technology. In certifying code systems however the safety proof is
 usually generated by a certifying compiler, and we merely aim at
@@ -576,7 +576,7 @@ goal $P$ is atomic. Potentially, there is more than one clause whose head
 unifies with $P$, and hence a proof search procedure needs to consider
 all the possible choices in order.  
 
-The key insight for generating a compact proof wtness is that proof
+The key insight for generating a compact proof witness is that proof
 search is deterministic, if we know what program clause or dynamic
 clause to pick for each subgoal (see the procedure for solving goal
 $A$ from clauses in $\Gamma$, step 1). Let us briefly consider the
@@ -587,13 +587,13 @@ previous example to illustrate. To prove
 \]
 
 A prover must consider the following choices: At the top level, we
-have to prove a universal quantifer and 3 choices apply ({\tt alli},
+have to prove a universal quantifier and 3 choices apply ({\tt alli},
 {\tt impe}, and {\tt impe}), and we took the first one. At the next
 stage, again 3 choices apply, namely {\tt alle}, {\tt   impi}, and
 {\tt impe}. In the third stage, we have two applicable clauses, {\tt
   alle}, and {\tt impe}, and in the final step we have four potential
 candidates. Note that at each stage the proof term {\tt (alli
-  $\lambda$ y. (impi $\lambda$ u. (alle y u)))} tells us exacly which
+  $\lambda$ y. (impi $\lambda$ u. (alle y u)))} tells us exactly which
 choice to focus on.
 
 This process eventually finds the proof. The list of
@@ -689,7 +689,7 @@ for linear higher-order patterns.
 
 To appreciate the difficulties in higher-order term indexing and
 understand why all existing witness generation and checking procedures
-avoid it, we briefly summarieze the main challenges:
+avoid it, we briefly summarize the main challenges:
  First of all, building a substitution tree relies on computing the
  most specific generalization of two terms. However in the
  higher-order setting, the most specific generalization of two terms (heads)
@@ -931,7 +931,7 @@ The table setup is as follows:
 \]
 
 Apply strengthening to detect more identical subproofs (strengthening
-based on subordination and on not adding dynamic assump twice)
+based on subordination and on not adding dynamic assumption twice)
 The design supports naturally substitution factoring based on explicit
 substitutions\cite{RamakrishnanJLP99}. With substitution factoring the
 access cost is proportional to the size of the answer substitution
@@ -992,8 +992,8 @@ The idea of using oracles which encode the non-deterministic choice in
 a logic programming interpreter was first proposed by
 \cite{necula+:oracles}. Their proposal has several restriction which
 our work overcomes. First, Necula and Rahul concentrate on the
-fragement $LF_i$, which concentrates on 2-level fragment of
-LF. They propose the use of automa-driven indexing for program
+fragment $LF_i$, which concentrates on 2-level fragment of
+LF. They propose the use of automata-driven indexing for program
 clauses, where any higher-order features are ignored. Hence their
 indexing algorithm will generate a set of potential candidates, which
 may include candidates which are unsound. To weed out the unsound
