@@ -320,6 +320,10 @@ local
 		       end
 	  | I.No => fmtLevel (I.Decl (G, D), (* I.decSub (D, s) *)
 			      d, ctx, (arrow(I.EClo(V1,I.shift), V2), I.dot1 s)))
+    | fmtExpW (G, d, ctx, (I.Pi((D as I.BDec(cid, t),P), V2), s)) =
+    (* block declaration, print short form for now *)
+	 fmtLevel (I.Decl (G, D), d, ctx, (braces (G, d, ((D, V2), s)),
+					    I.dot1 s))
     | fmtExpW (G, d, ctx, (U as I.Root R, s)) = (* s = id *)
 	 fmtOpArgs (G, d, ctx, opargs (G, d, R), s)
     (* I.Redex not possible *)
@@ -595,6 +599,8 @@ local
       (* F.HVbox [Str0 (Symbol.bvar (nameOf (x))), F.Space, sym ":", F.Break,
                   fmtExp (G, d+1, noCtxt, (V,s))]
       *)
+    | fmtDec (G, d, (I.BDec (cid, t), s)) =
+        fmtConstPath (fn l0 => Symbol.const ("#" ^ l0), Names.constQid (cid))
 
   fun skipI (0, G, V) = (G, V)
     | skipI (i, G, I.Pi ((D, _), V)) = skipI (i-1, I.Decl (G, Names.decEName (G, D)), V)
