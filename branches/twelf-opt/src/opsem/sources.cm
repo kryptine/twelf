@@ -10,12 +10,17 @@ Group is
   ../compile/sources.cm
 
 
+  table-param.sig
+  table-param.fun
+
   abstract.sig  
   abstract.fun 
 (*  index.sig
   index.fun  *)
 
   subtree.fun 
+  subtree-inst.fun 
+  sw-subtree.fun
   subtree.sig
 
   tabled.sig

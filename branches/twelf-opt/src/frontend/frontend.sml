@@ -149,6 +149,7 @@ structure Solve =
 	 structure AbsMachine = SwMachine
 	 structure AbsMachineSbt = AbsMachineSbt
 	 structure PtRecon = PtRecon
+	 structure TableParam = TableParam
 	 structure Tabled = Tabled
 (*	 structure TableIndex = TableIndex *)
 	 structure MemoTable = MemoTable
@@ -194,6 +195,7 @@ structure Twelf =
 	 structure CPrint = CPrint
 	 structure AbsMachine = SwMachine
 
+	 structure TableParam = TableParam
 	 structure Tabled = Tabled
 (*	 structure TableIndex = TableIndex *)
 	 structure MemoTable = MemoTable

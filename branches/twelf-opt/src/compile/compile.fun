@@ -522,6 +522,7 @@ struct
        | C.indexing => 
 	   let
 	     val ((G, Head), R) = compileStaticClauseN fromCS (I.Null, I.Null, Whnf.normalize (A, I.id)) 
+	     val _ = C.sProgInstall (a, C.SClause(compileDynamicClause true (I.Null, A)))
 (*	     val _ = case Head 
 	       of SOME(H, AuxG) => print ("Head " ^  Print.expToString (G, H) ^ "\n")
 		 | _ => () *)
@@ -539,8 +540,11 @@ struct
        | C.indexing => 
 	   let
 	     val ((G, Head), R) = compileStaticClauseN fromCS (I.Null, I.Null, Whnf.normalize (A, I.id)) 
+	     (* install twice: in substitution tree index for logic programming and searhc
+                and in "linear head" index for proof term reconstruction *)
 	   in 
-	     case Head 
+(*	     C.sProgInstall (a, C.SClause (compileDynamicClauseN fromCS true (I.Null, Whnf.normalize (A, I.id))))*)
+	      case Head 
 	       of NONE => raise Error "Install via normal index"
 	     | SOME (H, Eqs) => SubTree.sProgInstall (cidFromHead(I.targetHead A), 
 						      C.Head(H, G, Eqs, a), R)
@@ -548,16 +552,16 @@ struct
 
     | compileConDec _ _ = ()
 
-  fun install fromCS (cid) = compileConDec fromCS (cid, I.sgnLookup cid)
+  fun install fromCS (cid) =  compileConDec fromCS (cid, I.sgnLookup cid)
     (* ? Thu May 30 11:26:14 2002 -bp 
      let
       val cd = I.sgnLookup cid 
     in
       case cd
-	of I.ConDec (_, _, _, _, A, I.Type) => compileConDec fromCS (cidFromHead(I.targetHead A), cd, cid)
+	of I.ConDec (_, _, _, _, A, I.Type) => compileConDec fromCS (cidFromHead(I.targetHead A), cd)
 	  | _ => ()
-    end
-   *) 
+    end*)
+   
 
   val sProgReset = SubTree.sProgReset
 
