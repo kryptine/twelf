@@ -507,6 +507,10 @@ struct
 	(Solve.query ((expected, try, query), Paths.Loc (fileName, r))
 	 handle Solve.AbortQuery (msg)
 	        => raise Solve.AbortQuery (Paths.wrap (r, msg)))
+      (* %fquery <expected> <try> A or %fquery <expected> <try> X : A *)
+      | install1 (fileName, (Parser.FQuery (query), r)) =
+        (* Solve.query might raise Solve.AbortQuery (msg) *)
+	raise Domain
       (* %queryTabled <expected> <try> A or %query <expected> <try> X : A *)
       | install1 (fileName, (Parser.Querytabled(numSol, try,query), r)) =
         (* Solve.query might raise Solve.AbortQuery (msg) *)
