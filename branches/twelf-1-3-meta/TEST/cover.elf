@@ -1,0 +1,30 @@
+% Testing coverage checking
+% mostly negative examples
+
+nat : type.
+z : nat.
+s : nat -> nat.
+
+plus : nat -> nat -> nat -> type.
+pz : plus z Y Y.
+ps : plus (s X) Y (s Z)
+      <- plus X Y Z.
+
+%mode plus +X +Y -Z.
+%worlds () (plus X Y Z).
+%covers plus +X +Y -Z.
+%total X (plus X Y _).
+
+plus' : nat -> nat -> nat -> type.
+pz' : plus' z Y Y.
+ps' : plus' (s X) Y (s Z)
+       <- plus' X Y Z
+       <- plus' X (s Y) Z.
+
+%mode plus' +X +Y -Z.
+%worlds () (plus' X Y Z).
+%covers plus' +X +Y -Z.
+% next line must fail---only uniqueness guarantees totality
+%total X (plus' X Y _).
+
+%query 1 * plus' (s z) z X.
