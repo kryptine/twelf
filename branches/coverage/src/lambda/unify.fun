@@ -75,6 +75,9 @@ struct
  
     fun undo (Instantiate refU) =
           (refU := NONE)
+      | undo (InstantiateBlock refB) =
+	  (refB := NONE)
+	(* added missing Wed Nov 28 10:14:48 2001 -fp !!! *)
       | undo (Add (cnstrs as ref(cnstr :: cnstrL))) =
           (cnstrs := cnstrL)
       | undo (Solve (cnstr, Cnstr)) =
@@ -667,9 +670,20 @@ struct
         if l1 <> l2 then
   	  raise Unify "Label clash"
         else
-	  (unifySub (G, comp (t1, s1), comp (t2, s2));
-	   unifySub (G, t1, t2);
-	   instantiateLVar (r1, L))
+	  if r1 = r2
+	    (* added this case to avoid circularity !!!
+	       Wed Nov 28 10:08:43 2001 -fp 
+	     *)
+	    then ()
+	  else
+	    (* don't understand the two unifications below
+	       when called internally, s1 = s2 = id
+	       otherwise redundant?  -fp !!!
+	       Wed Nov 28 10:08:00 2001
+	       *)
+	    ((* unifySub (G, comp (t1, s1), comp (t2, s2));
+	      unifySub (G, t1, t2); *)
+	     instantiateLVar (r1, L))
 
 
     fun unify1W (G, Us1, Us2) =
