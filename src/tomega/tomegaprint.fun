@@ -567,9 +567,9 @@ struct
 (*	      val Fspine =   Print.formatSpine (T.coerceCtx Psi1, S) *)
 	      val Fspine = fmtSpine (Psi1, S)
 
-	      val Fpattern =  Fmt.HVbox [Fmt.Hbox (Fspine), Fmt.Space, Fmt.String "=" ]
+	      val Fpattern =  Fmt.HVbox [Fmt.Hbox (Fspine)]
 	      val Fbody = Fmt.HVbox [F1]
-	      val fmt = Fmt.HVbox  [Fmt.String "val", Fmt.Space, Fpattern, Fbody]
+	      val fmt = Fmt.HVbox [Fmt.HVbox  [Fmt.String "val", Fmt.Space, Fpattern, Fmt.Space, Fmt.String "="], Fmt.Break, Fbody]
 	    in
 	      formatLet (Psi1', P2, fmts @ [Fmt.Break, fmt])
 	    end
@@ -583,9 +583,9 @@ struct
 (*	      val Fspine =   Print.formatSpine (T.coerceCtx Psi1, S) *)
 	      val Fspine = fmtSpine (Psi1, S)
 
-	      val Fpattern =  Fmt.HVbox [Fmt.Hbox (Fspine), Fmt.Space, Fmt.String "=" ]
+	      val Fpattern =  Fmt.HVbox [Fmt.Hbox (Fspine)]
 	      val Fbody = Fmt.HVbox [F1]
-	      val fmt = Fmt.HVbox  [Fmt.String "val", Fmt.Space, Fpattern, Fbody]
+	      val fmt = Fmt.HVbox [Fmt.HVbox  [Fmt.String "val", Fmt.Space, Fpattern, Fmt.Space, Fmt.String "="], Fmt.Break, Fbody]
 
 (*	      val fmt = (* formatDecs (0, Psi, Ds, (Psi1', s1)) *)
 		Fmt.Hbox [Fmt.String " ..." , Fmt.Space, Fmt.String "=",  Fmt.Break, F1] *)

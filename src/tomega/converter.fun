@@ -1347,7 +1347,7 @@ val  _ = print "]"
 
 	val P = Prec (convertPrg' (L, F0))
 (*	val _ = TomegaTypeCheck.check (P, F) *)
-
+b
       in
 	P
       end
