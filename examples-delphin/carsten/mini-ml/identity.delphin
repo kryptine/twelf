@@ -1,0 +1,18 @@
+(* Structural identity.  
+   Author: Carsten Schuermann
+*)
+
+id :: world (base) all {N:exp} exists {K:exp} true
+
+fun id (A.z) = <A.z, <>>
+  | id ((A.s) X) = 
+    let 
+	val <Y, <>> = id X
+    in	
+	<(A.s) Y, <>>
+    end
+
+new (b:base)
+
+val <X, <>> = id (b.z)
+val <X, <>> = id ((b.s) (b.z))
