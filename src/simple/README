@@ -1,0 +1,6 @@
+Simple operational semantics.  Uses a simplified, type-free syntax to
+construct solutions to goals, then invokes the elaborator for the full
+syntax to create a proof term.
+
+Author: Kevin Watkins
+
