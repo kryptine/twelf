@@ -365,7 +365,7 @@ struct
      (* worldcheck W a = ()
        iff all subgoals in all clauses defining a satisfy world spec W
        Effect: raises Error(msg) otherwise, where msg includes location
-    *)
+     *)
      fun worldifyConDec W (c, I.ConDec (s, m, k, status, V, L)) = 
          (if !Global.chatter = 4
 	    then print (Names.qidToString (Names.constQid c) ^ " ")
@@ -393,6 +393,7 @@ struct
 
   in
     val worldify = worldify
+    val worldifyGoal = fn (G,V) => worldifyGoal (G, V, W.lookup (I.targetFam V), P.top)
   end
 
 end;  (* functor Worldify *)

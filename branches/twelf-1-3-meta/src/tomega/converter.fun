@@ -912,30 +912,14 @@ exception Error' of Tomega.Sub
 
 
 
-    (* traverse (Psi0, L, Sig, wmap) = C'
 
-       Invariant:
-       If   |- Psi0  ctx
-       and  L is a the theorem we would like to transform
-       and  Sig is a signature 
-       and  forall (G, V) in Sig the following holds:
-	            Psi0, G |- V : type
-               and  head (V) in L
-       and  wmap is a mapping of old labels L to L'
-            where L' is a new label and w' is a weakensub
-	    with the following properties.
-	    If   Sig (L) = (Gsome, Lblock)
-	    and  Sig (L') = (Gsome, Lblock')
-       then C' is a list of cases (corresponding to each (G, V) in Sig)
-    *)
-    fun traverse (Psi0, L, Sig, wmap, projs) =
-      let 
+(* ****************************************************************** *)
+
 	fun append (G, I.Null) = G
 	  | append (G, I.Decl (G', D)) = I.Decl (append (G, G'), D)
 
 
-
-	(* traverseNeg (Psi0, Psi, V) = ([w', PQ'], L')    [] means optional
+	(* traverseNeg (L, wmap, projs)  (Psi0, Psi, V) = ([w', PQ'], L')    [] means optional
 	   
 	   Invariant:
 	   If   |- Psi0 ctx      (context that contains induction hypotheses)
@@ -945,13 +929,13 @@ exception Error' of Tomega.Sub
 	   and  Psi0, Psi |- w' : Psi0, Psi'  
 	   and  PQ'  is a pair that can generate a proof term
 	*)
-	fun traverseNeg ((Psi0, Psi), I.Pi ((D as I.Dec (_, V1), I.Maybe), V2), w) =
-	    (case traverseNeg ((Psi0, I.Decl (Psi, T.UDec D)), V2, I.dot1 w)
+	fun traverseNeg (L, wmap, projs)  ((Psi0, Psi), I.Pi ((D as I.Dec (_, V1), I.Maybe), V2), w) =
+	    (case traverseNeg (L, wmap, projs)  ((Psi0, I.Decl (Psi, T.UDec D)), V2, I.dot1 w)
 	       of (SOME (w', PQ')) => SOME (peel w', PQ'))
-	  | traverseNeg ((Psi0, Psi), I.Pi ((D as I.Dec (_, V1), I.No), V2), w) =
-	    (case traverseNeg ((Psi0, I.Decl (Psi, T.UDec D)), V2, I.comp (w, I.shift))
-	       of (SOME (w', PQ')) => traversePos ((Psi0, Psi, I.Null), V1, SOME (peel w', PQ')))
-	  | traverseNeg ((Psi0, Psi), I.Root (I.Const a, S), w) =
+	  | traverseNeg (L, wmap, projs)  ((Psi0, Psi), I.Pi ((D as I.Dec (_, V1), I.No), V2), w) =
+	    (case traverseNeg (L, wmap, projs)  ((Psi0, I.Decl (Psi, T.UDec D)), V2, I.comp (w, I.shift))
+	       of (SOME (w', PQ')) => traversePos (L, wmap, projs)  ((Psi0, Psi, I.Null), V1, SOME (peel w', PQ')))
+	  | traverseNeg (L, wmap, projs)  ((Psi0, Psi), I.Root (I.Const a, S), w) =
 	                                (* Psi0, Psi |- w : Psi0, Psi' *)
 					(* Sigma (a) = Va *)
 					(* Psi0, Psi |- S : {G} type > type *)
@@ -971,7 +955,7 @@ exception Error' of Tomega.Sub
 	      (SOME (w', (fn P => (Psi', s'', P), transformConc ((a, S), w))))
 	    end
 	  
-        and traversePos ((Psi0, Psi, G), I.Pi ((D as I.BDec (x, (c, s)), _), V), SOME (w1, (P, Q))) =
+        and traversePos (L, wmap, projs)  ((Psi0, Psi, G), I.Pi ((D as I.BDec (x, (c, s)), _), V), SOME (w1, (P, Q))) =
   	    let 
 	      val c' = wmap c
 	      val n = I.ctxLength Psi0 + I.ctxLength G
@@ -984,11 +968,11 @@ exception Error' of Tomega.Sub
 	      val _ = TypeCheck.typeCheckCtx (T.coerceCtx (append(append(Psi0, Psi), T.embedCtx G)))
 	      val _ = TypeCheck.typeCheckSub (T.coerceCtx (append(append(Psi0, Psi), T.embedCtx G)), s, Gsome')
 	    in
-	      traversePos ((Psi0, Psi, 
+	      traversePos (L, wmap, projs)  ((Psi0, Psi, 
 			    I.Decl (G,  (* T.UDec *) (I.BDec (x, (c', s))))), 
 			   V, SOME (I.dot1 w1, (P, Q)))
 	    end
-          | traversePos ((Psi0, G, B), V as I.Root (I.Const a, S), SOME (w1, (P, Q))) =
+          | traversePos (L, wmap, projs)  ((Psi0, G, B), V as I.Root (I.Const a, S), SOME (w1, (P, Q))) =
 					(* Psi0 = x1::F1 ... xn::Fn *)
 	                                (* |- Psi0 matches L *) 
 					(* Psi0, G, B |- V : type *)
@@ -1034,9 +1018,16 @@ exception Error' of Tomega.Sub
 		    end
 		  else lookup ((L, SOME lemmas, F2), a)
 
-	      val T.PDec(_, F0) = I.ctxLookup (Psi0, 1)
-					(* . |- F : for *)
-	      val (HP, F) = lookup ((L, projs, F0), a)
+	      (* strengthened invariant Psi0 might be empty --cs Fri Apr 11 15:25:32 2003 *)
+	      val (HP, F) = if I.ctxLength Psi0 > 0 then 
+		              let
+				val T.PDec(_, F0) =  I.ctxLookup (Psi0, 1)
+			      in
+				lookup ((L, projs, F0), a)
+			      end
+			    else lookupbase a
+	      
+(* val (HP, F) = lookup ((L, projs, F0), a) *)
 
 
 (*	      fun lookup (b :: L, a) = 
@@ -1200,14 +1191,39 @@ exception Error' of Tomega.Sub
 					T.Case (T.Cases [(Psi2, t, p)]))), Q)))
 	    end
 
+
+(* ****************************************************************** *)
+
+
+    (* traverse (Psi0, L, Sig, wmap) = C'
+
+       Invariant:
+       If   |- Psi0  ctx
+       and  L is a the theorem we would like to transform
+       and  Sig is a signature 
+       and  forall (G, V) in Sig the following holds:
+	            Psi0, G |- V : type
+               and  head (V) in L
+       and  wmap is a mapping of old labels L to L'
+            where L' is a new label and w' is a weakensub
+	    with the following properties.
+	    If   Sig (L) = (Gsome, Lblock)
+	    and  Sig (L') = (Gsome, Lblock')
+       then C' is a list of cases (corresponding to each (G, V) in Sig)
+    *)
+    fun traverse (Psi0, L, Sig, wmap, projs) =
+      let 
+
+
 	fun traverseSig' nil = nil
           | traverseSig' ((G, V) :: Sig) =
   	    (TypeCheck.typeCheck (append (T.coerceCtx Psi0, G), (V, I.Uni I.Type));
-	     case traverseNeg ((Psi0, T.embedCtx G), V, I.id)
+	     case traverseNeg (L, wmap, projs) ((Psi0, T.embedCtx G), V, I.id)
 	       of (SOME (wf, (P', Q'))) =>  traverseSig' Sig @ [(P' Q')])
       in
 	traverseSig' Sig
       end
+
 
 
  
@@ -1559,6 +1575,24 @@ exception Error' of Tomega.Sub
       in
 	P''
       end
+
+
+    fun mkResult 0 = T.Unit
+      | mkResult n = T.PairExp (I.Root (I.BVar n, I.Nil), mkResult (n-1))
+
+    fun convertGoal (G, V)  =
+      let
+	val a = I.targetFam V
+	val W = WorldSyn.lookup a
+	val (W', wmap) = transformWorlds ([a], W)
+	val SOME (_, (P', Q')) = traversePos ([], wmap, NONE) 
+	                          ((I.Null, G, I.Null), V, 
+				   SOME (I.Shift (I.ctxLength G), 
+					 (fn P => (I.Null, T.id, P),  mkResult (I.ctxLength G))))
+	val (_, _, P'') = P' Q'
+      in
+	P''
+      end
 	  
   in 
     val convertFor = convertFor
@@ -1567,5 +1601,6 @@ exception Error' of Tomega.Sub
     val installPrg = installPrg
     val traverse = traverse
     val raisePrg = raiseP
+    val convertGoal = convertGoal
   end
 end (* functor FunSyn *)

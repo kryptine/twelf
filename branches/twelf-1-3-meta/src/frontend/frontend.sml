@@ -160,6 +160,13 @@ structure Solve =
 	 structure TableIndex = TableIndex
 	 structure Print = Print);
 
+structure Fquery =
+  Fquery (structure Global = Global
+	  structure Names = Names
+	  structure ReconQuery = ReconQuery
+	  structure Timers = Timers
+	  structure Print = Print);
+
 structure Twelf =
   Twelf (structure Global = Global
 	 structure Timers = Timers
@@ -208,6 +215,7 @@ structure Twelf =
 	 structure Tabled = Tabled
 	 structure TableIndex = TableIndex
 	 structure Solve = Solve
+	 structure Fquery = Fquery
 
 	 structure ThmSyn = ThmSyn
 	 structure Thm = Thm

@@ -16,6 +16,8 @@ sig
   val installPrg : IntSyn.cid list -> IntSyn.cid * Tomega.lemma list   (* projections *)* Tomega.lemma list   (* selections *)
 
   val raisePrg : IntSyn.Dec IntSyn.Ctx * Tomega.Prg * Tomega.For -> Tomega.Prg
+
+  val convertGoal : Tomega.Dec IntSyn.Ctx * IntSyn.Exp -> Tomega.Prg
 end (* Signature CONVERTER *)       
 
 

@@ -94,6 +94,8 @@ is
   parser.fun
   solve.sig
   solve.fun
+  fquery.sig
+  fquery.fun
   twelf.sig
   twelf.fun
   frontend.sml
