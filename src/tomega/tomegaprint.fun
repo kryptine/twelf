@@ -571,7 +571,7 @@ struct
 		Fmt.Hbox [Fmt.String " ..." , Fmt.Space, Fmt.String "=",  Fmt.Break, F1] *)
 	    in
 	      Fmt.Vbox0 0 1 ([Fmt.String "let", 
-			      Fmt.Spaces 2, Fmt.Vbox0 0 1 (fmts @ [Fmt.Break, fmt]),
+			      Fmt.Vbox0 0 1 (fmts @ [Fmt.Break, fmt]),
 			      Fmt.Break,
 			      Fmt.String "in", Fmt.Break,
 			      Fmt.Spaces 2, formatPrg3 (Psi1', P2),
@@ -617,8 +617,8 @@ struct
 	    in
 	      [Fmt.HVbox0 1 5 1
 	       [Fmt.String fhead, formatHead ((max, index), Psi'', s, Psi),
-		Fmt.Space, Fmt.String "=", Fmt.Break,
-		formatPrg3 (Psi'', P)], Fmt.Break] 
+		Fmt.Space, Fmt.String "=",  Fmt.Break,
+		formatPrg3 (Psi'', P)], Fmt.Break]
 	    end
 	  | formatPrg2 ((max, index), Psi, (Psi', s, P) :: O) =
 	    let 
