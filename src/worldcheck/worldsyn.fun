@@ -212,27 +212,27 @@ struct
       fun clause (c) =
           print ("World checking clause " ^ Names.qidToString (Names.constQid c) ^ "\n")
       fun constraintsRemain () =
-	  if !Global.chatter > 4
+	  if !Global.chatter > 7
 	    then print ("Constraints remain after matching hypotheses against context block\n")
 	  else ()
       fun matchBlock (GL, R) =		(* R = (D1,...,Dn)[t] *)
-	  if !Global.chatter > 4
+	  if !Global.chatter > 7
 	    then print ("Matching:\n" ^ wGoalToString (GL, R) ^ "\n")
 	  else ()
       fun unmatched GL =
-	  if !Global.chatter > 4
+	  if !Global.chatter > 7
 	    then print ("Unmatched hypotheses:\n" ^ hypsToString GL ^ "\n")
 	  else ()
       fun missing (G, R) =		(* R = (D1,...,Dn)[t] *)
-	  if !Global.chatter > 4
+	  if !Global.chatter > 7
 	    then print ("Missing hypotheses:\n" ^ worldToString (G, R) ^ "\n")
 	  else ()
       fun mismatch (G, Vs1, Vs2) =
-	  if !Global.chatter > 4
+	  if !Global.chatter > 7
 	    then print ("Mismatch:\n" ^ mismatchToString (G, Vs1, Vs2) ^ "\n")
 	  else ()
       fun success () =
-	  if !Global.chatter > 4
+	  if !Global.chatter > 7
 	    then print ("Success\n")
 	  else ()
     end

@@ -717,7 +717,7 @@ struct
 	  val _ = print ("%- " ^ Print.expToString (I.Null, I.EClo (V, s)) ^ "\n")
 	  *)
 	  val (i, V') = Abstract.abstractDecImp (I.EClo (V, s))
-	  (*
+	  (* 
 	  val _ = print ("!- " ^ Print.expToString (I.Null, V') ^ "\n")
 	  *)
 	  val _ = if !Global.doubleCheck
