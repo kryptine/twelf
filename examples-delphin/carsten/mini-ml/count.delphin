@@ -10,6 +10,7 @@ fun id X = <X, <>>
 
 
 (*
+
 add :: world (base) 
 	all {N:exp} all {M:exp} exists {K:exp} true
 
@@ -24,7 +25,6 @@ fun add (A.z) M = <M, <>>
 
 id :: world (base)
 	all {N:exp} exists {M:exp} true
-
 fun id X = <X, <>>
 
 
@@ -59,4 +59,5 @@ fun count ((A:param' T).u) =
 
 val <X, <>> = new (b:base') in add (b.z) (b.z) end
 val <Y, <>> = new (b:base') in id (b.z) end
+
 *)

@@ -24,8 +24,8 @@ struct
 	val _ = print "* parsing completed\n"
 	val P = Trans.transDecs EDs
 	val P' = Trans.externalizePrg P 
-(*	val _  = TomegaTypeCheck.checkPrg (IntSyn.Null, (P, Tomega.True))
-	val V  = Opsem.evalPrg P' *)
+	val _  = TomegaTypeCheck.checkPrg (IntSyn.Null, (P', Tomega.True))
+(*	val V  = Opsem.evalPrg P' *)
       in 
 	P'
       end

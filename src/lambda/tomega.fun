@@ -35,7 +35,8 @@ struct
   | PDec of string option * For         (*     | xx :: F              *)
 
   and Prg =				(* Programs:                  *)
-    Lam of Dec * Prg	 	        (*     | lam LD. P            *)
+    Box of Worlds * Prg                 (*     | box W. P             *)
+  | Lam of Dec * Prg	 	        (*     | lam LD. P            *)
   | New of Prg                          (*     | new P                *)
   | Choose of Prg                       (*     | choose P             *)
   | PairExp of IntSyn.Exp * Prg         (*     | <M, P>               *)

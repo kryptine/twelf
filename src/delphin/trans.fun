@@ -386,7 +386,8 @@ struct
        then P' = lam D1 ... lam Dn P
     *)
     fun lamClosure (T.All ((D, _), F), P) = T.Lam (D, lamClosure (F, P))
-      | lamClosure (_, P) = P
+      | lamClosure (T.World(_, F), P) = lamClosure (F, P)
+      | lamClosure (T.Ex _, P) = P
 
 
     fun exists (c, []) = raise Error "Current world is not subsumed"
@@ -419,7 +420,7 @@ struct
           I.Decl (append (Psi, Psi'), D)
       
 
-    fun parseTerm ((Psi, env), (s, V)) =
+    fun parseTerm (Psi, (s, V)) =
         let
 	  val (term', c) = transTerm s
 	  val term = stringToterm (term')
@@ -429,7 +430,7 @@ struct
 	  U
 	end
 
-    fun parseDec ((Psi, env), s) =
+    fun parseDec (Psi, s) =
         let 
 	  val (dec', c) = transDec s
 	  val dec = stringTodec (dec')
@@ -443,11 +444,11 @@ struct
 
 
 
-    (* transDecs ((Psi, env), dDs, sc, W) = x
+    (* transDecs ((Psi, t), dDs, sc, W) = x
        
        Invariant:
-       If   Psi |- dDs :: Psi'
-       and  Psi |- env environment
+       If   . |- t :: Psi
+       and  Psi |- dDs decs 
        and  W is the valid world
        and  sc is the success continuation that expects
 	    as input: (Psi', env') 
@@ -458,22 +459,34 @@ struct
        then eventually x = ().     --cs
     *)
 
-    fun transDecs ((Psi, env), _, D.Empty, sc, W) = (sc (Psi, env, W))
-      | transDecs ((Psi, env), SOME condec, D as D.FunDecl (FunD, Ds), sc, W) =  (transFun1 ((Psi, env), condec, D, sc, W)) 
-      | transDecs ((Psi, env), NONE, D.FormDecl (FormD, Ds), sc, W) = (transForDec ((Psi, env), FormD, Ds, sc, W))
-      | transDecs ((Psi, env), NONE, D.ValDecl (ValD, Ds), sc, W) = (transValDec ((Psi, env), ValD, Ds, sc, W))
+    fun transDecs (Psi, D.Empty, sc, W) = sc (Psi, W)
+      | transDecs (Psi, D.FormDecl (FormD, Ds), sc, W) = (transForDec (Psi, FormD, Ds, sc, W))
+      | transDecs (Psi, D.ValDecl (ValD, Ds), sc, W) = (transValDec (Psi, ValD, Ds, sc, W))
       | transDecs _ = raise Error "Constant declaration must be followed by a constant definition"
 
 
-    (* transHead (T, S) = (F', t')
+
+    and lookup (I.Null, n, s) = raise Error ("Undeclared constant " ^ s)
+      | lookup (I.Decl (G, T.PDec (NONE, _)), n, s) =  lookup (G, n+1, s)
+      | lookup (I.Decl (G, T.UDec _), n, s) =  lookup (G, n+1, s)
+      | lookup (I.Decl (G, T.PDec (SOME s', F)), n, s) = 
+        if s = s' then (n, Normalize.normalizeFor (F, T.Shift n))
+        else lookup (G, n+1, s)
+
+    (* transHead (G, T, S) = (F', t')
        
        Invariant:
        If   G |- T : F
        and  G |- S : world{W}all{G'}F' >> F'
        then G |- t' : G'	 
     *)
-    and transHead (D.Head s, args) = transHead' ((T.lemmaFor (T.lemmaName s), T.id), args)
-      | transHead (D.AppLF (h, t), args) = transHead (h, t::args)
+    and transHead (Psi, D.Head s, args) = 
+        let
+	  val (n, F) = lookup (Psi, 1, s)
+	in 
+	  transHead' ((F, T.id), args)
+	end
+      | transHead (Psi, D.AppLF (h, t), args) = transHead (Psi, h, t::args)
 
     and transHead' ((T.World (_, F), s), args) = transHead' ((F, s), args) 
       | transHead' ((T.All ((T.UDec (I.Dec (_, V)), T.Implicit), F'), s), args) =
@@ -521,14 +534,13 @@ struct
 	    as output: anything.  
        then eventually x = ().     --cs
     *)
-    and transFun1 ((Psi, env), D, D.FunDecl (D.Fun (eH, eP), Ds), sc, W) =
+    and transFun1 (Psi, (s', F), D.FunDecl (D.Fun (eH, eP), Ds), sc, W) =
         let
 	  val s = head eH
+	  val _ = if s = s' then () else raise Error "Function defined is different from function declared." 
 	  val _ = print ("\n[fun " ^ s ^ " ")
-	  val Psi' = I.Decl (Psi, D)
-	  val env' = map (fn (U, V, name) => (I.EClo (U, I.Shift 1), I.EClo (V, I.Shift 1), name)) env
   	in
-	  transFun2 ((Psi', env'), s, D.FunDecl (D.Bar (eH, eP), Ds), sc, fn Cs => T.Case (T.Cases Cs), W)
+	  transFun2 (Psi, (s, F), D.FunDecl (D.Bar (eH, eP), Ds), sc, fn Cs => T.Case (T.Cases Cs), W)
 	end
       | transFun1 _ = raise Error "Function declaration expected"
 
@@ -553,17 +565,15 @@ struct
 	    as ouput: A program P that corresponds to the case list Cs
        then eventually x = ().     --cs
     *)
-    and transFun2   ((Psi, env), s, D.FunDecl (D.Bar (eH, eP), Ds), sc, k, W) =
-          transFun3 ((Psi, env), s, eH, eP, Ds, sc,  k, W)
-      | transFun2   ((Psi, env), s, Ds, sc, k, W) =
+    and transFun2   (Psi, (s, F), D.FunDecl (D.Bar (eH, eP), Ds), sc, k, W) =
+          transFun3 (Psi, (s, F), eH, eP, Ds, sc,  k, W)
+      | transFun2   (Psi, (s, F), Ds, sc, k, W) =
 	  let 
        	    val _ = print "]\n"
-	    val F = T.lemmaFor (T.lemmaName s)
-	    val P = transDecs  ((Psi, env), NONE, Ds, sc, W)
 	    val D = T.PDec (SOME s, F)
-	    val P' = lamClosure (F, k nil)
+	    val P' = T.Rec (D, lamClosure (F, k nil))
 	  in
-	    T.Let (D, P', P)
+	    (P', Ds)
 	  end
 
     (* transFun3 ((Psi, env), s, eH, eP, Ds, sc, k, W) = x
@@ -587,26 +597,25 @@ struct
 	    as ouput: A program P that corresponds to the case list Cs
        then eventually x = ().     --cs
     *)
-    and transFun3 ((Psi, env), s, eH, eP, Ds, sc, k, W) =
+    and transFun3 (Psi, (s, F), eH, eP, Ds, sc, k, W) =
         let 
 	  val _ = print "[case ..."
 	  val _ = if (head eH) <> s
 		  then raise Error "Functions don't all have the same name"
 		  else ()
           val _ = Names.varReset (I.Null)
-	  val (F, t) = transHead (eH, nil)
+	  val Psi0 = I.Decl (Psi, T.PDec (SOME s, F))
+	  val (F', t) = transHead (Psi0, eH, nil)
 (*      	  val F' = Normalize.normalizeFor (F, t) *)
 	  val (Psi', t') = Abstract.abstractTomegaSub t
-
 	  val m = I.ctxLength Psi'
-	  val env''  =  map (fn (U, V, name) => (I.EClo (U, I.Shift m), I.EClo (V, I.Shift m), name)) env
-	  val Psi'' = append (Psi, Psi')
+	  val Psi'' = append (Psi0, Psi')
 (*	  val _ = print (TomegaPrint.forToString (Names.ctxName (T.coerceCtx Psi''), myF) ^ "\n") *)
 
-	  val P = transProgI ((Psi'', env''), eP, (F, t'), W)
+	  val P = transProgI (Psi'', eP, (F', t'), W)
 	  val _ = print "]"
 	in
-	  transFun2 ((Psi, env), s, Ds, sc, fn Cs => k ((Psi'', t', P) :: Cs), W)
+	  transFun2 (Psi, (s, F), Ds, sc, fn Cs => k ((Psi'', t', P) :: Cs), W)
 	end
 
     (* transForDec ((Psi, env), eDf, dDs, sc, W) = x
@@ -625,20 +634,20 @@ struct
 	    as output: anything.  
        then eventually x = ().     --cs
     *)
-    and transForDec ((Psi, env), D.Form (s, eF), Ds, sc, W) = 
+    and transForDec (Psi, D.Form (s, eF), Ds, sc, W) = 
         let
 
 	  val G = Names.ctxName (T.coerceCtx Psi)
 	  val F = transFor (G, eF)   
-	  val F' = Normalize.normalizeFor (F, T.id)
+	  val (F'' as T.World (W, F')) = Normalize.normalizeFor (F, T.id)
 	  val _ = print s
 	  val _ = print " :: "
-	  val _ = print (TomegaPrint.forToString (T.embedCtx G, F') ^ "\n") 
-	  val _ = TomegaTypeCheck.checkFor (Psi, F')
+	  val _ = print (TomegaPrint.forToString (T.embedCtx G, F'') ^ "\n") 
+	  val _ = TomegaTypeCheck.checkFor (Psi, F'')
+	  val (P, Ds') = transFun1 (Psi, (s, F'), Ds, sc, W)
+	  val D = T.PDec (SOME s, F'')
 	in
-	  (T.lemmaAdd (T.ForDec (s, F'));
-           T.lemmaFor (T.lemmaName s); 
-	   transDecs ((Psi, env), SOME (T.PDec (SOME s, F')), Ds, sc, W))
+	  transDecs (I.Decl (Psi, D), Ds', fn P' => T.Let (D, T.Box (W, P), sc P'), W)
  	end
 
 
@@ -658,15 +667,15 @@ struct
 	    as output: anything.  
        then eventually x = ().     --cs
     *)
-    and transValDec ((Psi, env), D.Val (EPat, eP, eFopt), Ds, sc, W) =
+    and transValDec (Psi, D.Val (EPat, eP, eFopt), Ds, sc, W) =
         let 
 
 	  val _ = print "[val ..."
           val (P, (F', t')) = (case eFopt 
-	                         of NONE => transProgS ((Psi, env), eP, W, nil)
+	                         of NONE => transProgS (Psi, eP, W, nil)
 			          | SOME eF => let
 						 val F' = transFor (T.coerceCtx Psi, eF)
-						 val P' =  transProgIN ((Psi, env), eP, F', W)
+						 val P' =  transProgIN (Psi, eP, F', W)
 					       in
 						 (P', (F', T.id))
 					       end)
@@ -677,9 +686,8 @@ struct
 	  val (Psi', Pat') = Abstract.abstractTomegaPrg (Pat)
 	  val m = I.ctxLength Psi'
 	  val t = T.Dot (T.Prg Pat', T.id)
-	  val env''  = map (fn (U, V, name) => (I.EClo (U, I.Shift m), I.EClo (V, I.Shift m), name)) env
 	  val Psi'' = append (Psi, Psi')
-          val P'' = transDecs ((Psi'', env''), NONE, Ds, sc, W)
+          val P'' = transDecs (Psi'', Ds, sc, W)
 	in
 	  T.Let (D, P, T.Case (T.Cases [ (Psi'', t', P'') ])) 
 	end
@@ -695,39 +703,37 @@ struct
        and  Exists Psi |- F : formula
        then Psi |- P :: F
     *)
-    and transProgI ((Psi, env), eP, Ft, W) =
-          transProgIN ((Psi, env), eP, Normalize.normalizeFor Ft, W)
+    and transProgI (Psi, eP, Ft, W) =
+          transProgIN (Psi, eP, Normalize.normalizeFor Ft, W)
 
-    and transProgIN ((Psi, env), D.Unit, T.True, W) = T.Unit
-      | transProgIN ((Psi, env), P as D.Inx (s, EP), T.Ex ((I.Dec (_, V), T.Explicit), F'), W) =
+    and transProgIN (Psi, D.Unit, T.True, W) = T.Unit
+      | transProgIN (Psi, P as D.Inx (s, EP), T.Ex ((I.Dec (_, V), T.Explicit), F'), W) =
         let 
-	  val U = parseTerm ((Psi, env), (s, V))
-	  val P' = transProgI ((Psi, env), EP, (F', T.Dot (T.Exp U, T.id)), W)
+	  val U = parseTerm (Psi, (s, V))
+	  val P' = transProgI (Psi, EP, (F', T.Dot (T.Exp U, T.id)), W)
         in
           T.PairExp (U, P')
         end
-      | transProgIN ((Psi, env), D.Let (eDs, eP), F, W) =
-          transDecs ((Psi, env), NONE, eDs, fn (Psi', env', W') => 
-		     transProgI ((Psi', env'), eP, (F, T.Shift (I.ctxLength Psi' - I.ctxLength Psi)),W'), W)
-      | transProgIN ((Psi, env), D.Choose (eD, eP), F, W) =
+      | transProgIN (Psi, D.Let (eDs, eP), F, W) =
+          transDecs (Psi, eDs, fn (Psi', W') => 
+		     transProgI (Psi', eP, (F, T.Shift (I.ctxLength Psi' - I.ctxLength Psi)),W'), W)
+      | transProgIN (Psi, D.Choose (eD, eP), F, W) =
 	  let 
-	    val D' = parseDec ((Psi, env), eD)
-	    val env''  = map (fn (U, V, name) => (I.EClo (U, I.Shift 1), I.EClo (V, I.Shift 1), name)) env
+	    val D' = parseDec (Psi, eD)
 	    val Psi'' = I.Decl (Psi, T.UDec D')
 	  in
-	    T.Choose (T.Lam (T.UDec D', transProgI ((Psi'', env''), eP, (F, T.Shift 1), W)))
+	    T.Choose (T.Lam (T.UDec D', transProgI (Psi'', eP, (F, T.Shift 1), W)))
 	    end
-      | transProgIN ((Psi, env), D.New (eD, eP), F, W) =
+      | transProgIN (Psi, D.New (eD, eP), F, W) =
 	  let 
-	    val D' = parseDec ((Psi, env), eD)
-	    val env''  = map (fn (U, V, name) => (I.EClo (U, I.Shift 1), I.EClo (V, I.Shift 1), name)) env
+	    val D' = parseDec (Psi, eD)
 	    val Psi'' = I.Decl (Psi, T.UDec D')
 	  in
-	    T.New (T.Lam (T.UDec D', transProgI ((Psi'', env''), eP, (F, T.Shift 1), W)))
+	    T.New (T.Lam (T.UDec D', transProgI (Psi'', eP, (F, T.Shift 1), W)))
 	  end
-      | transProgIN ((Psi, env), P as D.AppTerm (EP, s), F, W) =
+      | transProgIN (Psi, P as D.AppTerm (EP, s), F, W) =
         let
-	  val (P', (F', _)) = transProgS ((Psi, env), P, W, nil)
+	  val (P', (F', _)) = transProgS (Psi, P, W, nil)
 	  val ()  = ()   (* check that F == F' *)
         in
           P'
@@ -832,52 +838,53 @@ struct
           end
 
 *)
-   and transProgS ((Psi, env), D.Unit, W, args) =
+   and transProgS (Psi, D.Unit, W, args) =
          (T.Unit, (T.True, T.id))
-     | transProgS ((Psi, env), D.AppTerm (EP, s), W, args) =
-	 transProgS ((Psi, env), EP, W, s :: args)
-     | transProgS ((Psi, env), D.Const name, W, args) = 
+     | transProgS (Psi, D.AppTerm (EP, s), W, args) =
+	 transProgS (Psi, EP, W, s :: args)
+     | transProgS (Psi, D.Const name, W, args) = 
 	 let
-	   val lemma = T.lemmaName name
-	   val F = T.lemmaFor lemma
-	   val (S, Fs') = transProgS'  ((Psi, env), (F, T.id), W, args)
+(*	   val lemma = T.lemmaName name
+	   val F = T.lemmaFor lemma *)
+	   val (n, F) = lookup (Psi, 1, name)
+	   val (S, Fs') = transProgS'  (Psi, (F, T.id), W, args)
 	 in
-	   (T.Root (T.Const lemma, S), Fs')
+	   (T.Root (T.Var n, S), Fs')
 	 end
-     | transProgS ((Psi, env), D.Choose  (eD, eP), W, args) =
+     | transProgS (Psi, D.Choose  (eD, eP), W, args) =
 	 let
-	   val D' = parseDec ((Psi, env), eD)
-	   val (P, (F, t)) = transProgS ((I.Decl (Psi, T.UDec D'), env), eP, W, args)
+	   val D' = parseDec (Psi, eD)
+	   val (P, (F, t)) = transProgS (I.Decl (Psi, T.UDec D'), eP, W, args)
 	 in
 	   (T.Choose (T.Lam (T.UDec D', P)), (F, t))
 	 end
-     | transProgS ((Psi, env), D.New (eD, eP), W, args) =
+     | transProgS (Psi, D.New (eD, eP), W, args) =
 	 let
-	   val D' = parseDec ((Psi, env), eD)
-	   val (P, (F, t)) = transProgS ((I.Decl (Psi, T.UDec D'), env), eP, W, args)
+	   val D' = parseDec (Psi, eD)
+	   val (P, (F, t)) = transProgS (I.Decl (Psi, T.UDec D'), eP, W, args)
 	 in
 	   (T.New (T.Lam (T.UDec D', P)), (F, t))
 	 end
 	    
-    and transProgS' ((Psi, env), (T.World (_, F), s), W, args) = transProgS' ((Psi, env), (F, s), W, args) 
-      | transProgS' ((Psi, env), (T.All ((T.UDec (I.Dec (_, V)), T.Implicit), F'), s), W, args) =
+    and transProgS' (Psi, (T.World (_, F), s), W, args) = transProgS' (Psi, (F, s), W, args) 
+      | transProgS' (Psi, (T.All ((T.UDec (I.Dec (_, V)), T.Implicit), F'), s), W, args) =
         let
 	  val G = T.coerceCtx Psi
 	  val X = I.newEVar (G, I.EClo (V, T.coerceSub s))
 (*	  val X = I.EVar (ref NONE, I.Null, I.EClo (V, T.coerceSub s), ref nil) *)
-          val (S, Fs') = transProgS' ((Psi, env), (F', T.Dot (T.Exp X, s)), W, args)
+          val (S, Fs') = transProgS' (Psi, (F', T.Dot (T.Exp X, s)), W, args)
 	in
 	  (T.AppExp (Whnf.normalize (X, I.id), S), Fs')
 	end
-      | transProgS' ((Psi, env), (T.All ((T.UDec (I.Dec (_, V)), T.Explicit), F'), s), W, t :: args) =
+      | transProgS' (Psi, (T.All ((T.UDec (I.Dec (_, V)), T.Explicit), F'), s), W, t :: args) =
 	let
-	  val U = parseTerm ((Psi, env), (t, I.EClo (V, T.coerceSub s)))
-	  val (S, Fs') = transProgS' ((Psi, env), (F', T.Dot (T.Exp U, s)), W, args)
+	  val U = parseTerm (Psi, (t, I.EClo (V, T.coerceSub s)))
+	  val (S, Fs') = transProgS' (Psi, (F', T.Dot (T.Exp U, s)), W, args)
 (*	  val (F'', s'', _) = checkForWorld (F', T.Dot (T.Exp U, s), W) *)
 	in
           (T.AppExp (U, S), Fs')
 	end
-      | transProgS' ((Psi, env), (F, s), _,nil) = (T.Nil, (F, s))
+      | transProgS' (Psi, (F, s), _,nil) = (T.Nil, (F, s))
 
 
 (*
@@ -966,12 +973,22 @@ struct
 *)
 
 
+    (* transProgram Ds = P 
+
+       Invariant:
+       If Ds is a list of declarations then P is 
+       the translated program, that does not do anything
+    *)
     fun transProgram Ds =
         let
 	  val _ = print "Translating program"
 	in
-	  transDecs ((I.Null, []), NONE, Ds, fn (Psi, env, W) => T.Unit, T.Worlds [])
+	  transDecs (I.Null, Ds, fn (Psi, W) => T.Unit, T.Worlds [])
 	end
+
+
+
+    (* Externalization *)
 	
     fun dropSpine (0, S) = S
       | dropSpine (n, I.App (_, S)) = dropSpine (n-1, S)
@@ -1016,6 +1033,7 @@ struct
 
     fun externalizePrg (T.Lam (D, P)) = T.Lam (externalizeMDec D, externalizePrg P)
       | externalizePrg (T.New P) = T.New (externalizePrg P)
+      | externalizePrg (T.Box (W, P)) = T.Box (W, externalizePrg P)
       | externalizePrg (T.Choose P) = T.Choose (externalizePrg P)
       | externalizePrg (T.PairExp (U, P)) = T.PairExp (externalizeExp U, externalizePrg P)
       | externalizePrg (T.PairPrg (P1, P2)) = T.PairPrg (externalizePrg P1, externalizePrg P2)
@@ -1076,7 +1094,7 @@ struct
       val internalizeSig = internalizeSig
       val externalizePrg = externalizePrg
 
-(*    val transDecs = fn Ds => transDecs ((I.Null, []), NONE, Ds, fn (Psi, env, W) => T.Unit, T.Worlds []) 
+(*    val transDecs = fn Ds => transDecs ((I.Null, []), NONE, Ds, fn (Psi,  W) => T.Unit, T.Worlds []) 
 *)
   end 
 end (* functor Trans *)
