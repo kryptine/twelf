@@ -58,6 +58,9 @@ in
 (*  val _ = FunNames.reset(); --cs *)
   
 
+  val _ = load "examples/guide/sources.cfg"
+  val _ = print ["cp"]
+
 
   (* Regression print for Mini-ML *)
   val _ = load "examples/mini-ml/sources.cfg"
