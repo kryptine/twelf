@@ -67,10 +67,10 @@ structure Opsem = Opsem
    structure Unify = UnifyTrail
    structure Conv = Conv
    structure Whnf = Whnf
+   structure Print = Print
    structure Subordinate = Subordinate
    structure TomegaPrint = TomegaPrint
    structure TomegaTypeCheck = TomegaTypeCheck
-   structure Print = Print
    structure Weaken = Weaken);
 
 structure TomegaCoverage = TomegaCoverage
