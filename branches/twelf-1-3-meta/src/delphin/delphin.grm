@@ -122,6 +122,7 @@ decs      :             		               (D.Empty)
           | fundecl decs         	               (D.FunDecl (fundecl, decs))  
           | formdecl decs        	               (D.FormDecl (formdecl, decs))  
           | valdecl decs         	               (D.ValDecl (valdecl, decs))    
+	  | NEW LTPAREN dec RTPAREN  decs	       (D.NewDecl (dec, decs))
 
 formdecl  : FORMID form	                               (D.Form (chop (FORMID), form))
 
@@ -130,6 +131,7 @@ fundecl   : FUN head EQUAL prog %prec PREC1            (D.Fun (head, prog))
 
 valdecl   : VAL pat DBLCOLON form EQUAL prog %prec ID  (D.Val (pat, prog, SOME form))
 	  | VAL pat EQUAL prog %prec ID                (D.Val (pat, prog, NONE))
+
 
 term      : TYPE                                       (D.Type)
           | ID                 	            	       (D.Id ID)   
