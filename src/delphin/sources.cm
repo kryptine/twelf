@@ -5,6 +5,10 @@ Library
    structure Trans
    signature TOMEGA
    structure Tomega
+   signature OPSEM
+   structure Opsem
+   signature TOMEGAPRINT
+   structure TomegaPrint
 is
    ../frontend/sources.cm
    ../stream/sources.cm
