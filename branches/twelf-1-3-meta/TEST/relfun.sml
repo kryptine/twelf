@@ -15,7 +15,7 @@ local
         (TextIO.print ((Print.conDecToString condec) ^ "\n"); printS S)
 in
 
- val _ = Compiler.Control.Print.printDepth := 10;
+ val _ = Compiler.Control.Print.printDepth := 100;
 
 
   fun test names =
@@ -108,7 +108,6 @@ in
   val _ = print ["s_sound", "h_sound", "i_sound"]
   val _ = print ["cmpcs", "cmpai"]
 
-
   (* Regression test for Cut-Elimination *)
   val _ = load "examples/cut-elim/sources.cfg"
   val _ = print ["ca"]
@@ -116,13 +115,10 @@ in
   val _ = print ["ca'"]
   val _ = print ["ce'"]
 
-
-
   (* Regression test for Kolmogoroff translation *)
   val _ = load "examples/kolm/sources.cfg"
-(*  val _ = print ["kolm"]
+  val _ = print ["kolm"]
   val _ = print ["existskolm"]
-*)
   val _ = print ["nj_nk"]
   val _ = print ["equiv"]
   val _ = print ["complete"]

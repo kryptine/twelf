@@ -8,7 +8,7 @@
 
 nj_nk : nj A -> nk A -> type.
 %mode nj_nk +NJ -NK.
-%{
+
 nj_nk_andi    : nj_nk (nj_andi NJA NJB) (nk_andi NKA NKB)
     <- nj_nk NJA NKA
     <- nj_nk NJB NKB.
@@ -36,17 +36,16 @@ nj_nk_ore     : nj_nk (nj_ore NJ NJ1 NJ2) (nk_ore NK NK1 NK2)
     <- nj_nk NJ NK
     <- ({u} {v} nj_nk u v -> nj_nk (NJ1 u) (NK1 v))
     <- ({u} {v} nj_nk u v -> nj_nk (NJ2 u) (NK2 v)).
-}%
 
 nj_nk_noti    : nj_nk (nj_noti NJ) (nk_noti NK)
     <- ({p} {u} {v} nj_nk u v -> nj_nk (NJ p u) (NK p v)).
 
-%{
 nj_nk_note    : nj_nk (nj_note NJ1 C NJ2) (nk_note NK1 C NK2)
     <- nj_nk NJ1 NK1
     <- nj_nk NJ2 NK2.
 
 nj_nk_truei   : nj_nk nj_truei nk_truei.
+
 
 nj_nk_falsee  : nj_nk (nj_falsee NJ) (nk_falsee NK)
     <- nj_nk NJ NK.
@@ -63,12 +62,12 @@ nj_nk_existsi : nj_nk (nj_existsi T NJ) (nk_existsi T NK)
 nj_nk_existse : nj_nk (nj_existse NJ1 NJ2) (nk_existse NK1 NK2)
     <- nj_nk NJ1 NK1
     <- ({a} {u} {v} nj_nk u v -> nj_nk (NJ2 a u) (NK2 a v)).
-}%
+
 %block l5 : some {A:o} block {u:nj A}{v:nk A}{h:nj_nk u v}.
 %block l6 : block {p:o}.
 %worlds (l1 | l5 | l6) (nj_nk _ _).
 %mode (nj_nk +NJ -NK).
-%terminates NJ (nj_nk NJ NK).
+% total NJ (nj_nk NJ NK).
 % total NJ (nj_nk NJ NK).
 
 % Lemma (equiv):  Given any K::kolm A A*, there are
