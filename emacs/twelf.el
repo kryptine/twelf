@@ -1089,9 +1089,11 @@ Also updates the error cursor to the current line."
 
 (defun twelf-convert-standard-filename (filename)
   "Convert FILENAME to form appropriate for Twelf Server of current OS."
-  (if (string-match "-nt" emacs-version)
-      (replace-in-string filename "\\\\" "/" t)
-    (convert-standard-filename filename)))
+  (cond ((eq system-type 'windows-nt)
+	 (while (string-match "/" filename)
+	   (setq filename (replace-match "\\" t t filename)))
+	 filename)
+	(t (convert-standard-filename filename))))
 
 ;;;----------------------------------------------------------------------
 ;;; Communication with Twelf server
