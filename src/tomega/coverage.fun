@@ -27,7 +27,19 @@ struct
   local 
     structure I = IntSyn
     structure T = Tomega
-      
+
+
+    (* chatter chlev f = () 
+
+       Invariant:
+       f () returns the string to be printed
+         if current chatter level exceeds chlev
+    *)
+    fun chatter chlev f =
+      if !Global.chatter >= chlev
+	then print ("[coverage] " ^ f ())
+      else ()
+
 
     (* purifyFor ((P, t), (Psi, F), s) = (t', Psi', s')
 
@@ -107,7 +119,6 @@ struct
         let 
 	  val (t', Psi', s') = purifyCtx (t, Psi)
 	  val _ = TomegaTypeCheck.checkSub (Psi0, t', Psi')
-	  val _ = print "*"
 	in 
 	  (Psi0, t', Psi')
 	end
@@ -133,7 +144,7 @@ struct
 	  coverageCheckCases (W, Psi, Omega, nil)
       | coverageCheckPrg (W, Psi, P as T.Let (D, P1, P2)) = 
 	  (coverageCheckPrg (W, Psi, P1);
-	   print (TomegaPrint.prgToString (Psi, P)); 
+	   (* chatter 5 ("fn () => TomegaPrint.prgToString (Psi, P)); *)
 	   coverageCheckPrg (W, I.Decl (Psi, D), P2))
 (*    | coverageCheckPrg (Psi, T.Redex (P, S)) = 
           should not occur by invariant  *)
@@ -154,7 +165,7 @@ struct
       
     and coverageCheckCases (W, Psi, nil, Cs) = 
         let 
-	  val _ = print ("[coverage]" ^ Int.toString (List.length Cs) ^ " cases\n")
+	  val _ = chatter 5 (fn  () => Int.toString (List.length Cs) ^ " cases to be checked\n")
 	  val (Cs' as (_, _, Psi') :: _) = map purify Cs
 	  val Cs'' = map (fn (Psi0, t, _) => (T.coerceCtx Psi0, T.coerceSub t)) Cs'
 	in
