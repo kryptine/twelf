@@ -4,8 +4,8 @@
 functor Cover
   (structure Global : GLOBAL
    structure IntSyn' : INTSYN
-   structure Tomega : TOMEGA
-     sharing Tomega.IntSyn = IntSyn'
+   structure Tomega' : TOMEGA
+     sharing Tomega'.IntSyn = IntSyn'
    structure Whnf : WHNF
      sharing Whnf.IntSyn = IntSyn'
    structure Abstract : ABSTRACT
@@ -20,7 +20,7 @@ functor Cover
      sharing Index.IntSyn = IntSyn'
    structure WorldSyn : WORLDSYN
      sharing WorldSyn.IntSyn = IntSyn'
-     sharing WorldSyn.Tomega = Tomega
+     sharing WorldSyn.Tomega = Tomega'
    structure Names : NAMES
      sharing Names.IntSyn = IntSyn'
    structure Paths : PATHS
@@ -33,6 +33,7 @@ functor Cover
   : COVER =
 struct
   structure IntSyn = IntSyn'
+  structure Tomega = Tomega'
   structure ModeSyn = ModeSyn'
 
   exception Error of string
@@ -1331,7 +1332,7 @@ struct
        there exists at least one index k and substitution   Phi |- t : Gk
        s.t.  sk o t = s        
     *)
-    fun coverageCheckCases (Cs, Psi) = 
+    fun coverageCheckCases (W, Cs, Psi) = 
       raise Error "Link still to be completed"
 
   end

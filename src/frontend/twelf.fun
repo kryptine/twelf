@@ -602,7 +602,7 @@ struct
 	  val _ = if !Global.chatter >= 6
 		    then print (TomegaPrint.funToString P ^ "\n")
 		  else ()
-	  val _ = TomegaCoverage.coverageCheckPrg (IntSyn.Null, P)
+	  val _ = TomegaCoverage.coverageCheckPrg (WorldSyn.lookup (hd La), IntSyn.Null, P)
 (* ******************************************* *)
 
 	  val _ = map Total.install La	(* pre-install for recursive checking *)
