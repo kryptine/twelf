@@ -1,0 +1,5 @@
+Library
+  signature DELPHIN
+  structure Delphin
+is
+  src/delphin/sources.cm
