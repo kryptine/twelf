@@ -25,7 +25,7 @@ struct
           | (Continuation k, f') => (Continuation (recwith (k, func)), f'))
 
   exception Error of string
-  fun error (r, msg) = raise Error (Paths.wrap (r, msg))
+  fun error (r, msg) = (print msg; raise Error (Paths.wrap (r, msg)))
 
 end;  (* functor Parsing *)
 
