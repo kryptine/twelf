@@ -612,7 +612,7 @@ struct
 	  val _ = TomegaTypeCheck.checkPrg (IntSyn.Null, (P, F))
 	  val _ = TextIO.print "]"
 
-(*	  val _ = TomegaCoverage.coverageCheckPrg (WorldSyn.lookup (hd La), IntSyn.Null, P)*)
+	  val _ = TomegaCoverage.coverageCheckPrg (WorldSyn.lookup (hd La), IntSyn.Null, P)
 
 (* ******************************************* *)
 
