@@ -64,6 +64,7 @@ structure L = Lexer
        | AND 
        | DBLARROW  
        | COMMA  
+       | PAR
        | EOF 
        | LTANGLE 
        | RTANGLE 
@@ -95,6 +96,7 @@ structure L = Lexer
           | prog of D.Prog
 	  | world of D.World
           | id of string
+          | lfdecs of D.Dec list
 
 
 %left UNDERSCORE
@@ -145,6 +147,7 @@ term      : TYPE                                       (D.Type)
           | FUN                                        (D.Id "fun")
           | CASE                                       (D.Id "case")
           | OF                                         (D.Id "of")
+  	  | PAR					       (D.Id "||")
           | BAR                                        (D.Id "|")
           | LET                                        (D.Id "let") 
           | TIMES  				       (D.Id "*")
@@ -170,6 +173,7 @@ term      : TYPE                                       (D.Type)
           | CASE term                                  (D.App (D.Id "case", term))
           | OF term                                    (D.App (D.Id "of", term))
           | BAR term                                   (D.App (D.Id "|", term))
+          | PAR term                                   (D.App (D.Id "||", term))
           | LET term                                   (D.App (D.Id "let", term))
           | IN term                                    (D.App (D.Id "in", term))
           | END term                                   (D.App (D.Id "end", term))
@@ -206,13 +210,17 @@ prog      : ID                                         (D.Const (ID))
           | LTPAREN prog RTPAREN              	       (prog)
           | UNIT                              	       (D.Unit)
 	  | CASE prog OF cases                         (D.Unit)
+	  | prog PAR prog			       (D.Par (prog1, prog2))
           | LTPAREN prog COMMA prog RTPAREN   	       (D.Pair (prog1, prog2))   
           | prog AT prog                      	       (D.AppProg (prog1, prog2))
           | LTANGLE term COMMA prog RTANGLE   	       (D.Inx (term, prog))  
           | LLAM dec RLAM prog               	       (D.Lam (dec, prog))   
           | LET decs IN prog END              	       (D.Let (decs, prog)) 
-	  | NEW LTPAREN dec RTPAREN IN prog END	               (D.New (dec, prog))
+	  | NEW lfdecs IN prog END	               (D.New (lfdecs, prog))
 	  | CHOOSE LTPAREN dec RTPAREN  IN prog END	               (D.Choose (dec, prog))
+
+lfdecs    :                       			(nil)
+	  | LTPAREN dec RTPAREN lfdecs			(dec :: lfdecs)
 
 cases     : pat DBLARROW prog  %prec PREC0             (D.First (pat, prog))
           | cases BAR pat DBLARROW prog %prec PREC1    (D.Alt  (cases, pat, prog)) 

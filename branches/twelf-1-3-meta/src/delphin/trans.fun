@@ -872,12 +872,14 @@ struct
 	  in
 	    T.Choose (T.Lam (T.UDec D', transProgI (Psi'', eP, (F, T.Shift 1), W)))
 	    end
-      | transProgIN (Psi, D.New (eD, eP), F, W) =
+      | transProgIN (Psi, D.New (nil, eP), F, W) =
+	  transProgIN (Psi, eP, F, W)
+      | transProgIN (Psi, D.New (eD :: eDs, eP), F, W) =
 	  let 
 	    val D' = parseDec (Psi, eD)
 	    val Psi'' = I.Decl (Psi, T.UDec D')
 	  in
-	    T.New (T.Lam (T.UDec D', transProgI (Psi'', eP, (F, T.Shift 1), W)))
+	    T.New (T.Lam (T.UDec D', transProgI (Psi'', D.New (eD :: eDs, eP) , (F, T.Shift 1), W)))
 	  end
       | transProgIN (Psi, P as D.AppTerm (EP, s), F, W) =
         let
@@ -1006,10 +1008,12 @@ struct
 	 in
 	   (T.Choose (T.Lam (T.UDec D', P)), (F, t))
 	 end
-     | transProgS (Psi, D.New (eD, eP), W, args) =
+     | transProgS (Psi, D.New (nil, eP), W, args) =
+	 transProgS (Psi, eP, W, args)
+     | transProgS (Psi, D.New (eD :: eDs, eP), W, args) =
 	 let
 	   val D' = parseDec (Psi, eD)
-	   val (P, (F, t)) = transProgS (I.Decl (Psi, T.UDec D'), eP, W, args)
+	   val (P, (F, t)) = transProgS (I.Decl (Psi, T.UDec D'), D.New (eDs, eP), W, args)
 	   val T.UDec D'' = externalizeMDec (I.ctxLength Psi, T.UDec D')
 	   val (B, _) = T.deblockify  (I.Decl (I.Null, D''))
 	   val F' = Converter.raiseFor (B, (F, T.coerceSub t))
