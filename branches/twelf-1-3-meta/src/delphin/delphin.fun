@@ -23,7 +23,7 @@ struct
 	val _ = print "* parsing completed\n"
 	val P = Trans.transDecs EDs
       in 
-	()
+	P
       end
 
     fun top () = loop ()

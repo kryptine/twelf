@@ -756,8 +756,11 @@ struct
        collect and abstract in subsitutions  including residual lemmas       
        pending approval of Frank.
     *)
-    fun collectPrg (P as T.EVar (Psi, r, F), K) =
-          I.Decl (K, PV P)          
+    fun collectPrg (_, P as T.EVar (Psi, r, F), K) =
+          I.Decl (K, PV P)
+      | collectPrg (Psi, T.Unit, K) = K
+      | collectPrg (Psi, T.PairExp (U, P), K) = 
+	  collectPrg (Psi, P, collectExp (T.coerceCtx Psi, (U, I.id), K))
 
 
     (* abstractPVar (K, depth, L) = C'
@@ -777,6 +780,9 @@ struct
 
     fun abstractPrg (K, depth, X as T.EVar _) =
  	  T.Root (abstractPVar (K, depth, X), T.Nil)
+      | abstractPrg (K, depth, T.Unit) = T.Unit
+      | abstractPrg (K, depth, T.PairExp (U, P)) = 
+           T.PairExp (abstractExp (K, depth, (U, I.id)), abstractPrg (K, depth, P))
 
     fun collectTomegaSub (T.Shift 0) = I.Null
       | collectTomegaSub (T.Dot (T.Exp U, t)) =
@@ -784,7 +790,7 @@ struct
       | collectTomegaSub (T.Dot (T.Block B, t)) =
           collectBlock (I.Null, B, collectTomegaSub t)
       | collectTomegaSub (T.Dot (T.Prg P, t)) = 
-	  collectPrg (P, collectTomegaSub t)
+	  collectPrg (I.Null, P, collectTomegaSub t)
 
        
     fun abstractMetaDec (K, depth, T.UDec D) = T.UDec (abstractDec (K, depth, (D, I.id)))
@@ -853,6 +859,16 @@ struct
 	  (T.Dot (T.Prg (abstractPrg (K, depth, P)),
 		  abstractTomegaSub' (K, depth, t)))
 
+    fun abstractTomegaPrg P = 
+      let 
+	val K = collectPrg (I.Null, P, I.Null)
+	val P' = abstractPrg (K, 0, P)
+	val Psi = abstractPsi K
+      in
+	(Psi, P')
+      end
+
+
     (* just added to abstract over residual lemmas  -cs *)
     (* Tomorrow: Make collection in program values a priority *)
     (* Then just traverse the Tomega by abstraction to get to the types of those 
@@ -872,6 +888,7 @@ struct
     val abstractDef = abstractDef
     val abstractCtxs = abstractCtxs
     val abstractTomegaSub = abstractTomegaSub
+    val abstractTomegaPrg = abstractTomegaPrg
     val abstractSpine = abstractSpineExt
 
     val collectEVars = collectEVars

@@ -22,7 +22,7 @@ val eof = fn () => Tokens.EOF(!line, !line)
                                structure Lexer : LEXER));
 
 ws = [\ \t ];
-uiden = (([#][A-Z][_])|[_A-Za-z])[-A-Za-z0-9!@#$/\^&*+|\\;'_]*([.][-A-Za-z0-9!@#/\^&*+|\\;'_]+)*;
+uiden = (([#][A-Z][_])|[_A-Za-z])[-A-Za-z0-9!@#$/\^&*+|\\;'_]*([-A-Za-z0-9!@#/\^&*+|\\;'_]+)*;
 catchall = .;
 
 %%

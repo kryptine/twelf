@@ -633,6 +633,8 @@ struct
 	  (checkFor (Psi, (F1, t)); checkFor (Psi, (F2, t)))
       | checkFor (Psi, (T.FClo (F, t'), t)) =
 	  checkFor (Psi, (F, T.comp (t', t)))
+      | checkFor (Psi, (T.World (W, F), t)) =
+	  checkFor (Psi, (F, t))
 
 
     and checkCtx (I.Null) = ()
