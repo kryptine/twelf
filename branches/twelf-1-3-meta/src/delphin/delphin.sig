@@ -4,7 +4,7 @@
 signature  DELPHIN =
 sig
   val version : string
-  val loadFile : string * string -> Tomega.Prg
+  val loadFile : string * string -> (Tomega.Prg * Tomega.Sub)
   val test : string * string -> Tomega.Prg
     
   val top : unit -> unit

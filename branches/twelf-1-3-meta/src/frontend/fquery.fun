@@ -65,7 +65,7 @@ struct
 	val V3 = Worldify.worldifyGoal (G, V2)
 	val _ = TypeCheck.typeCheck (G, (V3, I.Uni I.Type))
 	val P = Converter.convertGoal (T.embedCtx G, V3)
-	val V = (Timers.time Timers.delphin Opsem.evalPrg) P
+	val (V, _) = (Timers.time Timers.delphin Opsem.evalPrg) P
       in
 	print ("Delphin: " ^ TomegaPrint.prgToString (I.Null, V) ^ "\n")
       end

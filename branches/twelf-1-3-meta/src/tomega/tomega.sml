@@ -52,6 +52,24 @@ structure Opsem = Opsem
    structure TomegaTypeCheck = TomegaTypeCheck
    structure Weaken = Weaken);
 
+(*
+structure Opsem = OpsemCont
+  (structure Global = Global
+   structure IntSyn' = IntSyn
+   structure Abstract = Abstract
+   structure Tomega' = Tomega
+   structure TypeCheck = TypeCheck
+   structure Normalize = Normalize
+   structure Unify = UnifyNoTrail
+   structure Conv = Conv
+   structure Whnf = Whnf
+   structure Print = Print
+   structure Subordinate = Subordinate
+   structure TomegaPrint = TomegaPrint
+   structure TomegaTypeCheck = TomegaTypeCheck
+   structure Weaken = Weaken);
+*)
+
 structure Redundant = Redundant
   (structure Opsem = Opsem)
 
