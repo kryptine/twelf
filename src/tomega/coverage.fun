@@ -146,8 +146,8 @@ struct
 	  (coverageCheckPrg (W, Psi, P1);
 	   (* chatter 5 ("fn () => TomegaPrint.prgToString (Psi, P)); *)
 	   coverageCheckPrg (W, I.Decl (Psi, D), P2))
-(*    | coverageCheckPrg (Psi, T.Redex (P, S)) = 
-          should not occur by invariant  *)
+      | coverageCheckPrg (W, Psi, T.Redex (P, S)) = 
+	  coverageCheckSpine (W, Psi, S)   
 (*    | coverageCheckPrg (Psi, T.EVar) = 
           should not occur by invariant  *)
 

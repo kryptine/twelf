@@ -689,12 +689,20 @@ struct
 	   and  Psi; . |- P :: F
 	   then fmt' is a pretty print format of P
 	*)
-	fun formatPrg0 (T.Rec (T.PDec (SOME _, F), 
+(*	fun formatPrg0 (T.Rec (T.PDec (SOME _, F), 
 			     T.Case (T.Cases [(Psi, t, P)]))) =
 	  let 
 	    val max = I.ctxLength Psi	(* number of ih. *)
 	  in
 	    Fmt.Vbox0 0 1 (formatPrg1 ((max, max), Psi, P))
+	  end
+*)
+
+	fun formatPrg0 (T.Rec (D as T.PDec (SOME _, F), P)) =
+	  let 
+	    val max = 1	(* number of ih. *)
+	  in
+	    Fmt.Vbox0 0 1 (formatPrg1 ((max, max), I.Decl (I.Null, D), P))
 	  end
 
     fun formatFun Args = 
