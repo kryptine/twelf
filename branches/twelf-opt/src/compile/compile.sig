@@ -1,4 +1,3 @@
-
 (* Compiler *)
 (* Author: Iliano Cervesato *)
 (* Modified: Jeff Polakow *)
@@ -9,13 +8,14 @@ signature COMPILE =
 sig
 
   structure IntSyn: INTSYN
+
   structure CompSyn: COMPSYN
 
   exception Error of string
 
-  datatype opt = datatype CompSyn.opt
+  datatype Opt = datatype CompSyn.Opt
 
-  val optimize : opt ref
+  val optimize : Opt ref
 
   val install : bool -> IntSyn.cid -> unit
 
@@ -28,5 +28,6 @@ sig
   val compileCtx: bool -> (IntSyn.Dec IntSyn.Ctx) -> CompSyn.DProg  
 
   val compileGoal: (IntSyn.Dec IntSyn.Ctx * IntSyn.Exp) -> CompSyn.Goal
+
 
 end; (* signature COMPILE *)

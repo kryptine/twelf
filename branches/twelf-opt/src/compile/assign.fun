@@ -131,10 +131,10 @@ struct
 
       | assignExpW (G, Us1 as (FgnExp (_, ops), _), Us2, cnstr) =
 	  (* by invariant Us2 cannot contain any FgnExp *)
-	    (Eqn(G, EClo(Us1), EClo(Us2))::cnstr)
+	  (Eqn(G, EClo(Us1), EClo(Us2))::cnstr)
 
       | assignExpW (G, Us1, Us2 as (FgnExp (_, ops), _), cnstr) =
-	    (Eqn(G, EClo(Us1), EClo(Us2))::cnstr)
+	  (Eqn(G, EClo(Us1), EClo(Us2))::cnstr)
 	  
     and assignSpine (G, (Nil, _), (Nil, _), cnstr) = cnstr
       | assignSpine (G, (SClo (S1, s1'), s1), Ss, cnstr) = 
@@ -189,6 +189,26 @@ struct
     fun assignable (G, Us1, Uts2) = 
         (SOME(assignExp (G, Us1, Uts2, []))
          handle (Assignment(msg)) =>  NONE)
+
+  fun firstConstArg (A as IntSyn.Root(h as IntSyn.Const c, S), s) =    
+    let
+      val i = IntSyn.conDecImp(IntSyn.sgnLookup(c)) (* #implicit arguments to predicate *)
+
+      fun constExp (U, s) = constExpW (Whnf.whnf (U,s))
+      and constExpW (IntSyn.Lam (D, U), s) = constExp (U, s)
+	| constExpW (IntSyn.Root (H as IntSyn.Const cid, S), s) = 
+	   SOME(cid)
+	| constExpW (_, _) = NONE
+        (* other cases cannot occur during compilation *)
+
+      fun ithElem (k, (IntSyn.App(U, S), s)) = 
+	    if (k = i) then constExp (U, s) 
+	    else ithElem(k+1, (S, s))
+	| ithElem (k, (IntSyn.Nil, s)) = NONE
+    in
+      ithElem (0, (S, s)) 
+    end 
+
   end
 end; (* functor Assign *)
 

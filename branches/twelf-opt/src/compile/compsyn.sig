@@ -7,9 +7,9 @@ sig
 
   structure IntSyn : INTSYN
 
-  datatype opt = no | linearHeads | indexing
+  datatype Opt = No | LinearHeads | HeadAccess | Indexing | FirstArg
 
-  val optimize : opt ref
+  val optimize : Opt ref
 
   datatype Goal =                       (* Goals                      *)
     Atom of IntSyn.Exp                  (* g ::= p                    *)
@@ -56,10 +56,10 @@ sig
   (* Dynamic programs: context with synchronous clause pool *)
   datatype DProg = DProg of (IntSyn.dctx * (ResGoal * IntSyn.Sub * IntSyn.Head) option IntSyn.Ctx)
 
-  (* Programs --- compiled version of the signature (no indexing) *)
-  datatype ConDec =			(* Compiled constant declaration *)
-    SClause of ResGoal	                (* c : A                      *)
-  | Void 		                (* Other declarations are ignored  *)
+  (* Programs --- compiled version of the signature (no direct head access) *)
+  datatype ConDec =			      (* Compiled constant declaration *)
+       SClause of ResGoal                     (* c : A  -- static clause (residual goal) *)
+    | Void 		                      (* Other declarations are ignored  *)
 
   (* Install Programs (without indexing) *)
   val sProgInstall : IntSyn.cid * ConDec -> unit  
