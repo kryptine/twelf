@@ -10,11 +10,14 @@ functor Opsem (structure IntSyn' : INTSYN
 	       structure TypeCheck : TYPECHECK
 		 sharing TypeCheck.IntSyn = IntSyn'
 	       structure TomegaTypeCheck : TOMEGATYPECHECK
-	 sharing TomegaTypeCheck.IntSyn = IntSyn'
+	         sharing TomegaTypeCheck.IntSyn = IntSyn'
 		 sharing TomegaTypeCheck.Tomega = Tomega'
 	       structure TomegaPrint : TOMEGAPRINT
 		 sharing TomegaPrint.IntSyn = IntSyn'
 		 sharing TomegaPrint.Tomega = Tomega'
+	       structure Converter : CONVERTER
+		 sharing Converter.IntSyn = IntSyn'
+		 sharing Converter.Tomega = Tomega'
 	       structure Print : PRINT
 		 sharing Print.IntSyn = IntSyn'
 	       structure Unify : UNIFY
@@ -130,8 +133,18 @@ struct
 	    evalPrg (Psi, (P2, T.Dot (T.Prg V, t)))
 	  end
 
-      | evalPrg (Psi, (T.New P, t)) = 
-	  raise Domain
+      | evalPrg (Psi, (T.New (T.Lam (D, P)), t)) = 
+	  (* abp 	  raise Domain    *)
+	  ( print "\nNew" ; 
+	   let 
+	     val D' = T.decSub (D, t)
+	     val V = evalPrg (I.Decl (Psi, D'), (P, T.dot1 t))
+	       (* Carsten to fix..  Formula is set to T.True..  not so good *)
+	     val newP = Converter.raisePrg (T.coerceCtx (I.Decl (I.Null, D')), V, T.True)
+	   in 
+	     evalPrg (Psi, (newP, t))
+	   end )
+
 
    (* other cases should not occur -cs *)
    (* | evalPrg (Psi, (T.EVar ((D, r as ref NONE, F)), t))
@@ -188,15 +201,22 @@ struct
 	in
           T.Dot (T.Prg (T.EVar (Psi, ref NONE, Normalize.normalizeFor (F, t))), t)
 	end
-(*      | createVarSub (Psi, I.Decl (Psi', T.UDec (I.BDec (name, (cid, s))))) =	
-          T.Dot (T.Block (I.LVar (ref NONE, (cid, s))),
-		 createVarSub (Psi, Psi'))  *)
+
       | createVarSub (Psi, I.Decl (Psi', T.UDec (I.Dec (name, V)))) =
         let 
 	  val t = createVarSub (Psi, Psi')
 	in
 	  T.Dot (T.Exp (I.EVar (ref NONE, T.coerceCtx Psi, I.EClo (V, T.coerceSub t), ref [])), t)  
 	end 
+
+      (* abp *)
+      | createVarSub (Psi, I.Decl (Psi', T.UDec (I.BDec (name, (cid, s))))) =	
+	let
+	  val t = createVarSub (Psi, Psi')
+	in
+          T.Dot (T.Block (I.LVar (ref NONE, I.id, (cid, s))), t)
+	end
+
 
  (* matchSub (t1, t2) = ()
        
