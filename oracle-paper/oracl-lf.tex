@@ -5,10 +5,10 @@
 \usepackage{proof}
 \usepackage{code}
 \usepackage{epsfig}
+\usepackage{pstricks,pst-node,pst-tree}
 \usepackage{graphics}
 \usepackage{psfrag}
 \usepackage{color}
-\usepackage{pstricks,pst-node,pst-tree}
 
 \newcommand{\mygray}{\color{green}}
 \newcommand{\mygreen}{\color{green}}
@@ -1419,14 +1419,14 @@ Example & Proof Search & Proof Compression
 & Oracle Verification & Proof Term & Oracle \\
 & Time (s) & Time (s) & Time (s) & Size (Bytes) & Size (Bytes)\\
 \hline
-refine-41 & 2.514 & 1.632 & 1.482 & 15630 & 183\\
-refine-42 & 3.755 & 2.193 & 2.114 & 18531 & 234\\
-refine-43 & 4.779 & 2.634 & 2.684 & 20317 & 259\\
-refine-44 & 0.600 & 0.371 & 0.260 & 6075 & 80\\
-refine-45 & 0.712 & 0.300 & 0.180 & 6075 & 80\\
-refine-46 & 0.892 & 0.300 & 0.180 & 7061 & 85\\
-refine-47 & 5.879 & 2.314 & 2.194 & 24825 & 268\\
-refine-48 & 5.247 & 2.765 & 2.133 & 24478 & 264\\
+refine-41 & 2.514 & 1.182 & 1.252 & 15630 & 169\\
+refine-42 & 3.755 & 1.993 & 1.612 & 18531 & 211\\
+refine-43 & 4.779 & 2.023 & 1.933 & 20317 & 259\\
+refine-44 & 0.600 & 0.150 & 0.130 & 6075 & 47\\
+refine-45 & 0.712 & 0.121 & 0.130 & 6075 & 47\\
+refine-46 & 0.892 & 0.130 & 0.140 & 7061 & 50\\
+refine-47 & 5.879 & 2.243 & 2.063 & 24825 & 242\\
+refine-48 & 5.247 & 2.143 & 2.033 & 24478 & 237\\
 \hline
 \end{tabular}
 \end{small}
@@ -1450,14 +1450,14 @@ Example & Tabled Compression
 & Untabled Compression & Oracle & Oracle & Table size\\
 & Time (s) & Time (s) & Size (Bytes) & Size (Bytes) &\\
 \hline
-refine-41 & 1.632 & 0.231 & 171 & 171 & 579\\
-refine-42 & 2.193 & 0.270 & 216 & 216 & 691\\
-refine-43 & 2.634 & 0.340 & 239 & 239 & 757\\
-refine-44 & 0.381 & 0.070 & 67 & 67 & 164\\
-refine-45 & 0.300 & 0.050 & 67 & 67 & 164\\
-refine-46 & 0.300 & 0.050 & 72 & 72 & 179\\
-refine-47 & 2.314 & 0.731 & 247 & 247 & 794\\
-refine-48 & 2.765 & 0.422 & 243 & 243 & 775\\
+refine-41 & 1.182 & 0.080 & 169 & 171 & 579\\
+refine-42 & 1.993 & 0.270 & 211 & 216 & 691\\
+refine-43 & 2.023 & 0.120 & 234 & 239 & 757\\
+refine-44 & 0.150 & 0.030 & 47 & 67 & 164\\
+refine-45 & 0.121 & 0.020 & 47 & 67 & 164\\
+refine-46 & 0.130 & 0.030 & 50 & 72 & 179\\
+refine-47 & 2.243 & 0.110 & 242 & 247 & 794\\
+refine-48 & 2.143 & 0.090 & 237 & 243 & 775\\
 \hline
 \end{tabular}
 \end{small}
