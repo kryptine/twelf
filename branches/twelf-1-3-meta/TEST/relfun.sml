@@ -45,7 +45,7 @@ in
     let
       val P = test names
     in
-      TextIO.print (TomegaPrint.funToString P ^ "\n")
+      (TextIO.print (TomegaPrint.funToString P ^ "\n"); P)
     end
 
 
