@@ -656,15 +656,17 @@ struct
     *)
     fun blockCases (G, Vs, cid, (Gsome, piDecs), sc) =
         let
-	  val s = createEVarSub (G, Gsome)
-	  val lvar = I.newLVar (cid, s)
+	  val t = createEVarSub (G, Gsome) (* G is unnecessary here *)
+	  (* . |- t : Gsome *)
+	  (* Thu Dec  6 20:20:13 2001 -fp *)
+	  val lvar = I.newLVar (cid, t)
 	in
-	  blockCases' (G, Vs, (lvar, 1), (s, piDecs), sc)
+	  blockCases' (G, Vs, (lvar, 1), (t, piDecs), sc)
 	end
-    and blockCases' (G, Vs, (lvar, i), (s, nil), sc) = ()
-      | blockCases' (G, Vs, (lvar, i), (s, I.Dec (_, V')::piDecs), sc) =
+    and blockCases' (G, Vs, (lvar, i), (t, nil), sc) = ()
+      | blockCases' (G, Vs, (lvar, i), (t, I.Dec (_, V')::piDecs), sc) =
         let
-	  val (U, Vs') = createAtomProj (G, I.Proj (lvar, i), (V', s))
+	  val (U, Vs') = createAtomProj (G, I.Proj (lvar, i), (V', t))
 	  (*
 	  val _ = print ("U  = " ^ Print.expToString (G, U) ^ ";\n"
 			 ^ "V'= " ^ Print.expToString (G, I.EClo Vs') ^ ";;\n"
@@ -673,9 +675,9 @@ struct
 	  val _ = CSManager.trail (fn () => if Unify.unifiable (G, Vs, Vs')
 					      then sc U
 					    else ())
-	  val s' = I.Dot (I.Exp (I.Root (I.Proj (lvar, i), I.Nil)), s)
+	  val t' = I.Dot (I.Exp (I.Root (I.Proj (lvar, i), I.Nil)), t)
 	in
-          blockCases' (G, Vs, (lvar, i+1), (s', piDecs), sc)
+          blockCases' (G, Vs, (lvar, i+1), (t', piDecs), sc)
 	end
 
     fun worldCases (G, Vs, W.Worlds (nil), sc) = ()
@@ -724,8 +726,7 @@ struct
 	  val _ = print ("!- " ^ Print.expToString (I.Null, V') ^ "\n")
 	  val _ = if !Global.doubleCheck
 		    then TypeCheck.typeCheck (I.Null, (V', I.Uni(I.Type)))
-		         handle TypeCheck.Error (msg) => print ("-- " ^ msg ^ "\n")
-		  else print ("++ Type well-formed\n")
+		  else ()
 	in
 	  V'
 	end

@@ -256,7 +256,9 @@ struct
     and collectDec (G, (I.Dec (_, V), s), K) =
           collectExp (G, (V, s), K)
       | collectDec (G, (I.BDec (_, (_, t)), s), K) =
-	  collectSub (G, I.comp (t, s), K)      (* Nov 26 11:28:36 EST 2001 -cs *)
+	  collectSub (I.Null, t, K)
+    (* note: . |- t : Gsome, so do not compose with s !!! *)
+    (* was : collectSub (G, I.comp (t, s), K) *)  (* Nov 26 11:28:36 EST 2001 -cs *)
 
     (* collectSub (G, s, K) = K' 
 
@@ -274,15 +276,18 @@ struct
       (* missing case Fri Nov 23 11:39:07 2001 -fp
          added -cs *)
 
+    (* G is redundant in collectBlock -fp *)
     and collectBlock (G, I.LVar (ref (SOME B), _), K) =
           collectBlock (G, B, K)
-      | collectBlock (G, L as I.LVar (_, (l, s)), K) = 
-        (* was: collectSub (G, s, K) *)
+      | collectBlock (G, L as I.LVar (_, (l, t)), K) = 
+        (* was: collectSub (G, t, K) *)
 	(* bug: did not collect LVar itself *)
 	(* Sun Dec  2 12:20:31 2001 !!! -fp *)
+	(* note : . |- t : Gsome for l : SOME Gsome. BLOCK piDecs *)
+	(* Thu Dec  6 20:26:04 2001 !!! -fp *)
         if exists (eqLVar L) K
-	  then collectSub (G, s, K)
-	else I.Decl (collectSub (G, s, K), LV L)
+	  then collectSub (I.Null, t, K)	(* was collectSub (G, t, K) *)
+	else I.Decl (collectSub (I.Null, t, K), LV L)
     (* collectBlock (G, I.Bidx _, K) = K *)
     (* should be impossible: Fronts of substitutions are never Bidx *)
 
@@ -383,8 +388,6 @@ struct
 		  abstractSpine (K, depth, (S, s)))
       | abstractExpW (K, depth, (I.Root (I.Proj (L as I.LVar _, i), S), s)) =
 	  I.Root (I.Proj (abstractLVar (K, depth, L), i),  
-		  (* can we just ignore s here? 
-		     Wed May 30 11:02:43 EDT 2001 -cs *)
 		  abstractSpine (K, depth, (S, s)))
       | abstractExpW (K, depth, (I.Root (H, S) ,s)) =
 	  I.Root (H, abstractSpine (K, depth, (S, s)))   
@@ -466,6 +469,7 @@ struct
     fun abstractSOME (K, I.Shift n) =
         (* fixed this case Sun Dec  2 12:53:48 2001 -fp !!! *)
         (* was I.Shift (n) *)
+        (* by invariant, n = 0? *)
           I.Shift (n+I.ctxLength(K))
       | abstractSOME (K, I.Dot (I.Idx k, s)) = 
           I.Dot (I.Idx k, abstractSOME (K, s))

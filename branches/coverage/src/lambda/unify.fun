@@ -310,8 +310,17 @@ struct
       | pruneHead (G, H as Const _, ss, rOccur, prunable) = H
       | pruneHead (G, H as Proj (Bidx k, i), ss, rOccur, pruneable) = H 
          (* added this case Nov 26 11:28:36 EST 2001 -cs !!! *)
-      | pruneHead (G, Proj (LVar (r, (l, s)), i), ss, rOccur, prunable) = 
-	   Proj (LVar (r, (l, pruneSub (G, s, ss, rOccur, prunable))), i)
+         (* I dont' think the above case should ever happen *)
+      | pruneHead (G, H as Proj (LVar (r, (l, t)), i), ss, rOccur, prunable) = 
+        (* correct??? Thu Dec  6 20:31:31 2001 -fp !!!??? *)
+        (* to me, this make no sense: then the same reference could
+           occur with different substitutions in different places
+           Thu Dec  6 21:04:33 2001 -fp 
+        *)
+        (* claim: LVar does not need to be pruned since . |- t : Gsome *)
+	(* was:  Proj (LVar (r, (l, pruneSub (G, t, ss, rOccur, prunable))), i) *)
+	 ( pruneSub (Null, t, comp (ss, Shift (ctxLength G)), rOccur, false) ;
+	   H )
       | pruneHead (G, H as Skonst _, ss, rOccur, prunable) = H
       | pruneHead (G, H as Def _, ss, rOccur, prunable) = H
       | pruneHead (G, FVar (x, V, s'), ss, rOccur, prunable) =
@@ -647,7 +656,8 @@ struct
 
        Remark:  unifySub is used only to unify the instantiation of SOME variables
     *)
-	 
+    (* conjecture: G == Null at all times *)
+    (* Thu Dec  6 21:01:09 2001 -fp *)
     and unifySub (G, Shift (n1), Shift (n2)) = ()
          (* by invariant *)
       | unifySub (G, Shift(n), s2 as Dot _) = 
@@ -681,8 +691,11 @@ struct
 	       otherwise redundant?  -fp !!!
 	       Wed Nov 28 10:08:00 2001
 	       *)
-	    (unifySub (G, comp (t1, s1), comp (t2, s2));
-	     unifySub (G, t1, t2);
+	    ((* unifySub (G, comp (t1, s1), comp (t2, s2)); *)
+	     (* above is wrong: . |- ti : Gsome *)
+	     (* below replaces G by I.Null *)
+	     (* Thu Dec  6 20:33:24 2001 -fp !!! *)
+	     unifySub (Null, t1, t2);
 	     instantiateLVar (r1, L))
 
 
