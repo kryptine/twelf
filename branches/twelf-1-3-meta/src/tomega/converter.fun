@@ -1488,19 +1488,22 @@ exception Error' of Tomega.Sub
 	end
 *)
 
+    fun depthConj (T.And (F1, F2)) =
+        1+ depthConj F2
+      | depthConj F = 1
 
-    fun createProjection (Psi, T.And (F1, F2), Pattern) = 
+    fun createProjection (Psi, F as T.And (F1, F2), Pattern) = 
           createProjection (I.Decl (Psi, T.PDec (NONE, F1)), F2, 
-			    fn P => T.PairPrg (T.Root (T.Var (2+ I.ctxLength Psi), T.Nil),
+			    fn P => T.PairPrg (T.Root (T.Var (depthConj F), T.Nil),
 					       Pattern P))
       | createProjection (Psi, F,  Pattern) =
           fn k => T.Case (T.Cases [(I.Decl (Psi, T.PDec (NONE, F)),
 			    T.Dot (T.Prg (Pattern (T.Root (T.Var 1, T.Nil))), 
-				   T.Shift (I.ctxLength Psi)),
+				   T.Shift (1+I.ctxLength Psi)),
 			    T.Root (T.Var k, T.Nil))])
 	  
 	  
-    fun installProjection (nil, n, F, Proj) = nil
+    fun installProjection (nil, _, F, Proj) = nil
       | installProjection (cid :: cids, n, F, Proj) = 
         let
 	  val P = T.Lam (T.PDec (NONE, F), 
@@ -1508,7 +1511,7 @@ exception Error' of Tomega.Sub
 	  val name = I.conDecName (I.sgnLookup cid)
 	  val lemma = T.lemmaAdd (T.ValDec ("#" ^ name, P, F))
 	in
-	  lemma :: installProjection (cids, n+1, F, Proj)
+	  lemma :: installProjection (cids, n-1, F, Proj)
 	end
 
 
@@ -1543,7 +1546,7 @@ exception Error' of Tomega.Sub
 	let 
 	  val F = convertFor cids
 	  val Proj = createProjection (I.Null, F, fn P => P)
-	  val projs = installProjection (cids, 1, F, Proj)
+	  val projs = installProjection (cids, depthConj F, F, Proj)
 
 	  val P = convertPrg (cids, SOME projs)
 	  val s = name cids

@@ -336,6 +336,7 @@ struct
     *)
     fun invertSub s =
       let 
+	(* ABP 1/29/03 *)
 	fun lookup (n, Shift _, p) = NONE
 	  | lookup (n, Dot (Undef, s'), p) = lookup (n+1, s', p)
 	  | lookup (n, Dot (Idx k, s'), p) = 
