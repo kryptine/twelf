@@ -2,13 +2,13 @@
    Author: Carsten Schuermann
 *)
 
+(* 
 id :: world (base)
 	all {N:exp} exists {M:exp} true
 
 fun id X = <X, <>>
+*)
 
-
-(*
 
 add :: world (base) 
 	all {N:exp} all {M:exp} exists {K:exp} true
@@ -20,6 +20,7 @@ fun add (A.z) M = <M, <>>
     in	
 	<(A.s) K, <>>
     end
+(*
 
 
 id :: world (base)
