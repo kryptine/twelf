@@ -38,6 +38,7 @@ struct
     | DEFINE				(* `%define' *) (* -rv 8/27/01 *)
     | SOLVE				(* `%solve' *)
     | QUERY	  			(* `%query' *)
+    | FQUERY	  			(* `%fquery' *)
     | QUERYTABLED  			(* `%querytabled *)
     | MODE				(* `%mode' *)
     | COVERS				(* `%covers' *) (* -fp 3/7/01 *)
@@ -232,6 +233,7 @@ struct
       | lexPragmaKey (ID(_, "define"), r) = (DEFINE, r) (* -rv 8/27/01 *)
       | lexPragmaKey (ID(_, "solve"), r) = (SOLVE, r)
       | lexPragmaKey (ID(_, "query"), r) = (QUERY, r)
+      | lexPragmaKey (ID(_, "fquery"), r) = (FQUERY, r)
       | lexPragmaKey (ID(_, "querytabled"), r) = (QUERYTABLED, r)
       | lexPragmaKey (ID(_, "freeze"), r) = (FREEZE, r)
       | lexPragmaKey (ID(_, "deterministic"), r) = (DETERMINISTIC, r) (* -rv 11/27/01 *)
@@ -341,6 +343,7 @@ struct
     | toString' (DEFINE) = "%define"    (* -rv 8/27/01 *)
     | toString' (SOLVE) = "%solve"
     | toString' (QUERY) = "%query"
+    | toString' (FQUERY) = "%fquery"
     | toString' (QUERYTABLED) = "%querytabled"
     | toString' (MODE) = "%mode"
     | toString' (COVERS) = "%covers"

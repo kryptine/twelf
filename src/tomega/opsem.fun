@@ -222,10 +222,12 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
         let 
 	  (* val I.Null = Psi *)
 	  val t = createVarSub (Psi, Psi') (* Psi |- t : Psi' *)
-		  			  (* Psi' |- t2 o shift(k) : Psi'' *)
+		  			  (* Psi' |- t2 . shift(k) : Psi'' *)
 
 	  val t' = T.comp (t2, t)
 	in
+	  (* Note that since we are missing the shift(k), it is possible
+	   * that t' has extra DOTs in there that weren't removed *)
 	  ( matchSub (Psi, t1, t'); 
 	   evalPrg (Psi, (P, Normalize.normalizeSub t)))
 	  handle NoMatch => match (Psi, t1, T.Cases C)	  

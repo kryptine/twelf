@@ -31,6 +31,7 @@ sig
     | DEFINE				(* `%define' *) (* -rv 8/27/01 *)
     | SOLVE				(* `%solve' *)
     | QUERY				(* `%query' *)
+    | FQUERY				(* `%fquery' *)
     | QUERYTABLED			(* `%querytabled' *)
     | MODE				(* `%mode' *)
     | COVERS				(* `%covers' *) (* -fp 3/7/01 *)

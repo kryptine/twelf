@@ -330,9 +330,11 @@ structure Redundant : REDUNDANT  =
       | mergeCase (L as (Psi1, t1, P1)::O,  C as ((Psi2, t2, P2), tAfter)) = 
       let
 
+	(* Psi1 |- t1 o Shift^k1 : Psi1' *)
+        (* Psi
+
 	(* val _ = printCtx(Psi1)
 	val _ = printCtx(Psi2)
-
 	  *)
 
 	(* Psi1 |- t1: Psi1' *)
@@ -354,7 +356,7 @@ structure Redundant : REDUNDANT  =
 	 P1 makes sense in Psi1, t1 goes from Psi1' to Psi1. 
 
 	 Psi1 |- t1 : P1 => Psi1'
-	 Psi2 |- t3:  P2 => Psi1'
+	 Psi2 |- t3 : P2 => Psi1'
 	 *)
 
 	val t = Opsem.createVarSub (Psi1, Psi2) (* Psi1 |- t : Psi2 *)
