@@ -43,8 +43,21 @@ structure Converter = Converter
 
 
 
+structure Opsem = Opsem
+  (structure Global = Global
+   structure IntSyn' = IntSyn
+   structure Abstract = Abstract
+   structure Tomega' = Tomega
+   structure TypeCheck = TypeCheck
+   structure Normalize = Normalize
+   structure Unify = UnifyTrail
+   structure Conv = Conv
+   structure Whnf = Whnf
+   structure Subordinate = Subordinate
+   structure TomegaPrint = TomegaPrint
+   structure Print = Print
+   structure Weaken = Weaken);
 
      
 
 
- 
