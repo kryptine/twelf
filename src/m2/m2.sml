@@ -160,4 +160,6 @@ structure Skolem =
 	  structure Print = Print
 	  structure Timers = Timers
 	  structure Compile = Compile
+	  structure CompSyn = CompSyn
+	  structure CPrint = CPrint
 	  structure Names = Names);

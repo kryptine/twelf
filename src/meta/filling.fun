@@ -14,6 +14,8 @@ functor MTPFilling (structure MTPGlobal : MTPGLOBAL
 		    structure MTPData : MTPDATA
 		    structure Search   : MTPSEARCH
   		      sharing Search.StateSyn = StateSyn'
+		    structure SearchTabled   : MTPSEARCHTABLED
+  		      sharing SearchTabled.StateSyn = StateSyn'
 		    structure Whnf : WHNF
 		      sharing Whnf.IntSyn = IntSyn)
   : MTPFILLING =
@@ -32,7 +34,8 @@ struct
 
     exception Success of int
 
-    (* Checking for constraints: Used to be in abstract, now must be done explicitly! --cs*)
+    (* Checking for constraints: Used to be in abstract, 
+     now must be done explicitly! --cs*)
 
     (* createEVars (G, F) = (Xs', P')
       
@@ -66,20 +69,35 @@ struct
        If   |- S state
        then op' is an operator which performs the filling operation
     *)
-    fun expand (S as S.State (n, (G, B), (IH, OH), d, O, H, F)) = 
+
+    fun expandItDeep (S as S.State (n, (G, B), (IH, OH), d, O, H, F)) = 
 	let 
 	  val _ = if (!Global.doubleCheck) then TypeCheck.typeCheckCtx (G) else ()
 	  val (Xs, P) = createEVars (G, (F, I.id))
 	in
-	  fn () => ((Search.searchEx (!MTPGlobal.maxFill, Xs, fn max => (if (!Global.doubleCheck) then 
-						       map (fn (X as I.EVar (_, G', V, _)) => 
-							    TypeCheck.typeCheck (G', (X, V))) Xs
-						     else []; raise Success max));
-		     raise Error "Filling unsuccessful")
+	  fn () => ((Search.searchEx (!MTPGlobal.maxFill, Xs, fn max =>  raise Success max);
+		    raise Error "Filling unsuccessful")
 	            handle Success max => (MTPData.maxFill := Int.max (!MTPData.maxFill, max);
 					   (max, P)))
 	end
+
+
+    fun expandTabled (S as S.State (n, (G, B), (IH, OH), d, O, H, F)) = 
+	let 
+ 	  val (Xs, P) = createEVars (G, (F, I.id)) 
+	in
+	  fn () => ((SearchTabled.searchEx (!MTPGlobal.maxFill, Xs, (fn max => raise Success max));
+		     if !Global.chatter > 3 then print "TABLED FILLING FAILED\n" else ();
+		     raise Error "Filling unsuccessful")
+	            handle Success max => ((* print "FILLING SUCCESSFUL!!!\n ";*) MTPData.maxFill := Int.max (!MTPData.maxFill, max);
+					   (max, P)))
+	end
     
+    fun expand (S as S.State (n, (G, B), (IH, OH), d, O, H, F)) = 
+      (case (!MTPGlobal.prover) of
+	 MTPGlobal.Memo => expandTabled (S)
+       | MTPGlobal.New => expandItDeep (S))
+	 handle Error s =>  raise Error "Filling unsuccessful"
 
     (* apply op = B' 
 
@@ -96,10 +114,14 @@ struct
        then s' is a string describing the operation in plain text
     *)
     fun menu _ =  "Filling   (tries to close this subgoal)" 
-      
+
+    val tableReset = SearchTabled.tableReset
   in
     val expand = expand
+    val expandItDeep = expandItDeep
+    val expandTabled = expandTabled
     val apply = apply
     val menu = menu
+    val tableReset = tableReset
   end (* local *)
 end; (* functor Filling *)

@@ -145,6 +145,7 @@ sig
   type cnstr = Cnstr ref
 
   exception Error of string		(* raised if out of space     *)
+
   
   val conDecName   : ConDec -> string
   val conDecParent : ConDec -> mid option

@@ -15,16 +15,17 @@ Group is
 
   abstract.sig  
   abstract.fun 
-(*  index.sig
-  index.fun  *)
 
   subtree.fun 
+(*  subtree.back.fun *)
   subtree-inst.fun 
   sw-subtree.fun
   sw-subtree.sig
 
   tabled.sig
   tabled.fun    
+  tabled-sbt.fun    
+  swtabled.fun    
 
   absmachine.sig
   absmachine.fun

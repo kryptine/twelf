@@ -18,19 +18,18 @@ struct
   local
     open IntSyn
 
-   (* 
-     templates
-           p ::= Root(n, NIL) | Root(c, SP) | EVar (X, V) | AVar A |
-	         Lam (D, p)
-                   where X is uninstantiated and occurs uniquely
-		   any multiple occurrence of X has been renamed to A.
+   (* Linear higher-order patterns 
+     
+      p ::= Root(n, NIL) | Root(c, SP) | EVar (X, V) | AVar A |
+            Lam (D, p)
+      where X is uninstantiated and occurs uniquely
+      any multiple occurrences of X hav been renamed to A.
                   
-                 any eta-expanded EVar remains an EVar 
-                 but it may be lowered during whnf (or in the special case here 
-                 expansion)
+      any eta-expanded EVar remains an EVar 
+      but it may be lowered during whnf (or in the special case here 
+      expansion)
 
-          SP ::= p ; SP | NIL
-
+      SP ::= p ; SP | NIL
    *)
 
   (* assignExpW (G, (U1, s1), (U2, s2)) = ()
@@ -155,23 +154,12 @@ struct
       | solveCnstr (Eqn(G, U1, U2)::Cnstr) = 
         (Unify.unifiable(G, (U1, id), (U2, id)) andalso solveCnstr Cnstr)
 	
-  fun printSub (Shift n) = print ("Shift " ^ Int.toString n ^ "\n")
-    | printSub (Dot(Idx n, s)) = (print ("Idx " ^ Int.toString n ^ " . "); printSub s)
-    | printSub (Dot (Exp(EVar (_, _, _, _)), s)) = (print ("Exp (EVar _ ). "); printSub s)
-    | printSub (Dot (Exp(AVar (_)), s)) = (print ("Exp (AVar _ ). "); printSub s)
-    | printSub (Dot (Exp(EClo (AVar (_), _)), s)) = (print ("Exp (AVar _ ). "); printSub s)
-    | printSub (Dot (Exp(EClo (_, _)), s)) = (print ("Exp (EClo _ ). "); printSub s)
-    | printSub (Dot (Exp(_), s)) = (print ("Exp (_ ). "); printSub s)
-    | printSub (Dot (Undef, s)) = (print ("Undef . "); printSub s)
-
 
     fun unifyW (G, (Xs1 as AVar(r as ref NONE), s), Us2) = 
-          ((* print "Unify - avar \n" ;*) r := SOME(EClo(Us2)))
+          r := SOME(EClo(Us2))
       | unifyW (G, Xs1 as (X, s), Us2) = 
 	  (* Xs1 should not contain any uninstantiated AVar anymore *)
-	  ((* print "Unify - no avar \n";
-	   printSub s;*)
-	  Unify.unifyW(G, Xs1, Us2))
+	   Unify.unifyW(G, Xs1, Us2)
       
     fun unify(G, Xs1, Us2) = unifyW (G, Whnf.whnf Xs1, Whnf.whnf Us2)
 
@@ -181,10 +169,6 @@ struct
     fun unifiable (G, Us1, Us2) = 
         (unify (G, Us1, Us2); true)
          handle Unify.Unify msg => false
-
-    (*
-    fun assign(G, Us1, Us2) = assignExp(G, Us1, Us2, [])
-    *)
 
     fun assignable (G, Us1, Uts2) = 
         (SOME(assignExp (G, Us1, Uts2, []))

@@ -342,9 +342,9 @@ and raises exception Done if bound has been reached, otherwise it returns
 		     then (print ("\n---------- Solutions " ^ Int.toString (!solutions) ^ 
 				  " ----------\n");
 			   print ((Timers.time Timers.printing evarInstToString) Xs ^ " \n"))
-		   else if !Global.chatter >= 1
+		   else (if !Global.chatter >= 1
 			  then print "."
-			else ();
+			else ());
 		   (case optName
 		      of NONE => ()
 		    | SOME(name) => (print (CompSyn.pskeletonToString O); print "\n";
@@ -434,7 +434,7 @@ and raises exception Done if bound has been reached, otherwise it returns
 		     (case (!TableParam.strategy) of
 			    TableParam.Variant =>  print "\n       Table Strategy := Variant \n"
 			 |  TableParam.Subsumption => print "\n       Table Strategy := Subsumption \n");
-		     (case (!TableParam.termDepth) of
+(*		     (case (!TableParam.termDepth) of
 			    NONE => print ("\n       Term Depth Abstraction := NONE \n")
 			  | SOME(d) => print ("\n       Term Depth Abstraction := " ^
 					       Int.toString(d) ^ "\n"));
@@ -447,7 +447,7 @@ and raises exception Done if bound has been reached, otherwise it returns
 		     (case (!TableParam.ctxLength) of
 			    NONE => print ("\n       Ctx Length Abstraction := NONE \n")
 			  | SOME(d) => print ("\n       Ctx Length Abstraction := " ^
-					       Int.toString(d) ^ "\n"));
+					       Int.toString(d) ^ "\n"));*)
 
 
 		     (if (!TableParam.strengthen) then 

@@ -18,6 +18,20 @@ functor MTPSearch (structure Global : GLOBAL
 		   sharing Assign.IntSyn = IntSyn'	
 		   structure Index : INDEX
 		   sharing Index.IntSyn = IntSyn'
+
+		structure Queue : QUEUE
+		structure TableParam : TABLEPARAM
+		  sharing TableParam.IntSyn = IntSyn'
+		  sharing TableParam.CompSyn = CompSyn'
+
+		structure AbstractTabled : ABSTRACTTABLED
+		  sharing AbstractTabled.IntSyn = IntSyn'
+		  sharing AbstractTabled.TableParam = TableParam
+		structure MemoTable : MEMOTABLE
+		  sharing MemoTable.IntSyn = IntSyn' 
+		  sharing MemoTable.CompSyn = CompSyn' 
+		  sharing MemoTable.TableParam = TableParam 
+
 		   structure Compile : COMPILE
 		   sharing Compile.IntSyn = IntSyn'
 		   sharing Compile.CompSyn = CompSyn'
@@ -154,6 +168,17 @@ struct
   fun eqHead (I.Const a, I.Const a') = a = a'
     | eqHead (I.Def a, I.Def a') = a = a'
     | eqHead _ = false
+
+    (* raiseType (G, V) = {{G}} V
+
+       Invariant:
+       If G |- V : L
+       then  . |- {{G}} V : L
+
+       All abstractions are potentially dependent.
+    *)
+    fun raiseType (I.Null, V) = V
+      | raiseType (I.Decl (G, D), V) = raiseType (G, I.Pi ((D, I.Maybe), V))
                               
   (* solve ((g,s), (G,dPool), sc, (acc, k)) => ()
      Invariants:
@@ -166,7 +191,12 @@ struct
 	    used in the universal case for max search depth)
        if  G |- M :: g[s] then G |- sc :: g[s] => Answer, Answer closed
   *)
-  fun solve (max, depth, (C.Atom p, s), dp, sc) = matchAtom (max, depth, (p,s), dp, sc)
+  fun solve (max, depth, (C.Atom p, s), dp as C.DProg(G, dPool), sc) = 
+    let
+    val _ = if !Global.chatter >= 5 then (print "mpi : SOLVE (original)"; print (Print.expToString(I.Null, raiseType(G, I.EClo(p,s))) ^ "\n")) else ()
+    in 
+      matchAtom (max, depth, (p,s), dp, sc)
+    end 
     | solve (max, depth, (C.Impl (r, A, Ha, g), s), C.DProg (G, dPool), sc) =
        let
 	 val D' = I.Dec (NONE, I.EClo (A, s))
@@ -304,6 +334,11 @@ struct
 	fun matchSig' nil = ()
 	  | matchSig' (Hc ::sgn') =
 	    let
+	      val c = (case Hc
+			    of I.Const cid => (if !Global.chatter >= 5 then print("\n " ^ Int.toString(max) ^"  try const : " ^ 
+				 Names.qidToString(Names.constQid(cid)) ^ "\n") else (); cid)
+			     | I.Skonst cid => (if !Global.chatter >= 5 then print("\n " ^ Int.toString(max) ^"  try skolem : " ^ 
+				 Names.qidToString(Names.constQid(cid)) ^ "\n") else (); cid))
 	      val C.SClause(r) = C.sProgLookup (cidFromHead Hc)
 	      val _ = CSManager.trail
 		      (fn () =>
@@ -317,6 +352,7 @@ struct
 	  | matchDProg (I.Decl (dPool', SOME (r, s, Ha')), n) =
 	    if eqHead (Ha, Ha') then
 	      let
+		val _ = if !Global.chatter >= 5 then print ("try dynamic clause " ^ Int.toString (n) ^ "\t") else ()
 		val _ = CSManager.trail (fn () =>
 			    rSolve (max-1,depth, ps', (r, I.comp (s, I.Shift n)), dp,
 				    (fn S => sc (I.Root (I.BVar n, S)))))
@@ -348,6 +384,7 @@ struct
 	  solve (max, 0, (Compile.compileGoal (G, V), I.id), 
 		 Compile.compileCtx false G, 
 		 (fn U' => (Unify.unify (G, (X, I.id), (U', I.id));
+(*			    print ("PROOF " ^ Print.expToString (I.Null, A.raiseType(G, U') ^ "\t max = " ^ Int.toString (max) ^ "\n");*)
 					 searchEx' max (GE, sc)) handle Unify.Unify _ => ()))
 
     (* deepen (f, P) = R'

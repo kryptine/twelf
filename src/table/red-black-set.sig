@@ -36,6 +36,7 @@ sig
   val app : 'a ordSet -> ('a -> unit) -> unit
   val update : 'a ordSet -> ('a -> 'a) -> 'a ordSet
 
+  val setToList : 'a ordSet -> (int * 'a) list
   (* Applies f:'a entry -> unit to all entries in the set
      pre-order traversal *)
   val forall : 'a ordSet -> ('a entry -> unit) -> unit

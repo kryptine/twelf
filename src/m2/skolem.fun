@@ -13,8 +13,18 @@ functor Skolem (structure Global : GLOBAL
 		  sharing ModeSyn.IntSyn = IntSyn'
 		structure Print : PRINT
 		  sharing Print.IntSyn = IntSyn'
+		structure CompSyn : COMPSYN
+		  sharing CompSyn.IntSyn = IntSyn'
+
 		structure Compile : COMPILE
-		  sharing Compile.IntSyn = IntSyn'
+		   sharing Compile.IntSyn = IntSyn'
+		   sharing Compile.CompSyn = CompSyn
+
+		    (* CPrint currently unused *)
+		 structure CPrint : CPRINT 
+		   sharing CPrint.IntSyn = IntSyn'
+		   sharing CPrint.CompSyn = CompSyn
+
 		structure Timers : TIMERS
 		structure Names : NAMES
 		  sharing Names.IntSyn = IntSyn')
@@ -78,7 +88,8 @@ struct
 		    val _ = IndexSkolem.install H
 		    val _ = Names.installConstName sk
 		    val _ = (Timers.time Timers.compiling Compile.install) false sk
-(*		    val CompSyn.SClause r = CompSyn.sProgLookup sk *)
+		    val CompSyn.SClause r = CompSyn.sProgLookup sk 
+		    val _ = print ("SKOLEM " ^ (CPrint.clauseToString "\t" (IntSyn.Null, r) ^ "\n"))
 		    val S = spine d
 		    val _ = if !Global.chatter >= 3 
 			      then TextIO.print (Print.conDecToString SD ^ "\n")

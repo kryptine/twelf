@@ -689,6 +689,7 @@ struct
     val unifyW = unifyW     
     val unify = unify
     val unifyBlock = unifyBlock
+    fun unifySubst (G, s, s') = unifySub (G, s, s')
 
     fun invertible (G, Us, ss, rOccurr) =
           (pruneExp (G, Us, ss, rOccurr, false); true)
@@ -702,5 +703,7 @@ struct
     fun unifiable' (G, Us1, Us2) = 
           (unify (G, Us1, Us2); NONE)
           handle Unify(msg) => SOME(msg)
+
+
   end
 end;  (* functor Unify *)

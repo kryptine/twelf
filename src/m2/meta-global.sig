@@ -5,6 +5,9 @@ signature METAGLOBAL =
 sig
   datatype Strategy = RFS | FRS
 
+  datatype ProverType = New | Old | Memo 
+
+  val prover : ProverType ref
   val strategy : Strategy ref
   val maxFill : int ref
   val maxSplit : int ref

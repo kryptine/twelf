@@ -6,7 +6,8 @@ sig
 
   structure IntSyn  : INTSYN
   structure CompSyn : COMPSYN
-  structure Unify : UNIFY 
+  structure TableParam : TABLEPARAM
+(*  structure Unify : UNIFY *)
 
   val solve     : (CompSyn.Goal * IntSyn.Sub) * CompSyn.DProg
                   * (CompSyn.pskeleton -> unit) -> unit

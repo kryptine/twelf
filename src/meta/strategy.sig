@@ -7,4 +7,8 @@ sig
 
   val run : StateSyn.State list -> StateSyn.State list * StateSyn.State list 
               (* open cases -> remaining cases * solved cases *)
+
+(*  val runTabled : StateSyn.State list -> StateSyn.State list * StateSyn.State list *)
+
+  val tableReset : unit -> unit
 end;  (* signature MTPSTRATEGY *)

@@ -25,16 +25,6 @@ structure SubTree =
 	  structure Table = IntRedBlackTree
 	  structure RBSet = RBSet)
 
-(* old compile structure Mon Jun 17 09:43:18 2002 -bp 
-structure Compile =
-  Compile (structure IntSyn' = IntSyn
-	   structure CompSyn' = CompSyn
-	   structure Whnf = Whnf
-	   structure TypeCheck = TypeCheck
-	   structure CPrint = CPrint
-	   structure Print = Print
-	   structure Names = Names);
-*)
 structure Compile =
   Compile (structure IntSyn' = IntSyn
 	   structure CompSyn' = CompSyn

@@ -81,18 +81,6 @@ struct
 	   clauseToString t (IntSyn.Decl(G, D'), r)
 	 end
 
-(*
-      | clauseToString t (G, Axists(sopt, r)) =
-	 let
-	   val s = case sopt of
-	     NONE => (ctr := ctr+1 ; ("X_" ^ Int.tostring ctr))
-	       | SOME s => s
-	 in 
-	   t ^ "EXISTS' " ^ s ^ "\n" ^ 
-	   clauseToString t (IntSyn.Decl(G, D'), r) 
-	 end
-*)
-
 
     fun subgoalsToString t (G, True) = t ^ "True "
       | subgoalsToString t (G, Conjunct(Goal, Sg)) = 

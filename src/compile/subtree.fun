@@ -1,6 +1,5 @@
 (* Substitution Tree indexing *)
 (* Author: Brigitte Pientka *)
-
 functor SubTree (structure IntSyn' : INTSYN
                  structure CompSyn' : COMPSYN
 		   sharing CompSyn'.IntSyn = IntSyn'
@@ -33,25 +32,26 @@ struct
   type bvar = int      (* index for bound variables *)
   type bdepth = int    (* depth of locally bound variables *)
 
+  (* A substitution tree is defined as follows:
+     Node := Leaf (ns, G, sgoal) | Node(ns, Set of Nodes)
+     normal linear modal substitutions ns := . | R/n, ns
 
-  (* normal (linear) substitutions *)
+   For each node we have the following invariant:
+        S |- ns : S'    i.e. ns substitutes for internal variables
+        G'|- as : G     i.e. as substitutes for assignable variables
+        G |- qs : G     i.e. qs substitutes for modal variables 
+                             occuring in the query term
+  *) 
+ 
+  type normalSubsts =  IntSyn.Exp RBSet.ordSet  (* key = int = bvar *) 
 
-  (* key = int = nvar *)
-  (* we don't need to carry a ctx here, a number is enough? or even nothing at all ? 
-     as we never compare the ctx anyway it is a implicit assumpbtion *)
-  (* type normalSubsts = (IntSyn.Dec IntSyn.Ctx * IntSyn.Exp) RBSet.ordSet  *)
-   type normalSubsts =  IntSyn.Exp RBSet.ordSet  
-
+  datatype AssSub = Assign of (IntSyn.Dec IntSyn.Ctx * IntSyn.Exp)
+  type assSubsts = AssSub RBSet.ordSet          (* key = int = bvar *) 
 
   type querySubsts = (IntSyn.Dec IntSyn.Ctx * IntSyn.Exp) RBSet.ordSet 
 
-  (* assignable (linear) subsitutions *)
-  datatype AssSub = Assign of (IntSyn.Dec IntSyn.Ctx * IntSyn.Exp)
-  type assSubsts = AssSub RBSet.ordSet  (* key = int = bvar *) 
-
-  type cnstrSubsts = IntSyn.Exp RBSet.ordSet  (* key = int = bvar *) 
-  
   datatype Cnstr = Eqn of IntSyn.Dec IntSyn.Ctx * IntSyn.Exp * IntSyn.Exp
+  type cnstrSubsts = IntSyn.Exp RBSet.ordSet    (* key = int = bvar *)   
 
   datatype CGoal = CGoals of CompSyn.AuxGoal * IntSyn.cid * CompSyn.Conjunction * int (* cid of clause *)
     
@@ -61,23 +61,26 @@ struct
 
    type candidate = (assSubsts * normalSubsts * cnstrSubsts * Cnstr * IntSyn.Dec IntSyn.Ctx * CGoal)
 
-   val nid : unit -> normalSubsts = RBSet.new 
+   (* Initialization of substitutions *)
+   val nid         : unit -> normalSubsts = RBSet.new 
    val assignSubId : unit -> assSubsts = RBSet.new 
-   val cnstrSubId : unit -> cnstrSubsts = RBSet.new   (* substitution: nvars -> avars for cnstr *)
-   val querySubId : unit -> querySubsts = RBSet.new   (* query substitution *)
+   val cnstrSubId  : unit -> cnstrSubsts = RBSet.new   
+   val querySubId  : unit -> querySubsts = RBSet.new   
 
+   (* Identity substitution *)
    fun isId s = RBSet.isEmpty s
 
+   (* Initialize substitution tree *)
    fun makeTree () = ref (Node (nid (), RBSet.new())) 
 
+   (* Test if node has any children *)
    fun noChildren C = RBSet.isEmpty C
 
 
   (* Index array                             
    
    Invariant: 
-   For all type families  a
-   indexArray = [a1,...,an]
+   For all type families  a  indexArray = [a1,...,an]
    where a1,...,an is a substitution tree consisting of all constants 
    for target family ai
 
@@ -112,107 +115,34 @@ struct
     fun raiseType (I.Null, U) = U
       | raiseType (I.Decl(G, D), U) = I.Lam(D, raiseType (G, U))
 
-    
-    fun printCnstr (nil) = print "\n"
-      | printCnstr (Eqn (G', U, U') :: Cnstr) = 
-      (print ("\n Eqn " ^ Print.expToString(G', U) ^ " =  " ^ 
-	      Print.expToString (G', U'));
-       printCnstr Cnstr)
-
-    (* ------------------------------------------------------------- *)
-    (* goalToString (G, g) where G |- g  goal *)
-    fun goalToString t (G, C.Atom(p), s) =
-	 t ^ "SOLVE   " ^ Print.expToString (G, I.EClo(p,s)) ^ "\n"
-      | goalToString t (G, C.Impl (p,A,_,g), s) =
-	 t ^ "ASSUME  " ^ Print.expToString (G, I.EClo(A, s)) ^ "\n" ^
-	 (clauseToString (t ^ "\t") (G, p, s) ^
-	 goalToString t (IntSyn.Decl(G, IntSyn.Dec(NONE, A)), g, I.dot1 s) ^ "\n")
-      | goalToString t (G, C.All(D,g), s) =
-	 let
-	   val D' = Names.decLUName (G, D)
-	 in
-	   t ^ "ALL     " ^
-	   Formatter.makestring_fmt (Print.formatDec (G, D')) ^ "\n" ^
-	   goalToString t (IntSyn.Decl (G, D'), g, I.dot1 s) ^ "\n"
-	 end
-
-    (* clauseToString (G, r) where G |- r  resgoal *)
-    and clauseToString t (G, C.Eq(p), s) =
-	 t ^ "UNIFY   " ^ Print.expToString (G, I.EClo(p, s)) ^ "\n"
-      | clauseToString t (G, C.Assign(p, ga), s) =
-	 (t ^ "ASSIGN  " ^ (Print.expToString (G, I.EClo(p, s))  handle _ => "<exc>")
-	 ^ "\n" )
-      | clauseToString t (G, C.And(r, A, g), s) =
-	 clauseToString t (IntSyn.Decl(G, IntSyn.Dec(NONE, A)), r, I.dot1 s) ^
-	 goalToString t (G, g, s)
-      | clauseToString t (G, C.Exists(D, r), s) =
-	 let
-	   val D' = Names.decEName (G, D)
-	 in
-	   t ^ "EXISTS  " ^
-	   (Print.decToString (G, D') handle _ => "<exc>") ^ "\n" ^
-	   clauseToString t (IntSyn.Decl(G, D'), r, I.dot1 s)
-	 end
-
-      | clauseToString t (G, C.Axists(D as IntSyn.ADec(SOME(n), d), r), s) =
-	 let
-	   val D' = Names.decEName (G, D)
-	 in
-	   t ^ "EXISTS'  " ^
-	   (Print.decToString (G, D') handle _ => "<exc>") ^ "\n" ^
-	   clauseToString t (IntSyn.Decl(G, D'), r, I.dot1 s)
-	 end
-
-    fun subgoalsToString t (G, C.True, s) = t ^ "True "
-      | subgoalsToString t (G, C.Conjunct(Goal, Sg), s) = 
-        t  ^ goalToString t (G, Goal, s) ^ subgoalsToString t (G, Sg, s)
-
-
-    (* ------------------------------------------------------ *)      
-    (* Auxiliary functions *)
-    fun cidFromHead (I.Const c) = c
-      | cidFromHead (I.Def c) = c
-
-    fun dotn (0, s) = s
-      | dotn (i, s) = dotn (i-1, I.dot1 s)
-
-    fun compose'(IntSyn.Null, G) = G
-      | compose'(IntSyn.Decl(G, D), G') = IntSyn.Decl(compose'(G, G'), D)
-      
-    fun shift (IntSyn.Null, s) = s
-      | shift (IntSyn.Decl(G, D), s) = I.dot1 (shift(G, s))
-
-    fun raiseType (I.Null, U) = U
-      | raiseType (I.Decl(G, D), U) = I.Lam(D, raiseType (G, U))
-
    (* 
-     templates
-           p ::= Root(n, NIL) | Root(c, SP) | Lam (D, p)
-	         Root(b, SP) 
+     Linear normal higher-order patterns
+           p ::= n | Root(c, S) | Root(b, S) | Lam (D, p)
 
 	         where n is a linear bound "normalized" variable 	
 
-          SP ::= p ; SP | NIL
+          SP ::= p ; S | NIL
 
      Context 
         G : context for bound variables (bvars)
             (type information is stored in the context)
         G ::= . | G, x : A
 
-        N : context for linear normalized bound variables (nvars)
+        S : context for linear normalized bound variables (nvars)
             (no type information is stored in the context)
-        N ::= . | N, n 
+            (these are the types of the variables definitions)
+        S ::= . | S, n 
 
-     Templates: N ; G |- p 
-     Substitutions: N' ; G |- nsub : N
+     Templates: G ; S |- p 
+     Substitutions: G ; S |- nsub : S'
 
     Let s is a substitution for normalized bound variables (nvars)
     and nsub1 o nsub2 o .... o nsubn = s, s.t.  
-     N_2, G |- nsub1 : N_1 
-     N_3, G |- nsub2 : N_2
+     G, S_2|- nsub1 : S_1 
+     G, S_3|- nsub2 : S_2
       ....
-          G |- nsubn : N_n
-      . ; G |- s : N_1 ; G
+     G |- nsubn : S_n
+      . ; G |- s : G, S_1 
 
     A term U can be decomposed into a term p together with a sequenence of
     substitutions s1, s2, ..., sn such that s1 o s2 o .... o sn = s
@@ -222,11 +152,11 @@ struct
 
     then 
 
-       N ; G |- p   
+       G, S |- p   
 
-       . ; G |- s : N ; G
+        G |- s : G, S
  
-           G |- p[s]     and p[s] = U
+        G |- p[s]     and p[s] = U
 
    In addition: 
    all expressions in the index are linear, i.e.
@@ -245,7 +175,7 @@ struct
    fun newNVar () =
      (nctr := !nctr + 1; 
       I.NVar(!nctr))
-     
+  
      
    fun eqHeads (I.Const k, I.Const k') =  (k = k')
      | eqHeads (I.BVar k, I.BVar k') = (k = k')
@@ -302,15 +232,15 @@ struct
   (* compatibleSub(nsub_t, nsub_e) = (sg, rho_t, rho_e) opt  
    
    if dom(nsub_t) <= dom(nsub_e) 
-      codom(nsub_t) : templates (may contain normal vars)
-      codom(nsub_e) : expressions
+      codom(nsub_t) : linear hop in normal form (may contain normal vars)
+      codom(nsub_e) : linear hop in normal form (does not contain normal vars)
    then      
-     nsub_t = sg o rho_t
-     nsub_e = sg o rho_e
+     nsub_t = [rho_t]sg
+     nsub_e = [rho_e]sg
 
-    G_e, Glocal_e |- nsub_e : N
-    G_t, Glocal_t |- nsub_t : N'
-    N' <= N 
+    G_e, Glocal_e |- nsub_e : Sigma
+    G_t, Glocal_t |- nsub_t : Sigma'
+    Sigma' <= Sigma 
  
     Glocal_e ~ Glocal_t  (have approximately the same type)
 
@@ -318,32 +248,26 @@ struct
   fun compatibleSub (nsub_t, nsub_e) = 
     let
       val (sg, rho_t, rho_e) = (nid(), nid (), nid ()) 
-(*      val (sg, rho_e, rho_t) = S.splitSets nsub_e nsub_t  	
-	(fn E => fn T => compatible (T, E, rho_t', rho_e'))
-*)
      (* by invariant rho_t = empty, since nsub_t <= nsub_e *)
       val _ =  S.forall nsub_e
 	(fn (nv, E) => 
 	 (case (S.lookup nsub_t nv)
-	    of SOME (T) =>     (* note by invariant Glocal_e ~ Glocal_t *) 
-	      (* maybe we should just store the depth of Glocal ? *)
+	    of SOME (T) =>     (* by invariant Glocal_e ~ Glocal_t, 
+				therefore T and E have the same approximate type A *) 
 	      (case compatible (T, E, rho_t, rho_e)
 		 of NONE => (S.insert rho_t (nv, T);
 			     S.insert rho_e (nv, E))
-	       | SOME(T') => S.insert sg (nv, T')) (* here Glocal_t will be only approximately correct! *)
+	       | SOME(T') => S.insert sg (nv, T')) 
 	  | NONE => S.insert rho_e (nv, E)))
     in 
       if isId(sg)
 	then NONE
       else 	
-(*	 SOME(sg, S.union rho_t rho_t', S.union rho_e rho_e') *)
 	 SOME(sg, rho_t, rho_e)
     end
 
-
-  fun mkLeaf (s, (G, RC), n) = Leaf (s, G, RC)
-
-  fun mkNode (Node(c, Children), sg, rho1, GR as (G, RC), rho2) = 
+  (* mkNode (N, sg, r1, (G, RC), r2) = N'    *)
+  fun mkNode (Node(_, Children), sg, rho1, GR as (G, RC), rho2) = 
       let
 	val c = S.new()
       in 
@@ -351,7 +275,7 @@ struct
 				(2, Leaf(rho2, G, RC))];
        Node(sg, c)
       end 
-    | mkNode (Leaf(c, G1, RC1 as CGoals(AuxG1, cid1, ConjGoals1, i1)), sg, rho1, GR as (G2, RC2 as CGoals(AuxG2, cid2, ConjGoals2, i2)), rho2) = 
+    | mkNode (Leaf(_, G1, RC1), sg, rho1, GR as (G2, RC2), rho2) = 
       let
 	val c = S.new()
       in 
@@ -360,20 +284,34 @@ struct
 	Node(sg, c)
       end 
 
-  fun compareChild (N, children, (n, child), nsub_t, nsub_e, GR as (G_clause2, Res_clause2)) = 
+
+  (* Insertion *)
+  (* compareChild (children, (n, child), n, n', (G, R)) = ()
+    
+   *)
+  fun compareChild (children, (n, child), nsub_t, nsub_e, GR as (G_clause2, Res_clause2)) = 
     (case compatibleSub (nsub_t, nsub_e) of
-       NONE => (S.insert children (n+1, Leaf(nsub_e, G_clause2, Res_clause2)); N)
+       NONE => (S.insert children (n+1, Leaf(nsub_e, G_clause2, Res_clause2)))
      | SOME(sg, rho1, rho2) => 
 	 (if isId rho1 then
 	   if isId rho2 
 	     then (* sg = nsub_t = nsub_e *)
-	       (S.insertShadow children (n, mkNode(child, sg, rho1, GR, rho2)); N)
+	       (S.insertShadow children (n, mkNode(child, sg, rho1, GR, rho2)))
 	   else 
 	     (* sg = nsub_t and nsub_e = sg o rho2 *)
-	     (S.insertShadow children (n, insert (child, rho2, GR)); N)
+	     (S.insertShadow children (n, insert (child, rho2, GR)))
 	 else 		   
-	   (S.insertShadow children (n, mkNode(child, sg, rho1, GR, rho2)); N)))
+	   (S.insertShadow children (n, mkNode(child, sg, rho1, GR, rho2)))))
 
+  (* insert (N, nsub_e, (G, R2)) = N'
+
+     if s is the substitution in node N
+        G |- nsub_e : S and 
+    G, S' |- s : S
+    then 
+     N' contains a path n_1 .... n_n s.t. 
+     [n_n] ...[n_1] s = nsub_e 
+  *)
   and insert (N as Leaf (nsub_t, G_clause1, R1), nsub_e, GR as (G_clause2, R2)) = 
     (case compatibleSub(nsub_t, nsub_e) of
        NONE => raise Error "Leaf is not compatible substitution r"
@@ -387,9 +325,9 @@ struct
        else 	 
 	 (case (S.last children) 
 	    of (n, child as Node(nsub_t, children')) => 
-	      compareChild (N, children, (n, child), nsub_t, nsub_e, GR)
+	      (compareChild (children, (n, child), nsub_t, nsub_e, GR); N)
           | (n, child as Leaf(nsub_t, G1, RC1)) => 
-	      compareChild (N, children, (n, child), nsub_t,  nsub_e, GR))
+	      (compareChild (children, (n, child), nsub_t,  nsub_e, GR); N))
 
 
   (* retrieval (U,s)
@@ -775,7 +713,8 @@ struct
       fun solveCandidate (i, candSet) = 
 	case (S.lookup candSet i) 
 	  of NONE => ((* print "No candidate left anymore\n" ;*) () )
-	   | SOME(assignSub, nsub_left, cnstrSub, cnstr, Gclause, Residuals (* CGoals(AuxG, cid, ConjGoals, i) *)) => 
+	   | SOME(assignSub, nsub_left, cnstrSub, cnstr, Gclause, Residuals 
+	         (* CGoals(AuxG, cid, ConjGoals, i) *)) => 
 	     (S.forall nsub_left (fn (nv, U) => case (S.lookup cnstrSub nv) 
 					                 of NONE =>  raise Error "Left-over nsubstitution" 
 						       | SOME(I.AVar A) => A := SOME(U));
@@ -820,7 +759,7 @@ struct
     val sProgReset = sProgReset
     val sProgInstall = sProgInstall
     val matchSig = matchSig 
-    val goalToString = goalToString 
+(*    val goalToString = goalToString *)
 
   end (* local *)
 end; (* functor SubTree *)

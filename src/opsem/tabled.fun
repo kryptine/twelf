@@ -44,6 +44,7 @@ struct
   structure CompSyn = CompSyn'
   structure Unify = Unify
   structure TabledSyn = TabledSyn
+  structure TableParam = TableParam
 
   local
     structure I = IntSyn
@@ -54,27 +55,27 @@ struct
   in
     
     (* ---------------------------------------------------------------------- *)
-    (* Suspended goal: (p,s), G, sc, ftrail, answerRef, i
+    (* Suspended goal: SuspType, s, G, sc, ftrail, answerRef, i
 
-       current program state          : G |- p[s]
-       forward trail                  : ftrail
-       pointer to potential answers 
-       in the memo-table              : answerRef
-       Number of answer which already
-       have been consumed  by this 
-       current program state          : i
+       where 
+       s is a substitution for the existential variables in D such that G |- s : G, D
+       sc        : is the success continuation
+       ftrail    : is a forward trail
+       answerRef : pointer to potential answers in the memo-table 
+       i         : Number of answer which already have been consumed  by this 
+                   current program state 
 
     *)
-    datatype SuspType = Loop | Divergence
-    (* note: that dctx and exp and DProg are not really needed *)     
-    val SuspGoals : (((SuspType * (IntSyn.dctx * IntSyn.Exp * IntSyn.Sub) * CompSyn.DProg * 
-		       (CompSyn.pskeleton -> unit)) * 
+    datatype SuspType = Loop | Divergence of ((IntSyn.Exp * IntSyn.Sub) * CompSyn.DProg)
+
+    val SuspGoals : ((SuspType * (IntSyn.dctx * IntSyn.Sub) *  (CompSyn.pskeleton -> unit) * 
 		      Unify.unifTrail * (IntSyn.Sub * T.answer) * int ref)  list) ref  = ref []
 
     exception Error of string
 
-    (* ---------------------------------------------------------------------- *)
-      
+  (* ---------------------------------------------------------------------- *)
+  (* auxiliary function *)
+       
    fun cidFromHead (I.Const a) = a
      | cidFromHead (I.Def a) = a
      
@@ -82,23 +83,11 @@ struct
      | eqHead (I.Def a, I.Def a') = a = a'
      | eqHead _ = false
 
-    fun concat (I.Null, G') = G'
-      | concat (I.Decl(G, D), G') = I.Decl(concat(G,G'), D)
+   fun append(IntSyn.Null, G) = G
+     | append(IntSyn.Decl(G', D), G) = IntSyn.Decl(append(G', G), D)
 
-    fun reverse (I.Null, G') = G'
-      | reverse (I.Decl(G, D), G') = 
-          reverse (G, I.Decl(G', D))
-
-    fun compose'(IntSyn.Null, G) = G
-      | compose'(IntSyn.Decl(G', D), G) = IntSyn.Decl(compose'(G', G), D)
-
-
-    fun append(IntSyn.Null, G) = G
-      | append(IntSyn.Decl(G', D), G) = IntSyn.Decl(append(G', G), D)
-
-
-    fun shift (IntSyn.Null, s) = s
-      | shift (IntSyn.Decl(G, D), s) = I.dot1 (shift(G, s))
+   fun shift (IntSyn.Null, s) = s
+     | shift (IntSyn.Decl(G, D), s) = I.dot1 (shift(G, s))
 
 
     (* ---------------------------------------------------------------------- *)
@@ -120,13 +109,18 @@ struct
 
     (* ---------------------------------------------------------------------- *)
 
-    (* ctxToEVarSub D = s*)
+
+    (* ctxToEVarSub D = s 
+
+     if D is a context for existential variables, 
+        s.t. u_1:: A_1,.... u_n:: A_n = D
+     then . |- s : D where s = X_n....X_1.id 
+
+    *)
 
     fun ctxToEVarSub (I.Null, s) = s
       | ctxToEVarSub (I.Decl(G,I.Dec(_,A)), s) = 
       let
-(*	val X = I.newEVar (I.Null, I.EClo (A,s))   (* ???? *) 
-        bp Wed Feb 20 11:06:51 2002 *)
 	val X = I.newEVar (I.Null, A)
       in
 	I.Dot(I.Exp(X), ctxToEVarSub (G, s))
@@ -135,8 +129,6 @@ struct
     fun ctxToAVarSub (I.Null, s) = s
       | ctxToAVarSub (I.Decl(G,I.Dec(_,A)), s) = 
       let
-(*	val X = I.newEVar (I.Null, I.EClo (A,s))   (* ???? *) 
-        bp Wed Feb 20 11:06:51 2002 *)
 	val X = I.newEVar (I.Null, A)
       in
 	I.Dot(I.Exp(X), ctxToAVarSub (G, s))
@@ -150,169 +142,110 @@ struct
       end 
 
 
-    (* ---------------------------------------------------------------------- *)
-    fun printSub (I.Shift n) = print ("I.Shift " ^ Int.toString n ^ "\n")
-    | printSub (I.Dot(I.Idx n, s)) = (print ("Idx " ^ Int.toString n ^ " . "); printSub s)
-    | printSub (I.Dot (I.Exp(I.EVar (_, _, _, _)), s)) = (print ("Exp (EVar _ ). "); printSub s)
-    | printSub (I.Dot (I.Exp(I.AVar (_)), s)) = (print ("Exp (AVar _ ). "); printSub s)
-    | printSub (I.Dot (I.Exp(I.EClo (I.AVar (_), _)), s)) = (print ("Exp (EClo(AVar _, _ )). "); printSub s)
-    | printSub (I.Dot (I.Exp(I.EClo (_, _)), s)) = (print ("Exp (EClo _ ). "); printSub s)
-    | printSub (I.Dot (I.Exp(_), s)) = (print ("Exp (_ ). "); printSub s)
-    | printSub (I.Dot (I.Undef, s)) = (print ("Undef . "); printSub s)
+ (* ---------------------------------------------------------------------- *)
+ (* Solving  variable definitions *)
+ (* solveEqn ((VarDef, s), G) = bool
 
-    fun printResEqn (G, T.Trivial) = print "Trivial\n"
-      | printResEqn (G, T.Unify(G', U, N, eqn)) = 
-        let
-	  val (G'') = compose'(G', G)
-	  val s1 = shift (G', I.id) 
-	  val _ = case s1 of I.Shift 0 => () | _ => print "s1 =/= id\n"
-	  val _ = case U of I.Root(I.BVar k, S) => print ("UNIFY BV " ^ Int.toString k ^ " ")
-	                  | _ =>  ()
-	  val _ = case N of I.Root(I.BVar k, S) => print ("= BV " ^ Int.toString k ^ "\n ")
-	                  | _ =>  ()
-	    
-	in 
-	  (print "Unify "; print (Print.expToString (I.Null, A.raiseType(G'', I.EClo(U, s1)))); print " = ";
-	   print (Print.expToString (G'', I.EClo(N, s1)) ^ "\n");
-	   printResEqn (G, eqn))
-	  end 
-
-
-    fun printResEqnSub (D, G, T.Trivial, s) = print "Trivial\n"
-      | printResEqnSub (D, G, T.Unify(G', U, N, eqn), s) = 
-        let
-	  val (G'') = compose'(G', G)
-	  val s1 = shift (G', s) 
-          val d = I.ctxLength (G'')
-	  val _ = print ("d = " ^ Int.toString d ^ "\n")
-	in 
-	  (print "Unify "; print (Print.expToString (I.Null, A.raiseType(compose'(G'', D), I.EClo(U, I.comp(s1, I.Shift d))))); print " = ";
-	   print (Print.expToString (compose'(G'', D), I.EClo(N, I.comp(s1, I.Shift d))) ^ "\n");
-	   printResEqnSub (D, G, eqn, s))
-	  end 
-
-   (* ---------------------------------------------------------------------- *)
-
-   (* retrieve' (n, G, ((M, V), s), answ_i, sc) = ()
-    
-     G |- s : G'
-     G' |- M : V atomic goal 
-
-     and answ_i = s_1 .... s_n
-   
-     for all k from 1 to n:
-
-     if G |- M [s_k] : V[s_k]
-     then sc M[s_k] is evaluated 
-          where any bound var in Gas, is replaced by
-            an existential variable
-
-     Effects: instantiation of EVars in V, s, and dp
-              any effect  sc M  might have
-
-    n is just a counter which answer substitution
-    we are currently considering -- only for debugging 
-     
-   *)
-
+    if G'' |- VarDef and G   |- s : G''
+       G   |- VarDef[s]
+    then 
+       return true, if VarDefs are solvable
+              false otherwise
+ *)
+  
   fun solveEqn ((T.Trivial, s), G) = true
     | solveEqn ((T.Unify(G',e1, N, eqns), s), G) =
       let
-	val G'' = compose' (G', G)
+	val G'' = append (G', G)
 	val s' = shift (G'', s)
       in
 	Assign.unifiable (G'', (N, s'), (e1, s'))
 	andalso solveEqn ((eqns, s), G)
      end
 
-  (* instantiateSub (s, s') = r
-     
-      . |- s : D  and X_m, ...X_1, A_n, ...A_1
-      . |- s': D  and X'_m, ...X'_1, A'_n, ..., A'_1
-     
 
-  *)
-  fun lengthSub (I.Shift n) = 0
-    | lengthSub (I.Dot(U, s)) = 1 + lengthSub (s)
-
-
-  (* in general it should be possible to s1 o s and s2 o s'
-     note: there is a problem that the final shift is not |D_i|
-     apparently... even if we change it in abstract.fun it doesn't quite work right 
+ (* unifySub (G, s1, s2) = ()
      
-     *)
-
-    (* unifySub (G, s1, s2) = ()
-     
-       Invariant:
-       If   G |- s1 : G'
-       and  G |- s2 : G'
-       then unifySub (G, s1, s2) terminates with () 
-	    iff there exists an instantiation I, such that
+    Invariant:
+    If   G |- s1 : G'
+    and  G |- s2 : G'
+    then unifySub (G, s1, s2) terminates with () 
+    iff there exists an instantiation I, such that
 	    s1 [I] = s2 [I]
 
-       Remark:  unifySub is used only to unify the instantiation of SOME variables
+    Remark:  unifySub is used only to unify the instantiation of SOME variables
+    
+    is this correct? - bp
     *)
-    (* conjecture: G == Null at all times *)
-    (* Thu Dec  6 21:01:09 2001 -fp *)
-    and unifySub (G, I.Shift (n1), I.Shift (n2)) = ()
-         (* by invariant *)
-      | unifySub (G, I.Shift(n), s2 as I.Dot _) = 
-          unifySub (G, I.Dot(I.Idx(n+1), I.Shift(n+1)), s2)
-      | unifySub (G, s1 as I.Dot _, I.Shift(m)) = 
-	  unifySub (G, s1, I.Dot(I.Idx(m+1), I.Shift(m+1)))
-      | unifySub (G, I.Dot(Ft1,s1), I.Dot(Ft2,s2)) =
-	  ((case (Ft1, Ft2) of
-	     (I.Idx (n1), I.Idx (n2)) => 
-	       if n1 <> n2 then raise Error "SOME variables mismatch"
-	       else ()                      
-           | (I.Exp (U1), I.Exp (U2)) => Unify.unify (G, (U1, I.id), (U2, I.id))
-	   | (I.Exp (U1), I.Idx (n2)) => Unify.unify (G, (U1, I.id), (I.Root (I.BVar (n2), I.Nil), I.id))
-           | (I.Idx (n1), I.Exp (U2)) => Unify.unify (G, (I.Root (I.BVar (n1), I.Nil), I.id), (U2, I.id)));
-(*	   | (Undef, Undef) => 
-	   | _ => false *)   (* not possible because of invariant? -cs *)
-	  unifySub (G, s1, s2))
+  fun unifySub (G, I.Shift (n1), I.Shift (n2)) = if (n1 = n2) then () else raise Error "Ctx mismatch"
+         (* by invariant n1 = n2 *)
+    | unifySub (G, I.Shift(n), s2 as I.Dot _) = 
+       unifySub (G, I.Dot(I.Idx(n+1), I.Shift(n+1)), s2)
+    | unifySub (G, s1 as I.Dot _, I.Shift(m)) = 
+       unifySub (G, s1, I.Dot(I.Idx(m+1), I.Shift(m+1)))
+    | unifySub (G, I.Dot(Ft1,s1), I.Dot(Ft2,s2)) =
+       ((case (Ft1, Ft2) of
+	   (I.Idx (n1), I.Idx (n2)) => 
+	     if n1 <> n2 then raise Error "SOME variables mismatch"
+	     else ()                      
+	 | (I.Exp (U1), I.Exp (U2)) => Unify.unify (G, (U1, I.id), (U2, I.id))
+	 | (I.Exp (U1), I.Idx (n2)) => Unify.unify (G, (U1, I.id), (I.Root (I.BVar (n2), I.Nil), I.id))
+	 | (I.Idx (n1), I.Exp (U2)) => Unify.unify (G, (I.Root (I.BVar (n1), I.Nil), I.id), (U2, I.id)));
+(*       | (Undef, Undef) => 
+	 | _ => false *)   (* not possible because of invariant? -cs *)
+	   unifySub (G, s1, s2))
 
   fun unifySub' (G, s1, s2) = (unifySub (G, s1, s2); true) handle Unify.Unify _ => false
 
-    (* see retrieve *)      
-   fun retrieve' (n, goal, G, Vs, (G', U'), asub, [], sc)  = ()
-     | retrieve' (n, goal, G, Vs as (V,s), (G', U'), asub, (((DEVars, s1), O1)::A), sc) =  
-     let 
-       val Vpi = A.raiseType(G, V)
-       val Upi = A.raiseType(G', U')
 
-       val s1' = ctxToEVarSub (DEVars, I.id) (* from DEVars |- s1 : D  and D' |- asub : D
-					        create: DEVars' |-  r1 : D' 
-						s.t. s1 = asub o r1 *) 
-       val _ = print ("Retrieve answer " ^ C.pskeletonToString O1 ^ "\n")
+
+   (* retrieve' ((G, s), asub, AnswerList, sc) = ()
+    
+    Invariant:
+    if G  |- s : (D, G) where s contains free existential variables defined in D
+     and (D_i, answ_i, O) in AnswerList
+     where answ_i = X_1 .... X_n
+     and D_i, G |- answ_i : D, G
+              G |- s1 : G, D_i 
+       
+    then unify s with s1 o answ. if this succeeds the success continuation is triggered. 
+
+     Effects: instantiation of EVars in V, s, and dp
+              any effect  sc M  might have
+ 
+
+    G |- asub : D, G  asub is the identity in the variant case
+    G |- asub : D, G  asub instantiates some existential variables in s. 
+     
+   *)
+
+   fun retrieve' ((G, s), asub, [], sc)  = ()
+     | retrieve' ((G, s), asub, (((DEVars, s1), O1)::A), sc) =  
+     let 
+       val s1' = ctxToEVarSub (DEVars, I.id)
      in
-         CSManager.trail (fn () => if unifySub' (I.Null, I.comp(asub, s), I.comp(s1, s1'))  
-				   then ((sc O1)) else ());
-       retrieve' (n+1, goal, G, Vs, (G', U'), asub, A, sc)
+       CSManager.trail (fn () => if unifySub' (G, s, I.comp(s1, s1'))
+				   then (sc O1) else ());
+       retrieve' ((G, s), asub, A, sc)
      end 
    
 
-   (* retrieve (G, (V, s), ((G', D', U'), A), sc) = ()
+   (* retrieve (k, (G, s), (asub, answRef), sc) = ()
       Invariants:
-     . |-   s : D    (s contains free vars)
-     D |-  Pi G. V
-       |- (Pi G. V)[s]
-     D'|-  Pi G'. U'    
-     for each i where i in [0...k] and  ((Di, si), Oi) in A 
+      If
+         G |-   s : G, D   where s contains free existential variables defined in D
+     and answRef is a pointer to the AnswerList
 
-    if . |- si' : Di
-      (Pi G. V)[s] ==  (Pi G'.U')[si][si'] 
-    then evaluate (sc Oi)
+        G |- asub : D, G  asub is the identity in the variant case
+        G |- asub : D, G  asub instantiates some existential variables in s. 
 
-     !!! important part: . |- s : D
-     !!! U = V, and G = G' 
-     !!! goal, U, V, G, G' are really not important
-     !!! what should happen: s is matched against s_i (where s_i is an answer)
-     Effects: instantiation of EVars in s, and G
-              any effects the success continuation might have   
+     then the success continuation sc is triggered.
+
+     Effects: instantiation of EVars in V, s, and dp
+              any effect  sc M  might have
+ 
    *)
-    and retrieve (k, goal, G, Vs as (V, s), (H as ((G', U), (asub, answRef))), sc) =
+    and retrieve (k, (G, s), (asub, answRef), sc) =
         let
 	  val lkp  = T.lookup(answRef) 
 	  val asw' = List.take(rev(T.solutions(answRef)), 
@@ -320,7 +253,7 @@ struct
 	  val answ' = List.drop(asw', !k) 
 	in 
 	k := lkp;
-        retrieve' (0,goal, G, Vs, (G', U), asub, answ', sc)
+        retrieve' ((G, s), asub, answ', sc)
 	end
 
   (* ---------------------------------------------------------------------- *)
@@ -339,41 +272,29 @@ struct
      (if TabledSyn.tabledLookup (I.targetFam p) 
 	then 
 	  let 
-	    val _ = (print "SOLVE (original)"; print (Print.expToString(I.Null, A.raiseType(G, I.EClo(p,s))) ^ "\n"))
-(*	    val (G', DAVars, DEVars, U', eqn', s') = CSManager.trail(fn () => A.abstractEVarCtx (G, p, s))*)
 	    val (G', DAVars, DEVars, U', eqn', s') = A.abstractEVarCtx (G, p, s)
-	    val _ = print "SOLVE (abstracted): "
-	    val _ = print (Print.expToString(I.Null, A.raiseType(DAVars, A.raiseType(DEVars, A.raiseType(G', U')))))
-	      
-(*	    val _ = print "solve Eqn\n"
-	    val _ = printResEqn (compose'(compose'(G', DEVars), DAVars), eqn')  *)
+
 	    val _ = if solveEqn ((eqn', s'), G')
 		      then () 
 		    else print "\nresidual equation not solvable!\n" 
-
-(* 	    val _ = print "After solving residual eqn : Reinstantiated "    *)
-(* 	    val _ = print (Print.expToString(I.Null, I.EClo(A.raiseType(G', U'), s')) ^ "\n")   *)
-
-(* 	    val _ = print (Print.expToString (G', I.EClo(U', (shift(G',s')))) ^ "\n") (* equiv. to the one above *)   *)
-	 
 	  in
-	    case MT.callCheck (DAVars, DEVars, G', dPool, U', eqn') 
+	    case MT.callCheck (DAVars, DEVars, G', U', eqn') 
 	      (* Side effect: D', G' |- U' added to table *)	    
 	      of T.NewEntry (answRef) => 		
 		matchAtom ((p,s), dp, 
-			   (fn pskeleton =>			    
-			    (case MT.answerCheck (G', U', s', answRef, pskeleton)
+			   (fn pskeleton =>			    			    
+			    (case MT.answerCheck (G', s', answRef, pskeleton)
 			       of T.repeated => ()
 			     | T.new      => sc pskeleton)))
 		
-	       | T.RepeatedEntry(asub, answRef) => 
-	       if T.noAnswers answRef then 	    
+	       | T.RepeatedEntry(asub, _, answRef) => 
+		if T.noAnswers answRef then 	    
 		 (* loop detected  
 		  * NOTE: we might suspend goals more than once.
 		  *     case: answer list for goal (p,s) is saturated
 		  *           but not the whole table is saturated.
 		  *)
-		 (SuspGoals :=  ((Loop, (G', U',s'), dp, sc), Unify.suspend() , (asub, answRef), ref 0)::(!SuspGoals);  
+		 (SuspGoals :=  ((Loop, (G', s'), sc, Unify.suspend() , (asub, answRef), ref 0)::(!SuspGoals));  
 		  ()) 
 	       else  
 		 (* loop detected
@@ -384,19 +305,18 @@ struct
 		   val le = T.lookup(answRef) 
 		 in 
 		   (* add to suspended goals the abstracted forms? *)
-		  SuspGoals := ((Loop, (G', U',s'), dp, sc), Unify.suspend(), (asub, answRef), ref le)::(!SuspGoals);
-		  retrieve (ref 0, A.raiseType(G, I.EClo(p,s)), G', (U' , s'), ((G', U'), (asub, answRef)), sc)
+		  SuspGoals := ((Loop, (G', s'), sc, Unify.suspend(), (asub, answRef), ref le)::(!SuspGoals));
+		  retrieve (ref 0,  (G', s'), (asub, answRef), sc)
 		end
 
-	       | T.DivergingEntry(answRef) => 
+	       | T.DivergingEntry(asub, answRef) => 
 		 (* loop detected  
 		  * NOTE: we might suspend goals more than once.
 		  *     case: answer list for goal (p,s) is saturated
 		  *           but not the whole table is saturated.
 		  *)
-		 (print "Divergence - suspended\n";
-		  SuspGoals :=  ((Divergence, (G', U', s'), dp, sc), Unify.suspend() , 
-				 (I.id, answRef), ref 0)::(!SuspGoals); 
+		 (SuspGoals :=  ((Divergence ((p,s), dp), (G', s'), sc, Unify.suspend() , 
+				 (asub, answRef), ref 0)::(!SuspGoals)); 
 		  ())
 	      end 
 	else 
@@ -481,7 +401,7 @@ struct
 	   ())
     | aSolve ((C.UnifyEq(G',e1, N, eqns), s), dp as C.DProg(G, dPool), cnstr, sc) =
       let
-	val (G'') = compose'(G', G)
+	val (G'') = append(G', G)
 	val s' = shift (G', s)
       in 
 	if Assign.unifiable (G'', (N, s'), (e1, s')) then  	  
@@ -527,8 +447,7 @@ struct
         *)
 	fun matchDProg (I.Null, _) =
 	    (* dynamic program exhausted, try signature *)
-	    ((* print "Dynamic clause pool exhausted\n";*)
-	    matchSig (Index.lookup (cidFromHead Ha)))
+	    matchSig (Index.lookup (cidFromHead Ha))
 	  | matchDProg (I.Decl (dPool', SOME(r, s, Ha')), k) =
 	    if eqHead (Ha, Ha')	      
 	      then 
@@ -575,7 +494,7 @@ struct
       then retrieve all new answers
      else fail
      *)
-  fun retrieval (Loop, (G', U', s'), dp, sc, (asub, answRef), n) =    
+  fun retrieval (Loop, (G', s'), sc, (asub, answRef), n) =    
     if T.noAnswers answRef then 	    
       (* still  no answers available from previous stages *)
       (* NOTE: do not add the susp goal to suspGoal list
@@ -585,31 +504,17 @@ struct
 	(*  new answers available from previous stages
 	 * resolve current goal with all "new" possible answers
 	 *)
-	retrieve (n, I.EClo(A.raiseType(G', U'), s'), G', (U', s'),((G', U'), (asub, answRef)), sc)
+	retrieve (n, (G', s'), (asub, answRef), sc)
 
-(*    | retrieval (Divergence, (G', U',s'), dp as C.DProg(G, dPool), sc, (asub, answRef), n) =    
-	matchAtom ((p,s), dp, 
+    | retrieval (Divergence ((p,s), dp), (G', s'), sc, (asub, answRef), n) =    
+      matchAtom ((p, s), dp, 
 		   (fn pskeleton =>
-		    case MT.answerCheck (G', U', s', answRef, pskeleton)
+		    case MT.answerCheck (G', s', answRef, pskeleton)
 		      of T.repeated => ()
-		    | T.new      => sc pskeleton
-			))
-*)
+		    | T.new      => sc pskeleton))
+
 
   
-    fun updateAbsParam () = ()
-(*      (case (!T.termDepth) of
- 	   NONE => ()
-	 | SOME(n) => T.termDepth := SOME(n+1);
-       case (!T.ctxDepth) of
- 	   NONE => ()
-	 | SOME(n) => T.ctxDepth := SOME(n+1);
-
-       case (!T.ctxLength) of
- 	   NONE => ()
-	 | SOME(n) => T.ctxLength := SOME(n+1)
-	     )
-*)
     fun tableSize () =  MT.tableSize ()
     fun suspGoalNo () =  List.length(!SuspGoals)
 
@@ -619,45 +524,30 @@ struct
 
  fun nextStage () = 
    let   
-     fun resume ([],n) = ()
-       | resume ((((Susp, (G, U,s), dp, sc), trail, (asub, answRef), k)::Goals),n) =
-       (CSManager.trail	(fn () => (Unify.resume trail;
-				   print ("Resume " ^ Print.expToString(I.Null, I.EClo(A.raiseType(G, U), s)) ^ "\n");
-				   retrieval (Susp, (G, U,s), dp, sc, (asub, answRef), k)));
-	resume (Goals, n-1))  
+     fun resume [] = ()
+       | resume (((Susp, s, sc, trail, (asub, answRef), k)::Goals)) =
+       (CSManager.trail	(fn () => (Unify.resume trail;				   
+				   retrieval (Susp, s, sc, (asub, answRef), k)));
+	resume (Goals))
       val SG = rev(!SuspGoals) 
-      val l = length(SG)
    in    
      if MT.updateTable () then 
        (* table changed during previous stage *)
-	(updateAbsParam (); 
-	 TableParam.stageCtr := (!TableParam.stageCtr) + 1;
-	 resume (SG, l);
+	(TableParam.stageCtr := (!TableParam.stageCtr) + 1;
+	 resume (SG);
 	true)
      else 
        (* table did not change during previous stage *)
        false
    end 
 
-(*
- fun solExists (p,s) = 
-   let
-     val (G', D', U', eqn', s') = A.abstractEVarCtx (I.Null, p, s)       
-   in 
-     case MT.callCheck (G', D', U', eqn') of
-       MT.NewEntry (_) => false
-     | MT.RepeatedEntry(L) => true
-   end 
-*)
 
  fun reset () = (SuspGoals := []; MT.reset(); TableParam.stageCtr := 0)
 
   fun solveQuery ((g, s), dp as C.DProg (G, dPool), sc) =
     (* only work when query is atomic -- might extend subordination relation
        and then strengthening may not be sound *)
-     case (!TableParam.strategy) of
-       TableParam.Variant =>  solve((g, s), dp, sc)
-     |  TableParam.Subsumption => solve((g, s), dp, sc) (* raise T.Error "subsumption part deleted"*)
+    solve((g, s), dp, sc)
 
   end (* local ... *)
 

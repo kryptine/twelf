@@ -22,6 +22,4 @@ Group is
   assign.sig
   assign.fun
 
-(*  abstract-tab.sig
-  abstract-tab2.fun*)
   compile.sml

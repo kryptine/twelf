@@ -41,16 +41,11 @@ struct
     
     datatype Duplicates = BVAR of int | FGN | DEF of int
 
+   (* datatype Opt = No | LinearHeads | HeadAccess | Indexing | FirstArg *)
    datatype Opt = datatype CompSyn.Opt
+ 
+   (* default = linearHeads *)
    val optimize  = CompSyn.optimize
-
-(*
-  datatype Opt = No | LinearHeads | HeadAccess | Indexing | FirstArg
-
-  (* default *) 
-  val optimize = ref LinearHeads  
-  (*  val optimize = ref indexing  *)
-*)
 
     fun cidFromHead (I.Const c) = c
       | cidFromHead (I.Def c) = c
@@ -83,15 +78,6 @@ struct
          
    no permutations or eta-expansion of arguments are allowed
    *)
-
-(*
-  fun etaSpine' (I.Nil, n) = (n=0)
-    | etaSpine' (I.App(U, S), n) =
-        if Whnf.etaContract U = n then etaSpine' (S, n-1)
-	else false
-
-  fun etaSpine (S, n) = etaSpine' (S, n) handle Eta => false
-*)
 
   fun etaSpine (I.Nil, n) = (n=0)
     | etaSpine (I.App(I.Root(I.BVar k, I.Nil), S), n) = 
@@ -310,7 +296,7 @@ struct
                       
            G |- H ResGoal  and H is linear 
        and of the form 
-           (Axists(_ , Axists( _, ....., Axists( _, Assign (E, AuxG)))))
+           (Axists(_ , Axists( _, ....., Axists( _, Assign (E, resEqn)))))
   *)
     fun compileLinearHead (G, R as I.Root (h, S)) = 
         let
@@ -332,15 +318,16 @@ struct
 	  r
 	end
   
-  (*  compileSbtHead (G, R as I.Root (h, S)) = r
+  (*  compileSbtHead (G, R as I.Root (h, S)) = (G', (H, resEqn))
 
        r is residual goal
        if G |- R and R might not be linear 
         
-       then 
-                      
-           G |- H ResGoal  and H is linear 
-          
+       then                       
+           G' |- H ResGoal  & resEqn and 
+           H is linear and 
+           G' = (G, G_new) where G_new is the context for AVars
+           resEqn are variable definitions        
   *)
     fun compileSbtHead (G, H as I.Root (h, S)) = 
         let
@@ -350,9 +337,7 @@ struct
 
 	  fun convertKRes (G, nil, 0) = G
 	    | convertKRes (G, ((d,k)::K), i) = 
-(*	      (C.Axists(I.ADec (SOME("AVar "^Int.toString i), d), convertKRes (ResG, K, i-1))) *)
-(*	      (I.Decl(convertKRes (G, K, i-1), I.ADec (SOME("AVar "^Int.toString i), d))) *)
-	    convertKRes (I.Decl(G, I.ADec (SOME("AVar "^Int.toString i), d)), K, i-1)
+  	        convertKRes (I.Decl(G, I.ADec (SOME("AVar "^Int.toString i), d)), K, i-1)
 
 	  val G' = convertKRes(G, List.rev K, left) 
 	in 
@@ -417,7 +402,7 @@ struct
   *)
 
    and compileDynamicClauseN fromCS opt (G, R as I.Root (h, S)) =      
-      if opt  andalso (!optimize = C.LinearHeads) then
+      if opt  andalso (not (!optimize = C.No)) then
 	compileLinearHead (G, R) 
       else    
         if not fromCS andalso isConstraint (h)
@@ -515,31 +500,23 @@ struct
 	C.DProg (G, compileCtx' (G))
       end
 
-
-  fun lengthSpine I.Nil = 0
-    | lengthSpine (I.App(U, S)) = 1 + lengthSpine(S)
-
-
-(*    | fistConst (i, A) = raise Error "" 	*)
-
   (* compileConDec (a, condec) = ()
      Effect: install compiled form of condec in program table.
              No effect if condec has no operational meaning
   *)
   (* Defined constants are currently not compiled *)
-  (* Mon Apr  8 22:43:32 2002 -bp *)
-  (* where is the cid corresponding to clause name ? *)
-    (* is A really normalized? *)
-(*  fun cidFromArg (C.NoFunc c) = c
-    | cidFromArg (C.FuncArg c) = c
-*)
+  (* Mon Apr  8 22:43:32 2002 -bp -- 
+    I am not sure if this is still the case.
+    Mon Feb 23 09:56:13 2004 -bp *)
+
   fun compileConDec fromCS (a, I.ConDec(_, _, _, _, A, I.Type)) =
+      (* prereq: A is in normal form *)
       (case (!C.optimize) 
 	 of C.No => C.sProgInstall (a, C.SClause (compileDynamicClause false (I.Null, A)))
        | C.LinearHeads => C.sProgInstall (a, C.SClause(compileDynamicClause true (I.Null, A)))
        | C.Indexing => 
 	   let
-	     val ((G, Head), R) = compileStaticClauseN fromCS (I.Null, I.Null, Whnf.normalize (A, I.id)) 
+	     val ((G, Head), R) = compileStaticClauseN true (*fromCS*) (I.Null, I.Null, Whnf.normalize (A, I.id)) 
 	     val _ = C.sProgInstall (a, C.SClause(compileDynamicClause true (I.Null, A)))
 	   in 
 	     case Head 
@@ -550,13 +527,13 @@ struct
 
     | compileConDec fromCS (a, I.SkoDec(_, _, _, A, I.Type)) =
       (case (!C.optimize) 
-	 of C.No => C.sProgInstall (a, C.SClause (compileDynamicClauseN fromCS true (I.Null, Whnf.normalize (A, I.id))))
-       | C.LinearHeads => C.sProgInstall (a, C.SClause (compileDynamicClauseN fromCS true (I.Null, Whnf.normalize (A, I.id))))
+	 of C.No => C.sProgInstall (a, C.SClause (compileDynamicClauseN fromCS false (I.Null, Whnf.normalize (A, I.id))))
+       | C.LinearHeads => C.sProgInstall (a, C.SClause (compileDynamicClauseN fromCS false (I.Null, Whnf.normalize (A, I.id))))
 
        | C.Indexing => 
 	   let
 	     val ((G, Head), R) = compileStaticClauseN fromCS (I.Null, I.Null, Whnf.normalize (A, I.id)) 
-	     (* install twice: in substitution tree index for logic programming and searhc
+	     (* install twice: in substitution tree index for logic programming and search
                 and in "linear head" index for proof term reconstruction *)
 	   in 
 (*	     C.sProgInstall (a, C.SClause (compileDynamicClauseN fromCS true (I.Null, Whnf.normalize (A, I.id))))*)
@@ -569,15 +546,6 @@ struct
     | compileConDec _ _ = ()
 
   fun install fromCS (cid) =  compileConDec fromCS (cid, I.sgnLookup cid)
-    (* ? Thu May 30 11:26:14 2002 -bp 
-     let
-      val cd = I.sgnLookup cid 
-    in
-      case cd
-	of I.ConDec (_, _, _, _, A, I.Type) => compileConDec fromCS (cidFromHead(I.targetHead A), cd)
-	  | _ => ()
-    end*)
-   
 
   fun sProgReset () = (SubTree.sProgReset(); C.sProgReset())
 

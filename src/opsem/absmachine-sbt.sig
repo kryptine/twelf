@@ -1,4 +1,4 @@
-(* Abstract Machine *)
+(* Abstract Machine *) 
 (* Author: Iliano Cervesato *)
 (* Modified: Jeff Polakow *)
 (* Modified: Frank Pfenning *)
