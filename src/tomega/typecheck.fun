@@ -226,8 +226,9 @@ struct
 	in
 	  ()
 	end
-(*      | checkPrgW (Psi, (T.New P, (T.All (T.UDec (T.Block (_, (cid, s))), F), t))) =
-	let 
+      | checkPrgW (Psi, (T.New P, (T.All (T.UDec (I.BDec (_, (cid, s))), F), t))) =
+raise Domain
+(*	let 
 	  val (G', _) = I.conDecBlock (I.sgnLookup cid')
 	  val D' = IDecl
 	  val _ = checkPrgW (Psi, (P
@@ -452,7 +453,8 @@ struct
 	   checkFor (I.Decl (Psi, T.UDec D), (F, T.dot1 t)))
       | checkFor (Psi, (T.And (F1, F2), t)) = 
 	  (checkFor (Psi, (F1, t)); checkFor (Psi, (F2, t)))
-	   
+      | checkFor (Psi, (T.FClo (F, t'), t)) =
+	  checkFor (Psi, (F, T.comp (t', t)))
 
 
     and checkCtx (I.Null) = ()
