@@ -967,7 +967,12 @@ struct
 	  (* . |- t : Gsome *)
 	  val sk = I.Shift (I.ctxLength(G))
 	  val t' = I.comp (t, sk)
-	  val lvar = I.newLVar (sk, (cid, t)) (* --cs Sun Dec  1 06:30:06 2002 *)
+	  val lvar = I.newLVar (sk, (cid, t))
+	             (*  BUG. Breach in the invariant:
+                         G |- sk : .
+			 . |- t: Gsome
+			 G <> .
+		      --cs Fri Jan  3 11:07:41 2003 *)
 	  (* G |- t' : Gsome *)
 	in
 	  blockCases' (G, Vs, (lvar, 1), (t', piDecs), sc)
