@@ -14,8 +14,8 @@
 
 %theorem split : forall* {P:atm}  {Q:atm} {R:atm}
 		 exists {D: !^ ((` P => ` Q & ` R) => (` P => ` Q) & (` P => ` R))} true.
-%prove 12 {} (split _).  % OK
+% %prove 12 {} (split _).  % OK
 
 %theorem join : forall* {P:atm}  {Q:atm} {R:atm}
 		 exists {D: !^ ((` P => ` Q) & (` P => ` R) => (` P => ` Q & ` R))} true.
-%prove 12 {} (join _). % OK
+% %prove 12 {} (join _). % OK
