@@ -821,9 +821,6 @@ exception Error' of Tomega.Sub
 	end
 
 
-(* TODO fix raise! *)
-
-
     (* raisePrg (G, P, F) = (P', F')) 
  
        Invariant:
@@ -857,7 +854,7 @@ exception Error' of Tomega.Sub
 
 
 
-     (* mk_iota (n) = iota
+     (* mkInst (n) = iota
 
         Invariant:
         iota = n.n-1....1
@@ -865,26 +862,6 @@ exception Error' of Tomega.Sub
     fun mkInst (0) = nil
       | mkInst (n) = I.Root (I.BVar (n), I.Nil) :: mkInst (n-1)
 
-(*    (* blockToIota (t, G, mt) = t'
-     
-       Invariant:
-       If   |- G0, G is a block ctx
-       and  G1 = deblockify G
-       and  G0, G' |- mt : G0, G1
-       and  G0, G' |- t : G0
-       then G0, G' |- t' : G0, G
-    *)
-    fun blockToIota (t, I.Null, m) = t 
-      | blockToIota (t, I.Decl (G, I.BDec (x, (c, s))), m) = 
-        let
-	  val (_, L) = I.constBlock c
-	  val n = List.length L
-	  val t' = blockToIota (t, G, m+n)
-	  val B = I.Inst (mk_iota n m)
-	in
-	  T.Dot (T.Block B, t')
-	end
-*)
     
     (* deblockify G = (G', t')
      
@@ -959,7 +936,6 @@ exception Error' of Tomega.Sub
 					(* Sigma (a) = Va *)
 					(* Psi0, Psi |- S : {G} type > type *)
 	    let 
-val _ = print "[1"
 	      val Psi1 = append (Psi0, Psi)
 					(* Psi1 = Psi0, Psi *)
 	      val w0 = I.Shift (I.ctxLength Psi)
@@ -971,14 +947,12 @@ val _ = print "[1"
 					(* Psi' |- s'' : G+ *)
 					(* G |- w'' : G+ *)
 	      val _ = TomegaTypeCheck.checkCtx Psi'
-val _ = print "]"
 	    in
 	      (SOME (w', (fn P => (Psi', s'', P), transformConc ((a, S), w))))
 	    end
 	  
         and traversePos ((Psi0, Psi, G), I.Pi ((D as I.BDec (x, (c, s)), _), V), SOME (w1, (P, Q))) =
   	    let 
-val _ = print "[2"
 	      val c' = wmap c
 	      val n = I.ctxLength Psi0 + I.ctxLength G
 (*	      val s' = mediateSub (n, I.Shift (n+I.ctxLength Psi0)) *)
@@ -989,7 +963,6 @@ val _ = print "[2"
 	      val (Gsome', Lpi') = I.constBlock c'
 	      val _ = TypeCheck.typeCheckCtx (T.coerceCtx (append(append(Psi0, Psi), T.embedCtx G)))
 	      val _ = TypeCheck.typeCheckSub (T.coerceCtx (append(append(Psi0, Psi), T.embedCtx G)), s, Gsome')
-val _ = print "]"
 	    in
 	      traversePos ((Psi0, Psi, 
 			    I.Decl (G,  (* T.UDec *) (I.BDec (x, (c', s))))), 
@@ -1001,8 +974,6 @@ val _ = print "]"
 					(* Psi0, G, B |- V : type *)
 					(* Psi0, G, B |- w1 : Psi0, G', B' *)
 	    let
-val _ = print "[3"
-
 	      val Psi1 = append (Psi0, append (G, T.embedCtx B))
 					(* Psi1 = Psi0, G, B *)
 	      val _ = TomegaTypeCheck.checkCtx (append(append(Psi0, G), T.embedCtx B))
@@ -1128,7 +1099,6 @@ val _ = print "[3"
 	      val iota = blockToIota (T.Shift b4, B', 0)
 					(* Psi0, G', GB'  |- s' : Psi0, G', B' *)
 *)
-val _ = print "+"
 	      val _ = TypeCheck.typeCheckSub (GB', T.coerceSub iota, B') 
 		         handle TypeCheck.Error _ => raise Error' iota
 		
@@ -1140,13 +1110,10 @@ val _ = print "+"
 	      val F''' = raiseFor (GB', (RR, I.id))
                                           (* Psi0, G |- w1' : Psi0, G' *)
                                           (* Psi0, G' |- F''' for *)
-val _ = print "..."
 
 	      val _ = TomegaTypeCheck.checkCtx (append (Psi0, G))
-val _ = print "..."
 	      val _ = TomegaTypeCheck.checkFor (append (Psi0, G), 
 						(Normalize.normalizeFor(F''', T.embedSub w1')))
-val _ = print "]"
 	
 	      val (Psi1'', w2, z2) = strengthen (Psi1, (a, S), w1, M.Minus)
 		                        (* |- Psi0, Psi1'' ctx *)
@@ -1199,7 +1166,7 @@ val _ = print "]"
 
 	fun traverseSig' nil = nil
           | traverseSig' ((G, V) :: Sig) =
-  	    (print "[TC:..."; TypeCheck.typeCheck (append (T.coerceCtx Psi0, G), (V, I.Uni I.Type));print "]\n";
+  	    (TypeCheck.typeCheck (append (T.coerceCtx Psi0, G), (V, I.Uni I.Type));
 	     case traverseNeg ((Psi0, T.embedCtx G), V, I.id)
 	       of (SOME (wf, (P', Q'))) =>  traverseSig' Sig @ [(P' Q')])
       in
@@ -1310,7 +1277,6 @@ val _ = print "]"
 	  fun findDecs' (nil, Sig) = Sig
 	    | findDecs' (cid :: cids', Sig) = 
 	      let 
-		val _ = print "["
 		val I.BlockDec (s, m, G, L) = I.sgnLookup cid
 					(* G |- L ctx *)
 		val (G0, s') = mediateSub G
@@ -1321,7 +1287,6 @@ val _ = print "]"
 					(* Psi0, G0, D' |- s'' : G *)
 
 		val Sig' = findDec (I.Decl (G0, D'), 1, L, s'', Sig)
-		val _ = print "]"
 	      in
 		findDecs' (cids', Sig')	
 	      end
@@ -1392,10 +1357,8 @@ val _ = print "]"
 	    val mS = modeSpine a	(* |- mS : {x1:V1} ... {xn:Vn} > type  *)
 	    val Sig = Worldify.worldify a
 					(* Sig in LF(reg)   *)
-	    val _ = print "\n[Summary of collecting dynamic cases\n"
 	    val dynSig = dynamicSig (Psi0, L, W)
-	    val _ = map (fn GV => print (Print.expToString GV ^ "\n")) dynSig
-	    val _ = print "]"	
+(*	    val _ = map (fn GV => print (Print.expToString GV ^ "\n")) dynSig *)
 	    val statSig = staticSig (Psi0, Sig)
 (*	    val _ = print "\nSummary of collecting static cases\n"
 	    val _ = map (fn GV => print (Print.expToString GV ^ "\n")) statSig
