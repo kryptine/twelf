@@ -14,7 +14,7 @@ subst_idx : subst ([x:term] [idx: x => x] idx) S S.
 subst_beta : subst ([x:term] [idx: x => x] beta (R1 x idx) (R2 x idx))
                    S (beta R1' R2')
            <- ({y:term} {idy: y => y}
-                 subst ([x:term] [idx: x => x] idy) S idy
+                 ({N}{N'}{S':N => N'} subst ([x:term] [idx: x => x] idy) S' idy)
                  -> subst ([x:term] [idx: x => x] R1 x idx y idy)
                           S (R1' y idy))
            <- subst R2 S R2'.
@@ -27,10 +27,14 @@ subst_ap  : subst ([x:term] [idx: x => x] ap (R1 x idx) (R2 x idx))
 subst_lm  : subst ([x:term] [idx: x => x] lm (R1 x idx))
                   S (lm R1')
           <- ({y:term} {idy: y => y}
-                subst ([x:term] [idx: x => x] idy) S idy
+                ({N}{N'}{S':N => N'}subst ([x:term] [idx: x => x] idy) S' idy)
                 -> subst ([x:term] [idx: x => x] R1 x idx y idy)
                          S (R1' y idy)).
 
+
+%block l1 : block {x:term}{idx: x => x}{hs: {N}{N'}{S':N => N'} subst ([y][idy] idx) S' idx}.
+%worlds (l1) (subst _ _ _).
+%covers subst +D +E *F.
 
 % Diamond property for parallel reduction
 
@@ -44,7 +48,8 @@ dia : M => M'  ->  M => M''  ->  M' => N  ->  M'' => N  -> type.
 
 dia_bb : dia (beta R1' R2') (beta R1'' R2'') S' S''
       <- ({x:term} {idx: x => x}
-            dia idx idx idx idx
+	    ({N}{N'}{S':N => N'}subst ([y:term] [idy: y => y] idx) S' idx)
+            -> dia idx idx idx idx
             -> dia (R1' x idx) (R1'' x idx)
                    (S1' x idx) (S1'' x idx))
       <- dia R2' R2'' S2' S2''
@@ -54,7 +59,8 @@ dia_bb : dia (beta R1' R2') (beta R1'' R2'') S' S''
 dia_bal : dia (beta R1' R2') (ap (lm R1'') R2'')
              S' (beta S1'' S2'')
        <- ({x:term} {idx: x => x}
-             dia idx idx idx idx
+	    ({N}{N'}{S':N => N'}subst ([y:term] [idy: y => y] idx) S' idx)
+             -> dia idx idx idx idx
              -> dia (R1' x idx) (R1'' x idx)
                     (S1' x idx) (S1'' x idx))
        <- dia R2' R2'' S2' S2''
@@ -63,7 +69,8 @@ dia_bal : dia (beta R1' R2') (ap (lm R1'') R2'')
 dia_alb : dia (ap (lm R1') R2') (beta R1'' R2'')
              (beta S1' S2') S''
        <- ({x:term} {idx: x => x}
-             dia idx idx idx idx
+	    ({N}{N'}{S':N => N'}subst ([y:term] [idy: y => y] idx) S' idx)
+             -> dia idx idx idx idx
              -> dia (R1' x idx) (R1'' x idx)
                     (S1' x idx) (S1'' x idx))
        <- dia R2' R2'' S2' S2''
@@ -75,15 +82,15 @@ dia_aa  : dia (ap R1' R2') (ap R1'' R2'') (ap S1' S2') (ap S1'' S2'')
 
 dia_ll  : dia (lm R1') (lm R1'') (lm S1') (lm S1'')
        <- ({x:term} {idx: x => x}
-             dia idx idx idx idx
+	     ({N}{N'}{S':N => N'}subst ([y:term] [idy: y => y] idx) S' idx)
+	     -> dia idx idx idx idx
              -> dia (R1' x idx) (R1'' x idx) (S1' x idx) (S1'' x idx)).
 
-%block l1 : some {N:term}{N':term}{S:N => N'} 
-	     block {x:term}{idx: x => x}{u: subst ([y][idy] idx) S idx} .
-%block l2 : block {x:term}{idx: x => x}{u: dia idx idx idx idx} .
-%worlds (l1 | l2) (subst _ _ _).
-%worlds (l1 | l2) (dia _ _ _ _).
-%covers subst +D +E *F.
+%block l2 : block {x:term}{idx: x => x}{hs: {N}{N'}{S':N => N'} subst ([y][idy] idx) S' idx}
+	     {hd: dia idx idx idx idx}.
+%worlds (l2) (dia _ _ _ _).
+%covers dia +D +E *F *G.
+
 
 % The strip lemma for parallel reduction.
 
