@@ -29,6 +29,9 @@ functor Converter
    structure Worldify : WORLDIFY
      sharing Worldify.IntSyn = IntSyn'
      sharing Worldify.Tomega = Tomega'
+   structure TomegaTypeCheck : TOMEGATYPECHECK
+     sharing TomegaTypeCheck.IntSyn = IntSyn'
+     sharing TomegaTypeCheck.Tomega = Tomega'
    structure Subordinate : SUBORDINATE
      sharing Subordinate.IntSyn = IntSyn'
    structure TypeCheck : TYPECHECK
@@ -964,8 +967,12 @@ struct
 	  | convertPrg' (a :: L') = T.PairPrg (convertOnePrg a, convertPrg' L')
 
 
+	val P = R (convertPrg' L)
+	val F = convertFor L
+	val _ = TomegaTypeCheck.check (P, F)
+
       in
-	R (convertPrg' L)
+	P
       end
 	  
   in 

@@ -1,24 +1,26 @@
 (* Type checking for functional proof term calculus *)
 (* Author: Carsten Schuermann *)
 
-functor ToTypeCheck (structure IntSyn' : INTSYN
-                     structure Tomega' : TOMEGA
-		       sharing Tomega'.IntSyn = IntSyn'
-		     structure Abstract : ABSTRACT
-		       sharing Abstract.IntSyn = IntSyn'
-		     structure TypeCheck : TYPECHECK
-		       sharing TypeCheck.IntSyn = IntSyn'
-		     structure Conv : CONV
-		       sharing Conv.IntSyn = IntSyn'
-		     structure Whnf : WHNF
-		       sharing Whnf.IntSyn = IntSyn'
-		     structure Print : PRINT
-		       sharing Print.IntSyn = IntSyn'
-		     structure Subordinate : SUBORDINATE
-		       sharing Subordinate.IntSyn = IntSyn'
-		     structure Weaken : WEAKEN
-		       sharing Weaken.IntSyn = IntSyn') : TOTYPECHECK= 
+functor TomegaTypeCheck
+  (structure IntSyn' : INTSYN
+   structure Tomega' : TOMEGA
+     sharing Tomega'.IntSyn = IntSyn'
+   structure Abstract : ABSTRACT
+     sharing Abstract.IntSyn = IntSyn'
+   structure TypeCheck : TYPECHECK
+     sharing TypeCheck.IntSyn = IntSyn'
+   structure Conv : CONV
+     sharing Conv.IntSyn = IntSyn'
+   structure Whnf : WHNF
+     sharing Whnf.IntSyn = IntSyn'
+   structure Print : PRINT
+     sharing Print.IntSyn = IntSyn'
+   structure Subordinate : SUBORDINATE
+     sharing Subordinate.IntSyn = IntSyn'
+   structure Weaken : WEAKEN
+     sharing Weaken.IntSyn = IntSyn') : TOMEGATYPECHECK= 
 struct
+  structure IntSyn = IntSyn'
   structure Tomega = Tomega'
 
   exception Error of string 
@@ -188,6 +190,7 @@ otherwise exception Error is raised
 	(convFor(G, (F1, s1), (F2, s2)); convFor(G, (F1', s1), (F2', s2))) 
       | convFor(G, (T.All(T.PDec(_, F1), F1'), s1), (T.All(T.PDec(_, F2), F2'), s2)) =
 	(convFor(G, (F1, s1), (F2, s2)); convFor(G, (F1', s1), (F2', s2))) 
+      | convFor _ = raise Error "Typecheck error"
 
     and convSub(G, T.Shift k1, T.Shift k2, G') = if k1=k2 then () else raise Error "Sub not equivalent"
       | convSub(G, T.Shift k, s2 as T.Dot _, G') = convSub(G, T.Dot(T.Idx(k+1), T.Shift(k+1)), s2, G')
