@@ -39,8 +39,10 @@ subst_lm  : subst ([x:term] [idx: x => x] lm (R1 x idx))
 % Diamond property for parallel reduction
 
 dia : M => M'  ->  M => M''  ->  M' => N  ->  M'' => N  -> type.
-%mode +{M} +{M'} +{M''} +{R':M => M'} +{R'':M => M''}
-      -{N} -{S':M' => N} -{S'':M'' => N} dia R' R'' S' S''.
+% %mode +{M} +{M'} +{M''} +{R':M => M'} +{R'':M => M''}
+%      -{N} -{S':M' => N} -{S'':M'' => N} dia R' R'' S' S''.
+
+%mode dia +R' +R'' -S' -S''.
 
 % Proof by induction on the structure of the first two derivations.
 % We consider the various possible cases.
@@ -95,30 +97,39 @@ dia_ll  : dia (lm R1') (lm R1'') (lm S1') (lm S1'')
 % The strip lemma for parallel reduction.
 
 strip : M => M'  ->  M =>* M''  ->  M' =>* N  ->  M'' => N -> type.
-%mode +{M} +{M'} +{M''} +{R':M => M'} +{R'':M =>* M''}
-      -{N} -{S*':M' =>* N} -{S'':M'' => N} strip R' R'' S*' S''.
+% %mode +{M} +{M'} +{M''} +{R':M => M'} +{R'':M =>* M''}
+%       -{N} -{S*':M' =>* N} -{S'':M'' => N} strip R' R'' S*' S''.
+%mode strip +R' +R'' -S*' -S''.
 
 strip_id   : strip R' id id R'.
 strip_step : strip R' (R1'' ; R2*'') (S1' ; S2*') S''
           <- dia R' R1'' S1' S1''
           <- strip S1'' R2*'' S2*' S''.
 
+%worlds () (strip R' R'' S*' S'').
+%covers strip +R' +R'' -S*' -S''.
+
 % Confluence for parallel multi-step reduction.
 
 conf :  M =>* M'  ->  M =>* M''  ->  M' =>* N  ->  M'' =>* N -> type.
-%mode +{M} +{M'} +{M''} +{R*':M =>* M'} +{R*'':M =>* M''}
-      -{N} -{S*':M' =>* N} -{S*'':M'' =>* N} conf R*' R*'' S*' S*''.
+% %mode +{M} +{M'} +{M''} +{R*':M =>* M'} +{R*'':M =>* M''}
+%      -{N} -{S*':M' =>* N} -{S*'':M'' =>* N} conf R*' R*'' S*' S*''.
+%mode conf +R*' +R*'' -S*' -S*''.
 
 conf_id   : conf id R*'' R*'' id.
 conf_step : conf (R1' ; R2*') R*'' S*' (S1'' ; S2*'')
          <- strip R1' R*'' S1*' S1''
          <- conf R2*' S1*' S*' S2*''.
 
+%worlds () (conf R*' R*'' S*' S*'').
+%covers conf +R*' +R*'' -S*' -S*''.
+
 % Church-Rosser Theorem for parallel reduction
 
 cr :  M <=> M'  ->  M =>* N  ->  M' =>* N  -> type.
-%mode +{M} +{M'} +{C:M <=> M'}
-      -{N} -{S*:M =>* N} -{S*':M' =>* N} cr C S* S*'.
+% %mode +{M} +{M'} +{C:M <=> M'}
+%       -{N} -{S*:M =>* N} -{S*':M' =>* N} cr C S* S*'.
+%mode cr +C -S* -S*'.
 
 cr_reduce  : cr (reduce R*) R* id.
 cr_expand  : cr (expand R*) id R*.
@@ -128,3 +139,6 @@ cr_compose : cr (C1 ;; C2) S* S*'
           <- conf R1* R2* T1* T2*
           <- append S1* T1* S*
           <- append S2* T2* S*'.
+
+%worlds () (cr C S* S*').
+%covers cr +C -S* -S*'.
