@@ -63,7 +63,11 @@ Instruction for branch on coverage:
      cvs update -j coverage  % join branch coverage
      cvs commit -m "included branch 'coverage'"
 			     % commit changes to main branch
-
+----------------------------------------------------------------------
+Twelf.chatter := 1;
+Twelf.make "examples/church-rosser/sources.cfg";
+Twelf.make "examples/cut-elim/sources.cfg";
+Twelf.make "examples/handbook/sources.cfg";
 ----------------------------------------------------------------------
 From: "Carsten Schuermann" <carsten@cs.yale.edu>
 To: "Frank Pfenning" <fp@cs.cmu.edu>
