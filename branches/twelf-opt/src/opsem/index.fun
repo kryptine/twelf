@@ -558,7 +558,10 @@ struct
 
     fun callCheck (G, D, U, eqn) = 
           case (!strategy) of 
-	    Variant => callCheckVariant (G, D, U, eqn)
+	    Variant => 
+	      case callCheckVariant (G, D, U, eqn) 
+		of NewEntry (answ) => (print "Add goal \n";  NewEntry(answ))
+		  | RepeatedEntry (answ) => (print "Suspend goal\n"; RepeatedEntry (answ))
 	  | Subsumption => raise Error "Subsumption is missing currently\n"
 
     fun answCheck (G, D, U, eqn, s, answRef, O) = 

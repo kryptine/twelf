@@ -440,10 +440,12 @@ and eqSpine (I.Nil, (I.Nil, rho1)) = true
 				      answList := (answRef :: (!answList))),   
 			    T.DivergingEntry(answRef))) 
 		       else 			 
-			 (fn () => (GRlistRef := (GR::(!GRlistRef)); 
+			 ((* print "compatible path -- ctx are different\n";*)
+			  (fn () => (GRlistRef := (GR::(!GRlistRef)); 
 				    answList := (answRef :: (!answList))), 
-			  T.NewEntry(answRef)))
+			  T.NewEntry(answRef))))
 	 | SOME(answRef') => ((* compatible path -- SAME ctx *)
+			      (* print "compatible path --- same ctx\n";*)
 			      ((fn () => ()), T.RepeatedEntry(answRef'))))
 
        
@@ -462,7 +464,7 @@ and eqSpine (I.Nil, (I.Nil, rho1)) = true
 	    (* split an existing node *)
 	      if ((!TableParam.divHeuristic) andalso divergingSub (sigma, rho1, rho2))
 	       then 	       
-		 (print "substree divering -- splitting node\n";
+		 ((* print "substree divering -- splitting node\n";*)
 		  (fn () => (ChildRef :=  mkNode((!ChildRef), sigma, rho1, GR, rho2); 
 			     answList := (answRef :: (!answList))),
 		   T.DivergingEntry(answRef)))
@@ -547,11 +549,11 @@ and eqSpine (I.Nil, (I.Nil, rho1)) = true
 	val result = insert (Tree, nsub_goal, (DAVars, DEVars, G, eqn, emptyAnswer(), !TableParam.stageCtr))
       in       
 	case result 
-	  of (sf, T.NewEntry(answRef)) => (sf(); added := true;  (* print "Add goal \n\n";  *)
+	  of (sf, T.NewEntry(answRef)) => (sf(); added := true;  (* print "Add goal \n";  *)
 					 T.NewEntry(answRef))
-	  | (_, T.RepeatedEntry(answRef)) =>  ((* print "Suspend goal";*)
+	  | (_, T.RepeatedEntry(answRef)) =>  ((* print "Suspend goal\n";*)
 					     T.RepeatedEntry(answRef))
-	  | (sf, T.DivergingEntry(answRef)) => (sf(); added := true;  (* print "Add goal -- ";*)
+	  | (sf, T.DivergingEntry(answRef)) => (sf(); added := true;  print "Add diverging goal\n";
 					     T.DivergingEntry(answRef))
       end 
 
@@ -594,7 +596,7 @@ and eqSpine (I.Nil, (I.Nil, rho1)) = true
   in
 
     val reset = reset
-    val callCheck = (fn (Skel, D, G, U, eqn) => callCheck(cidFromHead(I.targetHead U), Skel, D, G, U, eqn))
+    val callCheck = (fn (DAVars, DEVars, G, U, eqn) => callCheck(cidFromHead(I.targetHead U), DAVars, DEVars, G, U, eqn))
   
     val answerCheck = answCheck
 (*    val solutions = (fn answRef => solutions (!answRef))

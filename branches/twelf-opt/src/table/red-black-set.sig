@@ -10,6 +10,8 @@ sig
   type key = int (* parameter *)
   type 'a entry = key * 'a
 
+  exception Error of string
+
   type 'a ordSet
   val new : unit -> 'a ordSet		
   val copy : 'a ordSet -> 'a ordSet		
@@ -19,6 +21,8 @@ sig
   val insertShadow : 'a ordSet -> 'a entry -> unit
 
   val insertLast : 'a ordSet -> 'a -> unit
+
+(*  val delete : 'a ordSet -> key -> unit*)
 
   val lookup : 'a ordSet -> key -> 'a option  
 
