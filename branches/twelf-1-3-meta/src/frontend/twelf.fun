@@ -511,6 +511,7 @@ struct
       | install1 (fileName, (Parser.FQuery (query), r)) =
         (* Solve.query might raise Solve.AbortQuery (msg) *)
 	raise Domain
+
       (* %queryTabled <expected> <try> A or %query <expected> <try> X : A *)
       | install1 (fileName, (Parser.Querytabled(numSol, try,query), r)) =
         (* Solve.query might raise Solve.AbortQuery (msg) *)
@@ -562,6 +563,54 @@ struct
           else ()
         end
 
+      (* %compile <qids> *) (* -ABP 4/4/03 *)
+      | install1 (fileName, (Parser.Compile (qids), r)) = 
+        let
+          fun toCid qid =
+              case Names.constLookup qid
+                of NONE => raise Names.Error ("Undeclared identifier "
+                                              ^ Names.qidToString (valOf (Names.constUndef qid))
+                                              ^ " in compile assertion")
+                 | SOME cid => cid
+          val cids = List.map toCid qids
+                     handle Names.Error (msg) => raise Names.Error (Paths.wrap (r, msg))
+
+	  (* MOVED -- ABP 4/4/03 *)
+	  (* ******************************************* *)
+	  fun checkFreeOut nil = ()
+	    | checkFreeOut (a :: La) =
+	      let 
+		val SOME ms = ModeSyn.modeLookup a
+	        val _ = ModeCheck.checkFreeOut (a, ms)
+	      in
+		checkFreeOut La 
+	      end
+
+	  val _ = checkFreeOut cids
+	  (* ******************************************* *)
+
+	  val (lemma, projs, sels) = Converter.installPrg cids
+	  val P = Tomega.lemmaDef lemma
+	  val F = Converter.convertFor cids
+	  val _ = TomegaTypeCheck.checkPrg (IntSyn.Null, (P, F))
+
+	  fun f cid = IntSyn.conDecName (IntSyn.sgnLookup cid)
+
+	  val _ = if !Global.chatter >= 2 
+		    then print ("\n" ^ 
+				TomegaPrint.funToString ((map f cids, projs), P)
+				^ "\n")
+		  else ()
+
+          val _ = if !Global.chatter >= 3
+		    then print ((if !Global.chatter >= 4 then "%" else "")
+				^ "%compile"
+				^ List.foldr (fn (a, s) => " " ^ Names.qidToString (Names.constQid a) ^ s) ".\n" cids)
+		  else ()
+        in
+	  ()
+        end
+
       (* Fixity declaration for operator precedence parsing *)
       | install1 (fileName, (Parser.FixDec ((qid,r),fixity), _)) =
         (case Names.constLookup qid
@@ -603,7 +652,7 @@ struct
 		    then print ("%mode " ^ ModePrint.modesToString
 				           (List.map (fn (mdec, r) => mdec) mdecs)
 					 ^ ".\n")
-		  else ()
+		  else ()		   
 	in
 	  ()
 	end
@@ -638,39 +687,7 @@ struct
           *)
 	  val (T, rrs as (r,rs)) = ReconThm.tdeclTotDecl lterm
 	  val La = Thm.installTotal (T, rrs)
-(* ******************************************* *)
-	  fun checkFreeOut nil = ()
-	    | checkFreeOut (a :: La) =
-	      let 
-		val SOME ms = ModeSyn.modeLookup a
-	        val _ = ModeCheck.checkFreeOut (a, ms)
-	      in
-		checkFreeOut La 
-	      end
 
-	  val _ = checkFreeOut La
-	  val (lemma, projs, sels) = Converter.installPrg La
-
-	  (* ABP 2/28/03 -- Remove redundancy *)
-(*	  val _ = if (!Global.chatter >= 4) then print ("[Redundancy Checker (factoring) ...") else ()
-	  val P = Redundant.convert (Tomega.lemmaDef lemma)
-	  val _ = if (!Global.chatter >= 4) then print ("]\n") else ()
-*)
-	  val P = Tomega.lemmaDef lemma
-	  val F = Converter.convertFor La
-
-	  val _ = if !Global.chatter >= 2
-		    then print (TomegaPrint.funToString ((map (fn (cid) => IntSyn.conDecName (IntSyn.sgnLookup cid)) La,
-							  projs), P) ^ "\n")
-		  else ()
-
-	  val _ = print "["
-	  val _ = TomegaTypeCheck.checkPrg (IntSyn.Null, (P, F))
-	  val _ = print "]"
-	      
-	  val _ = TomegaCoverage.coverageCheckPrg (WorldSyn.lookup (hd La), IntSyn.Null, P)
-
-(* ******************************************* *)
 
 	  val _ = map Total.install La	(* pre-install for recursive checking *)
 	  val _ = map Total.checkFam La

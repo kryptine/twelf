@@ -1515,7 +1515,13 @@ exception Error' of Tomega.Sub
 	  val P = convertPrg ([cid], NONE)
 	  val name = I.conDecName (I.sgnLookup cid)
 	  val _ = TomegaTypeCheck.checkPrg (I.Null, (P, F))
-	  val lemma = T.lemmaAdd (T.ValDec (name, Redundant.convert P, F))
+	  val _ = if (!Global.chatter >= 4) then print ("[Redundancy Checker (factoring) ...") else ()
+	  val factP = Redundant.convert P
+	  val _ = if (!Global.chatter >= 4) then print ("done]\n") else ()
+
+	  val lemma = T.lemmaAdd (T.ValDec (name, factP, F))
+
+
 	in
 	  (lemma, [], [])
 	end
@@ -1530,7 +1536,11 @@ exception Error' of Tomega.Sub
 	  val P = convertPrg (cids, SOME projs)
 	  val s = name cids
 	  val _ = TomegaTypeCheck.checkPrg (I.Null, (P, F))
-	  val lemma = T.lemmaAdd (T.ValDec (s, Redundant.convert P, F))
+	  val _ = if (!Global.chatter >= 4) then print ("[Redundancy Checker (factoring) ...") else ()
+	  val factP = Redundant.convert P
+	  val _ = if (!Global.chatter >= 4) then print ("done]\n") else ()
+
+	  val lemma = T.lemmaAdd (T.ValDec (s, factP, F))
 
 	  val sels = installSelection (cids, projs, F, lemma)
 
