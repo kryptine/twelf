@@ -45,6 +45,19 @@ struct
     fun purifyFor ((T.Unit, t), (Psi, T.True), s) = (t, Psi, s)
       | purifyFor ((T.PairExp (U, P), t), (Psi, T.Ex (D, F)), s) =
 	  purifyFor ((P, T.Dot (T.Exp U, t)), (I.Decl (Psi, T.UDec D), F), T.comp (s, T.shift))
+(*      | purifyFor ((T.Lam _, _), (_, _), _) = raise Domain
+      | purifyFor ((T.New _, _), (_,  _), _) = raise Domain
+      | purifyFor ((T.PairBlock _, _), (_,  _), _) = raise Domain
+      | purifyFor ((T.PairPrg _, _), (_,  _), _) = raise Domain
+      | purifyFor ((T.Unit, _), (_,  _), _) = raise Domain
+      | purifyFor ((T.Root (T.Var k, _), _), (_,  _), _) = raise Domain
+      | purifyFor ((T.Redex _, _), (_,  _), _) = raise Domain
+      | purifyFor ((T.Rec _, _), (_,  _), _) = raise Domain
+      | purifyFor ((T.Case _, _), (_,  _), _) = raise Domain
+      | purifyFor ((T.PClo _, _), (_,  _), _) = raise Domain
+      | purifyFor ((T.Let _, _), (_,  _), _) = raise Domain
+      | purifyFor ((T.EVar _, _), (_,  _), _) = raise Domain
+*)
     (*  | purifyFor (Psi, T.All (_, F), s) = (Psi, s)
         cannot occur by invariant Mon Dec  2 18:03:20 2002 -cs *)
          
@@ -60,7 +73,16 @@ struct
 	in 
           (t', Psi', T.Dot (T.Undef, s'))
 	end
-      | purifyCtx (T.Dot (T.Prg (T.Root (_, T.Nil)), t), I.Decl (Psi, T.PDec (_, T.Ex _))) =
+      | purifyCtx (T.Dot (T.Prg (T.Root (_, T.Nil)), t), I.Decl (Psi, T.PDec (_, _))) =
+        let 
+	  val (t', Psi', s') = purifyCtx (t, Psi)
+	in 
+          (t', Psi', T.Dot (T.Undef, s'))
+	end
+      | purifyCtx (T.Dot (T.Prg (T.PairPrg (_, _)), t), I.Decl (Psi, T.PDec (_, _))) =
+					(* Mutual recursive predicates
+					   don't have to be checked.
+					 --cs Fri Jan  3 11:35:09 2003 *)
         let 
 	  val (t', Psi', s') = purifyCtx (t, Psi)
 	in 
