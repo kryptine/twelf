@@ -1,6 +1,7 @@
 (* Compiled Syntax *)
 (* Author: Iliano Cervesato *)
 (* Modified: Jeff Polakow *)
+(* Modified: Kevin Watkins *)
 
 signature COMPSYN =
 sig
@@ -15,35 +16,27 @@ sig
 
   and ResGoal =                         (* Residual Goals             *)
     Eq     of IntSyn.Exp                (* r ::= p = ?                *)
-  | Assign of IntSyn.Exp * AuxGoal      (*     | p = ?, where p has   *)
-					(* only new vars,             *)  
-                                        (* then unify all the vars    *)
   | And    of ResGoal                   (*     | r & (A,g)            *)
               * IntSyn.Exp * Goal       
   | In   of ResGoal			(*     | r virt& (A,g)        *)
               * IntSyn.Exp * Goal       
   | Exists of IntSyn.Dec * ResGoal      (*     | exists x:A. r        *)
-  | Exists' of IntSyn.Dec * ResGoal	(*     | exists x:A. r        *)
 
-  and AuxGoal =
-    Trivial				(* trivially done *)
-  | Unify of IntSyn.dctx * IntSyn.Exp   (* call unify *)
-             * IntSyn.Exp * AuxGoal
+  and Query =
+    QueryGoal of Goal
+  | QueryVar  of IntSyn.Exp * IntSyn.Dec * Query
 
-  (* The dynamic clause pool --- compiled version of the context *)
-  (* type dpool = (ResGoal * IntSyn.Sub * IntSyn.cid) option IntSyn.Ctx *)
+  datatype GoalSol =
+    DynAtom   of int * ResGoalSol
+  | SigAtom   of IntSyn.cid * ResGoalSol
+  | ConstrSol of int (* which try? *)
+  | ImplSol   of GoalSol
+  | AllSol    of GoalSol
 
-  (* Dynamic programs: context with synchronous clause pool *)
-  datatype DProg = DProg of (IntSyn.dctx * (ResGoal * IntSyn.Sub * IntSyn.cid) option IntSyn.Ctx)
-
-  (* Static programs --- compiled version of the signature *)
-  datatype ConDec =			(* Compiled constant declaration *)
-    SClause of ResGoal	                (* c : A                      *)
-  | Void 		                (* Other declarations are ignored  *)
-
-  val sProgInstall : IntSyn.cid * ConDec -> unit
-  val sProgLookup: IntSyn.cid -> ConDec
-  val sProgReset : unit -> unit
+  and ResGoalSol =
+    EqSol
+  | AndSol    of ResGoalSol * GoalSol
+  | ExistsSol of ResGoalSol
 
   (* Explicit Substitutions *)
   val goalSub   : Goal * IntSyn.Sub -> Goal

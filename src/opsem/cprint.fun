@@ -1,9 +1,13 @@
 (* Printer for Compiled Syntax *)
 (* Author: Iliano Cervesato *)
+(* Modified: Kevin Watkins *)
 
 functor CPrint (structure IntSyn' : INTSYN
 		structure CompSyn' : COMPSYN
 		  sharing CompSyn'.IntSyn = IntSyn'
+                structure FullComp : FULLCOMP
+                  sharing FullComp.IntSyn = IntSyn'
+                  sharing FullComp.CompSyn = CompSyn'
 		structure Print: PRINT
 		  sharing Print.IntSyn = IntSyn'
 		structure Formatter : FORMATTER
@@ -15,6 +19,7 @@ struct
 
   structure IntSyn = IntSyn'
   structure CompSyn = CompSyn'
+  structure FullComp = FullComp
 
   local
     open CompSyn
@@ -36,19 +41,9 @@ struct
 	   goalToString t (IntSyn.Decl (G, D'), g) ^ "\n"
 	 end
 
-    (* auxToString (G, r) where G |- r auxgoal *)
-    and auxToString t (G, Trivial) = ""
-      | auxToString t (G, Unify(_, p1, p2, ga)) =
-         t ^ "UNIFY   " ^ Print.expToString (G, p1) ^ " = " ^
-                       Print.expToString (G, p2) ^ "\n" ^
-         auxToString t (G, ga)
-
     (* clauseToString (G, r) where G |- r  resgoal *)
     and clauseToString t (G, Eq(p)) =
 	 t ^ "UNIFY   " ^ Print.expToString (G, p) ^ "\n"
-      | clauseToString t (G, Assign(p, ga)) =
-	 t ^ "ASSIGN  " ^ (Print.expToString (G, p)  handle _ => "<exc>")
-	 ^ "\n" ^ (auxToString t (G, ga))
       | clauseToString t (G, And(r, A, g)) =
 	 clauseToString t (IntSyn.Decl(G, IntSyn.Dec(NONE, A)), r) ^
 	 goalToString t (G, g)
@@ -60,17 +55,9 @@ struct
 	   (Print.decToString (G, D') handle _ => "<exc>") ^ "\n" ^
 	   clauseToString t (IntSyn.Decl(G, D'), r)
 	 end
-      | clauseToString t (G, Exists'(D, r)) =
-	 let
-	   val D' = Names.decEName (G, D)
-	 in
-	   t ^ "EXISTS' " ^
-	   (Print.decToString (G, D') handle _ => "<exc>") ^ "\n" ^
-	   clauseToString t (IntSyn.Decl(G, D'), r)
-	 end
 
     (* conDecToString (c, clause) printed representation of static clause *)
-    fun conDecToString (c, SClause(r)) = 
+    fun conDecToString (c, FullComp.SClause(r)) = 
 	let
 	  val _ = Names.varReset ()
 	  val name = IntSyn.conDecName (IntSyn.sgnLookup c)
@@ -79,14 +66,14 @@ struct
 	  name ^ (if l > 6 then ":\n" else ":") ^
 	  (clauseToString "\t" (IntSyn.Null, r) ^ "\n")
 	end
-      | conDecToString (c, Void) =
+      | conDecToString (c, FullComp.Void) =
 	  Print.conDecToString (IntSyn.sgnLookup c) ^ "\n\n"
 
     (* sProgToString () = printed representation of static program *)
     fun sProgToString () = 
 	let val size = IntSyn.sgnSize ()
 	    fun ts (cid) = if cid < size
-			     then conDecToString (cid, CompSyn.sProgLookup cid)
+			     then conDecToString (cid, FullComp.sProgLookup cid)
 				  ^ ts (cid+1)
 			   else ""
 	 in
@@ -94,17 +81,37 @@ struct
 	 end
 
     (* dProgToString (G, dProg) = printed representation of dynamic program *)
-    fun dProgToString (DProg (IntSyn.Null, IntSyn.Null)) = ""
-      | dProgToString (DProg (IntSyn.Decl(G,IntSyn.Dec(SOME x,_)),
+    fun dProgToString (FullComp.DProg (IntSyn.Null, IntSyn.Null)) = ""
+      | dProgToString (FullComp.DProg (IntSyn.Decl(G,IntSyn.Dec(SOME x,_)),
 		       IntSyn.Decl(dPool,SOME(r,_,_)))) =
-          dProgToString (DProg (G,dPool))
+          dProgToString (FullComp.DProg (G,dPool))
 	  ^ "\nClause    " ^ x ^ ":\t"
 	  ^ clauseToString "\t" (G, r)
-      | dProgToString (DProg (IntSyn.Decl(G, IntSyn.Dec(SOME x,A)),
+      | dProgToString (FullComp.DProg (IntSyn.Decl(G, IntSyn.Dec(SOME x,A)),
 		       IntSyn.Decl(dPool, NONE))) =
-	 dProgToString (DProg (G, dPool))
+	 dProgToString (FullComp.DProg (G, dPool))
 	 ^ "\nParameter " ^ x ^ ":\t"
 	 ^ Print.expToString (G, A)
+
+    fun solToString t (DynAtom(k, rsol)) =
+         t ^ "DYNAMIC " ^ Int.toString(k) ^ "\n" ^
+         rsolToString ("\t" ^ t) rsol
+      | solToString t (SigAtom(c, rsol)) =
+         t ^ "STATIC  " ^ IntSyn.conDecName (IntSyn.sgnLookup c) ^ "\n" ^
+         rsolToString ("\t" ^ t) rsol
+      | solToString t (ConstrSol(k)) =
+         t ^ "CONSTRAINT " ^ Int.toString(k) ^ "\n"
+      | solToString t (ImplSol(sol)) =
+         t ^ "ASSUME\n" ^ solToString t sol
+      | solToString t (AllSol(sol)) =
+         t ^ "ALL\n" ^ solToString t sol
+
+    and rsolToString t (EqSol) =
+	 t ^ "EQ\n"
+      | rsolToString t (AndSol(rsol, sol)) =
+         rsolToString t rsol ^ solToString t sol
+      | rsolToString t (ExistsSol(rsol)) =
+         t ^ "EXISTS\n" ^ rsolToString t rsol
 
   end  (* local open ... *)
 

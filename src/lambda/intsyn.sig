@@ -16,6 +16,7 @@ sig
     
   val ctxPop : 'a Ctx -> 'a Ctx
   val ctxLookup: 'a Ctx * int -> 'a
+  val ctxDrop: 'a Ctx * int -> 'a Ctx
   val ctxLength: 'a Ctx -> int
 
   datatype Depend =                     (* Dependency information     *)
@@ -168,5 +169,7 @@ sig
 
   val targetFamOpt : Exp -> cid option  (* target type family or NONE *)
   val targetFam : Exp -> cid            (* target type family         *)
+
+  val abstractions : Exp -> int
 
 end;  (* signature INTSYN *)

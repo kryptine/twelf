@@ -1,6 +1,6 @@
 (* Front End Interface *)
 (* Author: Frank Pfenning *)
-(* Modified: Carsten Schuermann, Jeff Polakow *)
+(* Modified: Carsten Schuermann, Jeff Polakow, Kevin Watkins *)
 
 functor Solve
   (structure Global : GLOBAL
@@ -21,11 +21,9 @@ functor Solve
    structure Timers : TIMERS
    structure CompSyn : COMPSYN
      sharing CompSyn.IntSyn = IntSyn'
-   structure Compile : COMPILE
-     sharing Compile.IntSyn = IntSyn'
-     sharing Compile.CompSyn = CompSyn
-   structure CSManager : CS_MANAGER
-     sharing CSManager.IntSyn = IntSyn'
+   structure PTCompile : PTCOMPILE
+     sharing PTCompile.IntSyn = IntSyn'
+     sharing PTCompile.CompSyn = CompSyn
    structure AbsMachine : ABSMACHINE
      sharing AbsMachine.IntSyn = IntSyn'
      sharing AbsMachine.CompSyn = CompSyn
@@ -151,8 +149,7 @@ struct
 				     ^ ".\n")
 		else ()
 
-	val g = (Timers.time Timers.compiling Compile.compileGoal) 
-	            (IntSyn.Null, A)
+	val q = (Timers.time Timers.compiling (PTCompile.compileQuery false)) (A)
 
 	(* 
 	   the initial success continuation builds the abstractions to we can
@@ -163,13 +160,12 @@ struct
 			    handle Abstract.Error (msg)
 			    => raise Abstract.Error (Paths.wrap (r, msg)))
       in
-	CSManager.reset ();
+	AbsMachine.reset ();
 	((* Call to solve raises Solution _ if there is a solution,
 	  returns () if there is none.  It could also not terminate
 	  *)
 	 (Timers.time Timers.solving AbsMachine.solve)
-	 ((g, IntSyn.id), CompSyn.DProg (IntSyn.Null, IntSyn.Null),
-	  scInit);		
+	 (q, scInit);		
 	 raise AbortQuery ("No solution to %solve found"))
 	handle Solution (i,(U,V)) =>
 	  let
@@ -220,8 +216,8 @@ struct
 	     (*
 		val Xs' = if !Global.chatter >= 3 then Names.namedEVars () else Xs
 	     *)
-	     val g = (Timers.time Timers.compiling Compile.compileGoal) 
-	                (IntSyn.Null, A)
+	     val q = (Timers.time Timers.compiling (PTCompile.compileQuery false)) 
+	                (A)
 
 	     (* solutions = ref <n> counts the number of solutions found *)
 	     val solutions = ref 0
@@ -258,12 +254,11 @@ struct
 		   else ())
               in
 		if not (boundEq (try, SOME(0)))
-		  then (CSManager.reset ();
+		  then (AbsMachine.reset ();
 			(* solve query if bound > 0 *)
 			((Timers.time Timers.solving AbsMachine.solve)
-			 ((g,IntSyn.id), CompSyn.DProg (IntSyn.Null, IntSyn.Null),
-			  scInit)) handle Done => (); (* printing is timed into solving! *)
-			CSManager.reset ();	(* in case Done was raised *)
+			 (q, scInit)) handle Done => (); (* printing is timed into solving! *)
+			AbsMachine.reset ();	(* in case Done was raised *)
 			(* check if number of solutions is correct *)
 		        checkSolutions (expected, try, !solutions))
 		else if !Global.chatter >= 3
@@ -287,8 +282,9 @@ struct
       let
 	val (A, optName, Xs) = TpReconQ.queryToQuery(query, Paths.Loc ("stdIn", Paths.Reg (0,0)))
 					(* times itself *)
-	val g = (Timers.time Timers.compiling Compile.compileGoal) 
-	            (IntSyn.Null, A)
+
+	val q = (Timers.time Timers.compiling (PTCompile.compileQuery false)) 
+	            (A)
 	fun scInit M =
 	    (print ((Timers.time Timers.printing evarInstToString) Xs ^ "\n");
 	     case optName
@@ -312,7 +308,7 @@ struct
 		else ()
       in
 	((Timers.time Timers.solving AbsMachine.solve)
-	 ((g,IntSyn.id), CompSyn.DProg (IntSyn.Null, IntSyn.Null), scInit); (* scInit is timed into solving! *)
+	 (q, scInit); (* scInit is timed into solving! *)
 	 print "No more solutions\n")
 	handle Done => ();
 	(* Ignore s': parse one query at a time *)

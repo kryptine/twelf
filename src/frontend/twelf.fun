@@ -1,6 +1,6 @@
 (* Front End Interface *)
 (* Author: Frank Pfenning *)
-(* Modified: Carsten Schuermann, Jeff Polakow *)
+(* Modified: Carsten Schuermann, Jeff Polakow, Kevin Watkins *)
 
 functor Twelf
   (structure Global : GLOBAL
@@ -69,14 +69,9 @@ functor Twelf
      sharing IndexSkolem.IntSyn = IntSyn'
    structure Subordinate : SUBORDINATE
      sharing Subordinate.IntSyn = IntSyn'
-   structure CompSyn' : COMPSYN
-     sharing CompSyn'.IntSyn = IntSyn'
-   structure Compile : COMPILE
-     sharing Compile.IntSyn = IntSyn'
-     sharing Compile.CompSyn = CompSyn'
+   structure PTCompile : PTCOMPILE
    structure AbsMachine : ABSMACHINE
      sharing AbsMachine.IntSyn = IntSyn'
-     sharing AbsMachine.CompSyn = CompSyn'
    structure Solve : SOLVE
      sharing Solve.IntSyn = IntSyn'
      sharing type Solve.ExtSynQ.term = Parser.ExtSynQ.term
@@ -230,7 +225,7 @@ struct
 	      | Abstract.Error (msg) => abortFileMsg (fileName, msg)
 	      (* | Constraints.Error (cnstrL) => abortFileMsg (fileName, constraintsMsg cnstrL) *)
 	      | Terminate.Error (msg) => abort (msg ^ "\n") (* Terminate includes filename *)
-              | Compile.Error (msg) => abortFileMsg (fileName, msg)
+              | PTCompile.Error (msg) => abortFileMsg (fileName, msg)
 	      | Thm.Error (msg) => abortFileMsg (fileName, msg)
 	      | ModeSyn.Error (msg) => abortFileMsg (fileName, msg)
 	      | ModeCheck.Error (msg) => abortFileMsg (fileName, msg)
@@ -260,7 +255,7 @@ struct
 	    val _ = Origins.installOrigin (cid, fileNameocOpt)
 	    val _ = Index.install (IntSyn.Const cid)
 	    val _ = IndexSkolem.install (IntSyn.Const cid)
-	    val _ = (Timers.time Timers.compiling Compile.install) fromCS cid
+	    val _ = (Timers.time Timers.compiling AbsMachine.Compile.install) fromCS cid
 	    val _ = (Timers.time Timers.subordinate Subordinate.install) cid
 	in 
 	  cid
@@ -522,7 +517,8 @@ struct
 		    Index.reset (); 
 		    IndexSkolem.reset (); Subordinate.reset (); Terminate.reset ();
 		    FunSyn.labelReset ();
-		    CompSyn.sProgReset (); (* necessary? -fp *)
+		    AbsMachine.Compile.reset (); (* necessary? -fp *)
+                    AbsMachine.reset ();
                     CSManager.resetSolvers ()
 		    )
 
@@ -698,7 +694,7 @@ struct
     end
     =
     struct
-      val optimize = Compile.optimize
+      val optimize = (*AbsMachine.Compile.optimize*) ref true
     end
 
     structure Prover :

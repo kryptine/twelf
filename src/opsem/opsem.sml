@@ -1,38 +1,41 @@
 structure CompSyn =
-  CompSyn (structure Global = Global
-           structure IntSyn' = IntSyn
-	   structure Names = Names);
+  CompSyn (structure IntSyn' = IntSyn);
 
-structure Compile =
-  Compile (structure IntSyn' = IntSyn
-	   structure CompSyn' = CompSyn
-	   structure Whnf = Whnf
-	   structure TypeCheck = TypeCheck
-	   structure Names = Names);
+structure PTCompile =
+  PTCompile (structure IntSyn' = IntSyn
+             structure CompSyn' = CompSyn
+             structure Whnf = Whnf
+             structure Abstract = Abstract);
+
+structure FullComp =
+  FullComp (structure Global = Global
+            structure IntSyn' = IntSyn
+	    structure CompSyn' = CompSyn
+            structure PTCompile = PTCompile);
 
 structure CPrint =
   CPrint (structure IntSyn' = IntSyn
 	  structure CompSyn' = CompSyn
+          structure FullComp = FullComp
 	  structure Print = Print
 	  structure Formatter = Formatter
 	  structure Names = Names);
 
-(*
-structure Assign =
-  Assign (structure IntSyn' = IntSyn
-	  structure Whnf = Whnf
-	  structure Unify = UnifyTrail);
-*)
+structure ElabSolution =
+  ElabSolution (structure IntSyn = IntSyn
+                structure CompSyn = CompSyn
+                structure FullComp = FullComp
+                structure Unify = UnifyTrail
+                structure Print = Print
+                structure CPrint = CPrint);
 
-structure AbsMachine = 
-  AbsMachine (structure IntSyn' = IntSyn
-              structure CompSyn' = CompSyn
-              structure Unify = UnifyTrail
-	      (* structure Assign = Assign *)
-	      structure Index = Index
-              structure CPrint = CPrint
-              structure Names = Names
-              structure CSManager = CSManager); 
+structure FullMachine = 
+  FullMachine (structure IntSyn' = IntSyn
+               structure CompSyn' = CompSyn
+               structure Unify = UnifyTrail
+               structure FullComp = FullComp
+	       structure Index = Index
+               structure CSManager = CSManager);
 
 structure Trace =
   Trace (structure IntSyn' = IntSyn
@@ -45,8 +48,9 @@ structure TMachine =
   TMachine (structure IntSyn' = IntSyn
 	    structure CompSyn' = CompSyn
 	    structure Unify = UnifyTrail
+            structure FullComp = FullComp
 	    structure Index = Index
 	    structure CPrint = CPrint
             structure Names = Names
 	    structure Trace = Trace
-              structure CSManager = CSManager);
+            structure CSManager = CSManager);

@@ -1,0 +1,17 @@
+Group is
+  ../lambda/sources.cm
+  ../opsem/sources.cm
+  ../trail/sources.cm
+  simpsyn.sig
+  simpsyn.fun
+  simpwhnf.sig
+  simpwhnf.fun
+  simpwhnf_eta.fun
+  simpunify.sig
+  simpunify.fun
+  simpunify_eta.fun
+  simpcomp.sig
+  simpcomp.fun
+  simpcomp_eta.fun
+  simpmachine.fun
+  simple_eta.sml
