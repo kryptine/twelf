@@ -12,6 +12,7 @@ Group is
   ../terminate/sources.cm
   ../solvers/sources.cm
   ../worldcheck/sources.cm
+  ../typecheck/sources.cm
   cover.sig
   cover.fun
   total.sig
