@@ -372,9 +372,15 @@ struct
       (case bvarSub (k, s)
 	 of Idx k' => Bidx k'
           | Block B => B)
-    | blockSub (LVar (r, (l, s)), t) = 
-      LVar (r, (l, comp (s, t))) 
-
+    | blockSub (LVar (ref (SOME B), _), s) =
+        blockSub (B, s)
+    (* next case is questionable, since always . |- t : Gsome *)
+    (* Thu Dec  6 20:30:26 2001 -fp !!! *)
+    | blockSub (L as LVar (ref NONE, (l, t)), s) = 
+       L
+    (* was
+       LVar (r, (l, comp (t, s))) 
+    *)
 
   (* frontSub (Ft, s) = Ft'
 
