@@ -2,7 +2,6 @@
    Author: Carsten Schuermann
 *)
 
-
 id :: world (base)
 	all {N:exp} exists {M:exp} true
 
