@@ -38,6 +38,7 @@ functor Converter
    (*! sharing Subordinate.IntSyn = IntSyn' !*)
    structure TypeCheck : TYPECHECK
    (*! sharing TypeCheck.IntSyn = IntSyn' !*)
+   structure Redundant : REDUNDANT
        )
      : CONVERTER = 
 struct
@@ -910,43 +911,6 @@ exception Error' of Tomega.Sub
 
 
 
-     (* mkInst (n) = iota
-
-        Invariant:
-        iota = n.n-1....1
-     *)
-    fun mkInst (0) = nil
-      | mkInst (n) = I.Root (I.BVar (n), I.Nil) :: mkInst (n-1)
-
-    
-    (* deblockify G = (G', t')
-     
-       Invariant:
-       If   |- G ctx
-       then G' |- t' : G 
-    *)
-    fun deblockify  (I.Null) = (I.Null, T.id)
-      | deblockify  (I.Decl (G, I.BDec (x, (c, s)))) = 
-        let
-	  val (G', t') = deblockify  G
-					(* G' |- t' : G *)
-          val (_, L) = I.constBlock c
-	  val n = List.length L
-	  val G'' = append (G', (L, I.comp (s, T.coerceSub t')))
-					(* G'' = G', V1 ... Vn *)
-	  val t'' = T.comp (t', T.Shift n)
-					(* G'' |- t'' : G *)
-	  val I = I.Inst (mkInst n)
-					(* I = (n, n-1 ... 1)  *)
-	  val t''' = T.Dot (T.Block I, t'')
-					(* G'' |- t''' : G, x:(c,s) *)
-	in 
-          (G'', t''')
-	end
-    and append (G', (nil, s)) = G'
-      | append (G', (D :: L, s)) = 
-          append (I.Decl (G', I.decSub (D, s)), (L, I.dot1 s))
-
 
     (* traverse (Psi0, L, Sig, wmap) = C'
 
@@ -1148,7 +1112,7 @@ exception Error' of Tomega.Sub
 
 
   
-              val (GB', iota) = deblockify  B'    (* Psi0, G' |- GB' ctx *)
+              val (GB', iota) = T.deblockify  B'    (* Psi0, G' |- GB' ctx *)
 
 (*	      val b4 = I.ctxLength GB'
 	      val iota = blockToIota (T.Shift b4, B', 0)
@@ -1178,7 +1142,7 @@ exception Error' of Tomega.Sub
 	      fun lift (I.Null, P) = P
 		| lift (I.Decl (G, D), P) = 
 		  let
-		    val (Bint, _) = deblockify (I.Decl (I.Null, D)) 
+		    val (Bint, _) = T.deblockify (I.Decl (I.Null, D)) 
 		  in
 		    lift (G, T.New (T.Lam (T.UDec D, P)))
 		  end
@@ -1215,7 +1179,7 @@ exception Error' of Tomega.Sub
 	      val _ = TomegaTypeCheck.checkFor (Psi2, F4)
 		handle _ => raise Error ""(* ' F4 *)
 
-	      val (B3, sigma3) = deblockify  B3'
+	      val (B3, sigma3) = T.deblockify  B3'
 
 (*	      val sigma3 = blockToIota (T.Shift (I.ctxLength B3), B3', 0)
 					(* Psi2, B3 |- sigma3 : Psi2,  B3' *)
@@ -1551,7 +1515,7 @@ exception Error' of Tomega.Sub
 	  val P = convertPrg ([cid], NONE)
 	  val name = I.conDecName (I.sgnLookup cid)
 	  val _ = TomegaTypeCheck.checkPrg (I.Null, (P, F))
-	  val lemma = T.lemmaAdd (T.ValDec (name, P, F))
+	  val lemma = T.lemmaAdd (T.ValDec (name, Redundant.convert P, F))
 	in
 	  (lemma, [], [])
 	end
@@ -1566,7 +1530,7 @@ exception Error' of Tomega.Sub
 	  val P = convertPrg (cids, SOME projs)
 	  val s = name cids
 	  val _ = TomegaTypeCheck.checkPrg (I.Null, (P, F))
-	  val lemma = T.lemmaAdd (T.ValDec (s, P, F))
+	  val lemma = T.lemmaAdd (T.ValDec (s, Redundant.convert P, F))
 
 	  val sels = installSelection (cids, projs, F, lemma)
 
@@ -1578,7 +1542,7 @@ exception Error' of Tomega.Sub
 
     fun raiseP (G, P, F) =
       let 
-	val (G', s) = deblockify G
+	val (G', s) = T.deblockify G
 	val P' = Normalize.normalizePrg (P, s) (* G' |- P' : F' *)
 	val F' = Normalize.normalizeFor (F, s)
 	val P'' = raisePrg (G', P', F')
@@ -1587,7 +1551,6 @@ exception Error' of Tomega.Sub
       end
 	  
   in 
-    val deblockify = deblockify
     val convertFor = convertFor
     val convertPrg = fn L => convertPrg (L, NONE)
     val installFor = installFor

@@ -8,7 +8,6 @@ functor Opsem ( structure Whnf : WHNF
 	       structure Normalize : NORMALIZE
 	       structure TomegaTypeCheck : TOMEGATYPECHECK
 	       structure TomegaPrint : TOMEGAPRINT
-	       structure Converter : CONVERTER
 	       structure Unify : UNIFY
 		   ) : OPSEM = 
 
@@ -198,7 +197,7 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
 	     val D''' = T.UDec (Names.decName (T.coerceCtx Psi, D''))  (* unnecessary naming, remove later --cs *)
 	     val V = evalPrg (I.Decl (Psi, D'''), (P, T.dot1 t))
 	     val B = T.coerceCtx (I.Decl (I.Null, D'''))
-	     val (G, t') = Converter.deblockify B
+	     val (G, t') = T.deblockify B
 	     val newP = raisePrg (Psi, G, Normalize.normalizePrg (V, t'))
 	   in 
 	     newP
