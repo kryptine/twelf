@@ -195,9 +195,11 @@ local
 	 of I.BDec (SOME(bname), (cid, t)) =>
 	    let
 	      val (Gsome, Gblock) = I.constBlock (cid)
-	      fun parmName (D::L, 1) = Names.decLUName (G, D)
+	      fun parmName (D::L, 1) = D
                 | parmName (D::L, j) = parmName (L, j-1)
-	      val I.Dec (SOME(pname), _) = parmName (Gblock, i)
+	      val pname = case parmName (Gblock, i)
+		            of I.Dec (SOME(pname), _) => pname
+			     | I.Dec (NONE, _) => Int.toString i
 	    in
 	      bname ^ "_" ^ pname
 	    end)
