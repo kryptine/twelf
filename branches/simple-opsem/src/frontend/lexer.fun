@@ -1,5 +1,6 @@
 (* Lexer *)
 (* Author: Frank Pfenning *)
+(* Modified: Brigitte Pientka *)
 
 functor Lexer (structure Stream' : STREAM
                structure Paths' : PATHS)
@@ -36,12 +37,14 @@ struct
     | QUERY	  			(* `%query' *)
     | MODE				(* `%mode' *)
     | TERMINATES			(* `%terminates' *)
+    | REDUCES                           (* `%reduces' *)(*  -bp6/5/99. *)
     | THEOREM                           (* `%theorem' *)
     | PROVE                             (* `%prove' *)
     | ESTABLISH				(* `%establish' *)
     | ASSERT				(* `%assert' *)
     | ABBREV				(* `%abbrev' *)
     | USE                               (* `%use' *)
+    | STRING of string                  (* string constants *)
 
   exception Error of string
 
@@ -50,7 +53,7 @@ struct
   (* isSym (c) = B iff c is a legal symbolic identifier constituent *)
   (* excludes quote character and digits, which are treated specially *)
   (* Char.contains stages its computation *)
-  val isSym : char -> bool = Char.contains "_!&$^+/<=>?@~|#*`;,-\\\""
+  val isSym : char -> bool = Char.contains "_!&$^+/<=>?@~|#*`;,-\\"
 
   (* isQuote (c) = B iff c is the quote character *)
   fun isQuote (c) = (c = #"'")
@@ -156,19 +159,21 @@ struct
       | lexInitial (#"_", i) = lexID (Upper, P.Reg (i-1,i))
       | lexInitial (#"'", i) = lexID (Lower, P.Reg (i-1,i)) (* lexQUID (i-1,i) *)
       | lexInitial (#"\^D", i) = (EOF, P.Reg (i-1,i-1))
+      | lexInitial (#"\"", i) = lexString (P.Reg(i-1, i+1))
       | lexInitial (c, i) =
 	if Char.isSpace (c) then lexInitial (char (i),i+1)
 	else if Char.isUpper(c) then lexID (Upper, P.Reg (i-1,i))
 	else if Char.isDigit(c) then lexID (Lower, P.Reg (i-1,i))
 	else if Char.isLower(c) then lexID (Lower, P.Reg (i-1,i))
 	else if isSym(c) then lexID (Lower, P.Reg (i-1,i))
-	else error (P.Reg (i-1,i), "Illegal character " ^ Char.toString (c))
+        else error (P.Reg (i-1,i), "Illegal character " ^ Char.toString (c))
         (* recover by ignoring: lexInitial (char(i), i+1) *)
 
     and lexID (idCase, P.Reg (i,j)) =
         let fun lexID' (j) =
 	        if isIdChar (char(j)) then lexID' (j+1)
-		else idToToken (idCase, P.Reg (i,j))
+		else 
+		   idToToken (idCase, P.Reg (i,j))
 	in
 	  lexID' (j)
 	end
@@ -180,13 +185,13 @@ struct
 	       (* recover by adding implicit quote? *)
 	       (* qidToToken (i, j) *)
 	else if isQuote (char(j)) then qidToToken (P.Reg (i,j))
-	     else lexQUID (P.Reg (i, j+1))
+	     else lexQUID (P.Reg (i, j+1)) 
 
     and lexPercent (#".", i) = (EOF, P.Reg (i-2,i))
       | lexPercent (#"{", i) = lexPercentBrace (char(i), i+1)
       | lexPercent (#"%", i) = lexComment (#"%", i)
       | lexPercent (c, i) =
-        if isIdChar(c) then lexPragmaKey (lexID (Quoted, P.Reg (i-1,i)))
+        if isIdChar(c) then lexPragmaKey (lexID (Quoted, P.Reg (i-1, i)))
 	else if Char.isSpace(c) then lexComment (c, i)
 	  else error (P.Reg (i-1, i), "Comment character `%' not followed by white space")
 
@@ -195,6 +200,7 @@ struct
       | lexPragmaKey (ID(_, "postfix"), r) = (POSTFIX, r)
       | lexPragmaKey (ID(_, "mode"), r) = (MODE, r)
       | lexPragmaKey (ID(_, "terminates"), r) = (TERMINATES, r)
+      | lexPragmaKey (ID(_, "reduces"), r) = (REDUCES, r) (* -bp6/5/99. *)
       | lexPragmaKey (ID(_, "theorem"), r) = (THEOREM, r)
       | lexPragmaKey (ID(_, "prove"), r) = (PROVE, r)
       | lexPragmaKey (ID(_, "establish"), r) = (ESTABLISH, r)
@@ -242,6 +248,17 @@ struct
       | lexDCommentRBrace (#"%", l, i) = lexDComment (char(i), l-1, i+1)
       | lexDCommentRBrace (c, l, i) = lexDComment (c, l, i)
 
+    and lexString (P.Reg(i, j)) =
+          (case char(j)
+             of (#"\"") => (STRING (string (i, j+1)), P.Reg(i, j+1))
+              | (#"\n") =>
+                  error (P.Reg (i-1, i-1), "Unclosed string constant at end of line")
+	          (* recover: (EOL, (i-1,i-1)) *)
+              | (#"\^D") =>
+                  error (P.Reg (i-1, i-1), "Unclosed string constant at end of file")
+                  (* recover: (EOF, (i-1,i-1)) *)
+              | _ => lexString (P.Reg(i, j+1)))
+
     fun lexContinue (j) = Stream.delay (fn () => lexContinue' (j))
     and lexContinue' (j) = lexContinue'' (lexInitial (char(j), j+1))
 
@@ -280,6 +297,7 @@ struct
     | toString' (QUERY) = "%query"
     | toString' (MODE) = "%mode"
     | toString' (TERMINATES) = "%terminates"
+    | toString' (REDUCES) = "%reduces"              (*  -bp6/5/99. *)
     | toString' (THEOREM) = "%theorem"
     | toString' (PROVE) = "%prove"
     | toString' (ESTABLISH) = "%establish"
@@ -289,6 +307,7 @@ struct
 
  fun toString (ID(_,s)) = "identifier `" ^ s ^ "'"
    | toString (EOF) = "end of file or `%.'"
+   | toString (STRING(s)) = "constant string " ^ s
    | toString (token) = "`" ^ toString' token ^ "'"
 
  exception NotDigit of char

@@ -162,7 +162,6 @@ struct
   (* ask each active solver to try and parse the given string *)
   fun parse string =
         let
-          val _ = print ("Searching " ^ string ^ "\n")
           exception Parsed of IntSyn.csid * IntSyn.ConDec
           fun parse' (cs, solver : solver) =
                 (case #fgnConst(solver)
@@ -188,18 +187,25 @@ struct
                    (csArray, 0, SOME(!nextCS));
           
 
+  (* mark all active solvers *)
+  fun mark () =
+        Array.appi (fn (_, Solver (solver, active)) =>
+                      if !active then #mark(solver) () else ())
+                   (csArray, 0, SOME(!nextCS))
+
+  (* unwind all active solvers *)
+  fun unwind () =
+        Array.appi (fn (_, Solver (solver, active)) =>
+                      if !active then #unwind(solver) () else ())
+                   (csArray, 0, SOME(!nextCS))
+
+
   (* trail the give function *)
   fun trail f =
         let
-          val _ = Array.appi (fn (_, Solver (solver, active)) =>
-                               if !active then #mark(solver) ()
-                               else ())
-                             (csArray, 0, SOME(!nextCS))
+          val _ = mark ()
           val r = f()
-          val _ = Array.appi (fn (_, Solver (solver, active)) =>
-                               if !active then #unwind(solver) ()
-                               else ())
-                            (csArray, 0, SOME(!nextCS))
+          val _ = unwind ()
         in
           r
         end

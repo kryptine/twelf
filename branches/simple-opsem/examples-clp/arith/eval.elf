@@ -49,8 +49,23 @@ ev_e/ : eval (e/ E2 E1) Q
           <- eval E2 Q2
           <- eval E1 (Q * Q2).
 
+ev_ep : eval (ep E) Q
+          <- eval E Q.
+
 %solve
-exp : expression "10*9+35".
+exp : expression "(10*9)+35".
 
 %query 1 *
 eval exp Q.
+
+
+
+
+
+
+
+
+
+
+
+

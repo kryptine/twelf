@@ -222,8 +222,7 @@ structure MTPStrategy =
 	       structure MTPRecursion = MTPRecursion
 	       structure Inference = Inference
 	       structure Timers = Timers)
-	  
-  
+
 structure MTProver =
   MTProver (structure IntSyn' = IntSyn
             structure FunSyn = FunSyn

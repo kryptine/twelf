@@ -16,6 +16,14 @@ struct
 
   exception Error of string
 
+  (*
+     Unprintable is raised when trying to resolve the names
+     of unnamed variables.  Usually, this signals an error
+     in Twelf; the only exception is the use of anonymous
+     bound variables [_] or {_} in the source.
+  *)
+  exception Unprintable
+
   (***********************)
   (* Operator Precedence *)
   (***********************)
@@ -66,7 +74,7 @@ struct
 
   end  (* structure Fixity *)
 
-  (* argNumber (fix) = # of explicit arguments required *)
+  (* argNumber (fix) = minimum # of explicit arguments required *)
   (* for operator with fixity fix (0 if there are no requirements) *)
   fun argNumber (Fixity.Nonfix) = 0
     | argNumber (Fixity.Infix _) = 2
@@ -77,8 +85,9 @@ struct
      if V expects exactly n arguments,
      raises Error(msg) otherwise
   *)
-  fun checkAtomic (name, IntSyn.Pi (D, V), 0) =
-      raise Error ("Constant " ^ name ^ " takes too many explicit arguments for given fixity")
+  fun checkAtomic (name, IntSyn.Pi (D, V), 0) = ()
+      (* allow extraneous arguments, Sat Oct 23 14:18:27 1999 -fp *)
+      (* raise Error ("Constant " ^ name ^ " takes too many explicit arguments for given fixity") *)
     | checkAtomic (name, IntSyn.Pi (D, V), n) =
 	checkAtomic (name, V, n-1)
     | checkAtomic (_, IntSyn.Uni _, 0) = ()
@@ -95,6 +104,8 @@ struct
     | checkArgNumber (IntSyn.SkoDec (name, i, V, L), n) =
 	checkAtomic (name, V, i+n)
     | checkArgNumber (IntSyn.ConDef (name, i, _, V, L), n) =
+	checkAtomic (name, V, i+n)
+    | checkArgNumber (IntSyn.AbbrevDef (name, i, _, V, L), n) =
 	checkAtomic (name, V, i+n)
 
   (* checkFixity (name, cidOpt, n) = ()
@@ -529,7 +540,8 @@ struct
     *)
     fun bvarName (G, k) =
         (case IntSyn.ctxLookup (G, k)
-	   of IntSyn.Dec(SOME(name), _) => name)
+	   of IntSyn.Dec(SOME(name), _) => name
+            | _ => raise Unprintable)
               (* NONE should not happen *)
 
     (* decName' role (G, D) = G,D'
