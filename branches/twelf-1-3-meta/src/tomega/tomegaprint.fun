@@ -429,6 +429,49 @@ struct
 	  end
 
 
+
+(*
+	(* formatDecs0 (Psi, Ds) = (Ds', S')
+	   
+	   Invariant:
+	   If   |- Psi ctx
+	   and  Psi ; Delta |- Ds : Psi', Delta'
+	   and  Ds = App M1 ... App Mn Ds'   (where Ds' starts with Split)
+	   then S' = (M1, M2 .. Mn)
+	   and  Psi1, Delta1 |- Ds' : Psi1', Delta1'    
+	        (for some Psi1, Delta1, Psi1', Delta1')
+        *)
+	fun formatDecs0 (Psi, T.App ((xx, M), Ds)) = 
+	    let 
+	      val (Ds', S) =
+		formatDecs0 (Psi, Ds)
+	    in
+	      (Ds', I.App (M, S))
+	    end
+	  | formatDecs0 (Psi, Ds) = (Ds, I.Nil)
+
+	    
+	(* formatDecs (index, Psi, Ds, (Psi1, s1)) = fmt'
+	   
+	   Invariant:
+	   If   |- Psi ctx
+	   and  Psi; Delta |- Ds : Psi'; Delta'
+	   and  Psi1 |- s1 : Psi, Psi'
+	   then fmt' is a pretty print format of Ds
+        *)
+	fun formatDecs (index, Psi, Ds as T.App ((xx, _), P), (Psi1, s1)) =
+	    let 
+	      val (Ds', S) = formatDecs0 (Psi, Ds)
+	      val L' = formatDecs1 (Psi, Ds', s1, nil) 
+	      val name = nameLookup index
+	    in
+	      Fmt.Hbox [formatSplitArgs (Psi1, L'), Fmt.Space, 
+			Fmt.String "=", Fmt.Break, 
+			Fmt.HVbox (Fmt.String name :: Fmt.Break :: 
+				   Print.formatSpine (T.makectx Psi, S))]
+	    end
+*)
+
 	(* formatPrg3 (Psi, P) = fmt
 	 
 	   Invariant:
@@ -440,6 +483,7 @@ struct
 	and formatPrg3 (max, Psi, P as T.Unit) = formatTuple (Psi, P)
 	  | formatPrg3 (max, Psi, P as T.PairExp _) = formatTuple (Psi, P)
 	  | formatPrg3 (max, Psi, P as T.Let _) = formatLet (max, Psi, P, nil) 
+(*	  | formatPrg3 (max, Psi, P as T.Redex (H, S)) =  ???? *)
 	  | formatPrg3 _ = Fmt.String "missing case"
 
 
@@ -457,9 +501,10 @@ struct
 				((Psi1, s1, P2 as T.Let _) ::  nil))), fmts) = 
 	    let 
 	      val Psi1' = psiName (Psi1, s1, Psi, 1)
+	      val F1 = formatPrg3 (max, Psi, P1)
 	      val fmt = (* formatDecs (0, Psi, Ds, (Psi1', s1)) *) Fmt.String " ..."
 	    in
-	      formatLet (max, Psi1', P2, fmts @ [fmt, Fmt.Break])
+	      formatLet (max, Psi1', P2, fmts @ [fmt, Fmt.String "=", F1, Fmt.Break])
 	    end
 	  | formatLet (max, Psi, T.Let (D, P1, T.Case (T.Cases 
 				((Psi1, s1, P2) ::  nil))), fmts) = 
