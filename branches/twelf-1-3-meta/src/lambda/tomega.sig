@@ -38,7 +38,6 @@ sig
   | PairBlock of IntSyn.Block * Prg     (*     | <rho, P>             *) 
   | PairPrg of Prg * Prg                (*     | <P1, P2>             *)
   | Unit				(*     | <>                   *)
-  | Root of Head * Spine                (*     | P . S                *)
   | Redex of Prg * Spine
   | Rec of Dec * Prg			(*     | mu xx. P             *)
   | Case of Cases                       (*     | case t of O          *)
@@ -46,8 +45,7 @@ sig
   | Let of Dec * Prg * Prg              (*     | let D = P1 in P2     *)
   | EVar of (Dec IntSyn.Ctx * Prg option ref * For)
 					(*     | E (G, F)             *)
-  and Head =
-    Const of lemma                      (* P ::= cc                   *)
+  | Const of lemma                      (* P ::= cc                   *)
   | Var of int                          (*     | xx                   *)
   
 

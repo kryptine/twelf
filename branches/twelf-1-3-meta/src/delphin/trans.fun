@@ -255,7 +255,8 @@ struct
       | externalizePrg (n, T.PairPrg (P1, P2)) = T.PairPrg (externalizePrg (n, P1), externalizePrg (n, P2))
       | externalizePrg (n, T.PairBlock (B, P)) = T.PairBlock (externalizeBlock B, externalizePrg (n, P))
       | externalizePrg (n, T.Unit) =  T.Unit
-      | externalizePrg (n, T.Root (H, S)) = T.Root (H, externalizeMSpine (n, S))
+      | externalizePrg (n, T.Var k) = T.Var k
+      | externalizePrg (n, T.Const c) = T.Const c
       | externalizePrg (n, T.Redex (P, S)) = T.Redex  (externalizePrg (n, P), externalizeMSpine (n, S))
       | externalizePrg (n, T.Rec (D, P)) = T.Rec (externalizeMDec (n, D), externalizePrg (n+1, P))
       | externalizePrg (n, T.Case (T.Cases O)) = T.Case (T.Cases (externalizeCases O))
@@ -585,7 +586,7 @@ struct
 	    val D' = T.UDec (parseDec (Psi, D))
           in 
 (*	    T.Let (T.PDec (NONE, T.True), T.Lam (D', transDecs (I.Decl (Psi, D'), Ds, sc, W)), T.Unit) *)
-	    T.Let (T.PDec (NONE, T.True), T.Lam (D', transDecs (I.Decl (Psi, D'), Ds, sc, W)), T.Root (T.Var 1, T.Nil))
+	    T.Let (T.PDec (NONE, T.True), T.Lam (D', transDecs (I.Decl (Psi, D'), Ds, sc, W)), T.Var 1)
  (* T.True is not right! -- cs Sat Jun 28 11:43:30 2003  *)
 	  end
 
@@ -1001,7 +1002,7 @@ struct
 	   val (n, F) = lookup (Psi, 1, name)
 	   val (S, Fs') = transProgS'  (Psi, (F, T.id), W, args)
 	 in
-	   (T.Root (T.Var n, S), Fs')
+	   (T.Redex (T.Var n, S), Fs')
 	 end
      | transProgS (Psi, D.Choose  (eD, eP), W, args) =
 	 let

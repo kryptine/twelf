@@ -525,28 +525,7 @@ struct
 	  end
 
 
-
-
-	and formatRoot callname (Psi, T.Var (k), S) = 
-	    let 
-	      val T.PDec (SOME name, _) = I.ctxLookup (Psi, k)
-	      val Fspine = fmtSpine callname (Psi, S)
-	    in
-              Fmt.Hbox [Fmt.Space, 
-			Fmt.HVbox (Fmt.String name :: Fmt.Break  :: Fspine)]
-	    end
-
-	  | formatRoot callname (Psi, T.Const (l), S) = 
-	    let 
-	      val T.ValDec (name, _, _) = T.lemmaLookup l
-	      val Fspine = fmtSpine callname (Psi, S)
-	    in
-              Fmt.Hbox [Fmt.Space, 
-			Fmt.HVbox (Fmt.String name :: Fmt.Break  :: Fspine)]
-	    end
-
-
-        and formatRedex callname (Psi, (T.Root (T.Var k, T.Nil)), S) = 
+        and formatRedex callname (Psi, T.Var k, S) = 
 	    (* no mutual recursion, recursive call *)
 	    let 
 	      val T.PDec (SOME name, _) = I.ctxLookup (Psi, k)
@@ -555,7 +534,7 @@ struct
               Fmt.Hbox [Fmt.Space, 
 			Fmt.HVbox (Fmt.String name :: Fmt.Break  :: Fspine)]
 	    end
-          | formatRedex callname (Psi, (T.Root (T.Const l, T.Nil)), S) = 
+          | formatRedex callname (Psi, T.Const l, S) = 
 	    (* lemma application *)
 	    let 
 	      val T.ValDec (name, _, _) = T.lemmaLookup l
@@ -564,7 +543,7 @@ struct
               Fmt.Hbox [Fmt.Space, 
 			Fmt.HVbox (Fmt.String name :: Fmt.Break  :: Fspine)]
 	    end
-          | formatRedex callname (Psi, (T.Root (T.Const l, _)), S) = 
+          | formatRedex callname (Psi, (T.Redex (T.Const l, _)), S) = 
 	    (* mutual recursion, k is the projection function *)
 	    let 
 	      (* val T.ValDec (name, _, _) = T.lemmaLookup l *)
@@ -591,7 +570,6 @@ struct
 			 Fmt.String ",", Fmt.Break, formatPrg3 callname  (Psi, P), Fmt.String ">"]
 (* formatTuple (Psi, P) *)
 	  | formatPrg3 callname  (Psi, P as T.Let _) = formatLet callname (Psi, P, nil)
-	  | formatPrg3 callname  (Psi, P as T.Root (H, S)) =  formatRoot callname (Psi, H, S)
 	  | formatPrg3 callname  (Psi, P as T.New (T.Lam (T.UDec (I.BDec (l, (c, s))), _))) = 
 	      formatNew callname (Psi, P, nil)
 	  | formatPrg3 callname  (Psi, T.Redex (P, S)) =  formatRedex callname (Psi, P, S)

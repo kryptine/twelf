@@ -152,13 +152,12 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
       | evalPrg (Psi, (T.Redex (P, S), t)) = 
 	  evalRedex (Psi, evalPrg (Psi, (P, t)), (S, t))
 
-      | evalPrg (Psi, (T.Root (T.Var k, S), t)) =
+      | evalPrg (Psi, (T.Var k, t)) =
           (case T.varSub (k, t) 
-	    of T.Prg P =>  evalRedex (Psi, evalPrg (Psi, (P, T.id)), (S, t))
-	      )
+	    of T.Prg P =>  evalPrg (Psi, (P, T.id)))
 
-      | evalPrg (Psi, (T.Root (T.Const lemma, S), t)) = 
-	    evalPrg (Psi, (T.Redex(T.lemmaDef lemma, S), t))
+      | evalPrg (Psi, (T.Const lemma, t)) = 
+	    evalPrg (Psi, (T.lemmaDef lemma, t))
 
       | evalPrg (Psi, (T.Lam (D as T.UDec (I.BDec _), P), t)) = 
 	  let
@@ -355,10 +354,10 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
 	   matchPrg (Psi, P1, P2))
       | matchSub (Psi, T.Dot (T.Prg P1, t1), T.Dot (T.Idx k, t2)) = 
 	  (matchSub (Psi, t1, t2);
-	   matchPrg (Psi, P1, T.Root (T.Var k, T.Nil)))
+	   matchPrg (Psi, P1, T.Var k))
       | matchSub (Psi, T.Dot (T.Idx k, t1), T.Dot (T.Prg P2, t2)) = 
 	  (matchSub (Psi, t1, t2);
-	   matchPrg (Psi, T.Root (T.Var k, T.Nil), P2))
+	   matchPrg (Psi, T.Var k, P2))
       | matchSub (Psi, T.Dot (T.Idx k1, t1), T.Dot (T.Idx k2, t2)) =
 	  (if k1 = k2 then matchSub (Psi, t1, t2) else raise NoMatch)
 

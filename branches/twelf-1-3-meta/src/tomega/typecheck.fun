@@ -38,7 +38,7 @@ struct
 	(* no other cases can occur *)
 
 
-    (* inferCon (Psi, (H, t)) = (F', t')
+(*    (* inferCon (Psi, (H, t)) = (F', t')
      
        Invariant:
        If   Psi  |- t : Psi1 
@@ -48,7 +48,7 @@ struct
     fun inferCon (Psi, T.Const lemma) = inferLemma lemma
       | inferCon (Psi, T.Var k) = 
 	  case T.ctxDec (Psi, k) of T.PDec (_, F') => F' 
-
+*)
 
     (* inferSpine (Psi, (S, t1), (F, t2)) = (F', t')
      
@@ -60,7 +60,7 @@ struct
        and  Psi  |- F'[t1] == F[t2]
        then Psi  |- F''[t1] == F'[t']
     *)
-    and inferSpine (Psi, S, Ft) = inferSpineW (Psi, S, Normalize.whnfFor Ft)
+    fun inferSpine (Psi, S, Ft) = inferSpineW (Psi, S, Normalize.whnfFor Ft)
     and inferSpineW (Psi, T.Nil, (F, t)) = (F, t)
       | inferSpineW (Psi, T.AppExp (M, S), (T.All ((T.UDec (I.Dec (_, A)), _), F), t)) =
 	let 
@@ -126,6 +126,9 @@ struct
 	  T.And (F1, F2)
 	end
       | inferPrg (Psi, T.Unit) = T.True
+      | inferPrg (Psi, T.Var k) = (case T.ctxDec (Psi, k) of T.PDec (_, F') => F')
+      | inferPrg (Psi, T.Const c) = inferLemma c
+(* Root's are history Thu Aug 21 14:14:17 2003 --cs 
       | inferPrg (Psi, T.Root (H, S)) = 
 	let
 	  val F1 = inferCon (Psi, H)
@@ -133,7 +136,7 @@ struct
 	in 
 	  Normalize.normalizeFor F2
 	end
-      | inferPrg (Psi, T.Redex (P, S)) = 
+*)      | inferPrg (Psi, T.Redex (P, S)) = 
 	let
 	  val F1 = inferPrg (Psi, P)
 	  val F2 = inferSpine (Psi, S, (F1, T.id))
@@ -171,7 +174,7 @@ struct
 	in
           ()
 	end
-      | checkPrgW (Psi, (T.Root (H, S), (F, t))) =
+(*      | checkPrgW (Psi, (T.Root (H, S), (F, t))) =
 	let
 	  val F' = inferCon (Psi, H)
 	  val Ft'' = inferSpine (Psi, S, (F', T.id))
@@ -179,7 +182,11 @@ struct
 	in 
 	  ()
 	end
-
+*)
+      | checkPrgW (Psi, (T.Const lemma, (F, t))) = 
+	  convFor (Psi, (inferLemma lemma, T.id), (F, t))
+      | checkPrgW (Psi, (T.Var k, (F, t))) = 
+	  (case T.ctxDec (Psi, k) of T.PDec (_, F') => convFor (Psi, (F', T.id), (F, t)))
       | checkPrgW (Psi, (T.Lam (D as T.PDec (x, F1), P), (T.All ((T.PDec (x', F1'), _), F2), t))) = 
 	let 
 	  val _ = chatter 4 (fn () => "[lam[p]")
@@ -280,9 +287,10 @@ struct
          checkSpine (Psi, S, (F, T.Dot (T.Exp U, t)), (F', t')))
       | checkSpine (Psi, T.AppPrg (P, S), (T.All ((T.PDec (_, F1) , _), F2), t),  (F', t')) =
 	(checkPrgW (Psi, (P, (F1, t)));  checkSpine (Psi, S, (F2, T.Dot (T.Undef, t)), (F', t')))
+      | checkSpine (Psi, T.AppExp (U, S), (T.FClo (F, t1) , t), (F', t')) = 
+	  checkSpine (Psi, T.AppExp (U, S), (F, T.comp (t1 , t)), (F', t')) 
+
    
-
-
     (* checkCases (Psi, (Omega, (F, t2))) = ()
        Invariant:
        and  Psi |- Omega : F'
@@ -466,14 +474,14 @@ struct
       | convSub(G, T.Dot(T.Idx k1, s1), T.Dot(T.Prg P2, s2), I.Decl(G', T.PDec(_, F))) =
 	let
 	    val _ = isValue P2
-	    val _ = convValue (G, T.Root(T.Var k1, T.Nil), P2, F)
+	    val _ = convValue (G, T.Var k1, P2, F)
 	in
 	    convSub(G, s1, s2, G')
 	end
       | convSub(G, T.Dot(T.Prg P1, s1), T.Dot(T.Idx k2, s2), I.Decl(G', T.PDec(_, F))) =
 	let
 	    val _ = isValue P1
-	    val _ = convValue (G, P1, T.Root(T.Var k2, T.Nil), F)
+	    val _ = convValue (G, P1, T.Var k2, F)
 	in
 	    convSub(G, s1, s2, G')
 	end
@@ -609,6 +617,22 @@ struct
 
 	
 
+    and isValue (T.Var _) = ()
+      | isValue (T.PClo (T.Lam _, _)) = ()
+      | isValue (T.PairExp (M, P)) = isValue P
+      | isValue (T.PairBlock _ ) = ()
+      | isValue (T.PairPrg (P1, P2)) = (isValue P1; isValue P2)
+      | isValue T.Unit = ()
+      | isValue (T.Rec _) = ()
+      | isValue (T.Const lemma) =
+	( case (T.lemmaLookup lemma) of 
+	      T.ForDec _ => raise Error "Lemma isn't a value"
+	    | T.ValDec(_,P,_) => isValue P )
+      | isValue _ = raise Error "P isn't Value!"
+
+
+
+(*
     and isValue (T.Lam _) = ()
       | isValue (T.PairExp (M, P)) = isValue P
       | isValue (T.PairBlock _ ) = ()
@@ -626,7 +650,7 @@ struct
       | isValue (T.EVar _) = raise Error "It is an EVar"
 
       | isValue _ = raise Error "P isn't Value!"
-
+*)
 
     fun check (Psi, (P, F)) = checkPrg (Psi, (P, (F, T.id)))
 

@@ -29,11 +29,8 @@ functor Redundant (structure Opsem : OPSEM) : REDUNDANT  =
       | convert (T.PairBlock (rho, P)) = T.PairBlock (rho, convert P)
       | convert (T.PairPrg (P1, P2)) = T.PairPrg (convert P1, convert P2)
       | convert (T.Unit) = T.Unit
-
-      | convert (T.Root (T.Const lemma, S)) = (* lemma converted by Induction Hypothesis *)
-                                              T.Root (T.Const lemma, convertSpine S)
-
-      | convert (T.Root (T.Var v, S)) = T.Root (T.Var v, convertSpine S)
+      | convert (T.Var x) = T.Var x
+      | convert (T.Const x) = T.Const x
       | convert (T.Redex (P, S)) = T.Redex (convert P, convertSpine S)
       | convert (T.Rec (D, P)) = T.Rec (D, convert P)
       | convert (T.Case (T.Cases O)) = T.Case (T.Cases (convertCases O)) 
@@ -117,7 +114,14 @@ functor Redundant (structure Opsem : OPSEM) : REDUNDANT  =
 
       | prgEqual ((T.Unit), (T.Unit, t2)) = true
 
-      | prgEqual ((T.Root (H1, S1)), (T.Root (H2, S2), t2)) =
+      | prgEqual (T.Const lemma1, (T.Const lemma2, _)) = (lemma1=lemma2) 
+
+      | prgEqual (T.Var x1, (T.Var x2, t2)) =
+		     (case getFrontIndex(T.varSub(x2,t2)) of
+			   NONE => false
+		         | SOME i => (x1 = i))
+
+(*      | prgEqual ((T.Root (H1, S1)), (T.Root (H2, S2), t2)) =
 		(case (H1, H2)
 		   of (T.Const lemma1, T.Const lemma2) => ((lemma1=lemma2) andalso (spineEqual(S1, (S2,t2))))
 		 |  (T.Var x1, T.Var x2) => 
@@ -125,7 +129,7 @@ functor Redundant (structure Opsem : OPSEM) : REDUNDANT  =
 			      NONE => false
 			    | SOME i => ((x1 = i) andalso (spineEqual(S1, (S2,t2)))))
                  |  _ => false)
-
+*)
       | prgEqual ((T.Redex (P1, S1)), (T.Redex (P2, S2), t2)) = (prgEqual(P1, (P2,t2)) andalso spineEqual(S1, (S2,t2)))
 
       | prgEqual ((T.Rec (D1, P1)), (T.Rec (D2, P2), t2)) = (decEqual(D1, (D2,t2)) andalso prgEqual(P1, (P2,T.dot1 t2)))
@@ -174,7 +178,7 @@ functor Redundant (structure Opsem : OPSEM) : REDUNDANT  =
 
 
     (* getPrgIndex returns NONE if it is not an index *)
-    and getPrgIndex (T.Root(T.Var k, T.Nil )) = SOME(k)
+    and getPrgIndex (T.Var k) = SOME(k)
       | getPrgIndex (T.Redex(P, T.Nil) ) = getPrgIndex(P)
 
       (* it is possible in the matchSub that we will get PClo under a sub (usually id) *)
@@ -290,7 +294,18 @@ functor Redundant (structure Opsem : OPSEM) : REDUNDANT  =
 
       | mergePrgs ((T.Unit), (T.Unit, t2)) = T.Unit
 
-      | mergePrgs ((T.Root (H1, S1)), (T.Root (H2, S2), t2)) =
+      | mergePrgs (T.Const lemma1, (T.Const lemma2, _)) = 
+		   if (lemma1=lemma2) then T.Const lemma1
+		   else raise Error "Constants do not match."
+
+      | mergePrgs (T.Var x1, (T.Var x2, t2)) =
+		     (case getFrontIndex(T.varSub(x2,t2)) of
+			   NONE => raise Error "Variables do not match."
+		         | SOME i => 
+			     (if (x1 = i) then T.Var x1
+			      else raise Error "Variables do not match."))
+			
+(*      | mergePrgs ((T.Root (H1, S1)), (T.Root (H2, S2), t2)) =
 		(case (H1, H2)
 		   of (T.Const lemma1, T.Const lemma2) => 
 		     if (lemma1=lemma2) then 
@@ -305,7 +320,7 @@ functor Redundant (structure Opsem : OPSEM) : REDUNDANT  =
 				 else
 				   raise Error "Root does not match."))
 		   |  _ => raise Error "Root does not match.")
-
+*)
       | mergePrgs ((T.Redex (P1, S1)), (T.Redex (P2, S2), t2)) =
 	let
 	  val newS = mergeSpines(S1, (S2, t2))
