@@ -1323,11 +1323,10 @@ exception Error' of Tomega.Sub
 	fun recursion () =
 	  let
 	    val (Psi, P, F) = createIHCtx (I.Null, L)
-	    val t = T.Dot (T.Prg P, T.Shift (I.ctxLength Psi))
-	      
+	    val t = T.Dot (T.Prg P, T.Shift (I.ctxLength Psi))	      
 	  in
 	    (Psi, fn p => T.Rec (T.PDec (SOME (name L), F), 
-				 T.Case (T.Cases [(Psi, t, p)])), F)
+				 T.Case ((* F, *) T.Cases [(Psi, t, p)])), F)
 	  end
 
 	val (Psi0, Prec, F0) = recursion ()
@@ -1377,17 +1376,17 @@ exception Error' of Tomega.Sub
 	    *)
 	    fun init (T.All (D, F')) =
 	        let 
-		  val P' = init F'
+		  val (F'', P') = init F'
 		in
-		  fn p => T.Lam (D, P' p)
+		  (F'', fn p => T.Lam (D, P' p))
 		end
-	      | init _ = (fn p => p)
+	      | init F' = (F', fn p => p)
 
-	    val Pinit = init F
+	    val (F', Pinit) = init F
 	    val C = traverse (Psi0, L, statSig, wmap)
 					(* Psi0, x1:V1, ..., xn:Vn |- C :: F *)
 	  in
-	    Pinit (T.Case (T.Cases (C0 @ C)))
+	    Pinit (T.Case ((* F', *) T.Cases (C0 @ C)))
 	  end
 
 	fun convertPrg' (nil, _) = raise Error "Cannot convert Empty program"
