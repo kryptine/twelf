@@ -1256,9 +1256,12 @@ return a pointer to this list\\
 \item[Select-Cache] $\Gamma \vd c_i \cdot S: G \Rightarrow
   \underset{1 \ldots (i-1)}{\underbrace{0\ldots 0}}1\underset{(i+1) \ldots k}W $ \\
     \mbox{Given an atomic goal $G$ and clauses $\Gamma$:}\hfill\\
-    call CheckGoal($\Gamma \vd G$)
+    call CheckGoal($\Gamma \vd G$)\\
+    This will return a pointer to an answer list\\
+    Add these answers to the set of choices to be considered\\
     Let $k$ be the number of clauses whose head unifies with the
-    current goal $G$ and $c_i : A_i$ be the clause which leads to a
+    current goal $G$ (including the choices from cache) 
+    and $c_i : A_i$ be the choice which leads to a
     proof $c_i\cdot S$ of $G$ from $\Gamma$.\\
     {\em{if CallCheck($\Gamma \vd G$, \cal{T}) \\
          then return a pointer to the answer list and\\
