@@ -479,7 +479,9 @@ struct
           let 
 	    val D' = T.UDec (parseDec (Psi, D))
           in 
-	    T.Let (T.PDec (NONE, T.True), T.Lam (D', transDecs (I.Decl (Psi, D'), Ds, sc, W)), T.Unit)
+(*	    T.Let (T.PDec (NONE, T.True), T.Lam (D', transDecs (I.Decl (Psi, D'), Ds, sc, W)), T.Unit) *)
+	    T.Let (T.PDec (NONE, T.True), T.Lam (D', transDecs (I.Decl (Psi, D'), Ds, sc, W)), T.Root (T.Var 1, T.Nil))
+ (* T.True is not right! -- cs Sat Jun 28 11:43:30 2003  *)
 	  end
 
       | transDecs _ = raise Error "Constant declaration must be followed by a constant definition"
@@ -1021,7 +1023,7 @@ struct
        the translated program, that does not do anything
     *)
     fun transProgram Ds =
-	  transDecs (I.Null, Ds, fn (Psi, W) => T.Unit, T.Worlds [])
+	  transDecs (I.Null, Ds, fn (Psi, W) => (print (Int.toString (I.ctxLength Psi)); T.Unit), T.Worlds [])
 
 
 

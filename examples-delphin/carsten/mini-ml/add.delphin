@@ -15,4 +15,4 @@ fun add (A.z) M = <M, <>>
 new (b:base)
 
 val <X, <>> = add (b.z) ((b.s) ((b.s) ((b.s) (b.z))))
-val <X, <>> = add ((b.s) (b.z)) (b.z)
+val <Y, <>> = add ((b.s) (b.z)) X

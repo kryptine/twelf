@@ -412,7 +412,7 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
 
 
   (* in -- removed local *)
-    val evalPrg = fn P => evalPrg (I.Null, (P, T.id))  
+    val evalPrg = fn P => (evalPrg (I.Null, (P, T.id)), T.id)
   
   (* end -- removed local *)
 

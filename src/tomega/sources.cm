@@ -30,7 +30,8 @@ is
   ../modes/sources.cm
   ../trail/sources.cm
   opsem.sig
-  opsem.fun
+  opsem.fun 
+  opsem-cont.fun
   converter.sig
   converter.fun 
   typecheck.sig
