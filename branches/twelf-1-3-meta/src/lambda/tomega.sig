@@ -90,9 +90,11 @@ sig
   val comp      : Sub * Sub -> Sub
   val varSub    : int * Sub -> Front
   val decSub    : Dec * Sub -> Dec
-  val valSub    : Prg * Sub -> Prg
   val forSub    : For * Sub -> For
-
+  val whnfFor   : For * Sub -> For * Sub
+  val normalizePrg : Prg * Sub -> Prg 
+  val normalizeSub : Sub -> Sub 
+  
   val lemmaLookup : lemma -> ConDec
   val lemmaName   : string -> lemma
   val lemmaAdd    : ConDec -> lemma

@@ -50,8 +50,8 @@ struct
 
     fun unifyFor (Psi, F1, F2) = 
           unifyForN (Psi, 
-		     Normalize.normalizeFor (F1, T.id), 
-		     Normalize.normalizeFor (F2, T.id))
+		     T.forSub (F1, T.id), 
+		     T.forSub (F2, T.id))
     and unifyForN (Psi, T.True, T.True) = ()
       | unifyForN (Psi, T.Ex ((D1, _), F1), T.Ex ((D2, _), F2)) = 
         (unifyDec (Psi, T.UDec D1, (T.UDec D2));

@@ -5,7 +5,7 @@ functor TomegaPrint
   ((*! structure IntSyn' : INTSYN !*)
    (*! structure Tomega' : TOMEGA !*)
    (*! sharing Tomega'.IntSyn = IntSyn' !*)
-   structure Normalize : NORMALIZE
+(*   structure Normalize : NORMALIZE *)
    (*! sharing Normalize.IntSyn = IntSyn' !*)
    (*! sharing Normalize.Tomega = Tomega' !*)
    structure Formatter : FORMATTER
@@ -142,7 +142,7 @@ struct
 	
 	
 
-    fun formatFor (G, F) = Fmt.HVbox (formatFor' (G, Normalize.normalizeFor (F, T.id))) 
+    fun formatFor (G, F) = Fmt.HVbox (formatFor' (G, T.forSub (F, T.id))) 
     fun forToString (Psi, F) = Fmt.makestring_fmt (formatFor (Psi, F))
      
 

@@ -1,15 +1,10 @@
 (* Internal syntax for functional proof term calculus *)
 (* Author: Carsten Schuermann *)
+(* Modified: Yu Liao, Adam Poswolsky *)
 
-functor Tomega ((*! structure IntSyn' : INTSYN !*)
-		structure Whnf : WHNF
-		(*! sharing Whnf.IntSyn = IntSyn' !*)
-		structure Conv : CONV
-		(*! sharing Conv.IntSyn = IntSyn' !*)
-		    ) : TOMEGA = 
+functor Tomega (structure Whnf : WHNF
+		structure Conv : CONV) : TOMEGA = 
 struct
-  (*! structure IntSyn = IntSyn' !*)
-
   exception Error of string 
 
   type label = int      
@@ -119,18 +114,6 @@ struct
 	   (* not very efficient, improve !!! *)
 
 
-
-    (* coerceFront F = F'
-
-       Invariant:
-       If    Psi |- F front
-       and   G = mu G. G \in Psi
-       then  G   |- F' front
-    *)
-(*      fun coerceFront (Idx k) = I.Idx k *)
-(*        | coerceFront (Prg P) = I.Undef *)
-(*        | coerceFront (Exp U) = I.Exp U *)
-
     (* coerceFront F = F'
 
        Invariant:
@@ -156,7 +139,6 @@ struct
       | embedFront (I.Exp U) = Exp U
       | embedFront (I.Block B) = Block B
       | embedFront (I.Undef) = Undef
-(*    | embedFront (I.Axp U)  should not occur *)
 
 
     (* coerceSub t = s
@@ -190,20 +172,6 @@ struct
     coerce substitution in LF level t ==> s in Tomega level *)
     fun revCoerceSub (I.Shift n) = Shift n
       | revCoerceSub (I.Dot (Ft, t)) = Dot(revCoerceFront Ft, revCoerceSub t)
-
-
- 
-    (* coerceCtx (Psi) = G
-
-       Invariant:
-       If   |- Psi ctx[block] 
-       then |- G lf-ctx[block]
-       and  |- Psi == G
-    *)
-(*      fun coerceCtx I.Null = I.Null *)
-(*        | coerceCtx (I.Decl (Psi, BDec (L, t))) =  *)
-(*            I.Decl (coerceCtx (Psi), I.BDec (NONE, (L, coerceSub t))) *)
-      (* all other cases impossible by invariant *)
 
   
     (* Invariant Yu? *)
@@ -476,128 +444,6 @@ struct
   fun eqWorlds (Worlds W1, Worlds W2) = 
       subset (W1, W2) andalso subset (W2, W1)
 
-(*
-(* hack!!! improve !!!! *)
-    fun listToCtx (Gin) =
-      let
-	fun listToCtx' (G, nil) = G
-	  | listToCtx' (G, D :: Ds) = 
-	        listToCtx' (I.Decl (G, D), Ds)
-      in
-	listToCtx' (I.Null, Gin)
-      end
-    
-    fun ctxToList (Gin) = 
-      let
-	fun ctxToList' (I.Null, G ) = G
-	  | ctxToList' (I.Decl (G, D), G') =
-	  ctxToList' (G, D :: G')
-      in
-	ctxToList' (Gin, nil)
-      end
-
-
-    (* union (G, G') = G''
-
-       Invariant:
-       G'' = G, G'
-    *)
-    fun union (G, I.Null) = G
-      | union (G, I.Decl (G', D)) = I.Decl (union(G, G'), D)
-
-    (* makectx Psi = G
-     
-       Invariant:
-       G is Psi, where the Prim/Block information is discarded.
-    *)
-    fun makectx (I.Null) = I.Null
-      | makectx (I.Decl (G, Prim D)) = I.Decl (makectx G, D)
-      | makectx (I.Decl (G, Block (CtxBlock (l, G')))) = union (makectx G, G')
-
-    fun lfctxLength (I.Null) = 0
-      | lfctxLength (I.Decl (Psi, Prim _))= (lfctxLength Psi) + 1
-      | lfctxLength (I.Decl (Psi, Block (CtxBlock (_, G)))) =
-          (lfctxLength Psi) + (I.ctxLength G)
-
-
-    (* lfctxDec (Psi, k) = (LD', w')
-       Invariant: 
-       If      |Psi| >= k, where |Psi| is size of Psi,
-       and     Psi = Psi1, LD, Psi2
-       then    Psi |- k = LD or Psi |- k in LD  (if LD is a contextblock
-       then    LD' = LD
-       and     Psi |- w' : Psi1, LD\1   (w' is a weakening substitution)
-       and     LD\1 is LD if LD is prim, and LD\1 = x:A if LD = G, x:A
-   *)
-    fun lfctxLFDec (Psi, k) = 
-      let 
-	fun lfctxLFDec' (I.Decl (Psi', LD as Prim (I.Dec (x, V'))), 1) = 
-	      (LD, I.Shift k)
-	  | lfctxLFDec' (I.Decl (Psi', Prim _), k') = lfctxLFDec' (Psi', k'-1)
-	  | lfctxLFDec' (I.Decl (Psi', LD as Block (CtxBlock (_, G))), k') =
-	    let 
-	      val l = I.ctxLength G 
-	    in
-	      if k' <= l then
-		(LD, I.Shift (k - k' + 1))
-	      else
-		lfctxLFDec' (Psi', k' - l)
-	    end
-
-	 (* lfctxDec' (Null, k')  should not occur by invariant *)
-      in
-	lfctxLFDec' (Psi, k)
-      end
-
-    (* dot1n (G, s) = s'
-      
-       Invariant:
-       If   G1 |- s : G2
-       then G1, G |- s' : G2, G
-       where s' = 1.(1.  ...     s) o ^ ) o ^
-                        |G|-times
-    *)
-    fun dot1n (I.Null, s) = s
-      | dot1n (I.Decl (G, _) , s) = I.dot1 (dot1n (G, s))
-
-
-
-
-    fun ctxSub (I.Null, s) = (I.Null, s)
-      | ctxSub (I.Decl (G, D), s) = 
-        let
-	  val (G', s') = ctxSub (G, s)
-	in
-	  (I.Decl (G', I.decSub (D, s')), I.dot1 s)
-	end
-
-    fun forSub (All (Prim D, F), s) = 
-          All (Prim (I.decSub (D, s)), forSub (F, I.dot1 s))
-      | forSub (All (Block (CtxBlock (name, G)), F), s) = 
-	  let
-	    val (G', s') = ctxSub (G, s)
-	  in
-	    All (Block (CtxBlock (name, G')), forSub (F, s'))
-	  end			     
-      | forSub (Ex (D, F), s) = 
-	  Ex (I.decSub (D, s), forSub (F, I.dot1 s))
-      | forSub (True, s) = True
-      | forSub (And (F1, F2), s) =
-	  And (forSub (F1, s), forSub (F2, s))
-
-    fun mdecSub (MDec (name, F), s) = MDec (name, forSub (F, s))
-
-
-    fun normalizeFor (All (Prim D, F), s) = 
-          All (Prim (Whnf.normalizeDec (D, s)), normalizeFor (F, I.dot1 s))
-      | normalizeFor (Ex (D, F), s) =
-	  Ex (Whnf.normalizeDec (D, s), normalizeFor (F, I.dot1 s))
-      | normalizeFor (And (F1, F2), s) =
-	  And (normalizeFor (F1, s), normalizeFor (F2, s))
-      | normalizeFor (True, _) = True
-
-    
-*)
 
   (* ctxDec (G, k) = x:V
      Invariant: 
@@ -679,7 +525,26 @@ struct
       | forSub (True, _) = True
 
 
-    (* valSub (P, t) = (P', t')
+    (* whnfFor (F, t) = (F', t')
+     
+       Invariant:
+       If    Psi |- F for
+       and   Psi' |- t : Psi
+       then  Psi' |- t' : Psi''
+       and   Psi'' |- F' :for
+       and   Psi' |- F'[t'] = F[t] for
+    *)
+    fun whnfFor (Ft as (All (D, _), t)) = Ft
+      | whnfFor (Ft as (Ex (D, F), t)) = Ft 
+      | whnfFor (Ft as (And (F1, F2), t)) = Ft
+      | whnfFor (FClo (F, t1), t2) = 
+	  whnfFor (F, comp (t1, t2))
+      | whnfFor (Ft as (World (W, F), t)) = Ft
+      | whnfFor (Ft as (True, _)) = Ft
+
+
+
+    (* normalizePrg (P, t) = (P', t')
      
        Invariant:
        If   Psi' |- V :: F
@@ -695,14 +560,44 @@ struct
        and  Psi |- P' [t'] :nf: F [t]
     *)
 
-    fun valSub (PairExp (U, P'), t) = 
-	  PairExp (Whnf.normalize (U, coerceSub t), valSub (P', t))
-      | valSub (PairBlock (B, P'), t) = 
-	  PairBlock (I.blockSub (B, coerceSub t), valSub (P', t))
-      | valSub (PairPrg (P1, P2), t) =
-          PairPrg (valSub (P1, t), valSub (P2, t))
-      | valSub (Unit, _) = Unit
-      | valSub (PClo (P, t), t') = valSub (P, comp (t, t'))
+    fun normalizePrg (Var n, t) = 
+        (case varSub (n, t) 
+	   of (Prg P) => P
+	   | (Idx _) => raise Domain
+	   | (Exp _) => raise Domain
+	   | (Block _) => raise Domain
+	   | (Undef) => raise Domain
+	     )
+      |  normalizePrg (PairExp (U, P'), t) = 
+	  PairExp (Whnf.normalize (U, coerceSub t), normalizePrg (P', t))
+      | normalizePrg (PairBlock (B, P'), t) = 
+	  PairBlock (I.blockSub (B, coerceSub t), normalizePrg (P', t))
+      | normalizePrg (PairPrg (P1, P2), t) =
+          PairPrg (normalizePrg (P1, t), normalizePrg (P2, t))
+      | normalizePrg (Unit, _) = Unit
+      | normalizePrg (EVar (_, ref (SOME P), _), t) = PClo(P, t)
+      | normalizePrg (P as EVar _, t) = PClo(P,t) 
+      | normalizePrg (PClo (P, t), t') = normalizePrg (P, comp (t, t'))
+
+    and normalizeSpine (Nil, t) = Nil
+      | normalizeSpine (AppExp (U, S), t) =
+         AppExp (Whnf.normalize (U, coerceSub t), normalizeSpine (S, t)) 
+      | normalizeSpine (AppPrg (P, S), t) =
+          AppPrg (normalizePrg (P, t), normalizeSpine (S, t))
+      | normalizeSpine (AppBlock (B, S), t) =
+          AppBlock (I.blockSub (B, coerceSub t), normalizeSpine (S, t))
+      | normalizeSpine (SClo (S, t1), t2) =
+	  normalizeSpine (S, comp (t1, t2))
+
+    fun normalizeSub (s as Shift n) = s
+      | normalizeSub (Dot (Prg P, s)) =
+          Dot (Prg (normalizePrg (P, id)), normalizeSub s)
+      | normalizeSub (Dot (Exp E, s)) =
+	  Dot (Exp (Whnf.normalize (E, I.id)), normalizeSub s)
+      | normalizeSub (Dot (Block k, s)) = 
+	  Dot (Block k, normalizeSub s)
+      | normalizeSub (Dot (Idx k, s)) = 
+	  Dot (Idx k, normalizeSub s)
 
 
 
@@ -728,24 +623,15 @@ struct
     val invertSub = invertSub
     val ctxDec = ctxDec
     val forSub = forSub
-    val valSub = valSub
+    val whnfFor = whnfFor
+    val normalizePrg = normalizePrg
+    val normalizeSub = normalizeSub
       
-(*    val mdecSub = mdecSub
-    val makectx = makectx
-    val lfctxLength = lfctxLength
-    val lfctxLFDec = lfctxLFDec
-    val dot1n = dot1n
-    val convFor = convFor
-    val forSub = forSub
-    val normalizeFor = normalizeFor
-
-    val ctxToList = ctxToList
-    val listToCtx = listToCtx *)
-
     val id = id
     val dotEta = dotEta
     val convFor = convFor
     val newEVar = newEVar
+
 (* Below are added by Yu Liao *)
     val embedSub = embedSub
     val eqWorlds = eqWorlds
@@ -757,5 +643,6 @@ struct
     val coerceFront = coerceFront
     val revCoerceFront = revCoerceFront
     val deblockify = deblockify
+
   end
 end;  (* functor FunSyn *)

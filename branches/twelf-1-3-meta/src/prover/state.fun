@@ -42,7 +42,7 @@ struct
        else B = false
     *)
     fun close (State ((_, F), _)) = 
-         T.convFor ((Normalize.normalizeFor (F, T.id), T.id), (T.True, T.id))
+         T.convFor ((T.forSub (F, T.id), T.id), (T.True, T.id))
 
     fun construct (State ((Psi, T.And (F1, F2)), W)) sc fc =
           construct (State ((Psi, F1), W)) 

@@ -12,8 +12,6 @@ Library
   signature UNIFY
   structure UnifyTrail
   structure UnifyNoTrail
-  signature NORMALIZE
-  structure Normalize
   signature ABSTRACT
   structure Abstract
   signature APPROX
@@ -42,6 +40,6 @@ is
   abstract.fun
   approx.sig
   approx.fun
-  normalize.sig
-  normalize.fun
+ (* normalize.sig
+  normalize.fun *)
   lambda.sml

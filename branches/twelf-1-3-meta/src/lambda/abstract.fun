@@ -11,7 +11,7 @@ functor Abstract ((*! structure IntSyn' : INTSYN !*)
 		  (*! sharing Unify.IntSyn = IntSyn' !*)
 		  structure Constraints : CONSTRAINTS
 		  (*! sharing Constraints.IntSyn = IntSyn' !*)
-		  structure Normalize : NORMALIZE
+(*		  structure Normalize : NORMALIZE *)
 		  (*! sharing Normalize.IntSyn = IntSyn' !*)
 		  (*! sharing Normalize.Tomega = Tomega' !*)
 		    )
@@ -834,7 +834,7 @@ struct
       | abstractPsi (I.Decl (K', PV (T.EVar (GX, _, FX)))) =
 	(* What's happening with GX? *)
         let
-	  val F' = abstractFor (K', 0, Normalize.normalizeFor (FX, T.id))
+	  val F' = abstractFor (K', 0, T.forSub (FX, T.id))
 	in
 	  I.Decl (abstractPsi K', T.PDec (NONE, F'))
 	end

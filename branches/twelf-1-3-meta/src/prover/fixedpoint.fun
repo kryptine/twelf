@@ -35,7 +35,7 @@ struct
     *)
     fun expand (S.State ((Psi, F), W)) =  
           S.State ((I.Decl (Psi, T.PDec (SOME "IH" , F)),   (* find better name -cs *)
-			  Normalize.normalizeFor (F, T.Shift 1)), W)
+			  T.forSub (F, T.Shift 1)), W)
 
 
     (* apply O = S 
