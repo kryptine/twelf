@@ -197,6 +197,7 @@ structure Twelf =
 	 structure ModePrint = ModePrint
 
 	 structure Terminate = Terminate
+	 structure Reduces = Reduces
 
 	 structure Index = Index
 	 structure IndexSkolem = IndexSkolem
