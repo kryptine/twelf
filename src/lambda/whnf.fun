@@ -10,7 +10,7 @@ struct
   (*
      Weak Head-Normal Form (whnf)
 
-     whnf ::= (L, s) | (Pi DP. U, s) | (Root (#k(b), S))
+     whnf ::= (L, s) | (Pi DP. U, s)
             | (Root(n,S), id) | (Root(c,S), id) | (Root(d,S), id) | (Root(F[s'], S), id)
             | (Root(fgnC,S), id) where fgnC is a foreign constant
             | (Lam D. U, s) | (X, s) where X is uninstantiated, X of base type
@@ -20,7 +20,7 @@ struct
      Normal Form (nf)
 
 	UA ::= L | Pi (DA,P). UA
-             | Root(n,SA) | Root(c,SA) | Root(d,SA) | Root(fgnC,SA) | Root (#k(b), S)
+             | Root(n,SA) | Root(c,SA) | Root(d,SA) | Root(fgnC,SA)
              | Lam DA. UA | FgnExp
 	DA ::= x:UA
 	SA ::= Nil | App (UA, SA)
@@ -232,14 +232,6 @@ struct
 	   of Idx (k) => (Root (BVar (k), SClo (S, s)), id)
 	    | Exp (U) => whnfRedex (whnf (U, id), (S, s)))
       (* Undef should be impossible *)
-      | whnfRoot ((Proj (Bidx v, i), S), s) = 
-	(case bvarSub (v, s)
-	   of Idx (w) => (Root (Proj (Bidx w, i), SClo (S, s)), id))
-      | whnfRoot ((Proj (LVar (ref NONE, l, t), i), S), s) =
-	 (Root (Proj (LVar (ref NONE, l, comp (t, s)), i), SClo (S, s)), id)
-      | whnfRoot ((Proj (LVar (ref (SOME L), l, t), i), S), s) =
-	 whnfRoot ((Proj (L, i), S), s)
-      (* Undef and Exp should be impossible by definition of substitution -cs *)
       | whnfRoot ((FVar (name, V, s'), S), s) =
 	 (Root (FVar (name, V, comp (s', s)), SClo (S, s)), id)
       | whnfRoot ((NSDef (d), S), s) =
@@ -319,6 +311,7 @@ struct
     fun inferCon (Const (cid)) = constType (cid)
       | inferCon (Skonst (cid)) = constType (cid) 
       | inferCon (Def (cid)) = constType (cid)
+
     (* etaExpand' (U, (V,s)) = U'
            
        Invariant : 

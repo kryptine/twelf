@@ -17,8 +17,6 @@ functor TpRecon (structure Global : GLOBAL
 		   sharing Unify.IntSyn = IntSyn'
 		 structure Abstract : ABSTRACT
 		   sharing Abstract.IntSyn = IntSyn'
-		 structure Constraints : CONSTRAINTS
-		   sharing Constraints.IntSyn = IntSyn'
 		 structure TypeCheck : TYPECHECK
 		   sharing TypeCheck.IntSyn = IntSyn'
                  structure Conv : CONV
@@ -496,7 +494,6 @@ struct
          of (IntSyn.Uni (IntSyn.Kind)) => (error (r, msg); IntSyn.Kind)
           | (IntSyn.Uni (IntSyn.Type)) => IntSyn.Kind
           | (IntSyn.Pi (_, Va')) => inferUni (Va', r, msg)
-          | (IntSyn.Lam (_, Ua')) => inferUni (Ua', r, msg)
           | _ => IntSyn.Type)
 
   fun decl (G, D) = IntSyn.Decl (G, Names.decLUName (G, D))
@@ -555,8 +552,11 @@ struct
       let
         val Da1 = approxReconDec (Ga, d1)
         val (Ua2Opt, Va2, r2) = approxReconShow (IntSyn.Decl (Ga, Da1), t2)
+        val _ = case Ua2Opt
+                  of NONE => ()
+                   | SOME _ => error (r2, "Abstraction body cannot be a type family or kind")
       in
-        (Ua2Opt, IntSyn.Pi ((IntSyn.Dec (x, Va1), IntSyn.Maybe), Va2),
+        (NONE, IntSyn.Pi ((IntSyn.Dec (x, Va1), IntSyn.Maybe), Va2),
          Paths.join (r, r2))
       end
     | approxRecon (Ga, TermSyn.Arrow (t1, t2)) =
@@ -924,7 +924,6 @@ struct
   datatype condec =
       condec of name * term
     | condef of name option * term * term option
-    | blockdec of name * dec list * dec list
 
   (* Queries, with optional proof term variable *)
   datatype query =
@@ -1070,7 +1069,7 @@ struct
   (* queryToQuery (q) = (V, XOpt, [(X1,"X1"),...,(Xn,"Xn")])
      where XOpt is the optional proof term variable
            X1,...,Xn are the free EVars in the terms with their names
- 
+
      Free variables in q are interpreted existentially (as EVars).
 
      Only works properly when the Vars parameter structure
@@ -1140,7 +1139,7 @@ struct
 	val ocd = Paths.def (i, oc1, SOME(oc2))
         val cd = if abbFlag then Names.nameConDec (IntSyn.AbbrevDef (name, NONE, i, U'', V'', level))
 		 else (case level
-			 of IntSyn.Kind => error (r, "Type definitions must use %abbrev")
+			 of IntSyn.Kind => error (r, "Type families cannot be defined, only objects")
 		          | _ => ();
 		       Strict.check ((U'', V''), SOME(ocd));
 		       Names.nameConDec (IntSyn.ConDef (name, NONE, i, U'', V'', level)))
@@ -1171,7 +1170,7 @@ struct
 	val ocd = Paths.def (i, oc1, NONE)
         val cd = if abbFlag then Names.nameConDec (IntSyn.AbbrevDef (name, NONE, i, U'', V'', level))
 		 else (case level
-			 of IntSyn.Kind => error (r, "Type definitions must use %abbrev")
+			 of IntSyn.Kind => error (r, "Type families cannot be defined, only objects")
 		          | _ => ();
 		       Strict.check ((U'', V''), SOME(ocd));
 		       Names.nameConDec (IntSyn.ConDef (name, NONE, i, U'', V'', level)))
@@ -1187,65 +1186,6 @@ struct
 	val optConDec = case optName of NONE => NONE | SOME _ => SOME (cd)
       in
 	(optConDec, SOME(ocd))
-      end
-    | condecToConDec (blockdec (name, Lsome, Lblock), Paths.Loc (fileName, r), abbFlag) =
-      let
-	fun makectx nil = IntSyn.Null
-	  | makectx (D :: L) = IntSyn.Decl (makectx L, D)
-	fun ctxToList (IntSyn.Null, acc) = acc
-	  | ctxToList (IntSyn.Decl (G, D), acc) = ctxToList (G, D :: acc)
-	fun join (NONE, r) = SOME(r)
-	  | join (SOME(r1), r2) = SOME (Paths.join (r1, r2))
-	fun ctxRegion (IntSyn.Null) = (IntSyn.Null, NONE)
-	  | ctxRegion (IntSyn.Decl (G, (D, ocOpt, r))) =
-  	    let
-	      val (G', rOpt) = ctxRegion G
-	    in
-	      (IntSyn.Decl (G', D), join (rOpt, r))
-	    end
-	fun ctxAppend (G, IntSyn.Null) = G
-	  | ctxAppend (G, IntSyn.Decl (G', D)) = IntSyn.Decl (ctxAppend (G, G'), D)
-	fun ctxBlockToString (G0, (G1, G2)) =
-  	    let
-	      val _ = Names.varReset IntSyn.Null
-	      val G0' = Names.ctxName G0
-	      val G1' = Names.ctxLUName G1
-	      val G2' = Names.ctxLUName G2
-	    in
-	      Print.ctxToString (IntSyn.Null, G0') ^ "\n"
-	      ^ (case G1' of IntSyn.Null => "" | _ => "some " ^ Print.ctxToString (G0', G1') ^ "\n")
-	      ^ "pi " ^ Print.ctxToString (ctxAppend (G0', G1'), G2')
-	    end
-	fun checkFreevars (IntSyn.Null, (G1, G2), r) = ()
-	  | checkFreevars (G0, (G1, G2), r) =
-  	    let
-	      val _ = Names.varReset IntSyn.Null
-	      val G0' = Names.ctxName G0
-	      val G1' = Names.ctxLUName G1
-	      val G2' = Names.ctxLUName G2
-	    in
-	      error (r, "Free variables in context block after term reconstruction:\n"
-		     ^ ctxBlockToString (G0', (G1', G2')))
-	    end
-
-	val [Gsome, Gblock] = (Timers.time Timers.recon ctxsToCtxs) [(makectx Lsome), (makectx Lblock)]
-	val (Gsome', r1Opt) = ctxRegion Gsome
-	val (Gblock', SOME(r2)) = ctxRegion Gblock	(* Gblock cannot be empty *)
-	val SOME(r) = join (r1Opt, r2)
-	val (G0, [Gsome'', Gblock'']) =	(* closed nf *)
-	  Abstract.abstractCtxs [Gsome', Gblock'] 
-	  handle Constraints.Error (C)
-	  => (raise Error (Paths.wrap (r, "Constraints remain in context block after term reconstruction:\n"
-		    ^ ctxBlockToString (IntSyn.Null, (Gsome', Gblock')) ^ "\n"
-		    ^ Print.cnstrsToString C)))
-	val _ = checkFreevars (G0, (Gsome'', Gblock''), r)
-	val bd = IntSyn.BlockDec (name, NONE, Gsome'', ctxToList (Gblock'', nil))
-        val _ = if !Global.chatter >= 3
-		  then print ((Timers.time Timers.printing Print.conDecToString) bd ^ "\n")
-		else ()
-
-      in
-	(SOME bd, NONE)
       end
 
   fun lowerRigid (0, G, V, sc) =

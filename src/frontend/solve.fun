@@ -1,12 +1,10 @@
 (* Front End Interface *)
 (* Author: Frank Pfenning *)
-(* Modified: Carsten Schuermann, Jeff Polakow, Roberto Virga *)
+(* Modified: Carsten Schuermann, Jeff Polakow *)
 
 functor Solve
   (structure Global : GLOBAL
    structure IntSyn' : INTSYN
-   structure Whnf : WHNF
-     sharing Whnf.IntSyn = IntSyn'
    structure Names : NAMES
      sharing Names.IntSyn = IntSyn'
    structure Parser : PARSER
@@ -15,36 +13,22 @@ functor Solve
      sharing Constraints.IntSyn = IntSyn'
    structure Abstract : ABSTRACT
      sharing Abstract.IntSyn = IntSyn'
-   structure Unify : UNIFY
-     sharing Unify.IntSyn = IntSyn' 
    structure TpRecon : TP_RECON
      sharing TpRecon.IntSyn = IntSyn'
      sharing type TpRecon.term = Parser.ExtSyn.term
      sharing type TpRecon.query = Parser.ExtSyn.query
      (* sharing type TpRecon.Paths.occConDec = Origins.Paths.occConDec *)
-   structure DefineRecon : DEFINE_RECON
-     sharing DefineRecon.ExtSyn = Parser.ExtSyn
-     sharing DefineRecon.Paths = TpRecon.Paths
-     sharing DefineRecon.IntSyn = IntSyn'
    structure Timers : TIMERS
    structure CompSyn : COMPSYN
      sharing CompSyn.IntSyn = IntSyn'
    structure Compile : COMPILE
      sharing Compile.IntSyn = IntSyn'
      sharing Compile.CompSyn = CompSyn
-   structure CPrint : CPRINT
-     sharing CPrint.IntSyn = IntSyn'
-     sharing CPrint.CompSyn = CompSyn
    structure CSManager : CS_MANAGER
      sharing CSManager.IntSyn = IntSyn'
    structure AbsMachine : ABSMACHINE
      sharing AbsMachine.IntSyn = IntSyn'
      sharing AbsMachine.CompSyn = CompSyn
-   structure Tabled : TABLED
-     sharing Tabled.IntSyn = IntSyn'
-     sharing Tabled.CompSyn = CompSyn
-   structure TableIndex : TABLEINDEX
-     sharing TableIndex.IntSyn = IntSyn'
    structure Strict : STRICT
      sharing Strict.IntSyn = IntSyn'
      sharing Strict.Paths = TpRecon.Paths
@@ -55,7 +39,6 @@ struct
 
   structure IntSyn = IntSyn'
   structure ExtSyn = TpRecon
-  structure ExtDefine = DefineRecon
   structure Paths = TpRecon.Paths
   structure S = Parser.Stream
 
@@ -117,17 +100,6 @@ struct
 			     ^ boundToString try ^ " tries, but found "
 			     ^ Int.toString solutions)
 
-  (* checkStages : bound * int -> unit *)
-  (* raises AbortQuery(msg) if the actual #stages do not match *)
-  (* the expected number, given the bound on the number of tries *)
-  (* dummy currently -bp *)
-  fun checkStages (try, stages) = 
-     if boundEq (try, SOME(stages))
-	then ()
-      else raise AbortQuery ("Query error -- wrong number of stages: "
-			     ^ boundToString try ^ " tries, but terminated after  "
-			     ^ Int.toString stages)
-
   (* moreSolutions () = b  iff  the user requests more solutions
      Effects: inputs one line from standard input,
               raises exception AbortQuery(msg) is first character is "q" or "Q"
@@ -153,66 +125,13 @@ struct
   *)
   exception Solution of int * (IntSyn.Exp * IntSyn.Exp)
 
-  (* parseDefines defines = Drs
-     where
-       Drs is the list of parsed defines, expressed as pairs (Def, r).
-     Effects: a new EVar with the name and type ascription (if any) specified by the define
-     is introduced.
-  *)
-  fun parseDefines (define :: defines) =
-    let
-      val (Def as (ExtDefine.Define (_, optV, var)), r) = ExtDefine.defineToDefine define
-      val (U as IntSyn.EVar(_, _, V, _), _, _) = Names.getEVar (var)
-      val Drs = parseDefines defines
-    in
-      (case optV of
-         SOME(V') =>
-         (Unify.unify (IntSyn.Null, (V, IntSyn.id), (V', IntSyn.id))
-          handle Unify.Unify msg =>
-            DefineRecon.error (r, "Type ascription does not match reconstructed type"))
-       | NONE => ());
-      (Def, r) :: Drs
-    end
-    | parseDefines nil = nil
- 
-  (* collectDefines Drs = defs
-     where
-       Drs is a list of pairs (define, region)
-       defs is a list of constant definitions and/or abbreviations
-     Side effect: generates constant declaration for all the defined, bound EVars.
-  *)
-  fun collectDefines ((ExtDefine.Define (name, _, var), r) :: Drs) =
-    let
-      val (U as IntSyn.EVar(_, _, V, _), _, ref set) = Names.getEVar(var)
-      val defs = collectDefines Drs
-    in
-      if set then
-        let
-          val (i, (U', V')) = ((Timers.time Timers.abstract Abstract.abstractDef)
-                               (Whnf.normalize (U, IntSyn.id),
-                                Whnf.normalize (V, IntSyn.id))
-                              handle Abstract.Error (msg) =>
-                                raise Abstract.Error (Paths.wrap (r, msg)))
-        in
-          (Strict.check ((U', V'), NONE);
-           IntSyn.ConDef (name, NONE, i, U', V', IntSyn.Type) :: defs)
-          handle Strict.Error _ =>
-                   IntSyn.AbbrevDef (name, NONE, i, U', V', IntSyn.Type) :: defs
-        end
-      else
-       defs
-    end
-    | collectDefines nil = nil
-
   (* readfile (fileName) = status
      reads and processes declarations from fileName in order, issuing
      error messages and finally returning the status (either OK or
      ABORT).
   *)
-  fun solve ((defines, nameOpt, solve), Paths.Loc (fileName, r)) =
+  fun solve ((name, solve), Paths.Loc (fileName, r)) =
       let
-        (* Define all the EVars in the define list, with the appropriate types *)
-        val Drs = parseDefines defines
 	(* use region information! *)
 	val (A, NONE, Xs) =
 	      TpRecon.queryToQuery (TpRecon.query(NONE, solve),
@@ -250,17 +169,14 @@ struct
 	  scInit);		
 	 raise AbortQuery ("No solution to %solve found"))
 	handle Solution (i,(U,V)) =>
-	  (case nameOpt
-             of SOME(name) =>
-               let
-	         val conDef = ((Strict.check ((U, V), NONE); 
-	                        IntSyn.ConDef (name, NONE, i, U, V, IntSyn.Type)) 
-			       handle Strict.Error _ => 
-			         IntSyn.AbbrevDef (name, NONE, i, U, V, IntSyn.Type))
-	       in
-	         (collectDefines Drs) @ [conDef]
-	       end  (* solve _ handle Solution => _ *)
-             | NONE => collectDefines Drs)
+	  let
+	    val conDec = ((Strict.check ((U, V), NONE); 
+	                   IntSyn.ConDef (name, NONE, i, U, V, IntSyn.Type)) 
+			  handle Strict.Error _ => 
+			    IntSyn.AbbrevDef (name, NONE, i, U, V, IntSyn.Type))
+	  in
+	    conDec
+	  end  (* solve _ handle Solution => _ *)
 	  (* for frontend.fun:
 	    val _ = Strict.check (conDec, NONE)
 	    (* allocate cid after strictness has been checked! *)
@@ -358,159 +274,6 @@ struct
 		       then print (" OK\n")
 		     else ()
               end
-
-
-  (* bp *)
-      fun querytabled ((try, quy), Paths.Loc (fileName, r)) =
-	  let
-	    val _ = if !Global.chatter >= 2
-		      then print ("%querytabled " ^ boundToString try)
-		    else ()
-	    (* optName = SOME(X) or NONE, Xs = free variables in query excluding X *)
-	    val (A, optName, Xs) = TpRecon.queryToQuery(quy, Paths.Loc (fileName, r))
-					(* times itself *)
-	    val _ = if !Global.chatter >= 2
-		      then print (" ")
-		    else ()
-	    val _ = if !Global.chatter >= 3
-		      then print ("\n" ^ (Timers.time Timers.printing expToString)
-				  (IntSyn.Null, A) ^ ".\n")
-		    else ()
-	    (* Problem: we cannot give an answer substitution for the variables
-	       in the printed query, since the new variables in this query
-               may not necessarily have global scope.
-
-               For the moment, we print only the answer substitution for the
-               original variables encountered during parsing.
-	     *)
-	     (*
-		val Xs' = if !Global.chatter >= 3 then Names.namedEVars () else Xs
-	     *)
-	     val g = (Timers.time Timers.compiling Compile.compileGoal) 
-	                (IntSyn.Null, A)
-
-	     (* is g always atomic ? - NO! too restrictive, might want to solve
-                universally quantified statements - bp *)
-(*
-	     val CompSyn.Atom(p') = g
-	     val (p,s) = Abstract.abstractEVarEClo (p',IntSyn.id)
-*)
-			
-	     (* solutions = ref <n> counts the number of solutions found *)
-	     (* -bp redundant ? *)
-	     val solutions = ref 0
-	     val status = ref false
-	     val uniquesol = ref 0
-
-	     (* stage = ref <n> counts the number of stages found *)
-	     val stages = ref 1
-
-	     (* Initial success continuation prints substitution (according to chatter level)
-		and raises exception Done if bound has been reached, otherwise it returns
-                to search for further solutions
-              *)
-	      fun scInit M =
-		  (solutions := !solutions+1;	 
-		   
-		   if !Global.chatter >= 3
-		     then (print ("\n---------- Solutions " ^ Int.toString (!solutions) ^ 
-				  " ----------\n");
-			   print ((Timers.time Timers.printing evarInstToString) Xs ^ " \n"))
-		   else if !Global.chatter >= 2
-			  then print "."
-			else ();
-		   case optName
-		     of NONE => ()
-		      | SOME(name) =>
-		        if !Global.chatter >= 3
-			  then print ((Timers.time Timers.printing evarInstToString)
-					     [(M, name)] ^ "\n")
-			else ();
-		   if !Global.chatter >= 3
-		     (* Question: should we collect constraints in M? *)
-		     then case (Timers.time Timers.printing Print.evarCnstrsToStringOpt) Xs
-		            of NONE => ()
-			     | SOME(str) =>
-			       print ("Remaining constraints:\n"
-				      ^ str ^ "\n")
-		   else ())
-              (* loops -- scinit will raise exception Done *)
-	      fun loop () =  (if exceeds (SOME(!stages-1),try)
-				then (print ("\n ================= " ^
-					     " Number of tries exceeds stages " ^ 
-					     " ======================= \n");  
-				      status := false;
-				      raise Done)
-			      else ();								
-				print ("\n ====================== Stage " ^ 
-				       Int.toString(!stages) ^ " finished =================== \n");
-			      if Tabled.nextStage () then 
-				(stages := (!stages) + 1;
-				 loop ())
-			      else 
-				(* table did not change, 
-				 * i.e. all solutions have been found 
-				 * we check for *all* solutions
-				 *)
-				status := true;
-				raise Done) 
-	      val _ = Tabled.reset ()
-              in
-		if not (boundEq (try, SOME(0)))
-		  then (CSManager.reset ();
-			(* solve query if bound > 0 *)
-			(Timers.time Timers.solving Tabled.solve)  
-			((g,IntSyn.id), CompSyn.DProg (IntSyn.Null, IntSyn.Null), 
-			  scInit) handle Done => (); (* printing is timed into solving! *) 
-
-			CSManager.reset (); 	(* in case Done was raised *)
-			(* next stage until table doesn't change *)
-			loop();
-		        checkStages (try, !stages)  
-			)
-		    handle Done => ()
-		else if !Global.chatter >= 3
-		       then print ("Skipping query (bound = 0)\n")
-		     else if !Global.chatter >= 2
-			    then print ("skipping")
-			  else ();
-		if !Global.chatter >= 3
-		  then 
-		    (TableIndex.printTable();
-		     print "\n____________________________________________\n\n";
-		     print ("number of stages: tried "    ^ boundToString try ^ " \n" ^ 
-			    "terminated after " ^ Int.toString (!stages) ^ " stages \n \n");
-		     (if (!status) then 
-			print "Tabled evaluation COMPLETE \n \n"
-		      else 
-			print "Tabled evaluation NOT COMPLETE \n \n");
-		     print "\n____________________________________________\n\n";
-		     print "\n Table Indexing parameters: \n";
-		     (case (!TableIndex.strategy) of
-			    TableIndex.Variant =>  print "\n       Table Strategy := Variant \n"
-			 |  TableIndex.Subsumption => print "\n       Table Strategy := Subsumption \n");
-		     (case (!TableIndex.termDepth) of
-			    NONE => print ("\n       Term Depth Abstraction := NONE \n")
-			  | SOME(d) => print ("\n       Term Depth Abstraction := " ^
-					       Int.toString(d) ^ "\n"));
-		     (if (!TableIndex.strengthen) then 
-			print "\n       Strengthening := true \n"
-		      else 
-			print "\n       Strengthening := false \n");
-
-			print ("\n Number of table indices " ^ 
-			       Int.toString(length(!TableIndex.table)) ^ "\n");
-
-			print ("Number of suspended goals : " ^ 
-			       Int.toString(length(!Tabled.SuspGoals)) ^ "\n");
-
-		     print "\n____________________________________________\n\n")
-		else if !Global.chatter >= 2
-		       then print (" OK\n")
-		     else ()
-              end
-
-
 
   (* Interactive Query Top Level *)
 

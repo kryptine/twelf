@@ -51,8 +51,7 @@ sig
 
   (* world checker *)
   type wdecl
-  val wdecl : (string list * string) list * callpats -> wdecl
-(*  val wdecl : (decs * decs) list * callpats -> wdecl *)
+  val wdecl : (decs * decs) list * callpats -> wdecl
 
 end;  (* signature THMEXTSYN *)
 

@@ -9,15 +9,12 @@ functor ThmSyn (structure IntSyn : INTSYN
 		sharing Abstract.IntSyn = IntSyn
 		structure Whnf : WHNF
 		sharing Whnf.IntSyn = IntSyn
-		structure Paths' : PATHS
-		structure Names' : NAMES
-	        sharing Names'.IntSyn = IntSyn)
+		structure Paths' : PATHS)
   : THMSYN =
 struct
   structure IntSyn = IntSyn
   structure ModeSyn = ModeSyn'
   structure Paths = Paths'
-  structure Names = Names'
 
   exception Error of string
   fun error (r, msg) = raise Error (Paths.wrap (r, msg))
@@ -58,11 +55,9 @@ struct
     PDecl of int * TDecl
 
   (* World declaration *)
-(*  datatype WDecl = 
-    WDecl of (IntSyn.Dec IntSyn.Ctx * 
-	      IntSyn.Dec IntSyn.Ctx) list * Callpats *)
   datatype WDecl = 
-    WDecl of Names.Qid list * Callpats
+    WDecl of (IntSyn.Dec IntSyn.Ctx * 
+	      IntSyn.Dec IntSyn.Ctx) list * Callpats
 
   local
 

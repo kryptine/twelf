@@ -69,7 +69,6 @@ struct
   and Head =				(* Heads:                     *)
     BVar  of int			(* H ::= k                    *)
   | Const of cid			(*     | c                    *)
-  | Proj  of Block * int		(*     | #k(b)                *)
   | Skonst of cid			(*     | c#                   *)
   | Def   of cid			(*     | d                    *)
   | NSDef of cid			(*     | d (non strict)       *)
@@ -88,18 +87,10 @@ struct
   and Front =				(* Fronts:                    *)
     Idx of int				(* Ft ::= k                   *)
   | Exp of Exp				(*     | U                    *)
-  | Block of Block			(*     | _x                   *)
   | Undef				(*     | _                    *)
 
   and Dec =				(* Declarations:              *)
     Dec of name option * Exp		(* D ::= x:V                  *)
-  | BDec of cid * Sub			(*     | v:l[s]               *)
-
-  and Block =				(* Blocks:                    *)
-    Bidx of int 			(* b ::= v                    *)
-  | LVar of Block option ref * cid * Sub 
-                                        (*     | L(l,s)               *)
-  | BClo of Block * Sub                 (*     | b[s]                 *)
 
   (* Constraints *)
 
@@ -142,8 +133,6 @@ struct
   | AbbrevDef of string * mid option * int
                                         (* a = A : K : kind  or       *)
               * Exp * Exp * Uni		(* d = M : A : type           *)
-  | BlockDec of string * mid option     (* %block l : SOME G1 PI G2   *)
-              * Dec Ctx * Dec list
   | SkoDec of string * mid option * int	(* sa: K : kind  or           *)
               * Exp * Uni	        (* sc: A : type               *)
 
@@ -153,7 +142,6 @@ struct
   (* Type abbreviations *)
   type dctx = Dec Ctx			(* G = . | G,D                *)
   type eclo = Exp * Sub   		(* Us = U[s]                  *)
-  type bclo = Block * Sub   		(* Bs = B[s]                  *)
   type cnstr = Cnstr ref
 
   exception Error of string             (* raised if out of space     *)
@@ -162,21 +150,12 @@ struct
     | conDecName (ConDef (name, _, _, _, _, _)) = name
     | conDecName (AbbrevDef (name, _, _, _, _, _)) = name
     | conDecName (SkoDec (name, _, _, _, _)) = name
-    | conDecName (BlockDec (name, _, _, _)) = name
 
   fun conDecParent (ConDec (_, parent, _, _, _, _)) = parent
     | conDecParent (ConDef (_, parent, _, _, _, _)) = parent
     | conDecParent (AbbrevDef (_, parent, _, _, _, _)) = parent
     | conDecParent (SkoDec (_, parent, _, _, _)) = parent
-    | conDecParent (BlockDec (_, parent, _, _)) = parent
 
-  (* conDecImp (CD) = k
-
-     Invariant:
-     If   CD is either a declaration, definition, abbreviation, or 
-          a Skolem constant
-     then k stands for the number of implicit elements.
-  *)
   fun conDecImp (ConDec (_, _, i, _, _, _)) = i
     | conDecImp (ConDef (_, _, i, _, _, _)) = i
     | conDecImp (AbbrevDef (_, _, i, _, _, _)) = i
@@ -185,40 +164,10 @@ struct
   fun conDecStatus (ConDec (_, _, _, status, _, _)) = status
     | conDecStatus _ = Normal
 
-  (* conDecType (CD) =  V
-
-     Invariant:
-     If   CD is either a declaration, definition, abbreviation, or 
-          a Skolem constant
-     then V is the respective type
-  *)
   fun conDecType (ConDec (_, _, _, _, V, _)) = V
     | conDecType (ConDef (_, _, _, _, V, _)) = V
     | conDecType (AbbrevDef (_, _, _, _, V, _)) = V
     | conDecType (SkoDec (_, _, _, V, _)) = V
-
-
-  (* conDecBlock (CD) =  (Gsome, Lpi)
-
-     Invariant:
-     If   CD is block definition
-     then Gsome is the context of some variables
-     and  Lpi is the list of pi variables
-  *)
-  fun conDecBlock (BlockDec (_, _, Gsome, Lpi)) = (Gsome, Lpi)
-
-  (* conDecUni (CD) =  L
-
-     Invariant:
-     If   CD is either a declaration, definition, abbreviation, or 
-          a Skolem constant
-     then L is the respective universe
-  *)
-  fun conDecUni (ConDec (_, _, _, _, _, L)) = L
-    | conDecUni (ConDef (_, _, _, _, _, L)) = L
-    | conDecUni (AbbrevDef (_, _, _, _, _, L)) = L
-    | conDecUni (SkoDec (_, _, _, _, L)) = L
-
 
   fun strDecName (StrDec (name, _)) = name
 
@@ -289,16 +238,44 @@ struct
 	 of ConDef(_, _, _, U,_, _) => U
 	  | AbbrevDef (_, _, _, U,_, _) => U)
 
-  fun constType (c) = conDecType (sgnLookup c)
-  fun constImp (c) = conDecImp (sgnLookup c)
-  fun constUni (c) = conDecUni (sgnLookup c)
+  fun constType (c) = conDecType (sgnLookup (c))
 
+  fun constImp (c) =
+      (case sgnLookup(c)
+	 of ConDec (_,_,i,_,_,_) => i
+          | ConDef (_,_,i,_,_,_) => i
+          | AbbrevDef (_,_,i,_,_,_) => i
+	  | SkoDec (_,_,i,_,_) => i)
 
   fun constStatus (c) =
       (case sgnLookup (c)
 	 of ConDec (_, _, _, status, _, _) => status
           | _ => Normal)
 
+  fun constUni (c) =
+      (case sgnLookup(c)
+	 of ConDec (_,_,_,_,_,L) => L
+          | ConDef (_,_,_,_,_,L) => L
+          | AbbrevDef (_,_,_,_,_,L) => L
+	  | SkoDec (_,_,_,_,L) => L)
+
+  (* Declaration Contexts *)
+
+  (* ctxDec (G, k) = x:V
+     Invariant: 
+     If      |G| >= k, where |G| is size of G,
+     then    G |- k : V  and  G |- V : L
+  *)
+  fun ctxDec (G, k) =
+      let (* ctxDec' (G'', k') = x:V
+	     where G |- ^(k-k') : G'', 1 <= k' <= k
+           *)
+	fun ctxDec' (Decl (G', Dec (x, V')), 1) = Dec (x, EClo (V', Shift (k)))
+	  | ctxDec' (Decl (G', _), k') = ctxDec' (G', k'-1)
+	 (* ctxDec' (Null, k')  should not occur by invariant *)
+      in
+	ctxDec' (G, k)
+      end
 
   (* Explicit Substitutions *)
 
@@ -366,7 +343,7 @@ struct
     | decSub (Dec (x, V), s) = Dec (x, EClo (V, s))
   *)
   fun decSub (Dec (x, V), s) = Dec (x, EClo (V, s))
-      
+
   (* comp (s1, s2) = s'
 
      Invariant:
@@ -412,48 +389,6 @@ struct
      (so G',V[s] |- s : G,V)
   *)
   fun invDot1 (s) = comp (comp(shift, s), invShift)
-
-
-  (* Declaration Contexts *)
-
-  (* ctxDec (G, k) = x:V
-     Invariant: 
-     If      |G| >= k, where |G| is size of G,
-     then    G |- k : V  and  G |- V : L
-  *)
-  fun ctxDec (G, k) =
-      let (* ctxDec' (G'', k') = x:V
-	     where G |- ^(k-k') : G'', 1 <= k' <= k
-           *)
-	fun ctxDec' (Decl (G', Dec (x, V')), 1) = Dec (x, EClo (V', Shift (k)))
-	  | ctxDec' (Decl (G', BDec (l, s)), 1) = BDec (l, comp (s, Shift (k)))
-	  | ctxDec' (Decl (G', _), k') = ctxDec' (G', k'-1)
-	 (* ctxDec' (Null, k')  should not occur by invariant *)
-      in
-	ctxDec' (G, k)
-      end
-
-  (* blockDec (G, v, i) = V
-     
-     Invariant:
-     If   G (v) = l[s]
-     and  Sigma (l) = SOME Gsome BLOCK Lblock
-     and  G |- s : Gsome
-     then G |- pi (v, i) : V
-  *)
-
-  fun blockDec (G, v as (Bidx k), i) =
-    let 
-      val BDec (l, s) = ctxDec (G, k)   
-      val (Gsome, Lblock) = conDecBlock (sgnLookup l)
-      fun blockDec' (t, D :: L, 1, j) = decSub (D, t)
-	| blockDec' (t, _ :: L, n, j) =
-	    blockDec' (Dot (Exp (Root (Proj (v, j), Nil)), t),
-			  L, n-1, j+1)
-    in
-      blockDec' (s, Lblock, i, 1)
-    end
-
 
   (* EVar related functions *)
 

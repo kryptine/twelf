@@ -185,7 +185,7 @@ struct
     (* parseQualifier' f = (ids, f')
        pre: f begins with L.ID
 
-       Note: precondition for recursive call is enforced by the lexer. *)
+       Enforced by the lexer. *)
     fun parseQualId' (f as LS.Cons ((t as L.ID (_, id), r), s')) =
         (case LS.expose s'
            of LS.Cons ((L.PATHSEP, _), s'') =>
@@ -195,44 +195,6 @@ struct
                 ((id::ids, (t, r)), f')
               end
             | f' => ((nil, (t, r)), f'))
-
-   
-    fun stripBar (LS.Cons ((L.ID (_, "|"), r), s')) = (LS.expose s')
-      | stripBar (f as LS.Cons ((L.RPAREN, r), s')) = f
-      | stripBar (LS.Cons ((t, r), s')) =
-          Parsing.error (r, "Expected `|', found token " ^ L.toString t)
-
-
-	   
-    fun parseQualIds1 (ls, f as LS.Cons ((t as L.ID (_, id), r0), s')) =
-        let 
-	  val ((ids, (L.ID (idCase, name), r1)), f') = parseQualId' f
-	  val r = Paths.join (r0, r1)
-	  val f'' = stripBar f'
-	in
-	  parseQualIds1 ((ids, name) :: ls, f'')
-	end
-      | parseQualIds1 (ls,  LS.Cons ((L.RPAREN, r), s')) =
-         (ls, LS.expose s')
-      | parseQualIds1 (ls, LS.Cons ((t, r), s)) =
-	 Parsing.error (r, "Expected label, found token " ^ L.toString t)
-
-    fun parseQualIds' (LS.Cons ((L.LPAREN, r), s')) =
-        parseQualIds1 (nil, LS.expose s')
-      | parseQualIds' (LS.Cons ((t, r), s')) =
-	  Parsing.error (r, "Expected list of labels, found token " ^ L.toString t)
-
-    fun parseFreeze' (f as LS.Cons ((L.ID _, _), _), qids) =
-        let
-          val ((ids, (L.ID (idCase, name), r1)), f') = parseQualId' f
-        in
-          parseFreeze' (f', (ids, name)::qids)
-        end
-      | parseFreeze' (f as LS.Cons ((L.DOT, _), _), qids) =
-          (List.rev qids, f)
-      | parseFreeze' (LS.Cons ((t, r), s'), qids) = 
-          Parsing.error (r, "Expected identifier, found token "
-                            ^ L.toString t)
 
     (* val parseExp : (L.token * L.region) LS.stream * <p>
                         -> ExtSyn.term * (L.token * L.region) LS.front *)
@@ -349,49 +311,10 @@ struct
 	  end
       | decideRBracket (r0, (dec, LS.Cons ((_, r), s)), p) =
 	  Parsing.error (Paths.join(r0, r), "Unmatched open bracket")
-
-
-    (* Parses contexts of the form  G ::= {id:term} | G, {id:term} *)
-    fun stripRBrace (LS.Cons ((L.RBRACE, r), s')) = (LS.expose s', r)
-      | stripRBrace (LS.Cons ((t, r), _))  = 
-          Parsing.error (r, "Expected `}', found " ^ L.toString t)
-
-    (* parseDec "{id:term} | {id}" *)
-    and parseBracedDec (r, f) =
-        let 
-	  val ((x, yOpt), f') = parseDec' f
-	  val (f'', r2) = stripRBrace f'
-          val d = (case yOpt
-                       of NONE => ExtSyn.dec0 (x, Paths.join (r, r2))
-                        | SOME y => ExtSyn.dec (x, y, Paths.join (r, r2)))
-	in
-	  (d, f'')
-	end
-
-    (* parseCtx (b, ds, f) = ds'
-       if   f is a stream "{x1:V1}...{xn:Vn} s"
-       and  b is true if no declarations has been parsed yet
-       and  ds is a context of declarations
-       then ds' = ds, x1:V1, ..., xn:Vn
-    *)
-    fun parseCtx (b, ds, LS.Cons (BS as ((L.LBRACE, r), s'))) = 
-        let
-	  val (d, f') = parseBracedDec (r, LS.expose s')
-	in
-	  parseCtx (false,  d :: ds, f')
-	end
-      | parseCtx (b, ds, f as LS.Cons ((t, r), s')) =
-	if b then Parsing.error (r, "Expected `{', found " ^ L.toString t)
-	else (ds, f)
-
- 		    
   in
     val parseQualId' = parseQualId'
-    val parseQualIds' = parseQualIds'
-    val parseFreeze' = (fn f => parseFreeze' (f, nil))
     val parseTerm' = (fn f => parseExp' (f, nil))
     val parseDec' = parseDec'
-    val parseCtx' = (fn f => (parseCtx (true, nil, f)))
   end  (* local ... in *)
 
 end;  (* functor ParseTerm *)

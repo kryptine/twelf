@@ -8,7 +8,6 @@ sig
   structure Stream : STREAM
   structure ExtSyn : EXTSYN
   structure Names : NAMES
-  structure ExtDefine : EXTDEFINE
   structure ExtModes : EXTMODES
   structure ThmExtSyn : THMEXTSYN
   structure ModExtSyn : MODEXTSYN
@@ -28,10 +27,8 @@ sig
     | EstablishDec of ThmExtSyn.establish
     | AssertDec of ThmExtSyn.assert
     | Query of int option * int option * ExtSyn.query (* expected, try, A *)
-    | Querytabled of int option * ExtSyn.query        (* expected, try, A *)
-    | Solve of  ExtDefine.define list * string option * ExtSyn.term
+    | Solve of string * ExtSyn.term
     | AbbrevDec of ExtSyn.condec
-    | FreezeDec of Names.Qid list
     | SigDef of ModExtSyn.sigdef
     | StructDec of ModExtSyn.structdec
     | Include of ModExtSyn.sigexp
