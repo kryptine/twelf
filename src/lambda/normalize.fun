@@ -103,13 +103,12 @@ struct
     fun normalizeSub (s as T.Shift n) = s
       | normalizeSub (T.Dot (T.Prg P, s)) =
           T.Dot (T.Prg (normalizePrg (P, T.id)), normalizeSub s)
-	  (* cs 2/3/2003 *)
       | normalizeSub (T.Dot (T.Exp E, s)) =
 	  T.Dot (T.Exp (Whnf.normalize (E, I.id)), normalizeSub s)
-      | normalizeSub (T.Dot (T.Block k, s)) = T.Dot (T.Block k, normalizeSub(s))
-      
-      (* ABP 2/26/03 *)
-      | normalizeSub (T.Dot (T.Idx k, s)) = T.Dot (T.Idx k, normalizeSub(s))
+      | normalizeSub (T.Dot (T.Block k, s)) = 
+	  T.Dot (T.Block k, normalizeSub s)
+      | normalizeSub (T.Dot (T.Idx k, s)) = 
+	  T.Dot (T.Idx k, normalizeSub s)
 
   in
     val normalizeFor = normalizeFor
