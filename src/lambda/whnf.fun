@@ -2,10 +2,11 @@
 (* Author: Frank Pfenning, Carsten Schuermann *)
 (* Modified: Roberto Virga *)
 
-functor Whnf (structure IntSyn' : INTSYN)
+functor Whnf ((*! structure IntSyn' : INTSYN !*)
+	       )
   : WHNF =
 struct
-  structure IntSyn = IntSyn'
+  (*! structure IntSyn = IntSyn' !*)
 
   (*
      Weak Head-Normal Form (whnf)
@@ -163,7 +164,7 @@ struct
     and lowerEVar' (G, (Pi ((D',_), V'), s')) =
         let
 	  val D'' = decSub (D', s')
-	  val (X', U) = lowerEVar' (Decl (G, D''), whnf (V', dot1 s'))
+	  val (X', U) = lowerEVar' (Decl (G, D''), whnfExpandDef (V', dot1 s'))
 	in
 	  (X', Lam (D'', U))
 	end
@@ -193,7 +194,7 @@ struct
        Effect: X is instantiated to [[G']] X' if G' is empty
                otherwise X = X' and no effect occurs.
     *)
-    and lowerEVar (X as EVar (r, G, V, ref nil)) = lowerEVar1 (X, whnf (V, id))
+    and lowerEVar (X as EVar (r, G, V, ref nil)) = lowerEVar1 (X, whnfExpandDef (V, id))
       | lowerEVar (EVar _) =
         (* It is not clear if this case can happen *)
         (* pre-Twelf 1.2 code walk, Fri May  8 11:05:08 1998 *)
@@ -295,11 +296,11 @@ struct
        and   G |- (U @ S) [s] == U' [s'] : W'
        and   (U', s') in whnf
     *)
-    fun expandDef (Root (Def (d), S), s) =
+    and expandDef (Root (Def (d), S), s) =
           (* why the call to whnf?  isn't constDef (d) in nf? -kw *)
 	  whnfRedex (whnf (constDef (d), id), (S, s))
 
-    fun whnfExpandDefW (Us as (Root (Def _, _), _)) = whnfExpandDefW (expandDef Us)
+    and whnfExpandDefW (Us as (Root (Def _, _), _)) = whnfExpandDefW (expandDef Us)
       | whnfExpandDefW Us = Us
     and whnfExpandDef Us = whnfExpandDefW (whnf Us)
 

@@ -4,21 +4,22 @@
 functor CSIneqIntegers (structure Integers : INTEGERS
                         structure Rationals : RATIONALS
                           sharing Rationals.Integers = Integers
-                        structure IntSyn : INTSYN
+			  (*! structure IntSyn : INTSYN !*)
                         structure Trail : TRAIL
                         structure Unify : UNIFY
-                          sharing Unify.IntSyn = IntSyn
+			(*! sharing Unify.IntSyn = IntSyn !*)
                         structure SparseArray  : SPARSE_ARRAY
                         structure SparseArray2 : SPARSE_ARRAY2
-                        structure CSManager : CS_MANAGER
-                          sharing CSManager.IntSyn = IntSyn
+                        (*! structure CSManager : CS_MANAGER !*)
+			(*! sharing CSManager.IntSyn = IntSyn !*)
                         structure CSEqIntegers : CS_EQ_INTEGERS
                           sharing CSEqIntegers.Integers = Integers
-                          sharing CSEqIntegers.IntSyn = IntSyn
-                          sharing CSEqIntegers.CSManager = CSManager)
+                          (*! sharing CSEqIntegers.IntSyn = IntSyn !*)
+                          (*! sharing CSEqIntegers.CSManager = CSManager !*)
+			    )
   =
 struct
-  structure CSManager = CSManager
+  (*! structure CSManager = CSManager !*)
 
   local
     open IntSyn
@@ -1311,8 +1312,9 @@ struct
               installF (ConDec (">=", NONE, 0,
                                 Constraint (!myID, solveGeq),
                                 arrow (number (), arrow (number (), Uni (Type))), Kind),
-                        SOME(FX.Infix(FX.minPrec, FX.None)), NONE);
-
+                        SOME(FX.Infix(FX.minPrec, FX.None)),
+                        [MS.Mapp(MS.Marg(MS.Star, NONE),
+                                MS.Mapp(MS.Marg(MS.Star, NONE), MS.Mnil))]);
 
             geqAddID :=
               installF (ConDec ("+>=", NONE, 2, Normal,
@@ -1326,7 +1328,7 @@ struct
                                                         plus (Root (BVar 3, Nil),
                                                               Root (BVar 2, Nil))))))),
                                 Type),
-                        NONE, NONE);
+                        NONE, nil);
 
             ()
           )

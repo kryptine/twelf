@@ -1,18 +1,19 @@
 (* Booleans Equation Solver *)
 (* Author: Roberto Virga *)
 
-functor CSEqBools (structure IntSyn : INTSYN
+functor CSEqBools ((*! structure IntSyn : INTSYN !*)
                    structure Whnf : WHNF
-                     sharing Whnf.IntSyn = IntSyn
+		   (*! sharing Whnf.IntSyn = IntSyn !*)
                    structure Unify : UNIFY
-                     sharing Unify.IntSyn = IntSyn
-                   structure CSManager : CS_MANAGER
-                     sharing CSManager.IntSyn = IntSyn)
+		   (*! sharing Unify.IntSyn = IntSyn !*)
+                   (*! structure CSManager : CS_MANAGER !*)
+		   (*! sharing CSManager.IntSyn = IntSyn !*)
+		     )
  : CS =
 struct
-  structure CSManager = CSManager
+  (*! structure CSManager = CSManager !*)
 
-  structure IntSyn = IntSyn
+  (*! structure IntSyn = IntSyn !*)
 
   type 'a set = 'a list                  (* Set                        *)
 
@@ -514,28 +515,29 @@ struct
               installF (ConDec ("bool", NONE, 0,
                                 Constraint (!myID, solveBool),
                                 Uni (Type), Kind),
-                        NONE, SOME(MS.Mnil));
+                        NONE, [MS.Mnil]);
 
             trueID :=
               installF (ConDec ("true", NONE, 0,
                                 Foreign (!myID, (fn _ => toFgn (Sum(true, nil)))),
                                 bool (),
                                 Type),
-                        NONE, NONE);
+                        NONE, nil);
 
             falseID :=
               installF (ConDec ("false", NONE, 0,
                                 Foreign (!myID, (fn _ => toFgn (Sum(false, nil)))),
                                 bool (),
                                 Type),
-                        NONE, NONE);
+                        NONE, nil);
 
             notID :=
               installF (ConDec ("!", NONE, 0,
                                 Foreign (!myID, makeFgnUnary notSum),
                                 arrow (bool (), bool ()),
                                 Type),
-                        SOME(FX.Prefix (FX.maxPrec)), NONE);
+                        SOME(FX.Prefix (FX.maxPrec)),
+                        nil);
 
             xorID :=
               installF (ConDec ("||", NONE, 0,
@@ -543,7 +545,7 @@ struct
                                 arrow (bool (), arrow (bool (), bool ())),
                                 Type),
                         SOME(FX.Infix (FX.dec FX.maxPrec, FX.Left)),
-                        NONE);
+                        nil);
 
             andID :=
               installF (ConDec ("&", NONE, 0,
@@ -551,7 +553,7 @@ struct
                                   arrow (bool (), arrow (bool (), bool ())),
                                   Type),
                         SOME(FX.Infix (FX.dec FX.maxPrec, FX.Left)),
-                        NONE);
+                        nil);
 
            orID :=
               installF (ConDec ("|", NONE, 0,
@@ -559,7 +561,7 @@ struct
                                 arrow (bool (), arrow (bool (), bool ())),
                                 Type),
                         SOME(FX.Infix (FX.dec FX.maxPrec, FX.Left)),
-                        NONE);
+                        nil);
 
             impliesID :=
               installF (ConDec ("=>", NONE, 0,
@@ -567,7 +569,7 @@ struct
                                   arrow (bool (), arrow (bool (), bool ())),
                                   Type),
                         SOME(FX.Infix (FX.dec (FX.dec FX.maxPrec), FX.Left)),
-                        NONE);
+                        nil);
 
             iffID :=
               installF (ConDec ("<=>", NONE, 0,
@@ -575,7 +577,7 @@ struct
                                   arrow (bool (), arrow (bool (), bool ())),
                                   Type),
                         SOME(FX.Infix (FX.dec (FX.dec FX.maxPrec), FX.Left)),
-                        NONE);
+                        nil);
 
             ()
           )

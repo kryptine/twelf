@@ -2,28 +2,29 @@
 (* Author: Carsten Schuermann *)
 
 functor TomegaPrint 
-  (structure IntSyn' : INTSYN
-   structure Tomega' : TOMEGA
-     sharing Tomega'.IntSyn = IntSyn'
+  ((*! structure IntSyn' : INTSYN !*)
+   (*! structure Tomega' : TOMEGA !*)
+   (*! sharing Tomega'.IntSyn = IntSyn' !*)
    structure Normalize : NORMALIZE
-     sharing Normalize.IntSyn = IntSyn'
-     sharing Normalize.Tomega = Tomega'
+   (*! sharing Normalize.IntSyn = IntSyn' !*)
+   (*! sharing Normalize.Tomega = Tomega' !*)
    structure Formatter : FORMATTER
    structure Names : NAMES
-     sharing Names.IntSyn = IntSyn'
+   (*! sharing Names.IntSyn = IntSyn' !*)
    structure Print : PRINT
      sharing Print.Formatter = Formatter
-     sharing Print.IntSyn = IntSyn') 
+     (*! sharing Print.IntSyn = IntSyn' !*)
+       ) 
   : TOMEGAPRINT =
 
 struct
-  structure IntSyn = IntSyn'
-  structure Tomega = Tomega'
+  (*! structure IntSyn = IntSyn' !*)
+  (*! structure Tomega = Tomega' !*)
   structure Formatter = Formatter
 
   local
-    structure I = IntSyn'
-    structure T = Tomega'
+    structure I = IntSyn
+    structure T = Tomega
     structure Fmt = Formatter
     structure P = Print
 

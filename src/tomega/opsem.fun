@@ -2,36 +2,37 @@
 (* Author: Carsten Schuermann *)
 
 
-functor Opsem (structure IntSyn' : INTSYN
-	       structure Tomega' : TOMEGA
-	         sharing Tomega'.IntSyn = IntSyn'
+functor Opsem ((*! structure IntSyn' : INTSYN !*)
+               (*! structure Tomega' : TOMEGA !*)
+               (*! sharing Tomega'.IntSyn = IntSyn' !*)
 	       structure Whnf : WHNF
-		 sharing Whnf.IntSyn = IntSyn'
+	       (*! sharing Whnf.IntSyn = IntSyn' !*)
 	       structure Abstract : ABSTRACT
-		 sharing Abstract.IntSyn = IntSyn'
+               (*! sharing Abstract.IntSyn = IntSyn'!*)
 	       structure Subordinate : SUBORDINATE
-	         sharing Subordinate.IntSyn = IntSyn'
+	       (*! sharing Subordinate.IntSyn = IntSyn'!*)
 	       structure Normalize : NORMALIZE
-		 sharing Normalize.Tomega = Tomega'
+	       (*! sharing Normalize.Tomega = Tomega' !*)
 	       structure TypeCheck : TYPECHECK
-		 sharing TypeCheck.IntSyn = IntSyn'
+	       (*! sharing TypeCheck.IntSyn = IntSyn' !*)
 	       structure TomegaTypeCheck : TOMEGATYPECHECK
-	         sharing TomegaTypeCheck.IntSyn = IntSyn'
-		 sharing TomegaTypeCheck.Tomega = Tomega'
+	       (*! sharing TomegaTypeCheck.IntSyn = IntSyn' !*)
+	       (*! sharing TomegaTypeCheck.Tomega = Tomega' !*)
 	       structure TomegaPrint : TOMEGAPRINT
-		 sharing TomegaPrint.IntSyn = IntSyn'
-		 sharing TomegaPrint.Tomega = Tomega'
+	       (*! sharing TomegaPrint.IntSyn = IntSyn' !*)
+	       (*! sharing TomegaPrint.Tomega = Tomega' !*)
 	       structure Converter : CONVERTER
-		 sharing Converter.IntSyn = IntSyn'
-		 sharing Converter.Tomega = Tomega'
+	       (*! sharing Converter.IntSyn = IntSyn' !*)
+	       (*! sharing Converter.Tomega = Tomega' !*)
 	       structure Print : PRINT
-		 sharing Print.IntSyn = IntSyn'
+	       (*! sharing Print.IntSyn = IntSyn' !*)
 	       structure Unify : UNIFY
-		 sharing Tomega'.IntSyn = Unify.IntSyn) : OPSEM = 
+	       (*! sharing Tomega'.IntSyn = Unify.IntSyn !*)
+		   ) : OPSEM = 
 
 struct
-  structure Tomega = Tomega'
-  structure IntSyn = IntSyn'
+  (*! structure Tomega = Tomega' !*)
+  (*! structure IntSyn = IntSyn' !*)
   structure T = Tomega
   structure I = IntSyn
   structure S = Subordinate    

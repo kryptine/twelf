@@ -6,7 +6,7 @@ sig
 
   (* Stream is not memoizing for efficiency *)
   structure Stream : STREAM
-  structure Paths : PATHS
+  (*! structure Paths : PATHS !*)
 
   datatype IdCase =
       Upper				(* [A-Z]<id> or _<id> *)
@@ -47,6 +47,7 @@ sig
     | ABBREV				(* `%abbrev' *)
     | FREEZE                            (* `%freeze' *)
     | DETERMINISTIC                     (* `%deterministic' *) (* -rv 11/27/01 *)
+    | CLAUSE				(* `%clause' *) (* -fp 8/9/02 *)
     | SIG                               (* `%sig' *)
     | STRUCT                            (* `%struct' *)
     | WHERE                             (* `%where' *)

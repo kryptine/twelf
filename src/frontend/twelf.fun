@@ -6,120 +6,121 @@
 functor Twelf
   (structure Global : GLOBAL
    structure Timers : TIMERS
-   structure IntSyn' : INTSYN
-   structure Tomega : TOMEGA
-     sharing Tomega.IntSyn = IntSyn'
+
+   (*! structure IntSyn' : INTSYN !*)
+   (*! structure Tomega : TOMEGA !*)
+   (*! sharing Tomega.IntSyn = IntSyn' !*)
    structure Whnf : WHNF
-     sharing Whnf.IntSyn = IntSyn'
+   (*! sharing Whnf.IntSyn = IntSyn' !*)
    structure Print : PRINT
-     sharing Print.IntSyn = IntSyn'
+   (*! sharing Print.IntSyn = IntSyn' !*)
 
    structure Names : NAMES
-     sharing Names.IntSyn = IntSyn'
-   structure Paths : PATHS
+   (*! sharing Names.IntSyn = IntSyn' !*)
+   (*! structure Paths : PATHS !*)
    structure Origins : ORIGINS
-     sharing Origins.Paths = Paths
+   (*! sharing Origins.Paths = Paths !*)
    structure Lexer : LEXER
-     sharing Lexer.Paths = Paths
-   structure Parsing : PARSING
-     sharing Parsing.Lexer = Lexer
+   (*! sharing Lexer.Paths = Paths !*)
+     (*! structure Parsing : PARSING !*)
+     (*! sharing Lexer = Lexer !*)
    structure Parser : PARSER
      sharing Parser.Names = Names
-     sharing Parser.ExtSyn.Paths = Paths
+     (*! sharing Parser.ExtSyn.Paths = Paths !*)
    structure TypeCheck : TYPECHECK
    structure Strict : STRICT
-     sharing Strict.IntSyn = IntSyn'
-     sharing Strict.Paths = Paths
+   (*! sharing Strict.IntSyn = IntSyn' !*)
+   (*! sharing Strict.Paths = Paths !*)
    structure Constraints : CONSTRAINTS
-     sharing Constraints.IntSyn = IntSyn'
+   (*! sharing Constraints.IntSyn = IntSyn' !*)
    structure Abstract : ABSTRACT
-     sharing Abstract.IntSyn = IntSyn'
+   (*! sharing Abstract.IntSyn = IntSyn' !*)
    structure ReconTerm : RECON_TERM
-     sharing ReconTerm.IntSyn = IntSyn'
-     sharing ReconTerm.Paths = Paths
+   (*! sharing ReconTerm.IntSyn = IntSyn' !*)
+   (*! sharing ReconTerm.Paths = Paths !*)
      sharing type ReconTerm.term = Parser.ExtSyn.term
      (* sharing type ReconTerm.Paths.occConDec = Origins.Paths.occConDec *)
    structure ReconConDec : RECON_CONDEC
-     sharing ReconConDec.IntSyn = IntSyn'
-     sharing ReconConDec.Paths = Paths
+   (*! sharing ReconConDec.IntSyn = IntSyn' !*)
+   (*! sharing ReconConDec.Paths = Paths !*)
      sharing type ReconConDec.condec = Parser.ExtConDec.condec
    structure ReconQuery : RECON_QUERY
 
    structure ModeSyn : MODESYN
-     sharing ModeSyn.IntSyn = IntSyn'
+   (*! sharing ModeSyn.IntSyn = IntSyn' !*)
    structure ModeCheck : MODECHECK
-     sharing ModeCheck.IntSyn = IntSyn'
+   (*! sharing ModeCheck.IntSyn = IntSyn' !*)
      sharing ModeCheck.ModeSyn = ModeSyn
-     sharing ModeCheck.Paths = Paths
+     (*! sharing ModeCheck.Paths = Paths !*)
    structure ReconMode : RECON_MODE
      sharing ReconMode.ModeSyn = ModeSyn
-     sharing ReconMode.Paths = Paths
+     (*! sharing ReconMode.Paths = Paths !*)
      sharing type ReconMode.modedec = Parser.ExtModes.modedec
    structure ModePrint : MODEPRINT
      sharing ModePrint.ModeSyn = ModeSyn
    structure ModeDec : MODEDEC
      sharing ModeDec.ModeSyn = ModeSyn
-     sharing ModeDec.Paths = Paths
+     (*! sharing ModeDec.Paths = Paths !*)
 
    structure Cover : COVER
-     sharing Cover.IntSyn = IntSyn'
+   (*! sharing Cover.IntSyn = IntSyn' !*)
      sharing Cover.ModeSyn = ModeSyn
 
    structure Converter : CONVERTER
-     sharing Converter.IntSyn = IntSyn'
-     sharing Converter.Tomega = Tomega
+   (*! sharing Converter.IntSyn = IntSyn' !*)
+   (*! sharing Converter.Tomega = Tomega !*)
    structure TomegaPrint : TOMEGAPRINT
-     sharing TomegaPrint.IntSyn = IntSyn'
-     sharing TomegaPrint.Tomega = Tomega
+   (*! sharing TomegaPrint.IntSyn = IntSyn' !*)
+   (*! sharing TomegaPrint.Tomega = Tomega !*)
    structure TomegaCoverage : TOMEGACOVERAGE
-     sharing TomegaCoverage.IntSyn = IntSyn'
-     sharing TomegaCoverage.Tomega = Tomega
+   (*! sharing TomegaCoverage.IntSyn = IntSyn' !*)
+   (*! sharing TomegaCoverage.Tomega = Tomega !*)
    structure TomegaTypeCheck : TOMEGATYPECHECK
-     sharing TomegaTypeCheck.IntSyn = IntSyn'
-     sharing TomegaTypeCheck.Tomega = Tomega
+   (*! sharing TomegaTypeCheck.IntSyn = IntSyn' !*)
+   (*! sharing TomegaTypeCheck.Tomega = Tomega !*)
 
    structure Total : TOTAL
-     sharing Total.IntSyn = IntSyn'
+   (*! sharing Total.IntSyn = IntSyn' !*)
 
    structure Reduces : REDUCES
-     sharing Reduces.IntSyn = IntSyn'
+   (*! sharing Reduces.IntSyn = IntSyn' !*)
 
    structure Index : INDEX
-     sharing Index.IntSyn = IntSyn'
+   (*! sharing Index.IntSyn = IntSyn' !*)
    structure IndexSkolem : INDEX
-     sharing IndexSkolem.IntSyn = IntSyn'
+   (*! sharing IndexSkolem.IntSyn = IntSyn' !*)
    structure Subordinate : SUBORDINATE
-     sharing Subordinate.IntSyn = IntSyn'
-   structure CompSyn' : COMPSYN
-     sharing CompSyn'.IntSyn = IntSyn'
+   (*! sharing Subordinate.IntSyn = IntSyn' !*)
+   (*! structure CompSyn' : COMPSYN !*)
+   (*! sharing CompSyn'.IntSyn = IntSyn' !*)
    structure Compile : COMPILE
-     sharing Compile.IntSyn = IntSyn'
-     sharing Compile.CompSyn = CompSyn'
+   (*! sharing Compile.IntSyn = IntSyn' !*)
+   (*! sharing Compile.CompSyn = CompSyn' !*)
    structure AbsMachine : ABSMACHINE
-     sharing AbsMachine.IntSyn = IntSyn'
-     sharing AbsMachine.CompSyn = CompSyn'
+   (*! sharing AbsMachine.IntSyn = IntSyn' !*)
+   (*! sharing AbsMachine.CompSyn = CompSyn' !*)
 
    structure Tabled : TABLED
-     sharing Tabled.IntSyn = IntSyn'
-     sharing Tabled.CompSyn = CompSyn'
+   (*! sharing Tabled.IntSyn = IntSyn' !*)
+   (*! sharing Tabled.CompSyn = CompSyn' !*)
    structure TableIndex : TABLEINDEX
-     sharing TableIndex.IntSyn = IntSyn'
+   (*! sharing TableIndex.IntSyn = IntSyn' !*)
    structure Solve : SOLVE
-     sharing Solve.IntSyn = IntSyn'
+   (*! sharing Solve.IntSyn = IntSyn' !*)
      sharing type Solve.ExtQuery.query = Parser.ExtQuery.query
      sharing type Solve.ExtQuery.define = Parser.ExtQuery.define
      sharing type Solve.ExtQuery.solve = Parser.ExtQuery.solve
-     sharing Solve.Paths = Paths
+	     (*! sharing Solve.Paths = Paths !*)
 
    structure ThmSyn : THMSYN
-     sharing ThmSyn.Paths = Paths
+   (*! sharing ThmSyn.Paths = Paths !*)
      sharing ThmSyn.Names = Names
    structure Thm : THM
      sharing Thm.ThmSyn = ThmSyn
-     sharing Thm.Paths = Paths
+     (*! sharing Thm.Paths = Paths !*)
    structure ReconThm : RECON_THM
      sharing ReconThm.ThmSyn = ThmSyn
-     sharing ReconThm.Paths = Paths
+     (*! sharing ReconThm.Paths = Paths !*)
      sharing ReconThm.ThmSyn.ModeSyn = ModeSyn
      sharing type ReconThm.tdecl = Parser.ThmExtSyn.tdecl
      sharing type ReconThm.rdecl = Parser.ThmExtSyn.rdecl (* -bp *)
@@ -134,18 +135,18 @@ functor Twelf
      sharing ThmPrint.ThmSyn = ThmSyn
 
    structure TabledSyn : TABLEDSYN
-     sharing TabledSyn.IntSyn = IntSyn'
+   (*! sharing TabledSyn.IntSyn = IntSyn' !*)
 
    structure WorldSyn : WORLDSYN
-     sharing WorldSyn.IntSyn = IntSyn'
-     sharing WorldSyn.Tomega = Tomega
+   (*! sharing WorldSyn.IntSyn = IntSyn' !*)
+   (*! sharing WorldSyn.Tomega = Tomega !*)
    structure WorldPrint : WORLDPRINT
-     sharing WorldPrint.Tomega = Tomega
+   (*! sharing WorldPrint.Tomega = Tomega !*)
 
    structure ModSyn : MODSYN
-     sharing ModSyn.IntSyn = IntSyn'
+   (*! sharing ModSyn.IntSyn = IntSyn' !*)
      sharing ModSyn.Names = Names
-     sharing ModSyn.Paths = Paths
+     (*! sharing ModSyn.Paths = Paths !*)
    structure ReconModule : RECON_MODULE
      sharing ReconModule.ModSyn = ModSyn
      sharing type ReconModule.sigdef = Parser.ModExtSyn.sigdef
@@ -154,31 +155,35 @@ functor Twelf
      sharing type ReconModule.strexp = Parser.ModExtSyn.strexp
 
    structure MetaGlobal : METAGLOBAL
-   structure FunSyn : FUNSYN
-     sharing FunSyn.IntSyn = IntSyn'
+   (*! structure FunSyn : FUNSYN !*)
+   (*! sharing FunSyn.IntSyn = IntSyn' !*)
    structure Skolem : SKOLEM
-     sharing Skolem.IntSyn = IntSyn'
+   (*! sharing Skolem.IntSyn = IntSyn' !*)
    structure Prover : PROVER
-     sharing Prover.IntSyn = IntSyn'
+   (*! sharing Prover.IntSyn = IntSyn' !*)
    structure ClausePrint : CLAUSEPRINT
-     sharing ClausePrint.IntSyn = IntSyn'
+   (*! sharing ClausePrint.IntSyn = IntSyn' !*)
 
    structure Trace : TRACE
 
    structure PrintTeX : PRINT
-     sharing PrintTeX.IntSyn = IntSyn'
+   (*! sharing PrintTeX.IntSyn = IntSyn' !*)
    structure ClausePrintTeX : CLAUSEPRINT
-     sharing ClausePrintTeX.IntSyn = IntSyn'
+   (*! sharing ClausePrintTeX.IntSyn = IntSyn' !*)
 
    structure CSManager : CS_MANAGER
-     sharing CSManager.IntSyn = IntSyn'
+   (*! sharing CSManager.IntSyn = IntSyn' !*)
      sharing CSManager.Fixity = Names.Fixity
-     sharing CSManager.ModeSyn = ModeSyn)
+     sharing CSManager.ModeSyn = ModeSyn
+    
+   structure CSInstaller : CS_INSTALLER
+   structure MkAbsolute : MK_ABSOLUTE
+     )
  :> TWELF =
 struct
 
   local
-    structure IntSyn = IntSyn'
+    (*! structure IntSyn = IntSyn' !*)
     structure S = Parser.Stream
 
     fun fileOpenMsg (fileName) =
@@ -318,10 +323,11 @@ struct
     fun installConst fromCS (cid, fileNameocOpt) =
         let
           val _ = Origins.installOrigin (cid, fileNameocOpt)
-          val _ = Index.install (IntSyn.Const cid)
-          val _ = IndexSkolem.install (IntSyn.Const cid)
+          val _ = Index.install fromCS (IntSyn.Const cid)
+          val _ = IndexSkolem.install fromCS (IntSyn.Const cid)
           val _ = (Timers.time Timers.compiling Compile.install) fromCS cid
           val _ = (Timers.time Timers.subordinate Subordinate.install) cid
+          val _ = (Timers.time Timers.subordinate Subordinate.installDef) cid
         in
           ()
         end
@@ -329,7 +335,7 @@ struct
     (* installConDec fromCS (conDec, ocOpt)
        installs the constant declaration conDec which originates at ocOpt
        in various global tables, including the global signature.
-       Note: if fromCS = true then the declaration comes from a Constraint
+       Note: if fromCS = FromCS then the declaration comes from a Constraint
        Solver and some limitations on the types are lifted.
     *)
     fun installConDec fromCS (conDec, fileNameocOpt as (fileName, ocOpt), r) =
@@ -337,9 +343,9 @@ struct
 	  val _ = (Timers.time Timers.modes ModeCheck.checkD) (conDec, fileName, ocOpt)
 	  val cid = IntSyn.sgnAdd conDec
 	  val _ = (case (fromCS, !context)
-		     of (false, SOME namespace) =>
-		       Names.insertConst (namespace, cid)
-		   | _ => ())
+		     of (IntSyn.Ordinary, SOME namespace) => Names.insertConst (namespace, cid)
+		      | (IntSyn.Clause, SOME namespace) => Names.insertConst (namespace, cid)
+		      | _ => ())
 	          handle Names.Error msg =>
 		    raise Names.Error (Paths.wrap (r, msg))
 	  val _ = Names.installConstName cid
@@ -353,9 +359,9 @@ struct
 	let
 	  val cid = IntSyn.sgnAdd conDec
 	  val _ = (case (fromCS, !context)
-		     of (false, SOME namespace) =>
-		       Names.insertConst (namespace, cid)
-		   | _ => ())
+		     of (IntSyn.Ordinary, SOME namespace) => Names.insertConst (namespace, cid)
+		        (* (Clause, _) should be impossible *)
+		      | _ => ())
 	           handle Names.Error msg =>
 		     raise Names.Error (Paths.wrap (r, msg))
 	  val _ = Names.installConstName cid
@@ -368,7 +374,7 @@ struct
     fun installStrDec (strdec, module, r, isDef) =
         let
           fun installAction (data as (cid, _)) =
-              (installConst false data;
+              (installConst IntSyn.Ordinary data;
 	       if !Global.chatter >= 4
                  then print (Print.conDecToString (IntSyn.sgnLookup cid) ^ "\n")
                else ())
@@ -385,7 +391,7 @@ struct
     fun includeSig (module, r, isDef) =
         let
           fun installAction (data as (cid, _)) =
-              (installConst false data;
+              (installConst IntSyn.Ordinary data;
 	       if !Global.chatter >= 4
                  then print (Print.conDecToString (IntSyn.sgnLookup cid) ^ "\n")
                else ())
@@ -410,7 +416,7 @@ struct
 	   fun icd (SOME (conDec as IntSyn.BlockDec _)) = 
 	       let
 		 (* allocate new cid. *)
-		 val cid = installBlockDec false (conDec, (fileName, ocOpt), r)
+		 val cid = installBlockDec IntSyn.Ordinary (conDec, (fileName, ocOpt), r)
 	       in
 		 ()
 	       end
@@ -420,7 +426,7 @@ struct
 		 (* val conDec' = nameConDec (conDec) *)
 		 (* should print here, not in ReconConDec *)
 		 (* allocate new cid after checking modes! *)
-		 val cid = installConDec false (conDec, (fileName, ocOpt), r)
+		 val cid = installConDec IntSyn.Ordinary (conDec, (fileName, ocOpt), r)
 	       in
 		 ()
 	       end
@@ -442,7 +448,7 @@ struct
 		  (* val conDec' = nameConDec (conDec) *)
 		  (* should print here, not in ReconConDec *)
 		  (* allocate new cid after checking modes! *)
-		  val cid = installConDec false (conDec, (fileName, ocOpt), r)
+		  val cid = installConDec IntSyn.Ordinary (conDec, (fileName, ocOpt), r)
 	      in
 		()
 	      end
@@ -454,6 +460,26 @@ struct
         handle Constraints.Error (eqns) =>
 	       raise ReconTerm.Error (Paths.wrap (r, constraintsMsg eqns)))
 
+      | install1 (fileName, (Parser.ClauseDec condec, r)) =
+	(* Clauses %clause c = U or %clause c : V = U or %clause c : V *)
+	(* these are like definitions, but entered into the program table *)
+	(let
+	   (* val _ = print "%clause " *)
+	   val (optConDec, ocOpt) = ReconConDec.condecToConDec (condec, Paths.Loc (fileName, r), false)
+	   fun icd (SOME (conDec)) =
+	       let
+		 val cid = installConDec IntSyn.Clause (conDec, (fileName, ocOpt), r)
+	       in
+		 ()
+	       end
+	     | icd NONE = (* anonymous definition for type-checking: ignore %clause *)
+	       ()
+	 in
+	   icd optConDec
+	 end
+	 handle Constraints.Error (eqns) =>
+	        raise ReconTerm.Error (Paths.wrap (r, constraintsMsg eqns)))
+	   
       (* Solve declarations %solve c : A *)
       | install1 (fileName, (Parser.Solve (defines, solve), r)) =
 	(let
@@ -465,7 +491,7 @@ struct
 	     (* should print here, not in ReconQuery *)
 	     (* allocate new cid after checking modes! *)
 	     (* allocate cid after strictness has been checked! *)
-	     val cid = installConDec false (conDec, (fileName, ocOpt), r)
+	     val cid = installConDec IntSyn.Ordinary (conDec, (fileName, ocOpt), r)
 	   in
 	     ()
 	   end)
@@ -583,7 +609,7 @@ struct
 	let
 	  val mdecs = List.map ReconMode.modeToMode mterms
           val _ = ReconTerm.checkErrors (r)
-	  val _ = List.app (fn (mdec, r) => Cover.checkCovers mdec
+	  val _ = List.app (fn (mdec, r) => (Timers.time Timers.coverage Cover.checkCovers) mdec
 			    handle Cover.Error (msg) => raise Cover.Error (Paths.wrap (r, msg)))
 	          mdecs
 	  val _ = if !Global.chatter >= 3
@@ -596,8 +622,16 @@ struct
 	end
 
       (* Total declaration *)
-      | install1 (fileName, (Parser.TotalDec lterm, _)) =
+      | install1 (fileName, (Parser.TotalDec lterm, r)) =
+        (* time activities separately in total.fun *)
 	let
+        (* Mon Dec  2 17:20:18 2002 -fp *)
+        (* coverage checker appears to be safe now *)
+	  (*
+	  val _ = if not (!Global.unsafe)
+		    then raise Total.Error (Paths.wrapLoc (Paths.Loc (fileName, r), "%total not safe: Toggle `unsafe' flag"))
+	          else ()
+          *)
 	  val (T, rrs as (r,rs)) = ReconThm.tdeclTotDecl lterm
 	  val La = Thm.installTotal (T, rrs)
 (* ******************************************* *)
@@ -632,6 +666,7 @@ struct
 	          handle Total.Error (msg) => raise Total.Error (msg) (* include region and file *)
 		       | Cover.Error (msg) => raise Cover.Error (Paths.wrap (r, msg))
 		       | Reduces.Error (msg) => raise Reduces.Error (msg) (* includes filename *)
+		       | Subordinate.Error (msg) => raise Subordinate.Error (Paths.wrap (r, msg))
 	  val _ = if !Global.chatter >= 3
 		    then print ("%total " ^ ThmPrint.tDeclToString T ^ ".\n")
 		  else ()
@@ -691,7 +726,7 @@ struct
 	  val _ = List.foldr (fn ((G1, G2), k) => FunSyn.labelAdd 
 			    (FunSyn.LabelDec (Int.toString k, FunSyn.ctxToList G1, FunSyn.ctxToList G2))) 0 GBs
 								       
-	  val cid = installConDec false (E, (fileName, NONE), r)
+	  val cid = installConDec IntSyn.Ordinary (E, (fileName, NONE), r)
 	  val MS = ThmSyn.theoremDecToModeSpine (Tdec, r)
 	  val _ = ModeSyn.installMode (cid, MS)
 	  val _ = if !Global.chatter >= 3
@@ -725,7 +760,7 @@ struct
 		  else ()
 		    
 	in
-	  (Prover.install (fn E => installConDec false (E, (fileName, NONE), r));
+	  (Prover.install (fn E => installConDec IntSyn.Ordinary (E, (fileName, NONE), r));
 	   Skolem.install La) 
 	end 
 
@@ -748,10 +783,10 @@ struct
 	  val _ = Prover.auto () handle Prover.Error msg => raise Prover.Error (Paths.wrap (joinregion rrs, msg)) (* times itself *)
 		    
 	in
-	  Prover.install (fn E => installConDec false (E, (fileName, NONE), r))
+	  Prover.install (fn E => installConDec IntSyn.Ordinary (E, (fileName, NONE), r))
 	end 
 
-      (* Establish declaration *)
+      (* Assert declaration *)
       | install1 (fileName, (Parser.AssertDec aterm, _)) =
 	let 
 	  val _ = if not (!Global.unsafe)
@@ -770,6 +805,7 @@ struct
 	in
 	  Skolem.install La
 	end
+
       | install1 (fileName, (Parser.WorldDec wdecl, _)) =
 	let
 	  val (ThmSyn.WDecl (qids, cp as ThmSyn.Callpats cpa), rs) =
@@ -790,7 +826,7 @@ struct
 				^ ThmPrint.callpatsToString cp ^ ".\n")
 		  else ()
 	in
-	  (map (fn (a, _) => WorldSyn.worldcheck W a) cpa ; ())
+	  (Timers.time Timers.worlds (map (fn (a, _) => WorldSyn.worldcheck W a)) cpa ; ())
 	end
       | install1 (fileName, declr as (Parser.SigDef _, _)) =
           install1WithSig (fileName, NONE, declr)
@@ -974,11 +1010,11 @@ struct
     (* top () = () starts interactive query loop *)
     fun top () = topLoop ()    
 
-    fun installCSMDec (conDec, optFixity, optMdec) = 
+    fun installCSMDec (conDec, optFixity, mdecL) = 
 	let
 	  val _ = ModeCheck.checkD (conDec, "%use", NONE)
           (* put a more reasonable region here? -kw *)
-	  val cid = installConDec true (conDec, ("", NONE), Paths.Reg (0,0))
+	  val cid = installConDec IntSyn.FromCS (conDec, ("", NONE), Paths.Reg (0,0))
 	  val _ = if !Global.chatter >= 3
 		  then print (Print.conDecToString (conDec) ^ "\n")
 		  else ()
@@ -991,10 +1027,7 @@ struct
                                          ^ Names.qidToString (Names.constQid cid) ^ ".\n")
                            else ())
 		      | NONE => ())
-	  val _ = (case optMdec
-		     of SOME(mdec) =>
-			  ModeSyn.installMode (cid, mdec)
-		      | NONE => ())
+	  val _ = List.app (fn mdec => ModeSyn.installMmode (cid, mdec)) mdecL
 	in
 	  cid
 	end
@@ -1071,88 +1104,124 @@ struct
       (* suffix of configuration files: "cfg" by default *)
       val suffix = ref "cfg"
 
-      (* new recursive version  Sat 09/25/1999 -rv *)
-      (* uses always Unix path separation Sat 10/21/2000 -rv *)
-      fun read (configFile) =
-          withOpenIn (configFile)
-          (fn instream =>
-           let
-	     val {dir=configDir, file=_} = OS.Path.splitDirFile configFile
-             (* fromUnixPath path transforms path (assumed to be in Unix
-                form to the local OS conventions
-             *)
-             fun fromUnixPath path =
-                   let
-                     val vol = OS.Path.getVolume configFile
-                     val isAbs = String.isPrefix "/" path
-                     val arcs = String.tokens (fn c => c = #"/") path
-                   in
-                     OS.Path.toString {isAbs = isAbs, vol=vol, arcs=arcs}
-                   end
-             (* append_uniq (list1, list2) appends list2 to list1, removing
-                all elements of list2 which are already in list1
-             *)
-             fun append_uniq (l1, l2) =
-                   let
-                     fun append_uniq' (x :: l2) =
-                           if List.exists (fn y => x = y) l1
-                           then append_uniq' (l2)
-                           else x :: append_uniq' (l2)
-                       | append_uniq' (nil) = List.rev l1
-                   in
-                     List.rev (append_uniq' (List.rev l2))
-                   end
-	     (* mkRel interpretes a path p in the config file relative to
-	        configDir, the directory of the config file.
-             *)
-	     fun mkRel (p) =
-                  OS.Path.mkCanonical
-                    (if OS.Path.isAbsolute p
-                     then p
-                     else OS.Path.concat (configDir, p))
-             fun parseItem (item, sources) =
-                   let
-                     val suffix_size = (String.size (!suffix)) + 1
-                     val suffix_start = (String.size item) - suffix_size
-                   in
-                     if (suffix_start < 0)
-                       orelse (String.substring (item, suffix_start, suffix_size) <> ("." ^ !suffix))
-                     then append_uniq (sources, [mkRel(fromUnixPath item)])
-                     else append_uniq (sources, (#2(read (mkRel(fromUnixPath item)))))
-                   end
-	     fun parseLine (sources, line) =
-		 if Substring.isEmpty line
-		   then sources (* end of file *)
-		 else parseLine' (sources, Substring.dropl Char.isSpace line)
-	     and parseLine' (sources, line') =
-		 if Substring.isEmpty line' orelse Substring.sub (line', 0) = #"%"
-		   then parseStream sources	(* ignore empty or comment line *)
-		 else parseStream (parseItem (Substring.string (Substring.takel (not o Char.isSpace) line'),
-				              sources))
-	     and parseStream (sources) =
-	           parseLine (sources, Substring.all (TextIO.inputLine instream))
-
-	     val pwdir = OS.FileSys.getDir ()
-	   in
-	     (pwdir, parseStream nil)
-	   end)
-	  (*
-	  handle IO.Io (ioError) => (abortIO (configFile, ioError); raise IO.io (ioError))
-	  *)
+      (* more efficient recursive version  Sat 08/26/2002 -rv *)
+      fun read config =
+          let
+            (* appendUniq (list1, list2) appends list2 to list1, removing all
+               elements of list2 which are already in list1.
+            *)
+            fun appendUniq (l1, l2) =
+                  let
+                    fun appendUniq' (x :: l2) =
+                          if List.exists (fn y => x = y) l1
+                          then appendUniq' l2
+                          else x :: appendUniq' (l2)
+                      | appendUniq' nil = List.rev l1
+                  in
+                    List.rev (appendUniq' (List.rev l2))
+                  end
+            (* isConfig (item) is true iff item has the suffix of a
+               configuration file.
+            *)
+            fun isConfig item =
+                let
+                  val suffix_size = (String.size (!suffix)) + 1
+                  val suffix_start = (String.size item) - suffix_size
+                in
+                  (suffix_start >= 0)
+                  andalso
+                  (String.substring (item, suffix_start, suffix_size) = ("." ^ !suffix))
+                end
+            (* fromUnixPath path transforms path (assumed to be in Unix form)
+               to the local OS conventions.
+            *)
+            fun fromUnixPath path =
+                let
+                  val vol = OS.Path.getVolume config
+                  val isAbs = String.isPrefix "/" path
+                  val arcs = String.tokens (fn c => c = #"/") path
+                in
+                  OS.Path.toString {isAbs = isAbs, vol=vol, arcs=arcs}
+                end
+	    (* mkRel transforms a relative path into an absolute one
+               by adding the specified prefix. If the path is already
+               absolute, no prefix is added to it.
+            *)
+	    fun mkRel (prefix, path) =
+                OS.Path.mkCanonical
+                  (if OS.Path.isAbsolute path
+                   then path
+                   else OS.Path.concat (prefix, path))
+            fun read' (sources, configs) config =
+                withOpenIn config
+                  (fn instream =>
+                      let
+                        val {dir=configDir, file=_} = OS.Path.splitDirFile config
+                        fun parseItem (sources, configs) item =
+                            if isConfig item
+                            then
+                              if List.exists (fn config' => item = config') configs
+                              then (sources, configs) (* we have already read this one *)
+                              else read' (sources, item :: configs) item
+                            else
+                              if List.exists (fn source' => item = source') sources
+                              then (sources, configs) (* we have already collected this one *)
+                              else (sources @ [item], configs)
+                        fun parseLine (sources, configs) line =
+                            if Substring.isEmpty line (* end of file *)
+                            then (sources, configs)
+                            else
+                              let
+                                val line' = Substring.dropl Char.isSpace line
+                            in
+                              parseLine' (sources, configs) line'
+                            end
+	                and parseLine' (sources, configs) line =
+                            if Substring.isEmpty line (* empty line *)
+                            orelse Substring.sub (line, 0) = #"%" (* comment *)
+                            then parseStream (sources, configs)
+                            else
+                              let
+                                val line' = Substring.string
+                                              (Substring.takel (not o Char.isSpace) line)
+                                val item = mkRel (configDir, fromUnixPath line')
+                              in
+                                parseStream (parseItem (sources, configs) item)
+                              end
+                        and parseStream (sources, configs) =
+                            let
+                              val line = Substring.all (TextIO.inputLine instream)
+                            in
+	                      parseLine (sources, configs) line
+                            end
+                      in
+                        parseStream (sources, configs)
+                      end)
+            val pwdir = OS.FileSys.getDir ()
+          in
+            (pwdir, #1(read' (nil, [config]) config))
+          (*
+            handle IO.Io (ioError) => (abortIO (configFile, ioError); raise IO.io (ioError))
+          *)
+          end
 
       fun loadAbort (filename, OK) = loadFile (filename)
 	| loadAbort (_, ABORT) = ABORT
 
       (* load (config) = Status
-         reset global signature and then reads the files in config
+         resets the global signature and then reads the files in config
          in order, stopping at the first error.
       *)
-      fun load (pwdir, sources) =
-	  (reset ();
-	   if pwdir = OS.FileSys.getDir () (* allow shorter messages if safe *)
+      fun load (config) =
+          (reset (); append (config))
+      (* append (config) = Status
+         reads the files in config in order, stopping at the first error.
+      *)
+      and append (pwdir, sources) =
+	  (if pwdir = OS.FileSys.getDir () (* allow shorter messages if safe *)
 	     then List.foldl loadAbort OK sources
 	   else List.foldl loadAbort OK
-	        (List.map (fn p => OS.Path.mkAbsolute (p, pwdir)) sources)) 
+	        (List.map (fn p => MkAbsolute.mkAbsolute {path=p, relativeTo=pwdir}) sources))
 
       fun define (sources) = (OS.FileSys.getDir (), sources)
 
@@ -1175,6 +1244,7 @@ struct
         val sgn : unit -> unit		(* print signature *)
         val prog : unit -> unit		(* print signature as program *)
 	val subord : unit -> unit       (* print subordination relation *)
+        val domains : unit -> unit	(* print available constraint domains *)
         structure TeX :			(* print in TeX format *)
 	sig
 	  val sgn : unit -> unit	(* print signature *)
@@ -1191,6 +1261,7 @@ struct
       fun sgn () = Print.printSgn ()
       fun prog () = ClausePrint.printSgn ()
       fun subord () = Subordinate.show ()
+      fun domains () = print (CSInstaller.version)
       structure TeX =
       struct
 	fun sgn () = printSgnTeX ()
@@ -1252,6 +1323,33 @@ struct
       val optimize = Compile.optimize
     end
 
+    structure Table : 
+      sig 
+	datatype Strategy = datatype TableIndex.Strategy
+	val strategy : Strategy ref
+	val strengthen : bool ref
+	val top : unit -> unit
+      end 
+    = 
+    struct
+      datatype Strategy = datatype TableIndex.Strategy
+      val strategy = TableIndex.strategy
+      val strengthen = TableIndex.strengthen
+      	  
+      (* top () = () starts interactive query loop *)
+      fun top () = 
+	  let 
+	    fun sLoopT () = if Solve.qLoopT () then OK else ABORT
+      
+	    fun topLoopT () = 
+	        case (handleExceptions "stdIn" sLoopT) () (* "stdIn" as fake fileName *)
+		  of ABORT => topLoopT ()
+		   | OK => ()
+	  in 
+	    topLoopT ()
+	  end 
+    end
+
     structure Recon :
     sig
       datatype TraceMode = datatype ReconTerm.TraceMode
@@ -1298,39 +1396,13 @@ struct
         val suffix : string ref         (* suffix of configuration files *)
 	val read : string -> config	(* read configuration from config file *)
 	val load : config -> Status	(* reset and load configuration *)
+	val append : config -> Status	(* load configuration (w/o reset) *)
 	val define : string list -> config  (* explicitly define configuration *)
       end
     = Config
     val make = make
 
-    val version = "Twelf 1.3R3, Dec 28 2001 (with world, coverage, and totality checking)"
-
-    structure Table : 
-      sig 
-	datatype Strategy = datatype TableIndex.Strategy
-	val strategy : Strategy ref
-	val strengthen : bool ref
-	val top : unit -> unit
-      end 
-    = 
-  struct
-    datatype Strategy = datatype TableIndex.Strategy
-    val strategy = TableIndex.strategy
-    val strengthen = TableIndex.strengthen
-      	  
-    (* top () = () starts interactive query loop *)
-    fun top () = 
-      let 
-	fun sLoopT () = if Solve.qLoopT () then OK else ABORT
-      
-	fun topLoopT () = 
-	  case (handleExceptions "stdIn" sLoopT) () (* "stdIn" as fake fileName *)
-	    of ABORT => topLoopT ()
-	  | OK => ()
-      in 
-	topLoopT ()
-      end 
-  end
+    val version = "Twelf 1.4, Dec 27 2002 (Tomega)"
 
   end  (* local *)
 end; (* functor Twelf *)

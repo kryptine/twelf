@@ -1,25 +1,52 @@
 (* Solver for machine integers *)
 (* Author: Roberto Virga *)
 
-functor CSIntWord (structure Word : WORD
-                   structure IntSyn : INTSYN
+functor CSIntWord ((*! structure IntSyn : INTSYN !*)
                    structure Whnf : WHNF
-                     sharing Whnf.IntSyn = IntSyn
+		   (*! sharing Whnf.IntSyn = IntSyn !*)
                    structure Unify : UNIFY
-                     sharing Unify.IntSyn = IntSyn
-                   structure CSManager : CS_MANAGER
-                     sharing CSManager.IntSyn = IntSyn)
+                   (*! sharing Unify.IntSyn = IntSyn !*)
+		   (*! structure CSManager : CS_MANAGER !*)
+                   (*! sharing CSManager.IntSyn = IntSyn !*)
+                   val wordSize : int)
  : CS =
 struct
-  structure CSManager = CSManager
+  (*! structure CSManager = CSManager !*)
 
   local
     open IntSyn
 
-    structure W = Word;
+    structure W = LargeWord;
 
     structure FX = CSManager.Fixity
     structure MS = CSManager.ModeSyn
+
+    val wordSize' = Int.min (wordSize, W.wordSize);
+
+    val zero = W.fromInt 0
+    val max = W.>> (W.notb zero, Word.fromInt (W.wordSize - wordSize'))
+
+    (* numCheck (d) = true iff d <= max *)
+    fun numCheck (d) = W.<= (d, max)
+
+    (* plusCheck (d1, d2) = true iff d1 + d2 <= max *)
+    fun plusCheck (d1, d2) =
+          let
+            val d3 = W.+ (d1, d2)
+          in
+            W.>= (d3, d1)
+            andalso W.>= (d3, d2)
+            andalso W.<= (d3, max)
+          end
+
+    (* timesCheck (d1, d2) = true iff d1 * d2 <= max *)
+    fun timesCheck (d1, d2) =
+          if(d1 = zero orelse d2 = zero) then true
+          else let val d3 = W.div (W.div (max, d1), d2)
+               in W.> (d3, zero) end
+
+    (* quotCheck (d1, d2) = true iff  d2 != zero *)
+    fun quotCheck (d1, d2) = W.> (d2, zero)
 
     (* constraint solver ID of this module *)
     val myID = ref ~1 : csid ref
@@ -85,7 +112,10 @@ struct
                   false
           in
             if check (String.explode str)
-            then StringCvt.scanString (W.scan StringCvt.DEC) str
+            then
+              case (StringCvt.scanString (W.scan StringCvt.DEC) str)
+                of SOME(d) => (if numCheck (d) then SOME(d) else NONE)
+                 | NONE => NONE
             else NONE
           end
 
@@ -216,6 +246,8 @@ struct
                   | NONE => Expr Us))))
             end
           else Expr Us
+      | fromExpW (Us as (Root (Def(d), _), _)) =
+          fromExpW (Whnf.expandDef (Us))
       | fromExpW Us = Expr Us
 
     (* fromExp (U, s) = t
@@ -254,26 +286,6 @@ struct
     (* fth (S, s) = U1, the fourth argument in S[s] *)
     fun fth (App (_, S), s) = trd (S, s)
       | fth (SClo (S, s'), s) = fth (S, comp (s', s))
-
-    val zero = W.fromInt 0
-    val max = W.notb zero
-
-    (* plusCheck (d1, d2) = true iff d1 + d2 < max *)
-    fun plusCheck (d1, d2) =
-          let
-            val d3 = W.+(d1, d2)
-          in
-            W.>= (d3, d1) andalso W.>= (d3, d2)
-          end
-
-    (* timesCheck (d1, d2) = true iff d1 * d2 < max *)
-    fun timesCheck (d1, d2) =
-          if(d1 = zero orelse d2 = zero) then true
-          else let val d3 = W.div (W.div (max, d1), d2)
-               in W.> (d3, zero) end
-
-    (* quotCheck (d1, d2) = true iff d1 * d2 < max *)
-    fun quotCheck (d1, d2) = W.> (d2, zero)
 
     fun toInternalPlus (G, U1, U2, U3) () =
           [(G, plusExp(U1, U2, U3))]
@@ -519,7 +531,7 @@ struct
               installF (ConDec ("word" ^ Int.toString(W.wordSize), NONE, 0,
                                 Constraint (!myID, solveNumber),
                                 Uni (Type), Kind),
-                        NONE : FX.fixity option, SOME(MS.Mnil));
+                        NONE : FX.fixity option, [MS.Mnil]);
 
             plusID :=
               installF (ConDec ("+", NONE, 0,
@@ -527,7 +539,16 @@ struct
                                 arrow (word (),
                                   arrow (word (),
                                     arrow (word (), Uni (Type)))), Kind),
-                        NONE, NONE);
+                        NONE,
+                        [MS.Mapp(MS.Marg(MS.Plus, SOME "X"),
+                                 MS.Mapp(MS.Marg(MS.Plus, SOME "Y"),
+                                         MS.Mapp(MS.Marg(MS.Minus, SOME "Z"), MS.Mnil))),
+                         MS.Mapp(MS.Marg(MS.Plus, SOME "X"),
+                                 MS.Mapp(MS.Marg(MS.Minus, SOME "Y"),
+                                         MS.Mapp(MS.Marg(MS.Plus, SOME "Z"), MS.Mnil))),
+                         MS.Mapp(MS.Marg(MS.Minus, SOME "X"),
+                                 MS.Mapp(MS.Marg(MS.Plus, SOME "Y"),
+                                         MS.Mapp(MS.Marg(MS.Plus, SOME "Z"), MS.Mnil)))]);
 
             timesID :=
               installF (ConDec ("*", NONE, 0,
@@ -535,7 +556,16 @@ struct
                                 arrow (word (),
                                   arrow (word (),
                                     arrow (word (), Uni (Type)))), Kind),
-                        NONE, NONE);
+                        NONE,
+                        [MS.Mapp(MS.Marg(MS.Plus, SOME "X"),
+                                 MS.Mapp(MS.Marg(MS.Plus, SOME "Y"),
+                                         MS.Mapp(MS.Marg(MS.Minus, SOME "Z"), MS.Mnil))),
+                         MS.Mapp(MS.Marg(MS.Plus, SOME "X"),
+                                 MS.Mapp(MS.Marg(MS.Minus, SOME "Y"),
+                                         MS.Mapp(MS.Marg(MS.Plus, SOME "Z"), MS.Mnil))),
+                         MS.Mapp(MS.Marg(MS.Minus, SOME "X"),
+                                 MS.Mapp(MS.Marg(MS.Plus, SOME "Y"),
+                                         MS.Mapp(MS.Marg(MS.Plus, SOME "Z"), MS.Mnil)))]);
 
             quotID :=
               installF (ConDec ("/", NONE, 0,
@@ -543,7 +573,13 @@ struct
                                 arrow (word (),
                                   arrow (word (),
                                     arrow (word (), Uni (Type)))), Kind),
-                        NONE, NONE);
+                        NONE,
+                        [MS.Mapp(MS.Marg(MS.Plus, SOME "X"),
+                                 MS.Mapp(MS.Marg(MS.Plus, SOME "Y"),
+                                         MS.Mapp(MS.Marg(MS.Minus, SOME "Z"), MS.Mnil))),
+                         MS.Mapp(MS.Marg(MS.Plus, SOME "X"),
+                                 MS.Mapp(MS.Marg(MS.Minus, SOME "Y"),
+                                         MS.Mapp(MS.Marg(MS.Plus, SOME "Z"), MS.Mnil)))]);
 
             provePlusID :=
               installF (ConDec ("prove+", NONE, 0,
@@ -554,8 +590,12 @@ struct
                                       pi ("P", plusExp (bvar 3, bvar 2, bvar 1),
                                           Uni (Type))))),
                                 Kind),
-                        NONE, NONE);
-
+                        NONE,
+                        [MS.Mapp(MS.Marg(MS.Star, SOME "X"),
+                                 MS.Mapp(MS.Marg(MS.Star, SOME "Y"),
+                                         MS.Mapp(MS.Marg(MS.Star, SOME "Z"),
+                                                 MS.Mapp(MS.Marg(MS.Star, SOME "P"),
+                                                         MS.Mnil))))]);
             proofPlusID := 
               installF (ConDec ("proof+", NONE, 0, Normal,
                                 pi ("X", word (),
@@ -564,7 +604,7 @@ struct
                                       pi ("P", plusExp (bvar 3, bvar 2, bvar 1),
                                           provePlusExp (bvar 4, bvar 3, bvar 2, bvar 1))))),
                                 Type),
-                        NONE, NONE);
+                        NONE, nil);
             
             proveTimesID :=
               installF (ConDec ("prove*", NONE, 0,
@@ -575,8 +615,13 @@ struct
                                       pi ("P", timesExp (bvar 3, bvar 2, bvar 1),
                                           Uni (Type))))),
                                 Kind),
-                        NONE, NONE);
-
+                        NONE,
+                        [MS.Mapp(MS.Marg(MS.Star, SOME "X"),
+                                 MS.Mapp(MS.Marg(MS.Star, SOME "Y"),
+                                         MS.Mapp(MS.Marg(MS.Star, SOME "Z"),
+                                                 MS.Mapp(MS.Marg(MS.Star, SOME "P"),
+                                                         MS.Mnil))))]);
+ 
             proofTimesID := 
               installF (ConDec ("proof*", NONE, 0, Normal,
                                 pi ("X", word (),
@@ -585,7 +630,7 @@ struct
                                       pi ("P", timesExp (bvar 3, bvar 2, bvar 1),
                                           proveTimesExp (bvar 4, bvar 3, bvar 2, bvar 1))))),
                                 Type),
-                        NONE, NONE);
+                        NONE, nil);
             
             proveQuotID :=
               installF (ConDec ("prove/", NONE, 0,
@@ -596,7 +641,12 @@ struct
                                       pi ("P", quotExp (bvar 3, bvar 2, bvar 1),
                                           Uni (Type))))),
                                 Kind),
-                        NONE, NONE);
+                        NONE,
+                        [MS.Mapp(MS.Marg(MS.Star, SOME "X"),
+                                 MS.Mapp(MS.Marg(MS.Star, SOME "Y"),
+                                         MS.Mapp(MS.Marg(MS.Star, SOME "Z"),
+                                                 MS.Mapp(MS.Marg(MS.Star, SOME "P"),
+                                                         MS.Mnil))))]);
 
             proofQuotID := 
               installF (ConDec ("proof/", NONE, 0, Normal,
@@ -606,14 +656,14 @@ struct
                                       pi ("P", quotExp (bvar 3, bvar 2, bvar 1),
                                           proveQuotExp (bvar 4, bvar 3, bvar 2, bvar 1))))),
                                 Type),
-                        NONE, NONE);
+                        NONE, nil);
             
             ()
           )
   in
     val solver =
           {
-            name = "word" ^ Int.toString(W.wordSize),
+            name = "word" ^ Int.toString(wordSize'),
             keywords = "numbers,equality",
             needs = ["Unify"],
 

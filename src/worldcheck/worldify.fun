@@ -4,41 +4,42 @@
 
 functor Worldify
   (structure Global : GLOBAL
-   structure IntSyn : INTSYN
-   structure Tomega : TOMEGA
-     sharing Tomega.IntSyn = IntSyn
+   (*! structure IntSyn : INTSYN !*)
+   (*! structure Tomega : TOMEGA !*)
+   (*! sharing Tomega.IntSyn = IntSyn !*)
    structure WorldSyn : WORLDSYN
-     sharing WorldSyn.IntSyn = IntSyn
-     sharing WorldSyn.Tomega = Tomega
+   (*! sharing WorldSyn.IntSyn = IntSyn !*)
+   (*! sharing WorldSyn.Tomega = Tomega !*)
    structure Whnf : WHNF
-     sharing Whnf.IntSyn = IntSyn
+   (*! sharing Whnf.IntSyn = IntSyn !*)
    structure Index : INDEX
-     sharing Index.IntSyn = IntSyn
+   (*! sharing Index.IntSyn = IntSyn !*)
    structure Names : NAMES
-     sharing Names.IntSyn = IntSyn
+   (*! sharing Names.IntSyn = IntSyn !*)
    structure Unify : UNIFY
-     sharing Unify.IntSyn = IntSyn
+   (*! sharing Unify.IntSyn = IntSyn !*)
    structure Abstract : ABSTRACT
-     sharing Abstract.IntSyn = IntSyn
+   (*! sharing Abstract.IntSyn = IntSyn !*)
    structure Constraints : CONSTRAINTS
-     sharing Constraints.IntSyn = IntSyn
+   (*! sharing Constraints.IntSyn = IntSyn !*)
    structure CSManager : CS_MANAGER
-     sharing CSManager.IntSyn = IntSyn
+   (*! sharing CSManager.IntSyn = IntSyn !*)
    structure Subordinate : SUBORDINATE
-     sharing Subordinate.IntSyn = IntSyn
+   (*! sharing Subordinate.IntSyn = IntSyn !*)
    structure Print : PRINT
-     sharing Print.IntSyn = IntSyn
+   (*! sharing Print.IntSyn = IntSyn !*)
 
    structure Table : TABLE where type key = int
 
-   structure Paths : PATHS
+   (*! structure Paths : PATHS !*)
    structure Origins : ORIGINS
-     sharing Origins.Paths = Paths
-     sharing Origins.IntSyn = IntSyn)
+   (*! sharing Origins.Paths = Paths !*)
+   (*! sharing Origins.IntSyn = IntSyn !*)
+       )
    : WORLDIFY = 
 struct
-  structure IntSyn = IntSyn
-  structure Tomega = Tomega
+  (*! structure IntSyn = IntSyn !*)
+  (*! structure Tomega = Tomega !*)
   structure I = IntSyn
   structure T = Tomega
   structure P = Paths

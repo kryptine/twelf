@@ -2,21 +2,22 @@
 (* Author: Roberto Virga *)
 
 functor CSIneqField (structure OrderedField : ORDERED_FIELD
-                     structure IntSyn : INTSYN
+                     (*! structure IntSyn : INTSYN !*)
                      structure Trail : TRAIL
                      structure Unify : UNIFY
-                       sharing Unify.IntSyn = IntSyn
+		     (*! sharing Unify.IntSyn = IntSyn !*)
                      structure SparseArray  : SPARSE_ARRAY
                      structure SparseArray2 : SPARSE_ARRAY2
-                     structure CSManager : CS_MANAGER
-                       sharing CSManager.IntSyn = IntSyn
+                     (*! structure CSManager : CS_MANAGER !*)
+		     (*! sharing CSManager.IntSyn = IntSyn !*)
                      structure CSEqField : CS_EQ_FIELD
                        sharing CSEqField.Field = OrderedField
-                       sharing CSEqField.IntSyn = IntSyn
-                       sharing CSEqField.CSManager = CSManager)
+                       (*! sharing CSEqField.IntSyn = IntSyn !*)
+                       (*! sharing CSEqField.CSManager = CSManager !*)
+			 )
  : CS =
 struct
-  structure CSManager = CSManager
+  (*! structure CSManager = CSManager !*)
 
   local
     open IntSyn
@@ -1225,14 +1226,19 @@ struct
             gtID := 
               installF (ConDec (">", NONE, 0,
                                 Constraint (!myID, solveGt),
-                                arrow (number (), arrow (number (), Uni (Type))), Kind),
-                        SOME(FX.Infix(FX.minPrec, FX.None)), NONE);
+                                arrow (number (),
+                                       arrow (number (), Uni (Type))), Kind),
+                        SOME(FX.Infix(FX.minPrec, FX.None)),
+                        [MS.Mapp(MS.Marg(MS.Star, NONE),
+                                MS.Mapp(MS.Marg(MS.Star, NONE), MS.Mnil))]);
 
             geqID := 
               installF (ConDec (">=", NONE, 0,
                                 Constraint (!myID, solveGeq),
                                 arrow (number (), arrow (number (), Uni (Type))), Kind),
-                        SOME(FX.Infix(FX.minPrec, FX.None)), NONE);
+                        SOME(FX.Infix(FX.minPrec, FX.None)),
+                        [MS.Mapp(MS.Marg(MS.Star, NONE),
+                                MS.Mapp(MS.Marg(MS.Star, NONE), MS.Mnil))]);
 
             gtAddID :=
               installF (ConDec ("+>", NONE, 2, Normal,
@@ -1246,7 +1252,7 @@ struct
                                                        plus (Root (BVar 3, Nil),
                                                              Root (BVar 2, Nil))))))),
                                 Type),
-                        NONE, NONE);
+                        NONE, nil);
 
             geqAddID :=
               installF (ConDec ("+>=", NONE, 2, Normal,
@@ -1260,7 +1266,7 @@ struct
                                                         plus (Root (BVar 3, Nil),
                                                               Root (BVar 2, Nil))))))),
                                 Type),
-                        NONE, NONE);
+                        NONE, nil);
 
             gtGeqID :=
               installF (ConDec (">>=", NONE, 2, Normal,
@@ -1271,13 +1277,13 @@ struct
                                                geq (Root (BVar 3, Nil),
                                                     Root (BVar 2, Nil))))),
                                 Type),
-                        NONE, NONE);
+                        NONE, nil);
 
             geq00ID :=
               installF (ConDec ("0>=0", NONE, 0, Normal,
                                 geq0 (constant (zero)),
                                 Type),
-                        NONE, NONE);
+                        NONE, nil);
             ()
           )
   in

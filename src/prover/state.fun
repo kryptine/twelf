@@ -2,14 +2,15 @@
 (* Author: Carsten Schuermann *)
 
 functor State 
-  (structure IntSyn' : INTSYN
-   structure Tomega' : TOMEGA
-     sharing Tomega'.IntSyn = IntSyn'
+  ((*! structure IntSyn' : INTSYN !*)
+   (*! structure Tomega' : TOMEGA !*)
+   (*! sharing Tomega'.IntSyn = IntSyn' !*)
    structure Normalize : NORMALIZE
-     sharing Normalize.Tomega = Tomega') : STATE =
+   (*! sharing Normalize.Tomega = Tomega' !*)
+     ) : STATE =
 struct
-  structure IntSyn = IntSyn'
-  structure Tomega = Tomega'
+  (*! structure IntSyn = IntSyn' !*)
+  (*! structure Tomega = Tomega' !*)
 
   datatype State
     = State of (Tomega.Dec IntSyn.Ctx * Tomega.For) * Tomega.Worlds

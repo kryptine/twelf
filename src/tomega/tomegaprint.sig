@@ -3,8 +3,8 @@
 
 signature TOMEGAPRINT =
 sig
-  structure IntSyn : INTSYN
-  structure Tomega : TOMEGA 
+  (*! structure IntSyn : INTSYN !*)
+  (*! structure Tomega : TOMEGA  !*)
   structure Formatter : FORMATTER
 
   val formatFor   : Tomega.Dec IntSyn.Ctx * Tomega.For -> Formatter.format

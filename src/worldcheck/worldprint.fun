@@ -2,18 +2,18 @@
 (* Author: Carsten Schuermann *)
 
 functor WorldPrint (structure Global : GLOBAL
-		    structure IntSyn : INTSYN
-		    structure Tomega' : TOMEGA
-		      sharing Tomega'.IntSyn = IntSyn
-		    structure WorldSyn : WORLDSYN
-		      sharing WorldSyn.IntSyn = IntSyn
-		      sharing WorldSyn.Tomega = Tomega'
+		    (*! structure IntSyn : INTSYN !*)
+		    (*! structure Tomega' : TOMEGA !*)
+		    (*! sharing Tomega'.IntSyn = IntSyn !*)
+		    structure WorldSyn' : WORLDSYN
+		    (*! sharing WorldSyn'.IntSyn = IntSyn !*)
 		    structure Names : NAMES
-		      sharing Names.IntSyn = IntSyn
+		    (*! sharing Names.IntSyn = IntSyn !*)
 		    structure Formatter' : FORMATTER
 		    structure Print : PRINT
 		      sharing Print.Formatter = Formatter'
-		      sharing Print.IntSyn = IntSyn)
+		      (*! sharing Print.IntSyn = IntSyn !*)
+			)
   : WORLDPRINT =
 
 struct
@@ -26,7 +26,7 @@ struct
     structure I = IntSyn
     structure T = Tomega
     structure N = Names
-    structure W = WorldSyn 
+    structure W = WorldSyn'
     structure Fmt = Formatter
       
 

@@ -53,7 +53,6 @@ sig
 
   and Head =				(* Head:                      *)
     BVar  of int			(* H ::= k                    *)
-  | NVar  of int			(*     | n                -bp *)
   | Const of cid			(*     | c                    *)
   | Proj  of Block * int		(*     | #k(b)                *)
   | Skonst of cid			(*     | c#                   *)
@@ -74,7 +73,6 @@ sig
   and Front =				(* Fronts:                    *)
     Idx of int				(* Ft ::= k                   *)
   | Exp of Exp				(*     | U                    *)
-  | Axp of Exp				(*     | U                    *)
   | Block of Block			(*     | _x                   *)
   | Undef				(*     | _                    *)
 
@@ -147,6 +145,12 @@ sig
 
   datatype StrDec =                     (* Structure declaration      *)
       StrDec of string * mid option
+
+  (* Form of constant declaration *)
+  datatype ConDecForm =
+    FromCS				(* from constraint domain *)
+  | Ordinary				(* ordinary declaration *)
+  | Clause				(* %clause declaration *)
 
   (* Type abbreviations *)
   type dctx = Dec Ctx			(* G = . | G,D                *)

@@ -1,70 +1,95 @@
 (* Subordination a la Virga [Technical Report 96] *)
 (* Author: Carsten Schuermann *)
 
+(* Reverse subordination order *)
+
 functor Subordinate
   (structure Global : GLOBAL
-   structure IntSyn': INTSYN
+   (*! structure IntSyn' : INTSYN !*)
    structure Whnf : WHNF
-     sharing Whnf.IntSyn = IntSyn'
+   (*! sharing Whnf.IntSyn = IntSyn' !*)
    structure Names : NAMES
-     sharing Names.IntSyn = IntSyn'
-   structure Table : TABLE where type key = int)
+   (*! sharing Names.IntSyn = IntSyn' !*)
+   structure Table : TABLE where type key = int
+   structure MemoTable : TABLE where type key = int * int
+   structure IntSet : INTSET
+     )
   : SUBORDINATE =
 struct
-  structure IntSyn = IntSyn'
+  (*! structure IntSyn = IntSyn' !*)
 
   exception Error of string
  
   local
     structure I = IntSyn
 
-    (* Subordination array
+    (* Subordination graph
 
-       Definition:
-       soArray is valid 
-       iff For all b:
-           If   soArray (b) = BL,BR
-           then for all a:K
-                a < b iff a in BL
-		(a is subordinate to b)
-           and  for all c:K
-    	        b < c iff c in BR
-		(b is subordinate to c)
-	   where subordination is transitive but not necessarily
-	   reflexive
+       soGraph is valid
+       iff for any type families a and b
+       if b > a then there a path from b to a in the graph.
+
+       Subordination is transitive, but not necessarily reflexive.
     *)
-    val soTable : (I.cid list * I.cid list) Table.Table = Table.new (32)
-    val lookup = Table.lookup soTable
-    val insert = Table.insert soTable
+    val soGraph : (IntSet.intset) Table.Table = Table.new (32)
+    val insert = Table.insert soGraph
+    fun adjNodes a = valOf (Table.lookup soGraph a)  (* must be defined! *)
+    fun insertNewFam a =
+           Table.insert soGraph (a, IntSet.empty)
+    val updateFam = Table.insert soGraph
+
+    (* memotable to avoid repeated graph traversal *)
+    (* think of hash-table model *)
+    val memoTable : (bool * int) MemoTable.Table = MemoTable.new (2048)
+    val memoInsert = MemoTable.insert memoTable
+    val memoLookup = MemoTable.lookup memoTable
+    val memoClear = fn () => MemoTable.clear memoTable
+    val memoCounter = ref 0
+
+    (* Apply f to every node reachable from b *)
+    fun appReachable f b =
+        let fun rch (b, visited) =
+	        if IntSet.member (b, visited)
+		  then visited
+		else (f b ;
+		      IntSet.foldl rch (IntSet.insert (b, visited)) (adjNodes b))
+	in
+	  (rch (b, IntSet.empty) ; ())
+	end
+
+    exception Reachable
+    fun reach (b, a, visited) =
+        let fun rch (b, visited) =
+	        if IntSet.member (b, visited)
+		  then visited
+		else let val adj = adjNodes b
+		     in
+		       if IntSet.member (a, adj)
+			 then raise Reachable
+		       else IntSet.foldl rch (IntSet.insert (b, visited)) adj
+		     end
+	in
+	  rch  (b, visited)
+	end
+
+    fun reachable (b, a) = reach (b, a, IntSet.empty)
+
+    (* b must be new *)
+    fun addNewEdge (b, a) =
+        ( memoCounter := !memoCounter+1 ;
+	  memoInsert ((b,a), (true, !memoCounter)) ;
+	  updateFam (b, IntSet.insert(a,adjNodes(b))) )
 
     val fTable : bool Table.Table = Table.new (32)
     val fLookup = Table.lookup fTable
     val fInsert = Table.insert fTable
 
-    (* reset () = ()
+    (*
+       Freezing type families
 
-       Effect: Empties soTable, fTable
-    *)
-    fun reset () = (Table.clear soTable;
-                    Table.clear fTable)
-
-    (* get (a) = (AL, AR)
-       where AL <| a <| AR
-
-       Invariant: a must be defined
-    *)
-    fun get (a) =
-        (case lookup a
-	   of SOME ALAR => ALAR
-	    (* not sure why next line is needed *)
-            (* Wed Mar 28 19:39:20 2001 -fp *)
-	    | NONE => (nil, nil))
-
-    (* set (a, (AL, AR)) = ()
-       Effect: set AL <| a <| AR
-    *)
-    fun set (a, ALAR) = insert (a, ALAR)
-
+       Frozen type families cannot be extended later with additional
+       constructors.
+     *)
     fun fGet (a) =
         (case fLookup a
            of SOME frozen => frozen
@@ -95,16 +120,24 @@ struct
 
     (* pre: b is not a type definition *)
     fun checkMakeFrozen (b, otherFrozen) =
+        (* Is this broken ??? *)
+        (* Mon Nov 11 16:54:29 2002 -fp *)
+        (* Example:
+	   a : type.
+	   b : type.
+	   %freeze a b.
+	   h : (a -> b) -> type.
+           is OK, but as b |> a in its subordination
+        *)
         let
-          fun check a =
-              if fGet a orelse List.exists (fn x => x = a) otherFrozen
-              then ()
-              else frozenSubError (a, b)
-          val (BL, BR) = get (b)
-        in
-          if fGet b then ()
-          else List.app check BL
-        end
+	  fun check a =
+	    if fGet a orelse List.exists (fn x => x = a) otherFrozen
+	      then ()
+	    else frozenSubError (a, b)
+	in
+	  if fGet b then ()
+	  else appReachable check b
+	end
 
     fun expandFamilyAbbrevs a =
         (case I.constUni a
@@ -131,12 +164,16 @@ struct
 
        Invariant: a, b families
     *)
+    fun computeBelow (a, b) =
+        (reachable (b, a); memoInsert ((b,a), (false,!memoCounter)); false)
+	handle Reachable => (memoInsert ((b,a), (true, !memoCounter)); true)
+
     fun below (a, b) =
-	let 
-	  val (BL, BR) = get (b)
-	in
-	  List.exists (fn x => x = a) BL
-	end
+        case memoLookup (b, a)
+	  of NONE => computeBelow (a, b)
+           | SOME(true,c) => true	(* true entries remain valid *)
+           | SOME(false,c) => if c = !memoCounter then false
+			      else computeBelow (a, b) (* false entries are invalidated *)
 
     (* a <* b = true iff a is transitively and reflexively subordinate to b
 
@@ -150,262 +187,152 @@ struct
     *)
     fun equiv (a, b) = belowEq (a, b) andalso belowEq (b, a)
 
-    (* merge (L1, L2) = L'
-     
-       Invariant: 
-       L' is shortest list s.t.
-       L1 subset L' and L2 subset L'
-    *)
-    fun merge (nil, L2) = L2 
-      | merge (a :: L1, L2) =
-        if List.exists (fn x => x = a) L2
-	  then merge (L1, L2)
-	else merge (L1, a :: L2)
+    fun addSubord (a, b) =
+        if below (a, b) then ()
+	else addNewEdge (b, a)
 
-    (* mergeLeft (a, R, seen) = seen'
-
-       Effect: updates the soArray to record that a is subordinate
-               to every type family in R and, transitively, every
-	       a' which is subordinate to a is also subordinate
-	       to R.
-
-               seen is maintained for termination and contains
-	       those families a' such that a' < R has already
-	       been recorded.
-    *)
-    fun mergeLeft (a, R, seen) = 
-        let 
-	  val (AL, AR) = get a
-	in
-	  (set (a, (AL, merge (AR, R)));
-	   mergeLeftList (AL, R, a::seen))
-	end
-
-    and mergeLeftList (nil, R, seen) = seen
-      | mergeLeftList (a::AL, R, seen) = 
-        if List.exists (fn x => x = a) seen
-	  then mergeLeftList (AL, R, seen)
-	else mergeLeftList (AL, R, mergeLeft (a, R, seen))
-
-    (* mergeRight (L, b, seen) = seen'
-
-       Effect: updates the soArray to record that b subordinates
-               every type family in L and, transitively, every
-	       b' which subordinates b also subordinates L.
-
-               seen is maintained for termination and contains
-	       those families b' such that L < b' has already
-	       been recorded.
-    *)
-    fun mergeRight (L, b, seen) = 
-      let 
-	val (BL, BR) = get b 
-      in
-	(set (b, (merge (L, BL), BR));
-	 mergeRightList (L, BR, b::seen))
-      end
-
-    and mergeRightList (L, nil, seen) = seen
-      | mergeRightList (L, b::BR, seen) = 
-	if List.exists (fn x => x = b) seen
-	  then mergeRightList (L, BR, seen)
-	else mergeRightList (L, BR, mergeRight (L, b, seen))
-
-    (* transClosure (a, b) = ()
-
-       Invariant:
-       If   soArray is valid
-       then soArray is updated according to the information a < b
-       and  soArray is still valid
-
-       Also checks for violations of %frozen
-    *)
-    fun transClosure (a, b) = 
-	if below (a, b) then ()
-	else 
-	  let 
-	    val (AL, AR) = get a
-	    val (BL, BR) = get b
-	  in
-            (checkFrozenSub (a, b);
-             mergeLeft (a, b :: BR, nil);
-             mergeRight (a :: AL, b, nil);
-             ())
-	  end
-
-    (* installKind (V, a) = ()
- 
-       Invariant:
-       If   G |- V : L and V in nf
-       and  a = targetFam V
-       and  soArray is valid
-       then soArray is updated according to all dependencies in V
-       and  soArray is valid
-    *)
-    fun installKind (I.Uni(L), a) =
-        ( set (a, (nil, nil)) ; () )
-      | installKind (I.Pi ((I.Dec (_, V1), P), V2), a) =
-	( installKind (V2, a);
-          transClosure (I.targetFam V1, a) )
-
-    (* Passing around substitutions and calling whnf below is
-       redundant, since the terms starts in normal form and
-       we only refer to the target families.
-    *)
-
-    (* installExp (G, (U1, s1), (V2, s2)) = ()
-
-       Invariant: 
-       If   G  |- s1 : G1, and G1 |- U1 : V1
-       and  G  |- s2 : G2, and G2 |- V2 : L
-       and  G  |- V1[s1] = V2[s2] : L
-       and  soArray valid	 
-       then soArray is updated according to all dependencies in U1[s1]
-       and  soArray is valid
-    *)
     (*
-    fun installExp (G, Us, Vs) = installExpW (G, Whnf.whnf Us, Whnf.whnf Vs)
-    and installExpW (G, (I.Uni (L), _), _) = ()
-      | installExpW (G, (I.Pi ((D as I.Dec (_, V1), _) , V2), s), 
-		        (I.Uni I.Type, t)) = 
-          (transClosure (I.targetFam V1, I.targetFam V2);
-	   installExpW (G, (V1, s), (I.Uni I.Type, t));
-	   installExpW (I.Decl (G, I.decSub (D, s)), (V2, I.dot1 s), 
-				(I.Uni I.Type, t)))
-      | installExpW (G, (I.Root (C, S), s), _) =
-	  installSpine (G, (S, s), Whnf.whnf (inferCon (G, C), I.id))
-      | installExpW (G, (I.Lam (D1 as I.Dec (_, V1), U), s) , 
-		     (I.Pi ((D2 (* = D1 *), _), V2), t)) = 
-	  (transClosure (I.targetFam V1, I.targetFam V2);
-	   installExpW (G, (V1, s), (I.Uni I.Type, I.id));
-	   installExpW (I.Decl (G, I.decSub (D1, s)), (U, I.dot1 s), 
-			(V2, I.dot1 t)))
-      | installExpW (G, (I.FgnExp (cs, ops), s), Vs) =
-          installExpW (G, (#toInternal(ops) (), s), Vs)
-    *)
-    (* installSpine (G, (S, s1), (V2, s2)) = ()
+       Definition graph
+       The definitions graph keeps track of chains of
+       definitions for type families (not object-level definitions)
 
-       Invariant: 
-       If   G  |- s1 : G1, and G1 |- S : V1 > V1'
-       and  G  |- s2 : G2, and G2 |- V2 : L
-       and  G  |- V1[s1] = V2[s2] : L
-       and  soArray valid	 
-       then soArray is updated accorindg to all dependencies in U1[s1]
-       and  soArray is valid
-     *)
-    (*
-    and installSpine (G, (I.Nil, _), Vs) = ()
-      | installSpine (G, (I.SClo (S, s'), s), Vs) = 
-	  installSpine (G, (S, I.comp (s', s)), Vs)
-      | installSpine (G, (I.App (U, S), s1), 
-		      (I.Pi ((I.Dec (_, V1), _), V2), s2)) =
-	  (installExp (G, (U, s1), (V1, s2));
-	   installSpine (G, (S, s1), 
-			 Whnf.whnf (V2, I.Dot (I.Exp (I.EClo (U, s1)), s2))))
+       We say b <# a if b = [x1:A1]...[xn:An] {y1:B1}...{y1:Bm} a @ S
+
+       The definition graph should be interpreted transitively.
+       It can never be reflexive.
+
+       The #> relation is stored in order to prevent totality
+       checking on type families involved in definitions, because
+       in the present implementation this would yield unsound
+       results.
+
+       NOTE: presently, the head "a" is always expanded until it is
+       no longer a definition.  So if a #> b then a is always declared,
+       never defined and b is always defined, never declared.
+
+       Fri Dec 27 08:37:42 2002 -fp (just before 1.4 alpha)
+    *)
+    val defGraph : (IntSet.intset) Table.Table = Table.new (32)
+
+    (* occursInDef a = true
+       iff there is a b such that a #> b
+    *)
+    fun occursInDef a =
+        (case Table.lookup defGraph a
+	   of NONE => false
+            | SOME _ => true)
+
+    (* insertNewDef (b, a) = ()
+       Effect: update definition graph.
+
+       Call this upon seeing a type-level definition
+           b = [x1:A1]...[xn:An] {y1:B1}...{y1:Bm} a @ S : K
+       to record a #> b.
+    *)
+    fun insertNewDef (b, a) =
+        (case Table.lookup defGraph a
+	   of NONE => Table.insert defGraph (a, IntSet.insert (b, IntSet.empty))
+            | SOME(bs) => Table.insert defGraph (a, IntSet.insert (b, bs)))
+
+    (* installDef (c) = ()
+       Effect: if c is a type-level definition,
+               update definition graph.
+    *)
+    fun installConDec (b, I.ConDef (_, _, _, A, K, I.Kind)) =
+          (* I.targetFam must be defined, but expands definitions! *)
+          insertNewDef (b, I.targetFam A) 
+      | installConDec _ = ()
+
+    fun installDef c = installConDec (c, I.sgnLookup c)
+
+    (* checkNoDef a = ()
+       Effect: raises Error(msg) if there exists a b such that b <# a
+               or b <# a' for some a' < a.
+    *)
+    fun checkNoDef a =
+        if occursInDef a
+	  then raise Error ("Definition violation: family "
+			    ^ Names.qidToString (Names.constQid a)
+			    ^ "\noccurs as right-hand side of type-level definition")
+	else appReachable (fn a' =>
+	     if occursInDef a'
+	       then raise Error ("Definition violation: family "
+				 ^ Names.qidToString (Names.constQid a)
+				 ^ " |> "
+				 ^ Names.qidToString (Names.constQid a')
+				 ^ ",\nwhich occurs as right-hand side of a type-level definition")
+	     else ())
+	     a
+
+    (* reset () = ()
+
+       Effect: Empties soGraph, fTable, defGraph
+    *)
+    fun reset () = (Table.clear soGraph;
+                    Table.clear fTable;
+		    MemoTable.clear memoTable;
+		    Table.clear defGraph)
+
+    (* 
+       Subordination checking no longer traverses spines,
+       so approximate types are no longer necessary.
+       This takes stronger advantage of the normal form invariant.
+       Mon Nov 11 16:59:52 2002  -fp
     *)
 
-    (* Changed the functions above to use only approximate types
-       and take advantage of normal form invariant.
-       Tue Mar 27 21:27:59 2001 -fp
-    *)
+    (* installTypeN' (V, a) = ()
+       installTypeN (V) = ()
+       V nf, V = {x1:A1}...{xn:An} a @ S
 
-    (* inferConApprox (G, C) = V'
-       where V' is an approximate type of C
-       V' ~nf
-
-       Invariant: G nf, G |- C ~:~ V for some V.
+       Effect: add subordination info from V into table
     *)
-    fun inferConApprox (G, I.BVar (k')) = 
+    and installTypeN' (I.Pi ((D as I.Dec (_, V1), _), V2), a) = 
+          (addSubord (I.targetFam V1, a);
+	   installTypeN (V1);
+	   installTypeN' (V2, a))
+      | installTypeN' (V as I.Root (I.Def _, _), a) =
+	(* this looks like blatant overkill ... *)
+	(* Sun Nov 10 11:15:47 2002 -fp *)
 	let
-          (* why not I.ctxLookup? -kw *)
-	  (* ignore shift: type is approximate, only shape is important *)
-	  val I.Dec (_, V) = I.ctxDec (G, k')
-	  (* in case result of ctxDec is shifted *)
-	  fun approx (I.EClo (V, _)) = V
-            | approx V = V		(* not shifted: must be NF *)
+	  val V' = Whnf.normalize (Whnf.expandDef (V, I.id))
 	in
-	  (* accurate, but not NF would be: V *)
-	  approx V
+	  installTypeN' (V', a)
 	end
-      | inferConApprox (G, I.Const(c)) = I.constType (c)
-      | inferConApprox (G, I.Def(d))  = I.constType (d)
-      | inferConApprox (G, I.Skonst(c)) = I.constType (c)
-      | inferConApprox (G, I.FgnConst(cs, conDec)) = I.conDecType (conDec)
+      | installTypeN' (I.Root _, _) = ()
+    and installTypeN (V) = installTypeN' (V, I.targetFam V)
 
-    (* installExp (G, U, V) = ()
-       where G |- U ~:~ V  (U has shape V)
-       G nf, U nf, V nf (approx)
-       Effect: add subordination info from U into table
+    (* installKindN (V, a) = ()
+       V nf, a : {x1:A1}...{xn:An} type, V = {xi:Ai}...{xn:An}type
+       Effect: add subordination info from V into table
     *)
-    fun installExp (G, I.Uni (L), _) = ()
-      | installExp (G, I.Pi ((D as I.Dec (_, V1), _), V2), I.Uni(I.Type)) = 
-          (transClosure (I.targetFam V1, I.targetFam V2);
-	   installExp (G, V1, I.Uni(I.Type));
-	   installExp (I.Decl (G, D), V2, I.Uni(I.Type)))
-      | installExp (G, I.Root (C, S), _) =
-	  installSpine (G, S, inferConApprox (G, C))
-      | installExp (G, I.Lam (D1 as I.Dec (_, V1), U), I.Pi (_, V2)) =
-	  (transClosure (I.targetFam V1, I.targetFam V2);
-	   installExp (G, V1, I.Uni(I.Type));
-	   installExp (I.Decl (G, D1), U, V2))
-      | installExp (G, I.FgnExp (cs, ops), V) =
-          installExp (G, Whnf.normalize (#toInternal(ops) (), I.id), V)
-      | installExp (G, U, V as I.Root (I.Def _, _)) =
-	(* bugfix -rv 2/27/02 *)
-          let
-            val V' = Whnf.normalize (Whnf.expandDef(V, I.id))
-          in
-            installExp (G, U, V')
-          end
-
-    (* installSpine (G, S, V) = ()
-       where G |- S ~:~ V => V'  (S has shape V => V' for some V')
-       G nf, S nf, V nf
-       Effect: add subordination info from S into table
-     *)
-    and installSpine (G, I.Nil, V) = ()
-      | installSpine (G, I.App (U, S), I.Pi ((I.Dec (_, V1), _), V2)) =
-	  (installExp (G, U, V1);
-	   installSpine (G, S, V2))
-	  (* accurate would be instead of V2: *)
-	  (* Whnf.whnf (V2, I.Dot (I.Exp (I.EClo (U, s1)), s2)) *)
-      | installSpine (G, S as I.App _, V as (I.Root (I.Def (d), S'))) =
-	  (* ignore S' because we only use approximate type *)
-	  (* correct??? -fp Tue Feb 19 14:26:31 2002 *)
-	  (* installSpine (G, S, I.constDef(d))*)
-	  (* bugfix -rv 2/27/02 *)
-          let
-            val V' = Whnf.normalize (Whnf.expandDef(V, I.id))
-          in
-            installSpine (G, S, V')
-           end
+    (* there are no kind-level definitions *)
+    fun installKindN (I.Uni(L), a) = ()
+      | installKindN (I.Pi ((I.Dec (_, V1), P), V2), a) =
+	  (addSubord (I.targetFam V1, a);
+	   installTypeN (V1);
+	   installKindN (V2, a))
 
     (* install c = ()
 
-       Invariant:
-       If   soArray is valid
-       and  c is a constant
-       then soArray is updated accorindg to all dependencies in U1[s1]
-       and  soArray is valid
+       Effect: if c : V, add subordination from V into table
     *)
     fun install c = 
 	let 
 	  val V = I.constType c
 	in
 	  case I.targetFamOpt V
-	    of NONE => installKind (V, c)
+	    of NONE => (insertNewFam (c);
+			installKindN (V, c))
 	     | SOME a => (case IntSyn.sgnLookup c
                             of IntSyn.ConDec _ => checkFreeze (c, a)
                              | IntSyn.SkoDec _ => checkFreeze (c, a)
                                (* FIX: skolem types should probably be created frozen -kw *)
                              | _ => ();
-                          (* installExp (I.Null, (V, I.id), (I.Uni I.Type, I.id)) *)
 			  (* simplified  Tue Mar 27 20:58:31 2001 -fp *)
-			  installExp (I.Null, V, I.Uni(I.Type)))
+			  installTypeN' (V, a))
 	end
 
     (* Respecting subordination *)
-
 
     (* checkBelow (a, b) = () iff a <| b
        Effect: raise Error(msg) otherwise
@@ -416,57 +343,49 @@ struct
 			    ^ Names.qidToString (Names.constQid (a)) ^ " not <| " ^ Names.qidToString (Names.constQid (b)))
 	else ()
 
-    (* respectsExp (G, U, V) = () iff U respects current subordination
-       where G |- U ~:~ V  (U has shape V)
-       G nf, U nf, V nf (approx)
+    (* respectsTypeN' (V, a) = () iff V respects current subordination
+       respectsTypeN (V) = ()
+       V nf, V = {x1:A1}...{xn:An} a @ S
+
        Effect: raise Error (msg)
     *)
-    fun respectsExp (G, I.Uni (L), _) = ()
-      | respectsExp (G, I.Pi ((D as I.Dec (_, V1), _), V2), I.Uni(I.Type)) = 
-          (checkBelow (I.targetFam V1, I.targetFam V2);
-	   respectsExp (G, V1, I.Uni(I.Type));
-	   respectsExp (I.Decl (G, D), V2, I.Uni(I.Type)))
-      | respectsExp (G, I.Root (C, S), _) =
-	  respectsSpine (G, S, inferConApprox (G, C))
-      | respectsExp (G, I.Lam (D1 as I.Dec (_, V1), U), I.Pi (_, V2)) =
-	  (checkBelow (I.targetFam V1, I.targetFam V2);
-	   respectsExp (G, V1, I.Uni(I.Type));
-	   respectsExp (I.Decl (G, D1), U, V2))
-      | respectsExp (G, I.FgnExp (cs, ops), V) =
-          respectsExp (G, Whnf.normalize (#toInternal(ops) (), I.id), V)
+    fun respectsTypeN' (I.Pi ((D as I.Dec (_, V1), _), V2), a) =
+          (checkBelow (I.targetFam V1, a);
+	   respectsTypeN (V1);
+	   respectsTypeN' (V2, a))
+      | respectsTypeN' (V as I.Root (I.Def _, _), a) =
+	(* this looks like blatant overkill ... *)
+	(* Sun Nov 10 11:15:47 2002 -fp *)
+	let
+	  val V' = Whnf.normalize (Whnf.expandDef (V, I.id))
+	in
+	  respectsTypeN' (V', a)
+	end
+      | respectsTypeN' (I.Root _, _) = ()
+    and respectsTypeN (V) = respectsTypeN' (V, I.targetFam V)
 
-    (* respectsSpine (G, S, V) = () iff S respects current subordination
-       where G |- S ~:~ V => V'  (S has shape V => V' for some V')
-       G nf, S nf, V nf
-       Effect: raise Error (msg)
-     *)
-    and respectsSpine (G, I.Nil, V) = ()
-      | respectsSpine (G, I.App (U, S), I.Pi ((I.Dec (_, V1), _), V2)) =
-	  (respectsExp (G, U, V1);
-	   respectsSpine (G, S, V2))
-	  (* accurate would be instead of V2: *)
-	  (* Whnf.whnf (V2, I.Dot (I.Exp (I.EClo (U, s1)), s2)) *)
-
-    fun respects (G, (V, s)) = respectsN (G, Whnf.normalize (V, s))
-
-    and respectsN (G, V) = respectsExp (G, V, I.Uni(I.Type))
+    fun respects (G, (V, s)) = respectsTypeN (Whnf.normalize (V, s))
+    fun respectsN (G, V) = respectsTypeN (V)
 
     (* Printing *)
 
     (* Right now, AL is in always reverse order *)
     (* Reverse again --- do not sort *)
     (* Right now, Table.app will pick int order -- do not sort *)
+    fun famsToString (bs, msg) =
+        IntSet.foldl (fn (a, msg) => Names.qidToString (Names.constQid a) ^ " " ^ msg) "\n" bs
+    (*
     fun famsToString (nil, msg) = msg
       | famsToString (a::AL, msg) = famsToString (AL, Names.qidToString (Names.constQid a) ^ " " ^ msg)
-
-    fun showFam (a, (AL, AR)) =
-        (print (Names.qidToString (Names.constQid a) ^ " |> "
-		^ famsToString (AL, "\n")))
-
-    fun show () = Table.app showFam soTable;
-
-    (* weaken (G, a) = (w')
     *)
+
+    fun showFam (a, bs) =
+        (print (Names.qidToString (Names.constQid a) ^ " |> "
+		^ famsToString (bs, "\n")))
+
+    fun show () = Table.app showFam soGraph;
+
+    (* weaken (G, a) = (w') *)
     fun weaken (I.Null, a) = I.id
       | weaken (I.Decl (G', D as I.Dec (name, V)), a) = 
         let 
@@ -480,11 +399,14 @@ struct
     val reset = reset
      
     val install = install
+    val installDef = installDef
     val installFrozen = installFrozen
 
     val below = below
     val belowEq = belowEq
     val equiv = equiv
+
+    val checkNoDef = checkNoDef
 
     val respects = respects
     val respectsN = respectsN
