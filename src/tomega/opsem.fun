@@ -278,6 +278,7 @@ and raisePrg (Psi, G, T.Unit) = T.Unit
 	   evalPrg (Psi, (P, Normalize.normalizeSub t)))
 	  handle NoMatch => match (Psi, t1, T.Cases C)	  
 	end
+      | match (Psi, t1, T.Cases (nil)) = raise Abort
 
       (* What do you want to do if it doesn't match anything *)
       (* can't happen when total function - ABP *)
