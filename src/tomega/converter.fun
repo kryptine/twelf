@@ -1603,6 +1603,7 @@ exception Error' of Tomega.Sub
     val installPrg = installPrg
     val traverse = traverse
     val raisePrg = raiseP
+    val raiseFor = raiseFor
     val convertGoal = convertGoal
   end
 end (* functor FunSyn *)
