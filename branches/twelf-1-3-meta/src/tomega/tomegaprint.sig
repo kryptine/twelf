@@ -13,7 +13,7 @@ sig
   val formatPro : FunSyn.lfctx * FunSyn.Pro -> string list -> Formatter.format
   val formatLemmaDec: FunSyn.LemmaDec -> Formatter.format *)
 
-  val prgToString : FunSyn.lfctx * FunSyn.Pro -> string list -> string
+  val prgToString : Tomega.Dec IntSyn.Ctx * Tomega.Prg -> string list -> string
 (*  val lemmaDecToString : FunSyn.LemmaDec -> string *)
 end;  (* signature TOMEGAPRINT *)
 
