@@ -1381,17 +1381,10 @@ exception Error' of Tomega.Sub
 	    val Sig = Worldify.worldify a
 					(* Sig in LF(reg)   *)
 	    val dynSig = dynamicSig (Psi0, a, W)
-(*	    val _ = map (fn GV => print (Print.expToString GV ^ "\n")) dynSig *)
 	    val statSig = staticSig (Psi0, Sig)
-	    val _ = print "\nSummary of collecting static cases\n"
-	    val _ = map (fn GV => print (Print.expToString GV ^ "\n")) statSig
-
 	    val _ = map (fn (I.ConDec (_, _,_,_,U,V)) => TypeCheck.check (U, I.Uni  V)) Sig
-	    val _ = print "[Signatures: static ..."
 	    val _ = validSig (Psi0, statSig)
-	    val _ = print " dynamic ..."
 	    val _ = validSig (Psi0, dynSig)
-	    val _ = print "]"
 
 (*	    val C0 = blockCases (Psi0, a, L, Sig, wmap) *)
 	    val C0 = traverse (Psi0, L, dynSig, wmap) 

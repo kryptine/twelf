@@ -645,17 +645,13 @@ struct
 	      end
 
 	  val _ = checkFreeOut La
-          val _ = TextIO.print "[Tomega: Conversion ..."
 	  val lemma = Converter.installPrg La
 	  val P = Tomega.lemmaDef lemma
-	  val _ = TextIO.print " Formula ..."
 	  val F = Converter.convertFor La
 	  val _ = if !Global.chatter >= 6
 		    then print (TomegaPrint.funToString P ^ "\n")
 		  else ()
-	  val _ = TextIO.print " Checking ..."
 	  val _ = TomegaTypeCheck.checkPrg (IntSyn.Null, (P, F))
-	  val _ = TextIO.print "]"
 
 	  val _ = TomegaCoverage.coverageCheckPrg (WorldSyn.lookup (hd La), IntSyn.Null, P)
 
