@@ -18,6 +18,10 @@ Library
   structure MTPi
   signature TYPECHECK
   structure TypeCheck
+  signature CONVERTER
+  structure Converter
+  signature INTSYN
+  structure IntSyn
 is
 #if defined(NEW_CM)
   $/basis.cm

@@ -1518,10 +1518,7 @@ exception Error' of Tomega.Sub
 	  val P = T.Lam (T.PDec (NONE, F), P')
 	  val F'' = T.All ((T.PDec (NONE, F), T.Explicit), F')
 	  val name = I.conDecName (I.sgnLookup cid)
-val _ = print "1"
 	  val _ = TomegaTypeCheck.checkPrg (I.Null, (P, F''))
-(*          this has to be carefully examined 
-*)
 	  val lemma = T.lemmaAdd (T.ValDec ("#" ^ name, P, F''))
 	in
 	  lemma :: installProjection (cids, n-1, F, Proj)
@@ -1532,7 +1529,6 @@ val _ = print "1"
         let
 	  val P = T.Root (T.Const lemma, T.AppPrg (T.Root (T.Const main, T.Nil), T.Nil))
 	  val name = I.conDecName (I.sgnLookup cid)
-val _ = print "2"
 	  val _ = TomegaTypeCheck.checkPrg (I.Null, (P, F1)) 
 	  val lemma' = T.lemmaAdd (T.ValDec (name, P, F1))
 	in
@@ -1542,7 +1538,6 @@ val _ = print "2"
         let
 	  val P = T.Root (T.Const lemma, T.AppPrg (T.Root (T.Const main, T.Nil), T.Nil))
 	  val name = I.conDecName (I.sgnLookup cid)
-val _ = print "3"
 	  val _ = TomegaTypeCheck.checkPrg (I.Null, (P, F1))
 	  val lemma' = T.lemmaAdd (T.ValDec (name, P, F1))
 	in
@@ -1555,7 +1550,6 @@ val _ = print "3"
 	  val F = convertFor [cid]
 	  val P = convertPrg ([cid], NONE)
 	  val name = I.conDecName (I.sgnLookup cid)
-val _ = print "4"
 	  val _ = TomegaTypeCheck.checkPrg (I.Null, (P, F))
 	  val lemma = T.lemmaAdd (T.ValDec (name, P, F))
 	in
@@ -1564,9 +1558,7 @@ val _ = print "4"
       | installPrg cids = 
 	let 
 	  val F = convertFor cids
-val _ = print "5"
 	  val _ = TomegaTypeCheck.checkFor (I.Null, F)
-val _ = print "6"
 
 	  val Proj = createProjection (I.Null, 0, F, T.Root (T.Var 1, T.Nil))
 	  val projs = installProjection (cids, depthConj F, F, Proj)

@@ -636,6 +636,7 @@ struct
     val decSub = decSub
     val weakenSub = weakenSub
     val invertSub = invertSub
+    val ctxDec = ctxDec
 
 (*    val mdecSub = mdecSub
     val makectx = makectx
