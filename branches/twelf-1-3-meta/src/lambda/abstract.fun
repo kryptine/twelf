@@ -104,7 +104,7 @@ struct
     (* eqLVar L Y = B
        where B iff X and Y represent same variable
     *)
-    fun eqLVar (I.LVar (r1, _)) (LV (I.LVar (r2, _))) = (r1 = r2)
+    fun eqLVar (I.LVar ((r1, _, _))) (LV (I.LVar ((r2, _, _)))) = (r1 = r2)
       | eqLVar _ _ = false
 
 
@@ -208,7 +208,7 @@ struct
 	  then collectSpine (G, (S, s), K)
 	else (* s' = ^|G| *)
 	  collectSpine (G, (S, s), I.Decl (collectExp (I.Null, (V, I.id), K), FV (name, V)))
-      | collectExpW (G, (I.Root (I.Proj (L as I.LVar (r, (l, t)), i), S), s), K) =
+      | collectExpW (G, (I.Root (I.Proj (L as I.LVar (r, (l, t), _), i), S), s), K) =
 	if exists (eqLVar L) K
 	  (* note: don't collect t again below *)
 	  (* was: collectSpine (G, (S, s), collectSub (I.Null, t, K)) *)
@@ -287,9 +287,9 @@ struct
     *)
 
     (* collectBlock (B, K) where . |- B block *)
-    and collectBlock (I.LVar (ref (SOME B), _), K) =
+    and collectBlock (I.LVar (ref (SOME B), _, _), K) =
           collectBlock (B, K)
-      | collectBlock (L as I.LVar (_, (l, t)), K) = 
+      | collectBlock (L as I.LVar (_, (l, t), _), K) = 
         if exists (eqLVar L) K
 	  then collectSub (I.Null, t, K)
 	else I.Decl (collectSub (I.Null, t, K), LV L)
@@ -367,7 +367,7 @@ struct
        then C' = Bidx (depth + k)
        and  {{K}}, G |- C' : V
     *)
-    fun abstractLVar (I.Decl(K', LV (I.LVar (r', _))), depth, L as I.LVar (r, _)) = 
+    fun abstractLVar (I.Decl(K', LV (I.LVar (r', _, _))), depth, L as I.LVar (r, _, _)) = 
 	  if r = r' then I.Bidx (depth+1)
 	  else abstractLVar (K', depth+1, L)
       | abstractLVar (I.Decl(K', _), depth, L) =
@@ -575,7 +575,7 @@ struct
 	in
 	  abstractKPi (K', I.Pi ((I.Dec(SOME(name), V''), I.Maybe), V))
 	end
-      | abstractKPi (I.Decl (K', LV (I.LVar (r, (l, t)))), V) =
+      | abstractKPi (I.Decl (K', LV (I.LVar (r, (l, t), _))), V) =
 	let
 	  val t' = abstractSOME (K', t)	  
 	in
@@ -623,7 +623,7 @@ struct
 	in
 	  I.Decl (abstractKCtx K', I.Dec (SOME(name), V''))
 	end
-      | abstractKCtx (I.Decl (K', LV (I.LVar (r, (l, t))))) =
+      | abstractKCtx (I.Decl (K', LV (I.LVar (r, (l, t), _)))) =
 	let
 	  val t' = abstractSOME (K', t)	  
 	in
@@ -811,7 +811,7 @@ struct
 	in
 	  I.Decl (abstractPsi K', T.UDec (I.Dec (SOME(name), V'')))
 	end
-      | abstractPsi (I.Decl (K', LV (I.LVar (r, (l, t))))) =
+      | abstractPsi (I.Decl (K', LV (I.LVar (r, (l, t), _)))) =
 	let
 	  val t' = abstractSOME (K', t)	  
 	in

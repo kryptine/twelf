@@ -86,8 +86,8 @@ sig
 
   and Block =				(* Blocks:                    *)
     Bidx of int				(* b ::= v                    *)
-  | LVar of Block option ref * (cid * Sub) 
-                                        (*     | L(l,s)               *)
+  | LVar of Block option ref * (cid * Sub) * Sub
+                                        (*     | L(l,s) [t]           *)
   | Inst of Exp list                    (*     | U1, ..., Un          *)
   (* It would be better to consider having projections count
      like substitutions, then we could have Inst of Sub here, 
@@ -209,7 +209,8 @@ sig
   val newEVar    : dctx * Exp -> Exp	(* creates X:G|-V, []         *) 
   val newAVar    : unit ->  Exp	        (* creates A (bare)           *) 
   val newTypeVar : dctx -> Exp		(* creates X:G|-type, []      *)
-  val newLVar    : cid * Sub -> Block	(* creates B:(l,s)            *) 
+  val newLVar    : (cid * Sub) * Sub -> Block	
+					(* creates B:(l,s)            *) 
 
   (* Type related functions *)
 

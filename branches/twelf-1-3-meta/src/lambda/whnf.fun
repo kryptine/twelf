@@ -248,11 +248,11 @@ struct
 	   of B' as Bidx (k) => (Root (Proj (B', i), SClo (S, s)), id)
             | B' as LVar _ => whnfRoot ((Proj (B', i), SClo (S, s)), id)
 	    | Inst L => whnfRedex (whnf (List.nth (L, i-1), id), (S, s)))
-      | whnfRoot ((Proj (LVar (ref (SOME L), (l, t)), i), S), s) =
+      | whnfRoot ((Proj (LVar (ref (SOME L), (l, t), t'), i), S), s) =
 	 (* the some-variable instatiation t' in L must be equal to t *)
-	 whnfRoot ((Proj (L, i), S), s)
-      | whnfRoot ((Proj (L as LVar (r, (l, t)), i), S), s) = (* r = ref NONE *)
-	 (Root (Proj (LVar (r, (l, comp (t, s))), i), SClo (S, s)), id)
+	 whnfRoot ((Proj (blockSub (L, t'), i), S), s)
+      | whnfRoot ((Proj (L as LVar (r, (l, t), t'), i), S), s) = (* r = ref NONE *)
+	 (Root (Proj (LVar (r, (l, t), comp (t', s)), i), SClo (S, s)), id)
          (* do not compose with t due to globality invariant *)
 	 (* Thu Dec  6 20:34:30 2001 -fp !!! *)
 	 (* was: (Root (Proj (L, i), SClo (S, s)), id) *)
