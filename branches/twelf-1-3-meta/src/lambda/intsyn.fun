@@ -408,6 +408,8 @@ struct
     (* where is this needed? *)
     (* Thu Dec  6 20:30:26 2001 -fp !!! *)
     | blockSub (L as LVar (ref NONE, (l, t)), s) = L
+    | blockSub (L as Inst s, s') = Inst (comp (s, s'))  
+    (* this should be right but somebody should verify *) 
 
   (* frontSub (Ft, s) = Ft'
 
