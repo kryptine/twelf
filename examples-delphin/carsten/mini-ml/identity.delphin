@@ -15,4 +15,4 @@ fun id (A.z) = <A.z, <>>
 new (b:base)
 
 val <X, <>> = id (b.z)
-val <X, <>> = id ((b.s) (b.z))
+val <X, <>> = id ((b.s) ((b.s) ((b.s) ((b.s) ((b.s) ((b.s) (b.z)))))))
