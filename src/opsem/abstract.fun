@@ -723,7 +723,8 @@ struct
 	  (posEA'', G'', I.dot1 s', eqn'')
 	end       
 
-
+    (* collapes into createEVar..if it is AV then create ADec if EVar then Dec
+       no need to have two ctx one for AVars and one for EVars *)
     fun createDupCtx (G, Vars, I.Null, k) = G
       | createDupCtx (G, Vars, I.Decl (K', AV (E as I.EVar (_, GX, VX, _), d)), k) =
         let

@@ -261,12 +261,15 @@ struct
      (if TabledSyn.tabledLookup (I.targetFam p) 
 	then 
 	  let 
+
+(*	    val _ = (print "SOLVE : goal "; print (Print.expToString (I.Null, A.raiseType (G, I.EClo(p,s))) ^ "\n"))*)
 	    val (G', DAVars, DEVars, U', eqn', s') = A.abstractEVarCtx (G, p, s)
+(*	    val _ = (print "SOLVE : abstraction "; print (Print.expToString (I.Null, A.raiseType(DAVars, A.raiseType(DEVars, A.raiseType (G', U')))) ^ "\n"))*)
 	    val _ = if solveEqn ((eqn', s'), G')
 		      then () 
 		    else print "\nresidual equation not solvable!\n" 
 	  in
-	    case MT.callCheck (G', DAVars, DEVars, U', eqn') 
+	    case MT.callCheck (DAVars, DEVars, G', U', eqn') 
 	      (* Side effect: D', G' |- U' added to table *)	    
 	      of T.NewEntry (answRef) => 		
 		matchAtom ((p,s), dp, 
@@ -577,7 +580,7 @@ struct
        and then strengthening may not be sound *)
      case (!TableParam.strategy) of
        TableParam.Variant =>  solve((g, s), dp, sc)
-     |  TableParam.Subsumption => raise T.Error "subsumption part deleted"
+     |  TableParam.Subsumption => solve((g, s), dp, sc) (* raise T.Error "subsumption part deleted"*)
 
   end (* local ... *)
 

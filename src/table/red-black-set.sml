@@ -31,6 +31,8 @@ struct
 
   datatype 'a set = Set of (int * 'a dict)
 
+  exception Error of string
+
   type 'a ordSet = 'a set ref
 
   fun isEmpty (Set(_, Empty)) = true
@@ -172,6 +174,111 @@ struct
     in
       Set(n, dict')
     end
+
+
+
+  (* Remove an item.  Raises LibBase.NotFound if not found. *)
+    local
+      datatype color = RedColor | BlackColor
+
+      datatype 'a zipper
+        = Top
+        | LeftRed of ('a entry * 'a dict * 'a zipper)
+        | LeftBlack of ('a entry * 'a dict * 'a zipper)
+        | RightRed of ('a dict * 'a entry * 'a zipper)
+        | RightBlack of ('a dict * 'a entry * 'a zipper)
+    in
+    fun delete (Set(nItems, t), k) = 
+        let
+	  fun zip (Top, t) = t
+            | zip (LeftRed(x, b, z), a) = zip(z, Red(x, a, b))
+            | zip (LeftBlack(x, b, z), a) = zip(z, Black(x, a, b))
+            | zip (RightRed(a, x, z), b) = zip(z, Red(x, a, b))
+            | zip (RightBlack(a, x, z), b) = zip(z, Black(x, a, b))
+	  (* bbZip propagates a black deficit up the tree until either the top
+         * is reached, or the deficit can be covered.  It returns a boolean
+         * that is true if there is still a deficit and the zipped tree.
+         *)
+          fun bbZip (Top, t) = (true, t)
+            | bbZip (LeftBlack(x, Red(y, c, d), z), a) = (* case 1L *)
+                bbZip (LeftRed(x, c, LeftBlack(y, d, z)), a)
+            | bbZip (LeftRed(x, Red(y, c, d), z), a) = (* case 1L *)
+                bbZip (LeftRed(x, c, LeftBlack(y, d, z)), a)
+            | bbZip (LeftBlack(x, Black(w, Red(y, c, d), e), z), a) = (* case 3L *)
+                bbZip (LeftBlack(x, Black(y, c, Red(w, d, e)), z), a)
+            | bbZip (LeftRed(x, Black(w, Red(y, c, d), e), z), a) = (* case 3L *)
+                bbZip (LeftRed(x, Black(y, c, Red(w, d, e)), z), a)
+
+            | bbZip (LeftBlack(x, Black(y, c, Red(w, d, e)), z), a) = (* case 4L *)
+                (false, zip (z, Black(y, Black(x, a, c), Black(w, d, e))))
+
+            | bbZip (LeftRed(x, Black(y, c, Red(w, d, e)), z), a) = (* case 4L *)
+                (false, zip (z, Red(y, Black(x, a, c), Black(w, d, e))))
+
+            | bbZip (LeftRed(x, Black(y, c, d), z), a) = (* case 2L *)
+                (false, zip (z, Black(x, a, Red(y, c, d))))
+            | bbZip (LeftBlack(x, Black(y, c, d), z), a) = (* case 2L *)
+                bbZip (z, Black(x, a, Red(y, c, d)))
+            | bbZip (RightBlack(Red(y, c, d), x, z), b) = (* case 1R *)
+                bbZip (RightRed(d, x, RightBlack(c, y, z)), b)
+            | bbZip (RightRed(Red(y, c, d), x, z), b) = (* case 1R *)
+                bbZip (RightRed(d, x, RightBlack(c, y, z)), b)
+	    | bbZip (RightBlack(Black(y , Red(w, c, d), e), x, z), b) = (* case 3R *)
+                bbZip (RightBlack(Black(w, c, Red(y, d, e)), x, z), b)
+	    | bbZip (RightRed(Black(y , Red(w, c, d), e), x, z), b) = (* case 3R *)
+                bbZip (RightRed(Black(w, c, Red(y, d, e)), x, z), b)
+            | bbZip (RightBlack(Black(y, c, Red(w, d, e)), x, z), b) = (* case 4R *)
+                (false, zip (z, Black(y, c, Black(x, Red(w, d, e), b))))
+            | bbZip (RightRed(Black(y, c, Red(w, d, e)), x, z), b) = (* case 4R *)
+                (false, zip (z, Red(y, c, Black(x, Red(w, d, e), b))))
+
+            | bbZip (RightRed(Black(y, c, d), x, z), b) = (* case 2R *)
+                (false, zip (z, Black(x, Red(y, c,  d), b)))
+
+            | bbZip (RightBlack(Black(y, c, d), x, z), b) = (* case 2R *)
+                bbZip (z, Black(x, Red(y, c, d),  b))
+
+            | bbZip (z, t) = (false, zip(z, t))
+
+          fun delMin (Red(y, Empty, b), z) = (y, (false, zip(z, b)))
+            | delMin (Black(y , Empty, b), z) = (y, bbZip(z, b))
+            | delMin (Red(y, a, b), z) = delMin(a, LeftRed(y, b, z))
+            | delMin (Black(y, a, b), z) = delMin(a, LeftBlack(y, b, z))
+
+	  fun joinBlack (a, Empty, z) = #2(bbZip(z, a))       
+	    | joinBlack (Empty, b, z) = #2(bbZip(z, b))       
+	    | joinBlack (a, b, z) = let
+                val (x, (needB, b')) = delMin(b, Top)
+                in
+                  if needB
+                    then #2(bbZip(z, Black(x, a, b')))
+                    else zip(z, Black(x, a, b'))
+                end
+
+	  fun joinRed (Empty, Empty, z) = zip(z, Empty)
+            | joinRed (a, b, z) = let
+                val (x, (needB, b')) = delMin(b, Top)
+                in
+                  if needB
+                    then #2(bbZip(z, Red(x, a, b')))
+                    else zip(z, Red(x, a, b'))
+                end
+
+          fun del (Empty, z) = raise Error "not found\n"
+            | del (Red(y as (k', _), a, b), z) = (case compare(k, k')
+                 of LESS => del (a, LeftRed(y, b, z))
+                  | EQUAL => joinRed (a, b, z)
+                  | GREATER => del (b, RightRed(a, y, z))
+                (* end case *))
+            | del (Black(y as (k', _), a, b), z) = (case compare(k, k')
+                 of LESS => del (a, LeftBlack(y, b, z))
+                  | EQUAL => joinBlack (a, b, z)
+                  | GREATER => del (b, RightBlack(a, y, z))
+                (* end case *))
+          in
+            Set(nItems-1, del(t, Top))
+          end
+    end (* local *)
 
 
   (* doesn't apply f to all elements of S in order! *)
@@ -471,6 +578,7 @@ struct
     val insertLast = (fn set => fn datum => (set := insertLast (!set, datum)))
     val insertList = (fn set => fn list => (set := insertList (!set, list)))
     val insertShadow = (fn set => fn entry => (set := insertShadow (!set, entry)))
+(*    val delete = (fn set => fn k => (set := delete (!set, k)))*)
 
     val isEmpty = (fn ordSet => isEmpty (!ordSet))
     val last = (fn ordSet => last (!ordSet))
