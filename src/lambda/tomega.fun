@@ -135,12 +135,25 @@ struct
        and   G = mu G. G \in Psi
        then  G   |- F' front
     *)
-    fun coerceFront (Idx k) = I.Idx k (* exactly it was wrong --cs *)  
-				      (* I.Block (I.Bidx k) --Yu Liao Why? *)
+    fun coerceFront (Idx k) = I.Idx k 
       | coerceFront (Prg P) = I.Undef
       | coerceFront (Exp M) = I.Exp M
       | coerceFront (Block B) = I.Block B
+      | coerceFront (Undef) = I.Undef
     (* --Yu Liao Why cases: Block, Undef aren't defined *)
+
+    (* embedFront F = F'
+
+       Invariant:
+       If    Psi |- F front
+       and   G = mu G. G \in Psi
+       then  G   |- F' front
+    *)
+    fun embedFront (I.Idx k) = Idx k 
+      | embedFront (I.Exp U) = Exp U
+      | embedFront (I.Block B) = Block B
+      | embedFront (I.Undef) = Undef
+(*    | embedFront (I.Axp U)  should not occur *)
 
 
     (* coerceSub t = s
@@ -154,6 +167,11 @@ struct
     fun coerceSub (Shift n) = I.Shift n
       | coerceSub (Dot (Ft, t)) = 
           I.Dot (coerceFront Ft, coerceSub t)
+
+    fun embedSub (I.Shift n) = Shift n
+      | embedSub (I.Dot (Ft, s)) = 
+          Dot (embedFront Ft, embedSub s)
+
 
     (* Definition: 
        |- Psi ctx[block] holds iff Psi = _x_1 : (L1, t1), ... _x_n : (Ln, tn)
@@ -183,6 +201,13 @@ struct
 (*        | coerceCtx (I.Decl (Psi, BDec (L, t))) =  *)
 (*            I.Decl (coerceCtx (Psi), I.BDec (NONE, (L, coerceSub t))) *)
       (* all other cases impossible by invariant *)
+
+  
+    (* Invariant Yu? *)
+    fun revCoerceCtx I.Null = I.Null
+      | revCoerceCtx (I.Decl (Psi, D as I.BDec (_, (L, t)))) = 
+          I.Decl (revCoerceCtx (Psi), UDec D)
+
 
 
     val id = Shift 0
@@ -517,11 +542,6 @@ struct
     
 *)
 
-
-(*
-  (* Below are added by Yu Liao *)
-  (* Declaration Contexts  *)
-
   (* ctxDec (G, k) = x:V
      Invariant: 
      If      |G| >= k, where |G| is size of G,
@@ -532,21 +552,13 @@ struct
 	     where G |- ^(k-k') : G'', 1 <= k' <= k
            *)
 	fun ctxDec' (I.Decl (G', UDec (I.Dec(x, V'))), 1) = UDec (I.Dec(x, I.EClo (V', I.Shift (k))))
-	  | ctxDec' (I.Decl (G', BDec (l, s)), 1) = BDec (l, comp (s, Shift (k)))
+	  | ctxDec' (I.Decl (G', UDec (I.BDec (l, (c, s)))), 1) = UDec (I.BDec (l, (c, I.comp (s, I.Shift (k)))))
 	  | ctxDec' (I.Decl (G', PDec (x, F)), 1) = PDec(x, FClo (F, Shift(k)))
 	  | ctxDec' (I.Decl (G', _), k') = ctxDec' (G', k'-1)
 	 (* ctxDec' (Null, k')  should not occur by invariant *)
       in
 	ctxDec' (G, k)
       end
-
-temorarily removed --Carsten
-
-*)
-
-
-
-
 
   in 
     val lemmaLookup = lemmaLookup 
@@ -586,8 +598,9 @@ temorarily removed --Carsten
     val convFor = convFor
     val newEVar = newEVar
 (* Below are added by Yu Liao *)
-(*  val ctxDec = ctxDec  temporarily removed *)
-  val revCoerceSub = revCoerceSub
-(*  val revCoerceCtx = revCoerceCtx  temporarily removed *)
+    val embedSub = embedSub
+    val ctxDec = ctxDec 
+    val revCoerceSub = revCoerceSub
+    val revCoerceCtx = revCoerceCtx
   end
 end (* functor FunSyn *)

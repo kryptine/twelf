@@ -20,6 +20,9 @@ functor Converter
    structure Normalize : NORMALIZE
      sharing Normalize.IntSyn = IntSyn'
      sharing Normalize.Tomega = Tomega'
+   structure TomegaPrint : TOMEGAPRINT
+     sharing TomegaPrint.IntSyn = IntSyn'
+     sharing TomegaPrint.Tomega = Tomega'
    structure WorldSyn : WORLDSYN
      sharing WorldSyn.IntSyn = IntSyn'
      sharing WorldSyn.Tomega = Tomega'
@@ -60,6 +63,13 @@ struct
         case I.sgnLookup a 
 	  of I.ConDec (name, _, _, _, V, I.Kind) => name
 	   | _ => raise Error "Type Constant declaration expected"
+
+    fun chatter chlev f =
+        if !Global.chatter >= chlev
+	  then print ("[tomega] " ^ f ())
+	else ()
+
+
 
 
     (* strengthenExp (U, s) = U' 
@@ -519,9 +529,11 @@ struct
       end
 
 
+
     fun recursion L =
         let
 	  val (Psi, P, F) = createIHCtx (I.Null, L)
+	  val _ = chatter 4 (fn () => TomegaPrint.forToString (I.Null, F) ^ "\n")
 	  val t = T.Dot (T.Prg P, T.Shift (I.ctxLength Psi))
 
 	  fun name [a] = I.conDecName (I.sgnLookup a)
@@ -891,8 +903,6 @@ struct
       in
 	traverseSig' Sig
       end
-
-
 
 
     fun convertWorlds (a, T.Worlds cids) = 

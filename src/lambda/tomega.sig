@@ -73,6 +73,7 @@ sig
 
   exception NoMatch
   val coerceSub : Sub -> IntSyn.Sub
+  val embedSub  : IntSyn.Sub -> Sub
   val coerceCtx : Dec IntSyn.Ctx -> IntSyn.Dec IntSyn.Ctx
   val strengthenCtx : Dec IntSyn.Ctx -> (IntSyn.Dec IntSyn.Ctx * Sub * Sub)
   val embedCtx  : IntSyn.Dec IntSyn.Ctx -> Dec IntSyn.Ctx
@@ -97,9 +98,9 @@ sig
   val newEVar     : Dec IntSyn.Ctx * For -> Prg
 
 (* Below are added by Yu Liao *)
-(*  val ctxDec : Dec IntSyn.Ctx * int -> Dec *)
+  val ctxDec : Dec IntSyn.Ctx * int -> Dec
   val revCoerceSub : IntSyn.Sub -> Sub
-(*  val revCoerceCtx : IntSyn.Dec IntSyn.Ctx -> Dec IntSyn.Ctx *)
+  val revCoerceCtx : IntSyn.Dec IntSyn.Ctx -> Dec IntSyn.Ctx
 end (* Signature TOMEGA *)
 
 
