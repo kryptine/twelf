@@ -8,7 +8,6 @@ sig
   structure ThmExtSyn: THMEXTSYN
 
   val parseTerminates' : ThmExtSyn.tdecl Parsing.parser
-  val parseReduces' : ThmExtSyn.rdecl Parsing.parser  (* -bp *)
   val parseTheorem' : ThmExtSyn.theorem Parsing.parser
   val parseTheoremDec' : ThmExtSyn.theoremdec Parsing.parser
   val parseProve' : ThmExtSyn.prove Parsing.parser
