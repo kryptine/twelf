@@ -671,6 +671,48 @@ exception Error' of Tomega'.For
       end
 	
 
+    (* renameExp f U = U'
+
+       Invariant:
+       U' = U module application of f to any projectoin contained
+       in U.
+    *)
+    fun renameExp f (U as I.Uni _) = U
+      | renameExp f (I.Pi ((D, DP), V)) =
+          I.Pi ((renameDec f D, DP), renameExp f V)
+      | renameExp f (I.Root (H, S)) =
+	  I.Root (renameHead f H, renameSpine f S)
+      | renameExp f (I.Lam (D, U)) =
+	  I.Lam (renameDec f D, renameExp f U)
+    and renameDec f (I.Dec (x, V)) = 
+          I.Dec (x, renameExp f V)
+    and renameHead f (I.Proj bi) = f bi
+      | renameHead f H = H
+    and renameSpine f I.Nil = I.Nil
+      | renameSpine f (I.App (U, S)) = I.App (renameExp f U, renameSpine f S)
+       
+
+    fun rename (I.BDec (_, (c, s)), V) = 
+        let
+	  val (G, L) = I.constBlock c
+
+	  fun makeSubst (n, G, s, nil, f) = (G, f)
+	    | makeSubst (n, G, s,( D as I.Dec (x, V')) :: L, f) = 
+	      if Subordinate.belowEq (I.targetFam V', I.targetFam V) then
+		makeSubst (n+1, I.Decl (G, I.decSub (D, s)), I.dot1 s, L,
+			   f)
+	      else 
+		makeSubst (n, G, I.comp (s, I.shift), L, f)
+
+	  val (G', f) = makeSubst (1, G, s, L, fn x => I.Proj x)
+	in
+	  (G, renameExp f V)
+	end
+
+(* this is the code we need below *)
+
+
+
     (* raiseFor (G, (P, F)) = (P', F')) 
  
        Invariant:
@@ -692,7 +734,7 @@ exception Error' of Tomega'.For
  	  val w = S.weaken (G, I.targetFam V)       (* G  |- w  : G'    *)
 	  val iw = Whnf.invert w 	          (* G' |- iw : G     *)
 	  val G' = Whnf.strengthen (iw, G)
-	  val V' = A.raiseType (G', V)
+	  val V' = A.raiseType (G', V)    (* this is wrong!  raise V, because V contains projections! *)
 	  val F' = raiseFor (G, F)
 	in
 	  T.Ex (I.Dec (x, V'), F')
@@ -875,19 +917,9 @@ val  _ = print "["
 		 and  P' =  (lam B. P)
 		 and  F' = raiseFor (B, F)
 	      *)
-	      fun lift (I.Null, (P, F)) = (P, F)
-		| lift (I.Decl (G, D as I.BDec (_, (c, s))), (P, F)) = 
-		  let 
-		    fun listToCtx (G, s, nil) = G
-		      | listToCtx (G, s, D :: Ds) = 
-		          listToCtx (I.Decl (G, I.decSub (D, s)), I.dot1 s, Ds)
-		      
-		    val  (_, Lblock) = I.constBlock c
-		    val Gblock = listToCtx (I.Null, s, Lblock)
-		    val F' = raiseFor (Gblock, F)
-		  in
-		    lift (G, (T.New (T.Lam (T.UDec D, P)), F'))
-		  end
+	      fun lift (I.Null, P) = P
+		| lift (I.Decl (G, D), P) = 
+		    lift (G, T.New (T.Lam (T.UDec D, P)))
 		    
 	      val b = I.ctxLength B     (* b = |B| = |B'| *)
 	      val w1' = peeln (b, w1)	(* Psi0, G |- w1' : Psi0, G' *)
@@ -899,8 +931,10 @@ val _ = print "."
 							T.embedCtx (deblockify B)))
 val _ = print "."
 	     
-	      val (P''', F''') = lift (B', (P'', F'')) (* Psi0, G' |- P''' :: F''' *)
-					(* Psi0, G' |- F''' for *)
+              val P''' = lift (B', P'') (* Psi0, G' |- P''' :: F''' *)
+              val B4 = deblockify B'    (* Psi0, G' |- B4 ctx *)
+              val F''' = raiseFor (B4, F'')
+                                        (* Psi0, G' |- F''' for *)
 
 
 	      val (Psi1'', w2, z2) = strengthen (Psi1, (a, S), w1, M.Minus)
