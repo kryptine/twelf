@@ -31,6 +31,7 @@ subst_lm  : subst ([x:term] [idx: x => x] lm (R1 x idx))
                 -> subst ([x:term] [idx: x => x] R1 x idx y idy)
                          S (R1' y idy)).
 
+
 % Diamond property for parallel reduction
 
 dia : M => M'  ->  M => M''  ->  M' => N  ->  M'' => N  -> type.
@@ -76,6 +77,13 @@ dia_ll  : dia (lm R1') (lm R1'') (lm S1') (lm S1'')
        <- ({x:term} {idx: x => x}
              dia idx idx idx idx
              -> dia (R1' x idx) (R1'' x idx) (S1' x idx) (S1'' x idx)).
+
+%block l1 : some {N:term}{N':term}{S:N => N'} 
+	     block {x:term}{idx: x => x}{u: subst ([y][idy] idx) S idx} .
+%block l2 : block {x:term}{idx: x => x}{u: dia idx idx idx idx} .
+%worlds (l1 | l2) (subst _ _ _).
+%worlds (l1 | l2) (dia _ _ _ _).
+%covers subst +D +E *F.
 
 % The strip lemma for parallel reduction.
 
