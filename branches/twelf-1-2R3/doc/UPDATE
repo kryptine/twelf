@@ -1,0 +1,4 @@
+- Add remark about optimize
+- Remark about "mixed substitution incompleteness"
+- Add remark about "%assert" and "safe mode"
+- Add remark about "%verify"
