@@ -255,7 +255,7 @@ struct
     and collectDec (G, (I.Dec (_, V), s), K) =
           collectExp (G, (V, s), K)
       | collectDec (G, (I.BDec (_, t), s), K) =
-	  collectSub (G, I.comp (t, s), K)      (* Nov 26 11:28:36 EST 2001 -cs !!! *)
+	  collectSub (G, I.comp (t, s), K)      (* Nov 26 11:28:36 EST 2001 -cs *)
 
     (* collectSub (G, s, K) = K' 
 
@@ -270,7 +270,7 @@ struct
 	  collectSub (G, s, collectExp (G, (U, I.id), K))
       | collectSub (G, I.Dot (I.Block B, s), K) =
 	  collectSub (G, s, collectBlock (G, B, K))
-      (* missing case Fri Nov 23 11:39:07 2001 -fp !!!
+      (* missing case Fri Nov 23 11:39:07 2001 -fp
          added -cs *)
 
     and collectBlock (G, I.Bidx _, K) = K
@@ -461,6 +461,14 @@ struct
           I.Dot (I.Idx k, abstractSOME (K, s))
       | abstractSOME (K, I.Dot (I.Exp U, s)) =
 	  I.Dot (I.Exp (abstractExp (K, 0, (U, I.id))), abstractSOME (K, s))
+      | abstractSOME (K, I.Dot (I.Block (I.Bidx k), s)) =
+	  I.Dot (I.Block (I.Bidx k), abstractSOME (K, s))  
+                (* Added Nov 27 13:56:56 EST 2001 -cs *)
+      | abstractSOME (K, I.Dot (I.Block (L as I.LVar _), s)) =
+	  I.Dot (I.Block (abstractLVar (K, 0, L)), abstractSOME (K, s))
+                (* Added Nov 27 13:56:56 EST 2001 -cs *)
+		(* by invariant the second argument should be 0 to abstractLVar 
+		   true? -cs !!!  Introduces a loop? *)
 
 
     (* abstractCtx (K, depth, G) = (G', depth')
