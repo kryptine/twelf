@@ -1,0 +1,399 @@
+%!PS-Adobe-2.0 EPSF-2.0
+%%Title: prooftree3.pstex
+%%Creator: fig2dev Version 3.2 Patchlevel 3d
+%%CreationDate: Mon Mar 15 23:32:22 2004
+%%For: susmit@gs214.sp.cs.cmu.edu (Susmit Sarkar)
+%%BoundingBox: 0 0 677 1167
+%%Magnification: 1.0000
+%%EndComments
+/$F2psDict 200 dict def
+$F2psDict begin
+$F2psDict /mtrx matrix put
+/col-1 {0 setgray} bind def
+/col0 {0.000 0.000 0.000 srgb} bind def
+/col1 {0.000 0.000 1.000 srgb} bind def
+/col2 {0.000 1.000 0.000 srgb} bind def
+/col3 {0.000 1.000 1.000 srgb} bind def
+/col4 {1.000 0.000 0.000 srgb} bind def
+/col5 {1.000 0.000 1.000 srgb} bind def
+/col6 {1.000 1.000 0.000 srgb} bind def
+/col7 {1.000 1.000 1.000 srgb} bind def
+/col8 {0.000 0.000 0.560 srgb} bind def
+/col9 {0.000 0.000 0.690 srgb} bind def
+/col10 {0.000 0.000 0.820 srgb} bind def
+/col11 {0.530 0.810 1.000 srgb} bind def
+/col12 {0.000 0.560 0.000 srgb} bind def
+/col13 {0.000 0.690 0.000 srgb} bind def
+/col14 {0.000 0.820 0.000 srgb} bind def
+/col15 {0.000 0.560 0.560 srgb} bind def
+/col16 {0.000 0.690 0.690 srgb} bind def
+/col17 {0.000 0.820 0.820 srgb} bind def
+/col18 {0.560 0.000 0.000 srgb} bind def
+/col19 {0.690 0.000 0.000 srgb} bind def
+/col20 {0.820 0.000 0.000 srgb} bind def
+/col21 {0.560 0.000 0.560 srgb} bind def
+/col22 {0.690 0.000 0.690 srgb} bind def
+/col23 {0.820 0.000 0.820 srgb} bind def
+/col24 {0.500 0.190 0.000 srgb} bind def
+/col25 {0.630 0.250 0.000 srgb} bind def
+/col26 {0.750 0.380 0.000 srgb} bind def
+/col27 {1.000 0.500 0.500 srgb} bind def
+/col28 {1.000 0.630 0.630 srgb} bind def
+/col29 {1.000 0.750 0.750 srgb} bind def
+/col30 {1.000 0.880 0.880 srgb} bind def
+/col31 {1.000 0.840 0.000 srgb} bind def
+
+end
+save
+newpath 0 1167 moveto 0 0 lineto 677 0 lineto 677 1167 lineto closepath clip newpath
+-17.3 1179.7 translate
+1 -1 scale
+
+/cp {closepath} bind def
+/ef {eofill} bind def
+/gr {grestore} bind def
+/gs {gsave} bind def
+/sa {save} bind def
+/rs {restore} bind def
+/l {lineto} bind def
+/m {moveto} bind def
+/rm {rmoveto} bind def
+/n {newpath} bind def
+/s {stroke} bind def
+/sh {show} bind def
+/slc {setlinecap} bind def
+/slj {setlinejoin} bind def
+/slw {setlinewidth} bind def
+/srgb {setrgbcolor} bind def
+/rot {rotate} bind def
+/sc {scale} bind def
+/sd {setdash} bind def
+/ff {findfont} bind def
+/sf {setfont} bind def
+/scf {scalefont} bind def
+/sw {stringwidth} bind def
+/tr {translate} bind def
+/tnt {dup dup currentrgbcolor
+  4 -2 roll dup 1 exch sub 3 -1 roll mul add
+  4 -2 roll dup 1 exch sub 3 -1 roll mul add
+  4 -2 roll dup 1 exch sub 3 -1 roll mul add srgb}
+  bind def
+/shd {dup dup currentrgbcolor 4 -2 roll mul 4 -2 roll mul
+  4 -2 roll mul srgb} bind def
+/$F2psBegin {$F2psDict begin /$F2psEnteredState save def} def
+/$F2psEnd {$F2psEnteredState restore end} def
+
+$F2psBegin
+10 setmiterlimit
+ 0.06000 0.06000 sc
+%
+% Fig objects follow
+%
+% Polyline
+7.500 slw
+n 3150 13200 m
+ 6150 13200 l gs col0 s gr 
+% Polyline
+n 3750 13200 m 3750 13800 l
+ 3750 13725 l gs col0 s gr 
+% Polyline
+n 3300 13800 m 4875 13800 l 4875 14475 l 3300 14475 l
+ cp gs col0 s gr 
+% Polyline
+n 3150 13200 m
+ 3150 13650 l gs col0 s gr 
+% Polyline
+n 4500 13200 m
+ 4500 13650 l gs col0 s gr 
+% Polyline
+n 5025 13200 m
+ 5025 13650 l gs col0 s gr 
+% Polyline
+n 5700 13200 m
+ 5700 13650 l gs col0 s gr 
+% Polyline
+n 6150 13200 m
+ 6150 13650 l gs col0 s gr 
+% Polyline
+n 3900 14475 m
+ 3900 15000 l gs col0 s gr 
+% Polyline
+n 4275 15000 m
+ 4275 15600 l gs col0 s gr 
+% Polyline
+n 3750 15600 m 5475 15600 l 5475 16275 l 3750 16275 l
+ cp gs col0 s gr 
+% Polyline
+n 3225 15000 m
+ 6300 15000 l gs col0 s gr 
+% Polyline
+n 3225 15000 m
+ 3225 15450 l gs col0 s gr 
+% Polyline
+n 3675 15000 m
+ 3675 15450 l gs col0 s gr 
+% Polyline
+n 5250 15000 m
+ 5250 15450 l gs col0 s gr 
+% Polyline
+n 5775 15000 m
+ 5775 15450 l gs col0 s gr 
+% Polyline
+n 6300 15000 m
+ 6300 15450 l gs col0 s gr 
+% Polyline
+n 4350 16275 m
+ 4350 18075 l gs col0 s gr 
+% Polyline
+n 4350 18075 m
+ 7800 18075 l gs col0 s gr 
+% Polyline
+n 5400 18075 m
+ 5400 18750 l gs col0 s gr 
+% Polyline
+n 5025 18750 m 6600 18750 l 6600 19350 l 5025 19350 l
+ cp gs col0 s gr 
+% Polyline
+n 6300 17325 m 8200 17325 l 8200 17925 l 6300 17925 l
+ cp gs col0 s gr 
+% Polyline
+n 6600 16875 m
+ 6600 17250 l gs col0 s gr 
+% Polyline
+n 4425 16875 m
+ 9300 16875 l gs col0 s gr 
+% Polyline
+n 8250 16875 m
+ 8250 17175 l gs col0 s gr 
+% Polyline
+n 8550 16875 m
+ 8550 17175 l gs col0 s gr 
+% Polyline
+n 8850 16875 m
+ 8850 17175 l gs col0 s gr 
+% Polyline
+n 9300 16875 m
+ 9300 17175 l gs col0 s gr 
+% Polyline
+n 7950 16875 m
+ 7950 17175 l gs col0 s gr 
+% Polyline
+n 9075 16875 m
+ 9075 17175 l gs col0 s gr 
+% Polyline
+n 4875 18075 m
+ 4875 18375 l gs col0 s gr 
+% Polyline
+n 6900 18075 m
+ 6900 18375 l gs col0 s gr 
+% Polyline
+n 7275 18075 m
+ 7275 18375 l gs col0 s gr 
+% Polyline
+n 7575 18075 m
+ 7575 18375 l gs col0 s gr 
+% Polyline
+n 7800 18075 m
+ 7800 18375 l gs col0 s gr 
+% Polyline
+n 3825 11175 m
+ 3825 11925 l gs col0 s gr 
+% Polyline
+n 3525 11925 m 4950 11925 l 4950 12600 l 3525 12600 l
+ cp gs col0 s gr 
+% Polyline
+n 2100 11175 m
+ 6375 11175 l gs col0 s gr 
+% Polyline
+n 4950 11175 m
+ 4950 11625 l gs col0 s gr 
+% Polyline
+n 5475 11175 m
+ 5475 11625 l gs col0 s gr 
+% Polyline
+n 5925 11175 m
+ 5925 11625 l gs col0 s gr 
+% Polyline
+n 6375 11175 m
+ 6375 11625 l gs col0 s gr 
+% Polyline
+n 3975 12600 m
+ 3975 13200 l gs col0 s gr 
+% Polyline
+n 3150 4650 m
+ 6150 4650 l gs col0 s gr 
+% Polyline
+n 3750 4650 m 3750 5250 l
+ 3750 5175 l gs col0 s gr 
+% Polyline
+n 3300 5250 m 4875 5250 l 4875 5925 l 3300 5925 l
+ cp gs col0 s gr 
+% Polyline
+n 3150 4650 m
+ 3150 5100 l gs col0 s gr 
+% Polyline
+n 4500 4650 m
+ 4500 5100 l gs col0 s gr 
+% Polyline
+n 5025 4650 m
+ 5025 5100 l gs col0 s gr 
+% Polyline
+n 5700 4650 m
+ 5700 5100 l gs col0 s gr 
+% Polyline
+n 6150 4650 m
+ 6150 5100 l gs col0 s gr 
+% Polyline
+n 3900 5925 m
+ 3900 6450 l gs col0 s gr 
+% Polyline
+n 4275 6450 m
+ 4275 7050 l gs col0 s gr 
+% Polyline
+n 3750 7050 m 5475 7050 l 5475 7725 l 3750 7725 l
+ cp gs col0 s gr 
+% Polyline
+n 3225 6450 m
+ 6300 6450 l gs col0 s gr 
+% Polyline
+n 3225 6450 m
+ 3225 6900 l gs col0 s gr 
+% Polyline
+n 3675 6450 m
+ 3675 6900 l gs col0 s gr 
+% Polyline
+n 5250 6450 m
+ 5250 6900 l gs col0 s gr 
+% Polyline
+n 5775 6450 m
+ 5775 6900 l gs col0 s gr 
+% Polyline
+n 6300 6450 m
+ 6300 6900 l gs col0 s gr 
+% Polyline
+n 4350 7725 m
+ 4350 9525 l gs col0 s gr 
+% Polyline
+n 4350 9525 m
+ 7800 9525 l gs col0 s gr 
+% Polyline
+n 5400 9525 m
+ 5400 10200 l gs col0 s gr 
+% Polyline
+n 5025 10200 m 6600 10200 l 6600 10800 l 5025 10800 l
+ cp gs col0 s gr 
+% Polyline
+n 6300 8775 m 8200 8775 l 8200 9375 l 6300 9375 l
+ cp gs col0 s gr 
+% Polyline
+n 6600 8325 m
+ 6600 8700 l gs col0 s gr 
+% Polyline
+n 4425 8325 m
+ 9300 8325 l gs col0 s gr 
+% Polyline
+n 8250 8325 m
+ 8250 8625 l gs col0 s gr 
+% Polyline
+n 8550 8325 m
+ 8550 8625 l gs col0 s gr 
+% Polyline
+n 8850 8325 m
+ 8850 8625 l gs col0 s gr 
+% Polyline
+n 9300 8325 m
+ 9300 8625 l gs col0 s gr 
+% Polyline
+n 7950 8325 m
+ 7950 8625 l gs col0 s gr 
+% Polyline
+n 9075 8325 m
+ 9075 8625 l gs col0 s gr 
+% Polyline
+n 4875 9525 m
+ 4875 9825 l gs col0 s gr 
+% Polyline
+n 6900 9525 m
+ 6900 9825 l gs col0 s gr 
+% Polyline
+n 7275 9525 m
+ 7275 9825 l gs col0 s gr 
+% Polyline
+n 7575 9525 m
+ 7575 9825 l gs col0 s gr 
+% Polyline
+n 7800 9525 m
+ 7800 9825 l gs col0 s gr 
+% Polyline
+n 3825 2625 m
+ 3825 3375 l gs col0 s gr 
+% Polyline
+n 3525 3375 m 4950 3375 l 4950 4050 l 3525 4050 l
+ cp gs col0 s gr 
+% Polyline
+n 2100 2625 m
+ 6375 2625 l gs col0 s gr 
+% Polyline
+n 4950 2625 m
+ 4950 3075 l gs col0 s gr 
+% Polyline
+n 5475 2625 m
+ 5475 3075 l gs col0 s gr 
+% Polyline
+n 5925 2625 m
+ 5925 3075 l gs col0 s gr 
+% Polyline
+n 6375 2625 m
+ 6375 3075 l gs col0 s gr 
+% Polyline
+n 3975 4050 m
+ 3975 4650 l gs col0 s gr 
+% Polyline
+n 4625 825 m 300 825 l 300 225 l 4625 225 l
+ cp gs col0 s gr 
+% Polyline
+n 675 1050 m
+ 5850 1050 l gs col0 s gr 
+% Polyline
+n 2475 825 m
+ 2475 1050 l gs col0 s gr 
+% Polyline
+n 675 1050 m
+ 675 1200 l gs col0 s gr 
+% Polyline
+n 1425 1050 m
+ 1425 1200 l gs col0 s gr 
+% Polyline
+n 3300 1050 m
+ 3300 1200 l gs col0 s gr 
+% Polyline
+n 3900 1050 m
+ 3900 1200 l gs col0 s gr 
+% Polyline
+n 5850 1050 m
+ 5850 1200 l gs col0 s gr 
+% Polyline
+n 2325 1050 m
+ 2325 1500 l gs col0 s gr 
+% Polyline
+n 1275 1525 m 3625 1525 l 3625 2250 l 1275 2250 l
+ cp gs col0 s gr 
+% Polyline
+n 2025 2325 m 2025 11175 l
+ 2100 11175 l gs col0 s gr 
+% Polyline
+ [15 45] 45 sd
+n 2805 11100 m 2700 11100 2700 19545 105 arcto 4 {pop} repeat
+  2700 19650 11445 19650 105 arcto 4 {pop} repeat
+  11550 19650 11550 11205 105 arcto 4 {pop} repeat
+  11550 11100 2805 11100 105 arcto 4 {pop} repeat
+ cp gs col0 s gr  [] 0 sd
+% Polyline
+ [15 45] 45 sd
+n 2880 2550 m 2775 2550 2775 10770 105 arcto 4 {pop} repeat
+  2775 10875 11370 10875 105 arcto 4 {pop} repeat
+  11475 10875 11475 2655 105 arcto 4 {pop} repeat
+  11475 2550 2880 2550 105 arcto 4 {pop} repeat
+ cp gs col0 s gr  [] 0 sd
+$F2psEnd
+rs
