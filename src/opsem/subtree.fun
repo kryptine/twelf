@@ -8,6 +8,9 @@ functor MemoTable (structure IntSyn' : INTSYN
 		     sharing CompSyn'.IntSyn = IntSyn'
 		   structure Conv: CONV
 		     sharing Conv.IntSyn = IntSyn'
+		   structure TableParam : TABLEPARAM
+		     sharing TableParam.IntSyn = IntSyn'
+		     sharing TableParam.CompSyn = CompSyn'
 	           structure AbstractTabled : ABSTRACTTABLED
 		     sharing AbstractTabled.IntSyn = IntSyn'
 		   structure Print : PRINT
@@ -17,50 +20,11 @@ functor MemoTable (structure IntSyn' : INTSYN
 struct
   structure IntSyn = IntSyn'
   structure CompSyn = CompSyn'
-  structure RBSet = RBSet
   structure AbstractTabled = AbstractTabled
+  structure TableParam = TableParam
     
-  type answer = {solutions : ((IntSyn.dctx * IntSyn.dctx * IntSyn.Sub * AbstractTabled.ResEqn) 
-			      * CompSyn.pskeleton) list,
-		 lookup: int} ref
-
-
-  datatype callCheckResult = 
-    NewEntry of answer 
-  | RepeatedEntry of answer
-  | DivergingEntry of answer
-
-  datatype answState = new | repeated
-
-  datatype Strategy = Variant | Subsumption
   (* ---------------------------------------------------------------------- *)
-  (* global search parameters *)
-
-  val strategy  = ref Variant (* Subsumption *) (* Variant *)
-
-  val divHeuristic = ref false;
-
-  val stageCtr = ref 0;
-
-  (* term abstraction after term depth is greater than 5 *) 
-  val termDepth = ref NONE : int option ref;
-  val ctxDepth = ref NONE : int option ref;
-  val ctxLength = ref NONE : int option ref;
-
-  (* apply strengthening during abstraction *)
-  val strengthen = AbstractTabled.strengthen ;
-
-  (* ---------------------------------------------------------------------- *)
-
-  fun emptyAnswer () = ref {solutions = [], lookup = 0} 
-
-  val answList : (answer list) ref = ref []
-  val added = ref false; 
-
-  type nvar = int      (* index for normal variables *)
-  type bvar = int      (* index for bound variables *)
-  type bdepth = int    (* depth of locally bound variables *)
-
+  
 
   (* Linear substitution tree for linear terms *)
 
@@ -75,7 +39,7 @@ struct
   (* Substitution Tree *)
   datatype Tree =  
       Leaf of normalSubsts * ((IntSyn.dctx * IntSyn.dctx * IntSyn.dctx * 
-			       AbstractTabled.ResEqn * answer * int) list) ref
+			       TableParam.ResEqn * TableParam.answer * int) list) ref
     | Node of normalSubsts * (Tree ref) list
 
   fun makeTree () = ref (Node (nid (), []))  
@@ -99,10 +63,22 @@ struct
     structure C = CompSyn
     structure S = RBSet
     structure A = AbstractTabled
+    structure T = TableParam 
       
     exception Assignment of string
     
     exception Generalization of string   
+
+
+  fun emptyAnswer () = T.emptyAnsw ()
+
+  val answList : (TableParam.answer list) ref = ref []
+  val added = ref false; 
+
+  type nvar = int      (* index for normal variables *)
+  type bvar = int      (* index for bound variables *)
+  type bdepth = int    (* depth of locally bound variables *)
+
     
     (* ------------------------------------------------------ *)      
     (* Auxiliary functions *)
@@ -129,8 +105,8 @@ struct
 			       Print.expToString (I.Null, A.raiseType(D, A.raiseType(G, e))) 
 			       ^ ",  ")))
 
-    fun printResEqn (G, A.Trivial) = print "Trivial\n"
-      | printResEqn (G, A.Unify(G', U, N, eqn)) = 
+    fun printResEqn (G, T.Trivial) = print "Trivial\n"
+      | printResEqn (G, T.Unify(G', U, N, eqn)) = 
         let
 	  val (G'') = compose(G', G)
 	  val s1 = shift (G', I.id) 
@@ -154,14 +130,14 @@ struct
       forall Children
     end 
 
-(*    fun printResEqn (G, D, A.Trivial) = print "Trivial\n"
-      | printResEqn (G, D, A.Unify(G', p1, N, eqn)) = 
+(*    fun printResEqn (G, D, T.Trivial) = print "Trivial\n"
+      | printResEqn (G, D, T.Unify(G', p1, N, eqn)) = 
         (print (Print.expToString (I.Null, A.raiseType(D, A.raiseType(compose(G', G), p1))) ^ " = ");
 	 print (Print.expToString (I.Null, A.raiseType(D, A.raiseType(compose(G', G), N))) ^ "\n"); 
 	 printResEqn (G, D, eqn))
 *)
-    fun printResEqnSub (G, D', A.Trivial, s) = print "Trivial\n"
-      | printResEqnSub (G, D', A.Unify(G', p1, N, eqn), s) = 
+    fun printResEqnSub (G, D', T.Trivial, s) = print "Trivial\n"
+      | printResEqnSub (G, D', T.Unify(G', p1, N, eqn), s) = 
         (print (Print.expToString (I.Null, A.raiseType(D', I.EClo(A.raiseType(compose(G', G), p1), shift(G', s)))) ^ " = ");
 	 print (Print.expToString (I.Null, A.raiseType(D', I.EClo(A.raiseType(compose(G', G), N),shift(G', s)))) ^ "\n"); 
 	 printResEqnSub (G, D', eqn, s))
@@ -241,8 +217,8 @@ struct
         Conv.convDec((D, s), (D', s')) andalso (equalCtx (G, I.dot1 s, G', I.dot1 s'))
 
     (* in general, we need to carry around and build up a substitution *)
-    fun equalEqn (A.Trivial, A.Trivial) = true
-      | equalEqn (A.Unify(G, X, N, eqn), (A.Unify(G', X', N', eqn'))) = 
+    fun equalEqn (T.Trivial, T.Trivial) = true
+      | equalEqn (T.Unify(G, X, N, eqn), (T.Unify(G', X', N', eqn'))) = 
         equalCtx (G, I.id, G', I.id) andalso Conv.conv ((X, I.id), (X', I.id)) 
 	andalso Conv.conv ((N, I.id), (N', I.id)) andalso equalEqn(eqn, eqn')
       | equalEqn (_, _) = false
@@ -457,18 +433,18 @@ and eqSpine (I.Nil, (I.Nil, rho1)) = true
       fun insert' (N as Leaf (_, GRlistRef), nsub_u (* = id *), GR as (DAVars, DEVars, G, eqn, answRef, stage)) = 
 	(case compatibleCtx ((DAVars, DEVars, G, eqn), (!GRlistRef))
 	   of NONE => ((* compatible path -- but different ctx! *)		  
-		       if ((!divHeuristic) andalso divergingCtx (stage, DEVars, G, GRlistRef))
+		       if ((!TableParam.divHeuristic) andalso divergingCtx (stage, DEVars, G, GRlistRef))
 			 then
 			   (print "ctx are diverging --- force suspension \n";
 			    (fn () => (GRlistRef := (GR::(!GRlistRef));   
 				      answList := (answRef :: (!answList))),   
-			    DivergingEntry(answRef))) 
+			    T.DivergingEntry(answRef))) 
 		       else 			 
 			 (fn () => (GRlistRef := (GR::(!GRlistRef)); 
 				    answList := (answRef :: (!answList))), 
-			  NewEntry(answRef)))
+			  T.NewEntry(answRef)))
 	 | SOME(answRef') => ((* compatible path -- SAME ctx *)
-			      ((fn () => ()), RepeatedEntry(answRef'))))
+			      ((fn () => ()), T.RepeatedEntry(answRef'))))
 
        
       | insert' (N as Node(sub, children), nsub_u, GR as (DAVars, DEVars, G, eqn, answRef, stage)) = 
@@ -480,30 +456,30 @@ and eqSpine (I.Nil, (I.Nil, rho1)) = true
 	     (* print "no child compatible \n";*)
 	     (fn () => (Nref := Node(sub, (ref (Leaf(nsub_u, ref [GR])))::children); 
 			answList := (answRef :: (!answList))),
-	      NewEntry(answRef))) 
+	      T.NewEntry(answRef))) 
 
 	    | checkVCandidates (nil, ((ChildRef, (sigma, rho1, rho2))::_)) = 
 	    (* split an existing node *)
-	      if ((!divHeuristic) andalso divergingSub (sigma, rho1, rho2))
+	      if ((!TableParam.divHeuristic) andalso divergingSub (sigma, rho1, rho2))
 	       then 	       
 		 (print "substree divering -- splitting node\n";
 		  (fn () => (ChildRef :=  mkNode((!ChildRef), sigma, rho1, GR, rho2); 
 			     answList := (answRef :: (!answList))),
-		   DivergingEntry(answRef)))
+		   T.DivergingEntry(answRef)))
 	     else 
 		((* print "split existing node\n";*)
 		 (fn () => (ChildRef :=  mkNode((!ChildRef), sigma, rho1, GR, rho2); 
 			    answList := (answRef :: (!answList))),
-		 NewEntry(answRef)))
+		 T.NewEntry(answRef)))
 	    | checkVCandidates (((ChildRef, rho2)::nil), _) = 
 	    (* there is a unique "perfect" candidate *)
 	    insert (ChildRef, rho2, GR)
 	    | checkVCandidates (((ChildRef, rho2)::L), SList) = 
 	    (case (insert (ChildRef, rho2, GR))
-	       of (_, NewEntry(answRef)) => 
+	       of (_, T.NewEntry(answRef)) => 
 		 checkVCandidates (L, SList)
-	     | (f, RepeatedEntry(answRef)) => ((f, RepeatedEntry(answRef)))
-	     | (f, DivergingEntry(answRef)) => ((f, DivergingEntry(answRef))))
+	     | (f, T.RepeatedEntry(answRef)) => ((f, T.RepeatedEntry(answRef)))
+	     | (f, T.DivergingEntry(answRef)) => ((f, T.DivergingEntry(answRef))))
 	in 
 	  checkVCandidates (VCand, SCand)
 	end 
@@ -532,28 +508,26 @@ and eqSpine (I.Nil, (I.Nil, rho1)) = true
      *) 
     fun answCheckVariant (G', U', s', answRef, O) =  
       let 
-	val {solutions = S, lookup = i} = !answRef
+(*	val {T.solutions = S, T.lookup = i} = !answRef*)
 
-	fun member ((D, D', sk, eqnk), []) = false
-	  | member ((D, D', sk, eqnk), (((D1, D1', s1, eqn1),_)::S)) = 
-	    if equalSub (sk,s1) andalso equalCtx'(D, D1) 
-	      andalso equalCtx'(D', D1') andalso equalEqn (eqnk, eqn1) then   
+	fun member ((D, sk), []) = false
+	  | member ((D, sk), (((D1, s1),_)::S)) = 
+	    if equalSub (sk,s1) andalso equalCtx'(D, D1) then   
 	      true
 	    else 
-	      member ((D,D', sk, eqnk), S)
+	      member ((D, sk), S)
 	
-	val (DAVars, DEVars, sk, eqnk) = A.abstractAnswSub (G', s')
-	val Dk = compose(compose(G', DEVars), DAVars)
+	val (DEVars, sk) = A.abstractAnswSub (G', s')
+	val Dk = compose(G', DEVars)
 (*	val _ = print "Abstracted solution : "
 	val _ = print (Print.expToString (I.Null, A.raiseType(DAVars, A.raiseType(DEVars, I.EClo(A.raiseType(G', U'), sk)))) ^ "\n")
 	val _ = (print "Res. eqn "; printResEqn(Dk, eqnk))*)
       in 	
-	if member ((DAVars, DEVars, sk, eqnk), S) then  
-	  repeated
+	if member ((DEVars, sk), T.solutions answRef) then  
+	  T.repeated
 	else 
-	  (answRef := {solutions = (((DAVars, DEVars, sk, eqnk), O)::S), 
-		      lookup = i}; 	   
-	  new)
+	  (T.addSolution (((DEVars, sk), O), answRef);
+	  T.new)
       end 
 
     (* ---------------------------------------------------------------------- *)
@@ -570,49 +544,44 @@ and eqSpine (I.Nil, (I.Nil, rho1)) = true
 	val (n, Tree) = Array.sub (indexArray, a)     
 	val nsub_goal = S.new()             
 	val _ = S.insert nsub_goal (1, U) 
-	val result = insert (Tree, nsub_goal, (DAVars, DEVars, G, eqn, emptyAnswer(), !stageCtr))
+	val result = insert (Tree, nsub_goal, (DAVars, DEVars, G, eqn, emptyAnswer(), !TableParam.stageCtr))
       in       
 	case result 
-	  of (sf, NewEntry(answRef)) => (sf(); added := true;  (* print "Add goal \n\n";  *)
-					 NewEntry(answRef))
-	  | (_, RepeatedEntry(answRef)) =>  ((* print "Suspend goal";*)
-					     RepeatedEntry(answRef))
-	  | (sf, DivergingEntry(answRef)) => (sf(); added := true;  (* print "Add goal -- ";*)
-					     DivergingEntry(answRef))
+	  of (sf, T.NewEntry(answRef)) => (sf(); added := true;  (* print "Add goal \n\n";  *)
+					 T.NewEntry(answRef))
+	  | (_, T.RepeatedEntry(answRef)) =>  ((* print "Suspend goal";*)
+					     T.RepeatedEntry(answRef))
+	  | (sf, T.DivergingEntry(answRef)) => (sf(); added := true;  (* print "Add goal -- ";*)
+					     T.DivergingEntry(answRef))
       end 
 
  
     fun answCheck (G', U', s', answRef, O) = 
-      case (!strategy) of
-	Variant => 
+      case (!TableParam.strategy) of
+	TableParam.Variant => 
 	  answCheckVariant (G', U', s', answRef, O)
-      | Subsumption => raise Error "Subsumption is missing currently\n"
+      | TableParam.Subsumption => raise Error "Subsumption is missing currently\n"
 
-    fun solutions {solutions = S, lookup = i} = S
-    fun lookup {solutions = S, lookup = i} = i
+(*    fun solutions {T.solutions = S, T.lookup = i} = S
+    fun lookup {T.solutions = S, T.lookup = i} = i
 
-
-    fun noAnswers answ =     
-    (case (List.take (solutions(answ), lookup(answ))) (*solutions(answ) *)
-       of [] => true
-     | L  => false)
-
+*)
 
     fun updateTable () = 
       let
 	fun update [] Flag = Flag
 	  | update (answRef::AList) Flag = 
 	    (let
-	      val {solutions = S, lookup = i} = !answRef
-	      val l = length(S) 
+(*	      val {T.solutions = S, T.lookup = i} = !answRef*)
+	      val l = length(T.solutions(answRef)) 
 	    in 
-	      if (l = i) then 
+	      if (l = T.lookup(answRef)) then 
 		(* no new solutions were added in the previous stage *) 	      
-		(answRef := {solutions = S, lookup = l};
+		((* answRef := T.updateAnswLookup (l, !answRef) (* {T.solutions = S, T.lookup = l}*);*)
 		 update AList Flag)
 	      else 
 		(* new solutions were added *)
-		(answRef := {solutions = S, lookup = l};
+		(T.updateAnswLookup (l, answRef);
 		 update AList true)
 	    end) 
 	val Flag = update (!answList) false
@@ -628,9 +597,9 @@ and eqSpine (I.Nil, (I.Nil, rho1)) = true
     val callCheck = (fn (Skel, D, G, U, eqn) => callCheck(cidFromHead(I.targetHead U), Skel, D, G, U, eqn))
   
     val answerCheck = answCheck
-    val solutions = (fn answRef => solutions (!answRef))
-    val lookup = (fn answRef => lookup (!answRef))
-    val noAnswers = (fn answRef => noAnswers (!answRef))
+(*    val solutions = (fn answRef => solutions (!answRef))
+    val lookup = (fn answRef => lookup (!answRef))*)
+(*    val noAnswers = (fn answRef => noAnswers (!answRef))*)
 
     val updateTable = updateTable
 

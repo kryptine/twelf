@@ -19,38 +19,46 @@ structure PtRecon =
 	  structure Names = Names
 	  structure CSManager = CSManager); 
 
- structure AbstractTabled =
+structure TableParam =
+ TableParam (structure IntSyn' = IntSyn
+	    structure CompSyn' = CompSyn)
+
+structure AbstractTabled =
   AbstractTabled (structure IntSyn' = IntSyn
 		  structure Whnf = Whnf
 		  structure Subordinate = Subordinate
+		  structure TableParam = TableParam
 		  structure Conv = Conv
 		  structure Unify = UnifyTrail
 		  structure Print = Print);
-
 
 structure MemoTable =
  MemoTable (structure IntSyn' = IntSyn
 	    structure Conv = Conv
 	    structure CompSyn' = CompSyn
 	    structure Print = Print
+	    structure TableParam = TableParam
 	    structure AbstractTabled = AbstractTabled
 	    structure Table = IntRedBlackTree
 	    structure RBSet = RBSet)
 
-(* structure TableIndex = 
-  TableIndex (structure Global = Global
-	      structure Queue = Queue
-	      structure IntSyn' = IntSyn
-	      structure Subordinate = Subordinate
-	      structure CompSyn' = CompSyn
-	      structure Conv = Conv
-	      structure Unify = UnifyTrail 
-	      structure AbstractTabled = AbstractTabled
-	      structure Whnf = Whnf
-	      structure Print = Print
-	      structure CPrint = CPrint
-	      structure TypeCheck = TypeCheck);
-*)
+
+structure MemoTableInst =
+ MemoTableInst (structure IntSyn' = IntSyn
+	    structure Conv = Conv
+	    structure CompSyn' = CompSyn
+	    structure Print = Print
+	    structure TableParam = TableParam
+	    structure AbstractTabled = AbstractTabled
+	    structure Table = IntRedBlackTree
+	    structure RBSet = RBSet)
+
+
+structure SwMemoTable =
+ SwMemoTable (structure TableParam = TableParam
+	      structure MemoTable = MemoTable
+	      structure MemoTableInst = MemoTableInst)
+
 structure Tabled = 
   Tabled (structure IntSyn' = IntSyn
 	  structure CompSyn' = CompSyn
@@ -59,7 +67,9 @@ structure Tabled =
 	  structure Assign = Assign 
 	  structure Index = Index
 	  structure Queue = Queue
-	  structure MemoTable = MemoTable    
+	  structure TableParam = TableParam
+(*	  structure MemoTable = MemoTable    *)
+	  structure MemoTable = SwMemoTable    
 	  structure AbstractTabled = AbstractTabled
 	  structure CPrint = CPrint
 	  structure Print = Print

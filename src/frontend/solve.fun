@@ -36,6 +36,7 @@ functor Solve
    structure PtRecon : PTRECON
      sharing PtRecon.IntSyn = IntSyn'
      sharing PtRecon.CompSyn = CompSyn
+   structure TableParam : TABLEPARAM
    structure Tabled : TABLED
      sharing Tabled.IntSyn = IntSyn'
      sharing Tabled.CompSyn = CompSyn
@@ -429,26 +430,26 @@ and raises exception Done if bound has been reached, otherwise it returns
 			print "Tabled evaluation NOT COMPLETE \n \n");
 		     print "\n____________________________________________\n\n";
 		     print "\n Table Indexing parameters: \n";
-		     (case (!MemoTable.strategy) of
-			    MemoTable.Variant =>  print "\n       Table Strategy := Variant \n"
-			 |  MemoTable.Subsumption => print "\n       Table Strategy := Subsumption \n");
-		     (case (!MemoTable.termDepth) of
+		     (case (!TableParam.strategy) of
+			    TableParam.Variant =>  print "\n       Table Strategy := Variant \n"
+			 |  TableParam.Subsumption => print "\n       Table Strategy := Subsumption \n");
+		     (case (!TableParam.termDepth) of
 			    NONE => print ("\n       Term Depth Abstraction := NONE \n")
 			  | SOME(d) => print ("\n       Term Depth Abstraction := " ^
 					       Int.toString(d) ^ "\n"));
 
-		     (case (!MemoTable.ctxDepth) of
+		     (case (!TableParam.ctxDepth) of
 			    NONE => print ("\n       Ctx Depth Abstraction := NONE \n")
 			  | SOME(d) => print ("\n       Ctx Depth Abstraction := " ^
 					       Int.toString(d) ^ "\n"));
 
-		     (case (!MemoTable.ctxLength) of
+		     (case (!TableParam.ctxLength) of
 			    NONE => print ("\n       Ctx Length Abstraction := NONE \n")
 			  | SOME(d) => print ("\n       Ctx Length Abstraction := " ^
 					       Int.toString(d) ^ "\n"));
 
 
-		     (if (!MemoTable.strengthen) then 
+		     (if (!TableParam.strengthen) then 
 			print "\n       Strengthening := true \n"
 		      else 
 			print "\n       Strengthening := false \n");

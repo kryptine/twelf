@@ -14,12 +14,17 @@ functor Tabled (structure IntSyn' : INTSYN
 		structure Index : INDEX
 		  sharing Index.IntSyn = IntSyn'
 		structure Queue : QUEUE
+		structure TableParam : TABLEPARAM
+		  sharing TableParam.IntSyn = IntSyn'
+		  sharing TableParam.CompSyn = CompSyn'
+
 		structure AbstractTabled : ABSTRACTTABLED
 		  sharing AbstractTabled.IntSyn = IntSyn'
+		  sharing AbstractTabled.TableParam = TableParam
 		structure MemoTable : MEMOTABLE
-		  sharing MemoTable.IntSyn = IntSyn'
-		  sharing MemoTable.CompSyn = CompSyn'
-		  sharing MemoTable.AbstractTabled = AbstractTabled
+		  sharing MemoTable.IntSyn = IntSyn' 
+		  sharing MemoTable.CompSyn = CompSyn' 
+		  sharing MemoTable.TableParam = TableParam 
 		(* CPrint currently unused *)
 		structure CPrint : CPRINT 
 		  sharing CPrint.IntSyn = IntSyn'
@@ -44,6 +49,7 @@ struct
     structure I = IntSyn
     structure C = CompSyn
     structure A = AbstractTabled
+    structure T = TableParam
     structure MT = MemoTable      
   in
     
@@ -62,7 +68,7 @@ struct
     datatype SuspType = Loop | Divergence
 
     val SuspGoals : (((SuspType * (IntSyn.Exp * IntSyn.Sub) * CompSyn.DProg * (CompSyn.pskeleton -> unit)) * 
-		      Unify.unifTrail * MT.answer * int ref)  list) ref  = ref []
+		      Unify.unifTrail * T.answer * int ref)  list) ref  = ref []
 
     (* ---------------------------------------------------------------------- *)
       
@@ -135,8 +141,8 @@ struct
     | printSub (I.Dot (I.Exp(_), s)) = (print ("Exp (_ ). "); printSub s)
     | printSub (I.Dot (I.Undef, s)) = (print ("Undef . "); printSub s)
 
-    fun printResEqn (G, A.Trivial) = print "Trivial\n"
-      | printResEqn (G, A.Unify(G', U, N, eqn)) = 
+    fun printResEqn (G, T.Trivial) = print "Trivial\n"
+      | printResEqn (G, T.Unify(G', U, N, eqn)) = 
         let
 	  val (G'') = compose'(G', G)
 	  val s1 = shift (G', I.id) 
@@ -148,8 +154,8 @@ struct
 	  end 
 
 
-    fun printResEqnSub (D, G, A.Trivial, s) = print "Trivial\n"
-      | printResEqnSub (D, G, A.Unify(G', U, N, eqn), s) = 
+    fun printResEqnSub (D, G, T.Trivial, s) = print "Trivial\n"
+      | printResEqnSub (D, G, T.Unify(G', U, N, eqn), s) = 
         let
 	  val (G'') = compose'(G', G)
 	  val s1 = shift (G', s) 
@@ -185,13 +191,10 @@ struct
      
    *)
 
-  fun solveEqn ((A.Trivial, s), G) = true
-    | solveEqn ((A.Unify(G',e1, N, eqns), s), G) =
+  fun solveEqn ((T.Trivial, s), G) = true
+    | solveEqn ((T.Unify(G',e1, N, eqns), s), G) =
       let
 	val G'' = compose' (G', G)
-	fun normalize (I.EClo(N, ss) , s) = normalize(N, I.comp(ss, s))
-	  | normalize (N, s) = (N, s)
-	
 	val s' = shift (G'', s)
       in
 	Assign.unifiable (G'', (N, s'), (e1, s'))
@@ -201,12 +204,11 @@ struct
 
    (* see retrieve *)      
    fun retrieve' (n, goal, G, Vs, (G', U'), [], sc)  = ()
-     | retrieve' (n, goal, G, Vs as (V,s), (G', U'), (((DAVars, DEVars, s1, eqn1), O1)::A),  sc) =  
+     | retrieve' (n, goal, G, Vs as (V,s), (G', U'), (((DEVars, s1), O1)::A),  sc) =  
      let 
        val Vpi = A.raiseType(G, V)
        val Upi = A.raiseType(G', U')
-       val s' = ctxToAVarSub (DAVars, I.id)
-       val s1' = ctxToEVarSub (DEVars, s')
+       val s1' = ctxToEVarSub (DEVars, I.id)
      in
        (* could be done more efficient by assigning the substitutions only ? *)
        (* s = s1 o s1' Wed Sep 18 17:29:06 2002 -bp 
@@ -234,9 +236,9 @@ struct
    *)
     and retrieve (k, goal, G, Vs as (V, s), (H as ((G', DAVars, DEVars, U, eqn), answ)), sc) =
         let
-	  val lkp  = MT.lookup(answ) 
-	  val asw' = List.take(rev(MT.solutions(answ)), 
-			       MT.lookup(answ))
+	  val lkp  = T.lookup(answ) 
+	  val asw' = List.take(rev(T.solutions(answ)), 
+			       T.lookup(answ))
 	  val answ' = List.drop(asw', !k) 
 	in 
 	k := lkp;
@@ -266,15 +268,15 @@ struct
 	  in
 	    case MT.callCheck (G', DAVars, DEVars, U', eqn') 
 	      (* Side effect: D', G' |- U' added to table *)	    
-	      of MT.NewEntry (answRef) => 		
+	      of T.NewEntry (answRef) => 		
 		matchAtom ((p,s), dp, 
 			   (fn pskeleton =>
 			    (case MT.answerCheck (G', U', s', answRef, pskeleton)
-			       of MT.repeated => ()
-			     | MT.new      => sc pskeleton)))
+			       of T.repeated => ()
+			     | T.new      => sc pskeleton)))
 		
-	       | MT.RepeatedEntry(answRef) => 
-	       if MT.noAnswers answRef then 	    
+	       | T.RepeatedEntry(answRef) => 
+	       if T.noAnswers answRef then 	    
 		 (* loop detected  
 		  * NOTE: we might suspend goals more than once.
 		  *     case: answer list for goal (p,s) is saturated
@@ -288,13 +290,13 @@ struct
 		  * resolve current goal with all possible answers
 		  *)	
 		 let 
-		   val le = MT.lookup(answRef)
+		   val le = T.lookup(answRef)
 		 in 
 		  SuspGoals := ((Loop, (p,s), dp, sc), Unify.suspend(), answRef, ref le)::(!SuspGoals);
 		  retrieve (ref 0, A.raiseType(G, I.EClo(p,s)), G', (U' , s'), ((G', DAVars, DEVars, U', eqn'), answRef), sc)
 		end
 
-	       | MT.DivergingEntry(answRef) => 
+	       | T.DivergingEntry(answRef) => 
 		 (* loop detected  
 		  * NOTE: we might suspend goals more than once.
 		  *     case: answer list for goal (p,s) is saturated
@@ -485,7 +487,7 @@ struct
      else fail
      *)
   fun retrieval (Loop, (p,s), dp as C.DProg(G, dPool), sc, answRef, n) =    
-    if MT.noAnswers answRef then 	    
+    if T.noAnswers answRef then 	    
       (* still  no answers available from previous stages *)
       (* NOTE: do not add the susp goal to suspGoal list
 	        because it is already in the suspGoal list *)
@@ -510,23 +512,23 @@ struct
 	  matchAtom ((p,s), dp, 
 		     (fn pskeleton =>
 		      case MT.answerCheck (G', U', s', answRef, pskeleton)
-			of MT.repeated => ()
-		      | MT.new      => sc pskeleton
+			of T.repeated => ()
+		      | T.new      => sc pskeleton
 			  ))
 	end 
 
   
     fun updateAbsParam () = ()
-(*      (case (!MT.termDepth) of
+(*      (case (!T.termDepth) of
  	   NONE => ()
-	 | SOME(n) => MT.termDepth := SOME(n+1);
-       case (!MT.ctxDepth) of
+	 | SOME(n) => T.termDepth := SOME(n+1);
+       case (!T.ctxDepth) of
  	   NONE => ()
-	 | SOME(n) => MT.ctxDepth := SOME(n+1);
+	 | SOME(n) => T.ctxDepth := SOME(n+1);
 
-       case (!MT.ctxLength) of
+       case (!T.ctxLength) of
  	   NONE => ()
-	 | SOME(n) => MT.ctxLength := SOME(n+1)
+	 | SOME(n) => T.ctxLength := SOME(n+1)
 	     )
 *)
     fun tableSize () =  MT.tableSize ()
@@ -549,7 +551,7 @@ struct
      if MT.updateTable () then 
        (* table changed during previous stage *)
 	(updateAbsParam (); 
-	 MT.stageCtr := (!MT.stageCtr) + 1;
+	 TableParam.stageCtr := (!TableParam.stageCtr) + 1;
 	 resume (SG, l);
 	true)
      else 
@@ -568,14 +570,14 @@ struct
    end 
 *)
 
- fun reset () = (SuspGoals := []; MT.reset(); MT.stageCtr := 0)
+ fun reset () = (SuspGoals := []; MT.reset(); TableParam.stageCtr := 0)
 
   fun solveQuery ((g, s), dp as C.DProg (G, dPool), sc) =
     (* only work when query is atomic -- might extend subordination relation
        and then strengthening may not be sound *)
-     case (!MT.strategy) of
-       MT.Variant =>  solve((g, s), dp, sc)
-     |  MT.Subsumption => raise MT.Error "subsumption part deleted"
+     case (!TableParam.strategy) of
+       TableParam.Variant =>  solve((g, s), dp, sc)
+     |  TableParam.Subsumption => raise T.Error "subsumption part deleted"
 
   end (* local ... *)
 

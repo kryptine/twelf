@@ -10,6 +10,8 @@ functor AbstractTabled (structure IntSyn' : INTSYN
 			sharing Subordinate.IntSyn = IntSyn'
 			structure Conv    : CONV
 			sharing Conv.IntSyn = IntSyn'
+			structure TableParam : TABLEPARAM
+			  sharing TableParam.IntSyn = IntSyn'
 			structure Unify   : UNIFY
 			sharing Unify.IntSyn = IntSyn'
 			structure Print : PRINT
@@ -19,18 +21,14 @@ functor AbstractTabled (structure IntSyn' : INTSYN
 struct
 
   structure IntSyn = IntSyn' 
+  structure TableParam = TableParam 
     
   exception Error of string
 
   (* Strenghening during abstraction *)
-  val strengthen = ref false;
+  (* val strengthen = ref false;*)
 
-  (* Residual equation *)
-  datatype ResEqn =
-    Trivial				  (* trivially done *)
-  | Unify of IntSyn.dctx * IntSyn.Exp     (* call unify *)
-             * IntSyn.Exp * ResEqn
-    
+ 
   local
     structure I = IntSyn
       
@@ -351,7 +349,7 @@ struct
 	  end
 
     and collectEVar (Gss, G, Gl, (X as I.EVar (r, GX, V, cnstrs), s), K, DupVars, flag, d) =
-      if (!strengthen) then 
+      if (!TableParam.strengthen) then 
 	collectEVarStr (Gss, G, Gl, (X, s), K, DupVars, flag, d) 
       else 
         if isId(s) (* equalCtx (compose'(Gl, G), s, GX, s)  *)
@@ -520,7 +518,7 @@ struct
 		 val BV1 = I.BVar(apos + total + depth) 		   
 		 val (posEA', Vars', S, eqn1) = abstractSub (flag, Gs, (epos, apos - 1), Vars, G, total, depth, s, I.Nil, eqn)
 	       in 
-		 (posEA', Vars', I.Root(BV, I.Nil), Unify(Gl, I.Root(BV', S), I.Root(BV1, I.Nil), eqn1))
+		 (posEA', Vars', I.Root(BV, I.Nil), TableParam.Unify(Gl, I.Root(BV', S), I.Root(BV1, I.Nil), eqn1))
 	       end 	 
 	     else 
 	       let
@@ -549,7 +547,7 @@ struct
 		     
 		   val (posEA', Vars', S, eqn1) = abstractSub (flag, Gs, (epos, apos - 1), Vars, G, total, depth, s, I.Nil, eqn)
 		 in 
-		   (posEA', Vars', I.Root(BV, I.Nil), Unify(Gl, I.Root(BV', S), I.Root(BV1, I.Nil ), eqn1))
+		   (posEA', Vars', I.Root(BV, I.Nil), TableParam.Unify(Gl, I.Root(BV', S), I.Root(BV1, I.Nil ), eqn1))
 		 end 	  
 	     else 
 	       let
@@ -565,7 +563,7 @@ struct
 		   
 		 val (posEA', Vars', S, eqn1) = abstractSub (flag, Gs, (epos - 1, apos - 1),  I.Decl(Vars, (epos, EV X)), G, total, depth, s, I.Nil, eqn) 
 	       in 
-		 (posEA', Vars', I.Root(BV, I.Nil), Unify(Gl, I.Root(BV', S), I.Root(BV1, I.Nil), eqn1))
+		 (posEA', Vars', I.Root(BV, I.Nil), TableParam.Unify(Gl, I.Root(BV', S), I.Root(BV1, I.Nil), eqn1))
 	    end)	   
 		
     (* abstractSub (flag, Gs, posEA, Vars, Gl, total, depth, s, S, eqn) = (posEA', Vars', S', eqn')
@@ -821,7 +819,7 @@ struct
     val abstractEVarCtx = 
       (fn (G, p, s) => 
        let
-	 val (Gs, ss, d) =  if (!strengthen) then 
+	 val (Gs, ss, d) =  if (!TableParam.strengthen) then 
 	                  let
 			    val w' = Subordinate.weaken (G, I.targetFam p)
 			    val iw = Whnf.invert w' 
@@ -842,7 +840,7 @@ struct
 	 val (K, DupVars') = collectExp((Gs, ss), G, I.Null, (p, s), Kdp, DupVars, true, d)
 	 val epos = I.ctxLength(K)
 	 val apos = I.ctxLength(DupVars')
-	 val (posEA', Vars', G', _ (* d *), eqn) = abstractCtx (true, (Gs,ss), (epos, apos+epos), I.Null, 0, 0, G, Trivial) 
+	 val (posEA', Vars', G', _ (* d *), eqn) = abstractCtx (true, (Gs,ss), (epos, apos+epos), I.Null, 0, 0, G, TableParam.Trivial) 
 	 val (posEA'', Vars'', U', eqn') = abstractExp (true, (Gs, ss), posEA', Vars',  (G, I.Null), d, 0, (p,s), eqn)
 	 (* Vars'' contains all EVars occuring in G and p[s] once *)
          (* by invariant epos'' = apos'' = 0 *)
@@ -853,7 +851,7 @@ struct
 	 val s' = abstractKSubAVars (DupVars', I.id)
 	 val s'' = abstractKSubEVar (Vars'', s')
        in 		
-	 if (!strengthen) then 
+	 if (!TableParam.strengthen) then 
 	   let
 	     val w' = Subordinate.weaken (G', I.targetFam U')
 	     val iw = Whnf.invert w' 
@@ -891,11 +889,11 @@ struct
 	 val epos = I.ctxLength K
 	 val apos = I.ctxLength DupVars	   
          (* total = length(G), depth = |Glocal|*)
-	 val (_ (* 0, 0 *), Vars, s', eqn) = abstractSub' (false, (I.Null, I.id), (epos, apos+epos), I.Null, G, total, 0, s, Trivial)
-	 val DAVars = createDupCtx (I.Null, Vars, DupVars, 0)  
-	 val ( _, DEVars,_, eqn'') = createEVarCtx ((I.Null, I.id), (epos, apos+epos), I.Null, Vars, I.id, eqn)  
+	 val (_ (* 0, 0 *), Vars, s', eqn) = abstractSub' (false, (I.Null, I.id), (epos, apos+epos), I.Null, G, total, 0, s, TableParam.Trivial)
+(*	 val DAVars = createDupCtx (I.Null, Vars, DupVars, 0)  (* will have no avars! *)*)
+	 val ( _, DEVars,_, _ (* trivial *)) = createEVarCtx ((I.Null, I.id), (epos, apos+epos), I.Null, Vars, I.id, eqn)  
        in 
-	 (DAVars, DEVars, s', eqn'')   
+	 (DEVars, s')   
        end)
 
     val raiseType = (fn (G, U) => 

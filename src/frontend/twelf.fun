@@ -83,7 +83,7 @@ functor Twelf
    structure AbsMachine : ABSMACHINE
      sharing AbsMachine.IntSyn = IntSyn'
      sharing AbsMachine.CompSyn = CompSyn'
-
+   structure TableParam : TABLEPARAM
    structure Tabled : TABLED
      sharing Tabled.IntSyn = IntSyn'
      sharing Tabled.CompSyn = CompSyn'
@@ -1266,16 +1266,16 @@ struct
 
     structure Table : 
       sig 
-	datatype Strategy = datatype MemoTable.Strategy
+	datatype Strategy = datatype TableParam.Strategy
 	val strategy : Strategy ref
 	val strengthen : bool ref
 	val top : unit -> unit
       end 
     = 
   struct
-    datatype Strategy = datatype MemoTable.Strategy
-    val strategy = MemoTable.strategy
-    val strengthen = MemoTable.strengthen
+    datatype Strategy = datatype TableParam.Strategy
+    val strategy = TableParam.strategy
+    val strengthen = TableParam.strengthen
       	  
     (* top () = () starts interactive query loop *)
     fun top () = 

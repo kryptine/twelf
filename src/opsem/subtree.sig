@@ -6,39 +6,9 @@ sig
 
   structure IntSyn : INTSYN
   structure CompSyn : COMPSYN
-  structure AbstractTabled : ABSTRACTTABLED
+  structure TableParam : TABLEPARAM
+
     
-  type answer = {solutions : ((IntSyn.dctx * IntSyn.dctx  * IntSyn.Sub * AbstractTabled.ResEqn) 
-			      * CompSyn.pskeleton) list,
-		 lookup: int} ref
-
-  datatype Strategy = Variant | Subsumption
-
-  exception Error of string
-
-  val strategy  : Strategy ref 
-  val stageCtr  : int ref
-  val divHeuristic : bool ref;
-
-  val termDepth  : int option ref
-  val ctxDepth   : int option ref
-  val ctxLength  : int option ref 
-
-  val strengthen : bool ref
-
-  datatype answState = new | repeated
-
-  datatype callCheckResult = 
-    NewEntry of answer 
-  | RepeatedEntry of answer
-  | DivergingEntry of answer
-
-  (* table: G, Gdprog |- goal , 
-            (answ list (ith stage) , answ list (1 to i-1 th stage))
-   *) 
-
-  val noAnswers : answer -> bool
-
   (* call check/insert *)
 
   (* callCheck (G, D, U, eqn)
@@ -48,8 +18,8 @@ sig
    * SIDE EFFECT: D, G |- U added to table
    *)
 
-  val callCheck : IntSyn.dctx * IntSyn.dctx * IntSyn.dctx * IntSyn.Exp * AbstractTabled.ResEqn 
-                  -> callCheckResult
+  val callCheck : IntSyn.dctx * IntSyn.dctx * IntSyn.dctx * IntSyn.Exp * TableParam.ResEqn 
+                  -> TableParam.callCheckResult
 
 
   (* answer check/insert *)
@@ -65,7 +35,7 @@ sig
    *  else new
    *)
 
-  val answerCheck : IntSyn.dctx * IntSyn.Exp * IntSyn.Sub * answer * CompSyn.pskeleton -> answState
+  val answerCheck : IntSyn.dctx * IntSyn.Exp * IntSyn.Sub * TableParam.answer * CompSyn.pskeleton -> TableParam.answState
 
   (* reset table *)
   val reset: unit -> unit
@@ -82,9 +52,6 @@ sig
    *)
    
   val updateTable : unit -> bool
-
-  val solutions : answer -> ((IntSyn.dctx * IntSyn.dctx * IntSyn.Sub * AbstractTabled.ResEqn) * CompSyn.pskeleton) list
-  val lookup : answer -> int
 
   val tableSize : unit -> int
 end;  (* signature MemoTable *)
