@@ -202,11 +202,12 @@ struct
 	  collectSpine (G, (S, s), I.Decl (collectExp (I.Null, (V, I.id), K), FV (name, V)))
       | collectExpW (G, (I.Root (I.Proj (L as I.LVar (r, (l, t)), i), S), s), K) =
 	if exists (eqLVar L) K
-	  then collectSpine (G, (S, s), collectSub (G, t, K))
+	  then collectSpine (G, (S, s), collectSub (I.Null, t, K))
 	    (* why not: collectSpine (G, (S, s), collectSub (I.Null, t, K)) *)
 	    (* Fri Nov 23 11:40:11 2001 -fp !!! *)
 	    (* is the I.Null really ok?  I think it must be G! *)
             (* replaced the old version collectSpine (G, (S, s), K) -cs *)
+	    (* I think must be I.NULL Wed Dec  5 16:16:56 2001 -fp !!! *)
 	else 
 	  collectSpine (G, (S, s), I.Decl (collectSub (I.Null, t, K), LV L))
       | collectExpW (G, (I.Root (_ , S), s), K) =
@@ -273,7 +274,9 @@ struct
       (* missing case Fri Nov 23 11:39:07 2001 -fp
          added -cs *)
 
-    and collectBlock (G, L as I.LVar (_, (l, s)), K) = 
+    and collectBlock (G, I.LVar (ref (SOME B), _), K) =
+          collectBlock (G, B, K)
+      | collectBlock (G, L as I.LVar (_, (l, s)), K) = 
         (* was: collectSub (G, s, K) *)
 	(* bug: did not collect LVar itself *)
 	(* Sun Dec  2 12:20:31 2001 !!! -fp *)
