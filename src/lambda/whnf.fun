@@ -37,32 +37,8 @@ struct
   local 
     open IntSyn
 
-    (* functions previously in the Pattern functor *)
-    (* eventually, they may need to be mutually recursive with whnf *)
 
-    (* isPatSub s = B
-
-       Invariant:
-       If    G |- s : G' 
-       and   s = n1 .. nm ^k
-       then  B iff  n1, .., nm pairwise distinct
-               and  ni <= k or ni = _ for all 1 <= i <= m
-    *)
-    fun isPatSub (Shift(k)) = true
-      | isPatSub (Dot (Idx (n), s)) = 
-          let fun checkBVar (Shift(k)) = (n <= k)
-		| checkBVar (Dot (Idx (n'), s)) = 
-	            n <> n' andalso checkBVar (s)
-		| checkBVar (Dot (Undef, s)) =
-		    checkBVar (s)
-		| checkBVar _ = false
-	  in
-	    checkBVar s andalso isPatSub s
-	  end
-      | isPatSub (Dot (Undef, s)) = isPatSub s
-      | isPatSub _ = false
-
-    exception Undefined
+    (* exception Undefined *)
 
     exception Eta
 
@@ -467,7 +443,10 @@ struct
       | normalizeSub (Dot (Ft as Idx _, s)) =
 	  Dot (Ft, normalizeSub (s))
       | normalizeSub (Dot (Exp U, s)) =
-	  Dot (Exp (normalizeExp (U, id)), normalizeSub s)
+	  (* changed to obtain pattern substitution if possible *)
+	  (* Sat Dec  7 16:58:09 2002 -fp *)
+	  (* Dot (Exp (normalizeExp (U, id)), normalizeSub s) *)
+	  dotEta (Exp (normalizeExp (U, id)), normalizeSub s)
 
 
     fun normalizeCtx Null = Null
@@ -562,8 +541,80 @@ struct
     *)
     fun compInv (s, w) = comp (s, invert w)
 
+    (* functions previously in the Pattern functor *)
+    (* eventually, they may need to be mutually recursive with whnf *)
+
+    (* isPatSub s = B
+
+       Invariant:
+       If    G |- s : G' 
+       and   s = n1 .. nm ^k
+       then  B iff  n1, .., nm pairwise distinct
+               and  ni <= k or ni = _ for all 1 <= i <= m
+    *)
+    fun isPatSub (Shift(k)) = true
+      | isPatSub (Dot (Idx (n), s)) = 
+          let fun checkBVar (Shift(k)) = (n <= k)
+		| checkBVar (Dot (Idx (n'), s)) = 
+	            n <> n' andalso checkBVar (s)
+		| checkBVar (Dot (Undef, s)) =
+		    checkBVar (s)
+		| checkBVar _ = false
+	  in
+	    checkBVar s andalso isPatSub s
+	  end
+      | isPatSub (Dot (Undef, s)) = isPatSub s
+      | isPatSub _ = false
+	(* Try harder, due to bug somewhere *)
+	(* Sat Dec  7 17:05:02 2002 -fp *)
+        (* false *)
+      (* below does not work, because the patSub is lost *)
+      (*
+	  let val (U', s') = whnf (U, id)
+	  in
+	    isPatSub (Dot (Idx (etaContract (U', s', 0)), s))
+	    handle Eta => false
+	  end
+      | isPatSub _ = false
+      *)
+
+    (* makePatSub s = SOME(s') if s is convertible to a patSub
+                      NONE otherwise
+
+       Invariant:
+       If    G |- s : G' 
+       and   s = n1 .. nm ^k
+       then  B iff  n1, .., nm pairwise distinct
+               and  ni <= k or ni = _ for all 1 <= i <= m
+    *)
+    fun mkPatSub (s as Shift(k)) = s
+      | mkPatSub (Dot (Idx (n), s)) = 
+        let
+	  val s' = mkPatSub s
+	  fun checkBVar (Shift(k)) = (n <= k)
+	    | checkBVar (Dot (Idx (n'), s')) = 
+	      n <> n' andalso checkBVar (s')
+	    | checkBVar (Dot (Undef, s')) =
+		    checkBVar (s')
+	  val _ = checkBVar s'
+	in
+	  Dot (Idx (n), s')
+	end
+      | mkPatSub (Dot (Undef, s)) = Dot (Undef, mkPatSub s)
+      | mkPatSub (Dot (Exp (U), s)) = 
+	let
+	  val (U', t') = whnf (U, id)
+	  val k = (etaContract (U', t', 0)) (* may raise Eta *)
+	in
+	  Dot (Idx (k), mkPatSub s)
+	end
+      | mkPatSub _ = raise Eta
+
+    fun makePatSub (s) = SOME (mkPatSub (s)) handle Eta => NONE
+
   in
     val isPatSub = isPatSub
+    val makePatSub = makePatSub
     val dotEta = dotEta
     exception Eta = Eta
     val etaContract = (fn U => etaContract (U, id, 0))

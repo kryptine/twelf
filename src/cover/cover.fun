@@ -298,7 +298,9 @@ struct
     (* fail () = Fail
        indicate failure without splitting candidates
      *)
-    fun fail () = Fail
+    fun fail (msg) =
+        (chatter 7 (fn () => msg ^ "\n");
+	 Fail)
 
     (* failAdd (k, cands) = cands'
        indicate failure, but add k as splitting candidate
@@ -315,14 +317,23 @@ struct
           cands
       | addEqn (e, Fail) = Fail		(* already failed without candidates *)
 
+    fun unifiable (G, Us1, Us2) =
+          Unify.unifiable (G, Us1, Us2)
+
     (* matchEqns (es) = true 
        iff  all equations in es can be simultaneously unified
 
        Effect: instantiate EVars right-hand sides of equations.
     *)
     fun matchEqns (nil) = true
-      | matchEqns (Eqn (G, Us1, Us2)::es) =
-        Unify.unifiable (G, Us1, Us2)
+      | matchEqns (Eqn (G, Us1, Us2 as (U2, s2))::es) =
+        (* For some reason, s2 is sometimes not a patSub when it should be *)
+        (* explicitly convert if possible *)
+        (* Sat Dec  7 20:59:46 2002 -fp *)
+        (* was: unifiable (G, Us1, Us2) *)
+        (case Whnf.makePatSub s2
+	   of NONE => unifiable (G, Us1, Us2) (* constraints will be left in this case *)
+            | SOME(s2') => unifiable (G, Us1, (U2, s2')))
 	andalso matchEqns (es)
 
     (* resolveCands (cands) = cands'
@@ -405,7 +416,7 @@ struct
        G = Gc, Gl where d = |Gl|
     *)
     fun matchExp (G, d, Us1, Us2, cands) =
-        matchExpW (G, d, Whnf.whnf Us1, Whnf.whnf Us2, cands)
+          matchExpW (G, d, Whnf.whnf Us1, Whnf.whnf Us2, cands)
 
     and matchExpW (G, d, Us1 as (I.Root (H1, S1), s1), Us2 as (I.Root (H2, S2), s2), cands) =
         (case (H1, H2)
@@ -417,10 +428,10 @@ struct
 		then matchSpine (G, d, (S1, s1), (S2, s2), cands)
 	      else if k1 > d
 		     then failAdd (k1-d, cands) (* k1 is coverage variable, new candidate *)
-		   else fail ()		(* otherwise fail with no candidates *)
+		   else fail ("local variable / variable clash") (* otherwise fail with no candidates *)
 	    | (I.Const(c1), I.Const(c2)) =>
 	      if (c1 = c2) then matchSpine (G, d, (S1, s1), (S2, s2), cands)
-	      else fail ()		(* fail with no candidates *)
+	      else fail ("constant / constant clash") (* fail with no candidates *)
             | (I.Def (d1), I.Def (d2)) =>
 	      if (d1 = d2)		(* because of strictness *)
 		then matchSpine (G, d, (S1, s1), (S2, s2), cands)
@@ -430,13 +441,14 @@ struct
 	    | (I.BVar (k1), I.Const _) =>
 	      if k1 > d
 		then failAdd (k1-d, cands) (* k1 is coverage variable, new candidate *)
-	      else fail ()		(* otherwise fail with no candidates *)
-	    | (I.Const _, I.BVar _) => fail ()
+	      else fail ("local variable / constant clash") (* otherwise fail with no candidates *)
+	    | (I.Const _, I.BVar _) =>
+		fail ("constant / local variable clash")
 	    | (I.Proj (b1, i1), I.Proj (b2, i2)) =>
 	       if (i1 = i2) then
 		 matchSpine (G, d, (S1, s1), (S2, s2),
 			     matchBlock (G, d, b1, b2, cands))
-	       else fail ()
+	       else fail ("block projection / block projection clash")
 	    (* handled by matchBlock now *)
 	    (*
 	    | (I.Proj (I.Bidx (k), i), I.Proj (I.Bidx (k'), i')) =>
@@ -447,10 +459,10 @@ struct
             | (I.BVar (k1), I.Proj _) =>
 	      if k1 > d
 		then failAdd (k1-d, cands) (* k1 is splittable, new candidate *)
-	      else fail ()		(* otherwise fail with no candidates *)
-	    | (I.Const _, I.Proj _) => fail ()
-            | (I.Proj _, I.Const _) => fail ()
-            | (I.Proj _, I.BVar _) => fail ()
+	      else fail ("local variable / block projection clash") (* otherwise fail with no candidates *)
+	    | (I.Const _, I.Proj _) => fail ("constant / block projection clash")
+            | (I.Proj _, I.Const _) => fail ("block projection / constant clash")
+            | (I.Proj _, I.BVar _) => fail ("block projection / local variable clash")
             (* no other cases should be possible *)
 	    )
       | matchExpW (G, d, (I.Lam (D1, U1), s1), (I.Lam (D2, U2), s2), cands) =
@@ -507,16 +519,15 @@ struct
 
     and matchBlock (G, d, I.Bidx(k), I.Bidx(k'), cands) =
         if (k = k') then cands
-	  else fail ()
+	  else fail ("block index / block index clash")
       | matchBlock (G, d, B1 as I.Bidx(k), I.LVar (r2, I.Shift(k'), (l2, t2)), cands) =
 	(* Updated LVar --cs Sun Dec  1 06:24:41 2002 *)
 	let
 	  val I.BDec (bOpt, (l1, t1)) = I.ctxDec (G, k)
-	  (* val _ = print (candsToString (cands) ^ "\n")*)
 	in
-	  if l1 <> l2 then fail ()
-	    else if k < k' then raise Bind
-	  (* k >= k' by invariant? *)
+	  if l1 <> l2 then fail ("block index / block label clash")
+	  (* else if k < k' then raise Bind *)
+	  (* k >= k' by invariant  Sat Dec  7 22:00:41 2002 -fp *)
 	  else let 
 		 val cands2 = matchSub (G, d, t1, t2, cands)
 		 (* instantiate if matching is successful *)
@@ -524,6 +535,7 @@ struct
 		 (* instantiate, instead of postponing because *)
 		 (* LVars are only instantiated to Bidx's which are rigid *)
                  (* !!!BUG!!! r2 and B1 make sense in different contexts *)
+                 (* fixed by k-k' Sat Dec  7 21:12:57 2002 -fp *)
 		 val _ = Unify.instantiateLVar (r2, I.Bidx (k-k'))
 	       in
 		 cands2
@@ -540,8 +552,11 @@ struct
 	let val cands1 =
 	   (case (Ft1, Ft2) of
 	     (I.Idx (n1), I.Idx (n2)) => 
-	       if n1 <> n2 then fail ()
-	       else cands
+	       if n1 = n2
+		 then cands
+	       else if n1 > d
+		      then failAdd (n1-d, cands)
+		    else fail ("local variable / local variable clash in block instance")
            | (I.Exp (U1), I.Exp (U2)) =>
 		 matchExp (G, d, (U1, I.id), (U2, I.id), cands)
 	   | (I.Exp (U1), I.Idx (n2)) =>
@@ -572,7 +587,7 @@ struct
 	  then
 	    (* unify spines, skipping output and ignore arguments in modeSpine *)
 	    matchTopSpine (G, d, (S1, s1), (S2, s2), ci, cands)
-	else fail () (* fails, with no candidates since type families don't match *)
+	else fail ("type family clash") (* fails, with no candidates since type families don't match *)
       | matchTopW (G, d, (I.Pi ((D1,_), V1), s1),
 		         (I.Pi ((D2,_), V2), s2), ci, cands) = 
 	(* this case can only arise in output coverage *)
@@ -1492,7 +1507,7 @@ struct
 	in
 	  case constrs
 	    of nil => Eqns (nil)
-	     | _ => Fail		(* constraints remained: Fail without candidates *)
+	     | _ => fail ("Remaining constraints") (* constraints remained: Fail without candidates *)
 	end
 
     (* matchClause (cg, (Si, ti)) = klist
@@ -1693,9 +1708,13 @@ struct
           substToSpine' (s, G, T)
       | substToSpine' (I.Dot(I.Exp(U),s), I.Decl(G,V), T) =
 	  substToSpine' (s, G, I.App(U, T))
-      | substToSpine' (I.Dot(I.Idx(n),s), I.Decl(G,V), T) =
-	  (* FIX: should eta-expand below -fp *)
-	  substToSpine' (s, G, I.App (I.Root (I.BVar(n), I.Nil), T))
+      | substToSpine' (I.Dot(I.Idx(n),s), I.Decl(G,I.Dec(_,V)), T) =
+	  (* Eta-expand *)
+	let
+	  val (Us,_) = Whnf.whnfEta ((I.Root (I.BVar(n), I.Nil), I.id), (V, I.id))
+	in
+	  substToSpine' (s, G, I.App(I.EClo Us, T))
+	end
       (* I.Axp, I.Block(B) or other I.Undef impossible *)
 
     (* substToSpine (s, G) = S

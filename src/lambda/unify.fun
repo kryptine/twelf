@@ -330,8 +330,8 @@ struct
 	(* so we perform only the occurs-check here as for FVars *)
 	(* Sat Dec  8 13:39:41 2001 -fp !!! *)
 	(* this is not true any more, Sun Dec  1 11:28:47 2002 -cs  *)
-	(* Hmmm... Sun Dec  1 21:33:17 2002 -fp !!! *)
-	   ( pruneSub (Null, t, id, rOccur, prunable) ;
+	(* Changed from Null to G Sat Dec  7 21:58:00 2002 -fp *)
+	   ( pruneSub (G, t, id, rOccur, prunable) ;
 	     H )
       | pruneHead (G, H as Skonst _, ss, rOccur, prunable) = H
       | pruneHead (G, H as Def _, ss, rOccur, prunable) = H
@@ -439,7 +439,7 @@ struct
 	       if (c1 = c2) then unifySpine (G, (S1, s1), (S2, s2))
 	       else raise Unify "Constant clash"
 	   | (Proj (b1, i1), Proj (b2, i2)) =>
-	       if (i1 = i2) then (unifyBlock (b1, b2); unifySpine (G, (S1, s1), (S2, s2)))
+	       if (i1 = i2) then (unifyBlock (G, b1, b2); unifySpine (G, (S1, s1), (S2, s2)))
 	       else raise Unify "Global parameter clash"
 	   | (Skonst(c1), Skonst(c2)) => 	  
 	       if (c1 = c2) then unifySpine (G, (S1, s1), (S2, s2))
@@ -550,8 +550,9 @@ struct
 
       | unifyExpW (G, Us1 as (U1,s1), Us2 as (EVar (r, GX, V, cnstrs), s)) =
 	if Whnf.isPatSub(s) then 
-	  let val ss = Whnf.invert s
-	      val U1' = pruneExp (G, Us1, ss, r, true)
+	  let
+	    val ss = Whnf.invert s
+	    val U1' = pruneExp (G, Us1, ss, r, true)
 	  in
 	    (* instantiateEVar (r, EClo (U1, comp(s1, ss)), !cnstrs) *)
 	    (* invertExpW (Us1, s, r) *)
@@ -630,19 +631,30 @@ struct
 
     (* substitutions s1 and s2 were redundant here --- removed *)
     (* Sat Dec  8 11:47:12 2001 -fp !!! *)
-    and unifyBlock (LVar (r1, Shift(k1), (l1, t1)), L as LVar (r2, Shift(k2), (l2, t2))) = 
+    and unifyBlock (G, LVar (r1, Shift(k1), (l1, t1)), LVar (r2, Shift(k2), (l2, t2))) = 
         if l1 <> l2 then
   	  raise Unify "Label clash"
         else
 	  if r1 = r2
 	    then ()
 	  else
-	    ( unifySub (Null, t1, t2) ; (* Null? Sun Dec  1 21:51:18 2002??? *)
+	    ( unifySub (G, t1, t2) ; (* Sat Dec  7 22:04:31 2002 -fp *)
+	      (* invariant? always k1 = k2? *)
+	      (* prune t2? Sat Dec  7 22:09:53 2002 *)
+	      if k1 <> k2 then raise Bind else () ;
+	      (*
 	      if k1 < k2 then instantiateLVar (r1, LVar(r2, Shift(k2-k1), (l2, t2)))
-		else instantiateLVar (r2, LVar(r1, Shift (k1-k2), (l1, t1))) )
+		else instantiateLVar (r2, LVar(r1, Shift (k1-k2), (l1, t1)))
+	      *)
+	      let
+		val ss = Whnf.invert (Shift(k1))
+		val t2' = pruneSub (G, t2, ss, ref NONE, true) (* hack! *)
+	      in
+		instantiateLVar (r1, LVar(r2, Shift(0), (l2, t2'))) (* 0 = k2-k1 *)
+	      end )
       (* How can the next case arise? *)
       (* Sat Dec  8 11:49:16 2001 -fp !!! *)
-      | unifyBlock (Bidx (n1), (Bidx (n2))) =
+      | unifyBlock (G, Bidx (n1), (Bidx (n2))) =
 	 if n1 <> n2
 	   then raise Unify "Block index clash"
 	 else ()

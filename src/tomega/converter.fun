@@ -836,7 +836,7 @@ exception Error' of Tomega.Sub
 	  val U = I.Root (I.BVar (I.ctxLength B''' + 1), S)
 					            (* Psi, G', x:V', B''' |- U : V[t'] *)
 
-          val t''' = I.Dot (I.Exp U, t')            (* Psi, G', x:V', B''' |- t''' :  Psi, B, G, x:V *)
+          val t''' = Whnf.dotEta (I.Exp U, t')            (* Psi, G', x:V', B''' |- t''' :  Psi, B, G, x:V *)
 	  val F' = raiseFor (B''', (F, t'''))       (* Psi, G', x:V' |- F' for*)
 	in
 	  T.Ex (I.Dec (x, V'), F')(* Psi, G', x:V', B''' |- t''' :  Psi, B, G, x:V *)
