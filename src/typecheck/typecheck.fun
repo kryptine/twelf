@@ -27,12 +27,12 @@ struct
 	  LVarToString (G, L) ^ "." ^ subToString (G, s)
       | subToString (G, I.Shift(n)) = "^" ^ Int.toString (n)
 
-    and LVarToString (G, I.LVar (ref (SOME B), _, t)) =
-          LVarToString (G, I.blockSub (B, t))
+    and LVarToString (G, I.LVar (ref (SOME B), sk, (l, t))) =
+          LVarToString (G, I.blockSub (B, sk))
 					(* whnf for Blocks ? Sun Dec  1 11:38:17 2002 -cs *)
-      | LVarToString (G, I.LVar (ref NONE, (cid, s), t)) =
+      | LVarToString (G, I.LVar (ref NONE, sk, (cid, t))) =
 	  "#" ^ I.conDecName (I.sgnLookup cid) ^ "["
-	  ^ subToString (G, I.comp (s, t)) ^ "]"
+	  ^ subToString (G, t) ^ "]"
 	  
     (* some well-formedness conditions are assumed for input expressions *)
     (* e.g. don't contain "Kind", Evar's are consistently instantiated, ... *)

@@ -325,12 +325,13 @@ struct
 	(* Fri Dec 28 10:03:12 2001 -fp !!! *)
 	(case blockSub (B, ss)
 	   of Bidx(k') => Proj (Bidx (k'), i))
-      | pruneHead (G, H as Proj (LVar (r, (l, t), s), i), ss, rOccur, prunable) = 
+      | pruneHead (G, H as Proj (LVar (r, sk, (l, t)), i), ss, rOccur, prunable) = 
         (* claim: LVar does not need to be pruned since . |- t : Gsome *)
 	(* so we perform only the occurs-check here as for FVars *)
 	(* Sat Dec  8 13:39:41 2001 -fp !!! *)
 	(* this is not true any more, Sun Dec  1 11:28:47 2002 -cs  *)
-	   ( pruneSub (Null, comp (t, s), id, rOccur, prunable) ;
+	(* Hmmm... Sun Dec  1 21:33:17 2002 -fp !!! *)
+	   ( pruneSub (Null, t, id, rOccur, prunable) ;
 	     H )
       | pruneHead (G, H as Skonst _, ss, rOccur, prunable) = H
       | pruneHead (G, H as Def _, ss, rOccur, prunable) = H
@@ -629,15 +630,16 @@ struct
 
     (* substitutions s1 and s2 were redundant here --- removed *)
     (* Sat Dec  8 11:47:12 2001 -fp !!! *)
-    and unifyBlock (LVar (r1, (l1, t1), s1), L as LVar (r2, (l2, t2), s2)) = 
+    and unifyBlock (LVar (r1, Shift(k1), (l1, t1)), L as LVar (r2, Shift(k2), (l2, t2))) = 
         if l1 <> l2 then
   	  raise Unify "Label clash"
         else
 	  if r1 = r2
 	    then ()
 	  else
-	    ( unifySub (Null, comp (t1, s1), comp (t2, s2)) ;
-	      instantiateLVar (r1, L) )
+	    ( unifySub (Null, t1, t2) ; (* Null? Sun Dec  1 21:51:18 2002??? *)
+	      if k1 < k2 then instantiateLVar (r1, LVar(r2, Shift(k2-k1), (l2, t2)))
+		else instantiateLVar (r2, LVar(r1, Shift (k1-k2), (l1, t1))) )
       (* How can the next case arise? *)
       (* Sat Dec  8 11:49:16 2001 -fp !!! *)
       | unifyBlock (Bidx (n1), (Bidx (n2))) =

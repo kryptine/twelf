@@ -208,14 +208,15 @@ struct
 	  then collectSpine (G, (S, s), K)
 	else (* s' = ^|G| *)
 	  collectSpine (G, (S, s), I.Decl (collectExp (I.Null, (V, I.id), K), FV (name, V)))
-      | collectExpW (G, (I.Root (I.Proj (L as I.LVar (r, (l, t), _), i), S), s), K) =
+      | collectExpW (G, (I.Root (I.Proj (L as I.LVar (r, _, (l, t)), i), S), s), K) =
 	if exists (eqLVar L) K
 	  (* note: don't collect t again below *)
 	  (* was: collectSpine (G, (S, s), collectSub (I.Null, t, K)) *)
 	  (* Sun Dec 16 10:54:52 2001 -fp !!! *)
 	  then collectSpine (G, (S, s), K)
 	else 
-	  collectSpine (G, (S, s), I.Decl (collectSub (I.Null, t, K), LV L))
+	  (* -fp Sun Dec  1 21:12:12 2002 *)
+	  collectSpine (G, (S, s), I.Decl (collectSub (G, I.comp(t,s), K), LV L))
       | collectExpW (G, (I.Root (_ , S), s), K) =
 	  collectSpine (G, (S, s), K)
       | collectExpW (G, (I.Lam (D, U), s), K) =
@@ -279,20 +280,22 @@ struct
       | collectSub (G, I.Dot (I.Exp (U), s), K) =
 	  collectSub (G, s, collectExp (G, (U, I.id), K))
       | collectSub (G, I.Dot (I.Block B, s), K) =
-	  collectSub (G, s, collectBlock (B, K))
+	  collectSub (G, s, collectBlock (G, B, K))
     (* next case should be impossible *)
     (*
       | collectSub (G, I.Dot (I.Undef, s), K) =
           collectSub (G, s, K)
     *)
 
-    (* collectBlock (B, K) where . |- B block *)
-    and collectBlock (I.LVar (ref (SOME B), _, _), K) =
-          collectBlock (B, K)
-      | collectBlock (L as I.LVar (_, (l, t), _), K) = 
+    (* collectBlock (G, B, K) where G |- B block *)
+    and collectBlock (G, I.LVar (ref (SOME B), sk , _), K) =
+          collectBlock (G, I.blockSub (B, sk), K)
+          (* collectBlock (B, K) *)
+          (* correct?? -fp Sun Dec  1 21:15:33 2002 *)
+      | collectBlock (G, L as I.LVar (_, sk, (l, t)), K) = 
         if exists (eqLVar L) K
-	  then collectSub (I.Null, t, K)
-	else I.Decl (collectSub (I.Null, t, K), LV L)
+	  then collectSub (G, t, K)
+	else I.Decl (collectSub (G, t, K), LV L)
     (* | collectBlock (G, I.Bidx _, K) = K *)
     (* should be impossible: Fronts of substitutions are never Bidx *)
     (* Sat Dec  8 13:30:43 2001 -fp *)
@@ -474,9 +477,13 @@ struct
 
        Update: modified for globality invariant of . |- t : Gsome
        Sat Dec  8 13:35:55 2001 -fp
+       Above is now incorrect
+       Sun Dec  1 22:36:50 2002 -fp
     *)
     fun abstractSOME (K, I.Shift 0) = (* n = 0 by invariant, check for now *)
           I.Shift (I.ctxLength(K))
+      | abstractSOME (K, I.Shift (n)) = (* n > 0 *)
+	  I.Shift (I.ctxLength(K))
       | abstractSOME (K, I.Dot (I.Idx k, s)) = 
           I.Dot (I.Idx k, abstractSOME (K, s))
       | abstractSOME (K, I.Dot (I.Exp U, s)) =
@@ -575,7 +582,7 @@ struct
 	in
 	  abstractKPi (K', I.Pi ((I.Dec(SOME(name), V''), I.Maybe), V))
 	end
-      | abstractKPi (I.Decl (K', LV (I.LVar (r, (l, t), _))), V) =
+      | abstractKPi (I.Decl (K', LV (I.LVar (r, _, (l, t)))), V) =
 	let
 	  val t' = abstractSOME (K', t)	  
 	in
@@ -623,7 +630,7 @@ struct
 	in
 	  I.Decl (abstractKCtx K', I.Dec (SOME(name), V''))
 	end
-      | abstractKCtx (I.Decl (K', LV (I.LVar (r, (l, t), _)))) =
+      | abstractKCtx (I.Decl (K', LV (I.LVar (r, _, (l, t))))) =
 	let
 	  val t' = abstractSOME (K', t)	  
 	in
@@ -774,7 +781,7 @@ struct
       | collectTomegaSub (T.Dot (T.Exp U, t)) =
           collectExp (I.Null, (U, I.id), collectTomegaSub t)
       | collectTomegaSub (T.Dot (T.Block B, t)) =
-          collectBlock (B, collectTomegaSub t)
+          collectBlock (I.Null, B, collectTomegaSub t)
       | collectTomegaSub (T.Dot (T.Prg P, t)) = 
 	  collectPrg (P, collectTomegaSub t)
 
@@ -811,7 +818,7 @@ struct
 	in
 	  I.Decl (abstractPsi K', T.UDec (I.Dec (SOME(name), V'')))
 	end
-      | abstractPsi (I.Decl (K', LV (I.LVar (r, (l, t), _)))) =
+      | abstractPsi (I.Decl (K', LV (I.LVar (r, _, (l, t))))) =
 	let
 	  val t' = abstractSOME (K', t)	  
 	in
