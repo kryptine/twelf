@@ -30,8 +30,8 @@ in
       val _ = print "*"
       val F = Converter.convertFor a
       val _ = print "*"
-(*      val _ = TomegaTypeCheck.check (P, F)  *)
-       val _ = print "]"
+      val _ = TomegaTypeCheck.check (P, F)
+      val _ = print "]"
 (*      val _ = TextIO.print (TomegaPrint.forToString (I.Null, F) ^ "\n") *)
 (*      val _ = (FunTypeCheck.check (P, F); Twelf.OK)   *)
 (*      val LD = F.LemmaDec (names, P, F) *)

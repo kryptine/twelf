@@ -133,9 +133,17 @@ struct
        If   Psi  |- t1 : Psi1 
        and  Psi1 |- P : F'
        and  Psi  |- F for     (F in normal form)
+       and  P does not contain any P closures
        then checkProg returns () iff F'[t1] == F[id]
     *)
-    and checkProg (Psi, (T.Root (H, S), (F, t))) =
+    and checkProg (Psi, (P, Ft)) = checkProgW (Psi, (P, Normalize.whnfFor Ft))
+    and checkProgW (_, (T.Unit, (T.True, _))) =
+        let 
+	  val _ = chatter 4 (fn () => "[true]")
+	in
+          ()
+	end
+      | checkProgW (Psi, (T.Root (H, S), (F, t))) =
 	let
 	  val F' = inferCon (Psi, H)
 	  val Ft'' = inferSpine (Psi, S, (F', T.id))
@@ -143,83 +151,69 @@ struct
 	in 
 	  ()
 	end
-(*
-      | checkProg (Psi, ((T.Lam (D as T.PDec (x, F1), P), t1), (T.All (T.PDec (x', F1'), F2), t2))) = 
+
+      | checkProgW (Psi, (T.Lam (D as T.PDec (x, F1), P), (T.All (T.PDec (x', F1'), F2), t))) = 
 	let 
 	  val _ = chatter 4 (fn () => "[lam[p]")
-	    val _ = isFor (Psi, T.FClo(F1, t1))
-	    val _ = isFor (Psi, F1')
-	    val _ = convFor (Psi, Normalize.normalizeFor (F1, t1), Normalize.normalizeFor (F1', t2)) 
+	    val _ = convFor (Psi, (F1, T.id), (F1', t))
 	  val _ = chatter 4 (fn () => "]")
 	in 
-	    checkProg (I.Decl (Psi, T.decSub(D, t1)), ((P, T.dot1 t1), (F2, T.dot1 t2)))
+	    checkProg (I.Decl (Psi, D), (P, (F2, T.dot1 t)))
 	end
-
-      | checkProg (Psi, ((T.Lam (T.UDec D, P), t1), (T.All (T.UDec D', F), t2))) =
+      | checkProgW (Psi, (T.Lam (T.UDec D, P), (T.All (T.UDec D', F), t2))) =
 	let 
 	  val _ = chatter 4 (fn () => "[lam[u]")
-	  val _ = Conv.convDec ((D, T.coerceSub t1), (D', T.coerceSub t2))
+	  val _ = Conv.convDec ((D, I.id), (D', T.coerceSub t2))
 	  val _ = chatter 4 (fn () => "]")
 	in  
-	    checkProg(I.Decl(Psi , T.UDec D'), ((P, T.dot1 t1), (F, T.dot1 t2)))
+	    checkProg (I.Decl (Psi , T.UDec D), (P, (F, T.dot1 t2)))
 	end
-(*		   
-      | checkProg(G, ((T.Lam (T.UDec (I.BDec(name, (l, s'))), P), s), (T.All(T.UDec (I.BDec(_, (l2, s2'))), F2), s2))) =
-	let
-	    val _ = if (l <> l2) then raise Error("Type mismatch") else ()         
-	    val (G', _) = I.conDecBlock (I.sgnLookup l)
-	    val _ = convSub (G, T.comp(T.embedSub s', s), T.comp(T.embedSub s2', s2), T.revCoerceCtx(G')) 
-	in 
-	    checkProg(I.Decl(G, T.UDec (I.BDec(name, (l, I.comp(s', T.coerceSub s))))), ((P, T.dot1 s), (F2, T.dot1 s2)))
-	end
-      | checkProg(G, ((T.Lam(T.UDec(D as I.Dec(x, A)), P), s), (T.All(T.UDec(I.Dec(x2, A2)), F2), s2))) =
+      | checkProgW (Psi, (T.PairExp (M, P), (T.Ex(I.Dec(x, A), F2), t))) =
 	let 
-	  val _ = chatter 4 (fn () => "[lam[u]")
-	    val _ = TypeCheck.checkDec(T.coerceCtx(G), (D, T.coerceSub(s)))
-	    val _ = Conv.conv((A, T.coerceSub(s)), (A2, T.coerceSub(s2)))
+	  val _ = chatter 4 (fn () => "[pair [e]]")
+	  val G = T.coerceCtx Psi
+	  val _ = TypeCheck.typeCheck(G, (M, I.EClo (A, T.coerceSub(t))))
 	  val _ = chatter 4 (fn () => "]")
-	in  
-	    checkProg(I.Decl(G, T.UDec(I.decSub(D, T.coerceSub(s)))), ((P, T.dot1 s), (F2, T.dot1 s2)))
-	end *)
-      | checkProg (G, ((T.PairExp (M, P), s), (T.Ex(I.Dec(x, A), F2), s2))) =
-	let 
-	    val _ = TypeCheck.typeCheck(T.coerceCtx(G), (I.EClo(M, T.coerceSub(s)), I.EClo(A, T.coerceSub(s2))))
 	in 
-	    checkProg(G, ((P, s), (F2, T.Dot(T.Exp(I.EClo(M, T.coerceSub(s))), s2))))
+	    checkProg(Psi, (P, (F2, T.Dot (T.Exp M, t))))
 	end
-      | checkProg(G, ((T.PairBlock(I.Bidx v, P), s), (T.Ex(I.BDec(_, (l2, s2')), F2), s2))) =
+      | checkProgW (Psi, (T.PairBlock (I.Bidx k, P), (T.Ex (I.BDec (_, (cid, s)), F2), t))) =
 	let
-	    val T.UDec (I.BDec(_, (l, s'))) = T.ctxDec(G, v)
-	    val (G', _) = I.conDecBlock (I.sgnLookup l)
-	    val _ = if (l<>l2) then raise Error("Type mismatch") else ()
-	    val _ = convSub (G, T.comp(T.embedSub s', s), T.comp(T.embedSub(s2'), s2), T.revCoerceCtx(G'))  
+	  val T.UDec (I.BDec(_, (cid', s'))) = T.ctxDec (Psi, k)
+	  val (G', _) = I.conDecBlock (I.sgnLookup cid)
+	  val _ = if (cid' <> cid) then raise Error ("Block label mismatch") else ()
+	  val _ = convSub (Psi, T.embedSub s', T.comp(T.embedSub(s), t), T.revCoerceCtx(G'))  
 	in 
-	    checkProg(G, ((P, s), (F2, T.Dot(T.Block(I.blockSub(I.Bidx v, T.coerceSub(s))), s2)))) (* -- Yu Liao: Why Block Closure isn't used any more? *)
+	  checkProg(Psi, (P, (F2, T.Dot(T.Block(I.Bidx k), t))))
 	end
-      | checkProg(G, ((T.PairPrg (P1, P2), s), (T.And( F1, F2), s'))) =
-	( checkProg(G, ((P1, s), (F1, s'))); checkProg(G, ((P2, s), (F2, s'))) )
-      | checkProg (_, ((T.Unit, _), (T.True, _))) = ()
-(*      | checkProg (G, ((T.Redex (P, T.Nil), s), Fs)) = checkProg (G, ((P, s), Fs)) *)
-(*      | checkProg (G, ((T.Redex (P, T.AppExp(M, S)), s), (F2, s2))) =  -- Yu Liao *)
-      | checkProg (Psi, ((T.Case Omega, t1), (F2, t2))) = 
-	  checkCases (Psi, ((Omega, t1), (F2, t2)))
-      | checkProg (G, ((T.Rec (FDec as T.PDec (x, F), P), s), (F2, s2))) =
+      | checkProgW (Psi, (T.PairPrg (P1, P2), (T.And( F1, F2), t))) =
+	let
+	  val _ = checkProg (Psi, (P1, (F1, t)))
+	  val _ = checkProg (Psi, (P2, (F2, t)))
+	in
+	  ()
+	end
+      | checkProgW (Psi, (T.Case Omega, Ft)) = 
+	  checkCases (Psi, (Omega, Ft))
+      | checkProgW (Psi, (T.Rec (D as T.PDec (x, F), P), (F', t))) =
 	let 
 	  val _ = chatter 4 (fn () => "[rec")
-	  val _ = convFor(G, Normalize.normalizeFor (F, s), Normalize.normalizeFor (F2, s2))
+	  val _ = convFor(Psi, (F, T.id), (F', t))
 	  val _ = chatter 4 (fn () => "]\n")
 	in 
-	    checkProg(I.Decl(G, FDec), ((P, T.dot1(s)), (F2, s2)))
+	    checkProg (I.Decl(Psi, D), (P, (F', t)))
 	end
-(*      | checkProg (G, ((T.PClo(P1,s1), s11), (F2, s2))) = checkProg (G, ((P1, T.comp(s1, s11)), (F2, s2))) *)
-      | checkProg (G, ((T.Let(F1Dec as T.PDec(_, F1), P1, P2), s1), (F2, s2))) = 
+      | checkProgW (Psi, (T.Let (D as T.PDec(_, F1), P1, P2), (F2, t))) = 
 	let 
-	    val _ = checkProg (G, ((P1, s1), (F1, s1)))
+	  val _ = checkProg (Psi, (P1, (F1, T.id)))
 	in
-	    checkProg(I.Decl(G, F1Dec), ((P2, T.dot1(s1)), (F2, s2)))
+	  checkProg (I.Decl (Psi, D), (P2, (F2, t)))
 	end
+(*      | checkProg (G, ((T.Redex (P, T.Nil), s), Fs)) = checkProg (G, ((P, s), Fs)) *)
+(*      | checkProg (G, ((T.Redex (P, T.AppExp(M, S)), s), (F2, s2))) =  -- Yu Liao *)
+(*      | checkProg (G, ((T.PClo(P1,s1), s11), (F2, s2))) = checkProg (G, ((P1, T.comp(s1, s11)), (F2, s2))) *)
 
-*)
+
 
     (* checkCases (Psi, (Omega, (F, t2))) = ()
        Invariant:

@@ -382,9 +382,7 @@ struct
 
     fun strengthen (Psi, (a, S), w, m) =
       let 
-	val mS = case M.modeLookup a
-	           of NONE => raise Error "Mode declaration expected"
-		    | SOME mS => mS
+	val mS = modeSpine a
 
 	fun args (I.Nil, M.Mnil) = nil
 	  | args (I.App (U, S'), M.Mapp (M.Marg (m', _), mS)) =
@@ -573,12 +571,8 @@ struct
     *)
     fun transformInit (Psi, L, (a, S), w1) = 
       let
-	val mS = case M.modeLookup a
-	           of NONE => raise Error "Mode declaration expected"
-		    | SOME mS => mS
-	val V = case I.sgnLookup a 
-	           of I.ConDec (name, _, _, _, V, I.Kind) => V
-	            | _ => raise Error "Type Constant declaration expected"
+	val mS = modeSpine a
+	val V = typeOf a
 
 	(* transformInit' ((S, mS), V, (w, s)) = (w', s')
  
@@ -697,16 +691,17 @@ struct
     *)
     fun traverse (Psi0, L, Sig, wmap) =
       let 
-	(* traverseNeg (Psi0, V, L) = ([w', d', PQ'], L')    [] means optional
+	fun append (G, I.Null) = G
+	  | append (G, I.Decl (G', D)) = I.Decl (append (G, G'), D)
+
+	(* traverseNeg (Psi0, Psi, V) = ([w', PQ'], L')    [] means optional
 	   
 	   Invariant:
-	   If   Psi0 |- V : type
-	   and  V[v^-1] does not contain Skolem constants
-	   and  c'' is the name of the object constant currently considered
-	   and  L is a list of cases
-	   then L' list of cases and L' extends L
-	   and  Psi |- w' : Psi'   (Psi' is the context of all variables considered so far)
-	   and  d' is the length of Delta
+	   If   |- Psi0 ctx      (context that contains induction hypotheses)
+	   and  Psi0 |- Psi ctx  (context of all assumptions)
+	   and  Psi0, Psi |- V : type
+	   then L' list of cases 
+	   and  Psi0, Psi |- w' : Psi0, Psi'  
 	   and  PQ'  is a pair, generating the proof term
 	*)
 	fun traverseNeg ((Psi0, Psi), I.Pi ((D as I.Dec (_, V1), I.Maybe), V2)) =
@@ -715,9 +710,12 @@ struct
 	  | traverseNeg ((Psi0, Psi), I.Pi ((D as I.Dec (_, V1), I.No), V2)) =
 	    (case traverseNeg ((Psi0, Psi), V2) 
 	       of (SOME (w', PQ')) => traversePos ((Psi0, Psi, I.Null), V1, SOME (peel w', PQ')))
-	  | traverseNeg ((Psi0, Psi), I.Root (I.Const a, S)) = 
+	  | traverseNeg ((Psi0, Psi), I.Root (I.Const a, S)) =  
+					(* Sigma (a) = Va *)
+					(* Psi0, Psi |- S : Va > type *)
 	    let 
-	      val (Psi', w') = strengthen (Psi, (a, S), I.Shift (I.ctxLength Psi), M.Plus)
+	      val Psi1 = append (Psi0, Psi)
+	      val (Psi', w') = strengthen (Psi1, (a, S), I.Shift (I.ctxLength Psi), M.Plus)
 	      val (w'', s'') = transformInit (Psi', L, (a, S), w')
 	    in
 	      (SOME (w', (fn P => (Psi', s'', P), fn wf => transformConc ((a, S), wf))))
@@ -736,8 +734,6 @@ struct
 					(* Psi0, G, B |- V : type *)
 					(* Psi0, G, B |- w1 : Psi0, G', B *)
 	    let
-	      fun append (G, I.Null) = G
-		| append (G, I.Decl (G', D)) = I.Decl (append (G, G'), D)
 
 	      val G'' = append (G, B)	(* G'' = G, B *)
 	      val Psi1 = append (Psi0, G'')
