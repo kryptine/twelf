@@ -15,6 +15,7 @@ structure CPrint =
 
 structure Compile =
   Compile (structure IntSyn' = IntSyn
+	   structure Tomega' = Tomega
 	   structure CompSyn' = CompSyn
 	   structure Whnf = Whnf
 	   structure TypeCheck = TypeCheck

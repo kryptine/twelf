@@ -73,8 +73,12 @@ sig
   exception NoMatch
   val coerceSub : Sub -> IntSyn.Sub
   val coerceCtx : Dec IntSyn.Ctx -> IntSyn.Dec IntSyn.Ctx
+  val strengthenCtx : Dec IntSyn.Ctx -> (IntSyn.Dec IntSyn.Ctx * Sub * Sub)
   val embedCtx  : IntSyn.Dec IntSyn.Ctx -> Dec IntSyn.Ctx
+  val weakenSub : Dec IntSyn.Ctx -> Sub
+  val invertSub : Sub -> Sub
   val id        : Sub
+  val shift     : Sub
   val dot1      : Sub -> Sub
   val comp      : Sub * Sub -> Sub
   val varSub    : int * Sub -> Front

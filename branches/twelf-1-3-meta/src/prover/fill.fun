@@ -79,10 +79,12 @@ struct
     *)
     fun expand (S as S.State ((Psi, F), W)) = 
 	let 
-(*	  val _ = if (!Global.doubleCheck) then TypeCheck.typeCheckCtx (G) else () *)
 	  val G = T.coerceCtx Psi
 	  val (Xs, P, F') = createEVars (G, (F, T.id))
-	in
+(*	  val _ = if (!Global.doubleCheck) then TypeCheck.typeCheckCtx (G) else () *)
+(*	  val (G, w, s) = T.strengthenCtx Psi
+	  val (Xs, P, F') = createEVars (G, (F, s))
+*)	in
 	  ((Psi, F'), W, fn () => ((Search.searchEx (!MTPGlobal.maxFill, Xs, fn max => (if (!Global.doubleCheck) then 
 						       map (fn (X as I.EVar (_, G', V, _)) => 
 							    TypeCheck.typeCheck (G', (X, V))) Xs

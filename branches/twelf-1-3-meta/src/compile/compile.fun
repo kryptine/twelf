@@ -4,10 +4,10 @@
              Roberto Virga, Brigitte Pientka *)
 
 functor Compile (structure IntSyn' : INTSYN
+		 structure Tomega' : TOMEGA
+		   sharing Tomega'.IntSyn = IntSyn'
 		 structure CompSyn' : COMPSYN
 		   sharing CompSyn'.IntSyn = IntSyn'
-		 structure Tomega : TOMEGA
-		   sharing Tomega.IntSyn = IntSyn'
 		 structure Whnf : WHNF
 		   sharing Whnf.IntSyn = IntSyn'
  		 structure TypeCheck : TYPECHECK
@@ -29,6 +29,7 @@ struct
 
   structure IntSyn = IntSyn'
   structure CompSyn = CompSyn'
+  structure Tomega = Tomega'
 
   (* FIX: need to associate errors with occurrences -kw *)
   exception Error of string
@@ -427,7 +428,6 @@ struct
 	C.DProg (G, compileCtx' G)
       end
 
-
   (* compile G = (G, dPool)
 
      Invariants:
@@ -445,7 +445,22 @@ struct
 	      (compileClause opt (T.coerceCtx Psi, Vt), I.id, I.targetHead Vt)
 	      :: compileBlock (Vs, I.Dot (I.Exp (I.Root (I.Proj (I.Bidx n, i), I.Nil)), t), (n, i+1))
 	    end
-	fun compilePsi' (I.Null) = I.Null
+	fun compileCtx' (I.Null) = I.Null
+	  | compileCtx' (I.Decl (G, I.Dec (_, A))) =
+	    let 
+	      val Ha = I.targetHead A
+	    in
+	      I.Decl (compileCtx' G, CompSyn.Dec (compileClause opt (G, A), I.id, Ha))
+	    end
+	  | compileCtx' (I.Decl (G, I.BDec (_, (c, s)))) =
+	    let
+	      val (G, L)= I.constBlock c
+	      val dpool = compileCtx' G
+	      val n = I.ctxLength dpool   (* this is inefficient! -cs *)
+	    in
+	      I.Decl (dpool, CompSyn.BDec (compileBlock (L, s, (n, 1))))
+	    end
+    	fun compilePsi' (I.Null) = I.Null
 	  | compilePsi' (I.Decl (Psi, T.UDec (I.Dec (_, A)))) =
 	    let 
 	      val Ha = I.targetHead A
@@ -455,7 +470,7 @@ struct
 	  | compilePsi' (I.Decl (Psi, T.UDec (I.BDec (_, (c, s))))) =
 	    let
 	      val (G, L)= I.constBlock c
-	      val dpool = compileCtx opt G
+	      val dpool = compileCtx' G
 	      val n = I.ctxLength dpool   (* this is inefficient! -cs *)
 	    in
 	      I.Decl (dpool, CompSyn.BDec (compileBlock (L, s, (n, 1))))
@@ -493,9 +508,8 @@ struct
       in
 	C.DProg (G, compileCtx'' (G, B))
       end
+
 *)
-
-
   (* compileConDec (a, condec) = ()
      Effect: install compiled form of condec in program table.
              No effect if condec has no operational meaning
