@@ -139,6 +139,9 @@ car_notl : ca A D ([h:hyp A] notl (E1 h) H) (notl E1' H)
 car_truer: ca A D ([h:hyp A] truer) (truer).
 
 car_falsel : ca A D ([h:hyp A] falsel H) (falsel H).
+% Next clause is redundant, but needed for coverage checker
+car_falsel': ca false D ([h:hyp false] falsel h) D.
+
 
 % Next clause is redundant, but needed to get the coverage checker
 % to split H in the goal ?- ca A D ([h:hyp A] falsel (H h)) _.

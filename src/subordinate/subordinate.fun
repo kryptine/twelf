@@ -229,8 +229,8 @@ struct
     fun installKind (I.Uni(L), a) =
         ( set (a, (nil, nil)) ; () )
       | installKind (I.Pi ((I.Dec (_, V1), P), V2), a) =
-        ( transClosure (I.targetFam V1, a) ;
-	  installKind (V2, a) )
+        ( installKind (V2, a);
+	  transClosure (I.targetFam V1, a)  )
 
     (* Passing around substitutions and calling whnf below is
        redundant, since the terms starts in normal form and
