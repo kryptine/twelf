@@ -10,7 +10,6 @@ structure ModeDec =
 
 structure ModeCheck =
   ModeCheck (structure ModeSyn' = ModeSyn
-             structure Whnf = Whnf
 	     structure Paths' = Paths);
 
 structure ModePrint =

@@ -51,11 +51,9 @@ struct
 
     (* parseConDec --- currently not exported *)
     fun parseConDec (s) = parseConDec' (LS.expose s)
-    fun parseAbbrev' (LS.Cons ((L.ABBREV, r), s)) = parseConDec (s) 
- 
+      
   in
     val parseConDec' = parseConDec'
-    val parseAbbrev' = parseAbbrev'
   end  (* local ... in *)
 
 end;  (* functor ParseConDec *)

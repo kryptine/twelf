@@ -1,6 +1,5 @@
 (* Manipulating Constraints *)
 (* Author: Jeff Polakow, Frank Pfenning *)
-(* Modified: Roberto Virga *)
 
 functor Constraints
     (structure IntSyn' : INTSYN
@@ -11,7 +10,7 @@ struct
 
   structure IntSyn = IntSyn'
 
-  exception Error of IntSyn.cnstr list
+  exception Error of IntSyn.Eqn list
 
   (*
      Constraints cnstr are of the form (X<I>[s] = U).
@@ -30,22 +29,16 @@ struct
   local
     structure I = IntSyn
   
-    (* simplify cnstrs = cnstrs'
-       Effects: simplifies the constraints in cnstrs by removing constraints
+    (* simplify Eqns = Eqns'
+       Effects: simplifies the constraints in Eqns by removing constraints
          of the form U = U' where G |- U == U' : V (mod beta/eta)
          Neither U nor U' needs to be a pattern
 	 *)
     fun simplify nil = nil
-      | simplify ((ref I.Solved) :: cnstrs) =
-          simplify cnstrs
-      | simplify ((Eqn as ref (I.Eqn (G, U1, U2))) :: cnstrs) =
+      | simplify ((Eqn as I.Eqn (G, U1, U2)) :: Cnstr) =
         if Conv.conv ((U1, I.id), (U2, I.id))
-	  then simplify cnstrs
-        else Eqn :: (simplify cnstrs)
-      | simplify ((FgnCnstr as ref (I.FgnCnstr (cs, ops))) :: cnstrs) =
-        if #simplify(ops) ()
-          then simplify cnstrs
-        else FgnCnstr :: (simplify cnstrs)
+	  then simplify Cnstr
+        else Eqn :: simplify Cnstr
 
     fun namesToString (name::nil) = name ^ "."
       | namesToString (name::names) = name ^ ", " ^ namesToString names

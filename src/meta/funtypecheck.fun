@@ -449,22 +449,6 @@ struct
       | isForBlock (G, D :: G1, F) = isForBlock (I.Decl (G, D), G1, F)
 
 
-
-
-
-    fun checkTags' (V, F.Ex _) = ()
-      | checkTags' (I.Pi (_, V), F.All (_, F)) =
-          checkTags' (V, F)
-      | checkTags' _ = raise Domain
-
-    fun checkTags (I.Null, I.Null) = ()
-      | checkTags (I.Decl (G, I.Dec (_, V)), I.Decl (B, T)) = 
-        (checkTags (G, B);
-	 case T
-	   of S.Lemma (_) =>  ()
-  	    | _ => ())
-
-
     (* isState (S) = ()
 
        Invariant:
@@ -476,7 +460,6 @@ struct
     *)
     fun isState (S.State (n, (G, B), (IH, OH), d, O, H, F)) = 
         (TypeCheck.typeCheckCtx G;
-	 checkTags (G, B);
 	 if (not (Abstract.closedCtx G)) then raise Error "State context not closed!" else ();
 	 map (fn (n', F') => (isFor (G, F') 
 (* ;	      TextIO.print ("Checked: " ^ (FunPrint.Formatter.makestring_fmt (FunPrint.formatForBare (G, F'))) ^ "\n") *) )) H;    

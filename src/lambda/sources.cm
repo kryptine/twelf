@@ -1,8 +1,10 @@
 Group is
   ../global/sources.cm
-  ../trail/sources.cm
   intsyn.sig
   intsyn.fun
+  trail.sig
+  trail.fun
+  notrail.fun
   whnf.sig
   whnf.fun
   conv.sig

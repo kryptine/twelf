@@ -29,7 +29,7 @@ struct
 
   datatype Tag = 
     Parameter of FunSyn.label option
-  | Lemma of Info
+  | Lemma of Info * FunSyn.For
   | None
 
   datatype State =			(* S = <n, (G, B), (IH, OH), d, O, H, F> *)
@@ -101,7 +101,7 @@ struct
       | decreaseInfo RLdone = RLdone
      
     fun (* decrease (Assumption k) = Assumption (k-1)
-      | *) decrease (Lemma (Sp)) = Lemma (decreaseInfo Sp)
+      | *) decrease (Lemma (Sp, F)) = Lemma (decreaseInfo Sp, F)
       | decrease None = None
 
 
@@ -116,7 +116,7 @@ struct
     *)
 
     fun normalizeTag (T as Parameter _, _) = T
-      | normalizeTag (Lemma (K), s) = Lemma (K)
+      | normalizeTag (Lemma (K, F), s) = Lemma (K, F.normalizeFor (F, s))
 
   in
     val orderSub = orderSub

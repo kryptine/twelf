@@ -10,8 +10,6 @@ functor MTPAbstract (structure IntSyn' : INTSYN
 		       sharing Whnf.IntSyn = IntSyn'
 		     structure Constraints : CONSTRAINTS
 		       sharing Constraints.IntSyn = IntSyn'
-                     structure Unify : UNIFY
-                       sharing Unify.IntSyn = IntSyn'
 		     structure Subordinate : SUBORDINATE
 		       sharing Subordinate.IntSyn = IntSyn'
 		     structure TypeCheck : TYPECHECK
@@ -20,7 +18,9 @@ functor MTPAbstract (structure IntSyn' : INTSYN
 		       sharing FunTypeCheck.FunSyn = FunSyn'
 		       sharing FunTypeCheck.StateSyn = StateSyn'
 		     structure Abstract : ABSTRACT
-		       sharing Abstract.IntSyn = IntSyn')
+		       sharing Abstract.IntSyn = IntSyn'
+		     structure Trail : TRAIL
+		       sharing Trail.IntSyn = IntSyn')
   : MTPABSTRACT =
 struct
 
@@ -51,7 +51,6 @@ struct
     | BV of I.Dec * S.Tag
 
 
-
     (*
        We write {{K}} for the context of K, where EVars and BVars have
        been translated to declarations and their occurrences to BVars.
@@ -74,8 +73,8 @@ struct
        to the empty constraint
     *)
     fun checkEmpty (nil) = ()
-      | checkEmpty (cnstrL) =
-        (case C.simplify cnstrL
+      | checkEmpty (Cnstr) =
+        (case C.simplify Cnstr
 	   of nil => ()
 	    | _ => raise Error "Typing ambiguous -- unresolved constraints")
 
@@ -167,18 +166,8 @@ struct
     fun raiseType (I.Null, V) = V
       | raiseType (I.Decl (G, D), V) = raiseType (G, I.Pi ((D, I.Maybe), V))
 
-    fun restore (0, Gp) = (Gp, I.Null)
-      | restore (n, I.Decl (G, D)) = 
-        let 
-	  val (Gp', GX') = restore (n - 1, G)
-	in
-	  (Gp', I.Decl (GX', D))
-	end
-
-    fun concat (Gp, I.Null) = Gp
-      | concat (Gp, I.Decl (G, D)) = 
-         I.Decl (concat (Gp, G), D)
-
+    fun restore (0, _) = I.Null
+      | restore (n, I.Decl (G, D)) = I.Decl (restore (n - 1, G), D)
 
     (* collectExpW (T, d, G, (U, s), K) = K'
 
@@ -197,24 +186,21 @@ struct
 	  collectSpine (S.decrease T, d, G, (S, s), K)
       | collectExpW (T, d, G, (I.Lam (D, U), s), K) =
 	  collectExp (T, d, I.Decl (G, I.decSub (D, s)), (U, I.dot1 s), collectDec (T, d, G, (D, s), K))
-      | collectExpW (T, d, G, (X as I.EVar (r, GdX, V, cnstrs), s), K) =
+      | collectExpW (T, d, G, (X as I.EVar (r, GdX, V, Cnstr), s), K) =
 	  if exists (eqEVar X) K
 	    then collectSub (T, d, G, s, K)
 	  else let
-	         val (Gp, GX) = restore (I.ctxLength GdX - d, GdX)   (* optimization possible for d = 0 *)
-	         val _ = checkEmpty (!cnstrs)
+	         val GX = restore (I.ctxLength GdX - d, GdX)   (* optimization possible for d = 0 *)
+	         val _ = checkEmpty Cnstr
 		 val w = weaken (GX, I.targetFam V)
 		 val iw = Whnf.invert w
 		 val GX' = Whnf.strengthen (iw, GX)
-		 val X' as I.EVar (r', _, _, _) = I.newEVar (concat (Gp, GX'), I.EClo (V, iw))
-		 val _ = Unify.instantiateEVar (r, I.EClo (X', w), nil)
 		 val V' = raiseType (GX', I.EClo (V, iw))
+		 val X' as I.EVar (r', _, _, _) = I.newEVar (GX', I.EClo (V, iw))
+		 val _ = Trail.instantiateEVar (r, I.EClo (X', w))
 	       in
-		 collectSub (T, d, G, I.comp (w, s), I.Decl (collectExp (T, d, Gp, (V', I.id), K), EV (r', V', T, d)))
+		 collectSub (T, d, G, s, I.Decl (collectExp (T, d, I.Null, (V', I.id), K), EV (r', V', T, d)))
 	       end
-      | collectExpW (T, d, G, (I.FgnExp (cs, ops), s), K) =
-          collectExp (T, d, G, (#toInternal(ops)(), s), K)
-          (* hack - should consult cs    -rv *)
       (* No other cases can occur due to whnf invariant *)
 
     (* collectExp (T, d, G, (U, s), K) = K' 
@@ -330,15 +316,12 @@ struct
       | abstractExpW (K, depth, (I.Lam (D, U), s)) =
           I.Lam (abstractDec (K, depth, (D, s)),
 		 abstractExp (K, depth + 1, (U, I.dot1 s)))
-      | abstractExpW (K, depth, (X as I.EVar (_, G, _, _), s)) =
+      | abstractExpW (K, depth, (X as I.EVar _, s)) =
 	  let 
 	    val (H, d) = abstractEVar (K, depth, X)
 	  in
-	    I.Root (H, abstractSub (I.ctxLength G - d,  K, depth, s, I.Nil))
+	    I.Root (H, abstractSub (K, depth, s, I.Nil))
 	  end
-      | abstractExpW (K, depth, (I.FgnExp (cs, ops), s)) =
-          #map(ops)(fn U => abstractExp (K, depth, (U, s)))
-          (* hack - should consult cs   -rv *)
 
     (* abstractExp (K, depth, (U, s)) = U'
      
@@ -356,25 +339,14 @@ struct
        then {{K}}, G |- S' : {G1}.W > W   (for some W)
        and  . ||- S'
     *)
-    and abstractSub (n, K, depth, I.Shift (k), S) = 
-	if n > 0 
-	  then abstractSub (n, K, depth, I.Dot (I.Idx (k+1), I.Shift (k+1)), S)
-	else (* n = 0 *) S
-      | abstractSub (n, K, depth, I.Dot (I.Idx (k), s), S) =
-	let 
-	  val H = if k > depth then 
-	            let 
-		      val k' = lookupBV (K, k-depth)
-		    in
-		      I.BVar (k'+depth)
-		    end
-		  else 
-		    I.BVar (k)
-	in
-	  abstractSub (n-1, K, depth, s, I.App (I.Root (H, I.Nil), S))
-	end
-      | abstractSub (n, K, depth, I.Dot (I.Exp (U), s), S) =
-	  abstractSub (n-1, K, depth, s, I.App (abstractExp (K, depth, (U, I.id)), S))
+    and abstractSub (K, depth, I.Shift (k), S) = 
+	if k < depth
+	  then abstractSub (K, depth, I.Dot (I.Idx (k+1), I.Shift (k+1)), S)
+	else (* k = depth *) S
+      | abstractSub (K, depth, I.Dot (I.Idx (k), s), S) =
+	  abstractSub (K, depth, s, I.App (I.Root (I.BVar (k), I.Nil), S))
+      | abstractSub (K, depth, I.Dot (I.Exp (U), s), S) =
+	  abstractSub (K, depth, s, I.App (abstractExp (K, depth, (U, I.id)), S))
  
     (* abstractSpine (K, depth, (S, s)) = S'
        where S' = {{S[s]}}_K
@@ -430,6 +402,22 @@ struct
 
 
 
+    fun checkTags (I.Null, I.Null) = ()
+      | checkTags (I.Decl (G, _), I.Decl (B, T)) = 
+        (checkTags (G, B);
+	 case T
+	   of S.Lemma (_, F) =>  FunTypeCheck.isFor (G, F)
+  	    | _ => ())
+
+
+    fun deriveTag (V, F.Ex (_, F.True)) = F.Ex (I.Dec (NONE, V), F.True)
+        (* F.True too restrictive ?? see arith example  -- cs *)
+      | deriveTag (I.Pi ((D, DP), V), F.Ex (_, F)) = 
+          F.Ex (D, deriveTag (V, F))
+      | deriveTag (I.Pi ((D, DP), V), F.All (F.Prim _, F)) = 
+	  F.All (F.Prim D, deriveTag (V, F))
+
+
     (* abstractCtx (K, V) = V'
        where V' = {{K}} V
 
@@ -440,18 +428,31 @@ struct
        then V' = {{K}} V
        and  . |- V' : L
        and  . ||- V'
+
+       BUG: non-local BVars must be correctly abstracted!!!! -cs 
     *)
     fun abstractCtx (I.Null) = (I.Null, I.Null)
-      | abstractCtx (I.Decl (K', EV (_, V', T as S.Lemma (b), _))) =
+      | abstractCtx (I.Decl (K', EV (_, V', T as S.Lemma (b, F), _))) =
         let
 	  val V'' = abstractExp (K', 0, (V', I.id))
 	  val _ = checkType V''
 	  val (G', B') = abstractCtx K'
 	  val D' = I.Dec (NONE, V'')
+	  val T' = S.Lemma (b, deriveTag (V'', F))
 	in
-	  (I.Decl (G', D'), I.Decl (B', T))
+	  (I.Decl (G', D'), I.Decl (B', T'))
 	end
-      | abstractCtx (I.Decl (K', EV (_, V', T as S.None, _))) =
+(*      | abstractCtx (I.Decl (K', EV (_, V', T as S.Lemma (b, F.Ex (_, F.True)), _))) =
+        let
+	  val V'' = abstractExp (K', 0, (V', I.id))
+	  val _ = checkType V''
+	  val (G', B') = abstractCtx K'
+	  val D' = I.Dec (NONE, V'')
+	  val T' = S.Lemma (b, F.Ex (D', F.True))
+	in
+	  (I.Decl (G', D'), I.Decl (B', T'))
+	end
+*)      | abstractCtx (I.Decl (K', EV (_, V', T as S.None, _))) =
         let
 	  val V'' = abstractExp (K', 0, (V', I.id))
 	  val _ = checkType V''
@@ -570,13 +571,57 @@ struct
 	  val collect0 = collectGlobalSub (I.Null, t, B1, fn (_, K') => K')
 	  val K0 = collect0 (0, I.Null)
 	  val K1 = skip'' (K0, (G0, B0))
-	  val d = I.ctxLength G0
-	  val K = collect2 (d, K1)
+	  val K = collect2 (I.ctxLength G0, K1)
 	in
 	  (abstractCtx K, abstractGlobalSub (K, s, B))
 	end 
 
 
+(*
+
+
+
+    (* residualLemma (Gx, (F1, s)) = F'
+     
+       Invariant:
+       If    G |- s : Gx    and  . |- Fx = {{Gx}} F1 formula
+       where s can contain free EVars
+       and   Gx |- F1 true
+       then  G |- F' == {{Gx'}} F1[s] formula
+       where Gx' < Gx
+       and   F' doesn't contain any free EVars
+    *)
+
+    fun residualLemma (Gx, (Fx, s)) =
+        let 
+	  (* collect (s, Gx) = (Gx', s')
+
+	     Invariant: 
+	     If   G |- s : Gx   
+	     then . |- Gx' ctx
+	     and  Gx' < Gx  (where s uninstantiated on Gx')
+	     and  G, Gx' |- s' : Gx
+	  *)
+
+	  
+	  fun collect (s as I.Shift k, I.Null) = (I.Null, s)
+	    | collect (s as I.Dot (I.Exp U, s'), I.Decl (G, D)) =
+	      let
+		val (Gx', s'') = collect (s', G)
+	      in 
+		if Abstract.closedExp (G, (Whnf.normalize (U, I.id), I.id)) then
+		  (Gx', I.Dot (I.Exp (Whnf.normalize (U, I.Shift (I.ctxLength Gx'))), s''))
+		else
+		  (I.Decl (Gx', I.decSub (D, s'')), I.dot1 s'')
+	      end
+	    
+	      
+	  val (Gx', s') = collect (s, Gx)
+	  val F' = abstract (Gx', F.forSub (Fx, s'))
+	in
+	  F'
+	end
+ *)
 
 
     (* abstractFor (K, depth, (F, s)) = F'
@@ -638,110 +683,110 @@ struct
 
 
 
-    (* shift G = s'
+  	    (* shift G = s'
 	     
-       Invariant:
-       Forall contexts G0: 
-       If   |- G0, G ctx
-       then G0, V, G |- s' : G0, G
-    *) 
+	       Invariant:
+	       Forall contexts G0: 
+	       If   |- G0, G ctx
+	       then G0, V, G |- s' : G0, G
+	    *) 
 	   
-    fun shift (I.Null) = I.shift
-      | shift (I.Decl (G, _)) = I.dot1 (shift G)
+	    fun shift (I.Null) = I.shift
+	      | shift (I.Decl (G, _)) = I.dot1 (shift G)
 
 
 
-    (* ctxSub (G, s) = G'
+	    (* ctxSub (G, s) = G'
 	     
-       Invariant:
-       If   G2 |- s : G1
-       and  G1 |- G ctx
-       then G2 |- G' = G[s] ctx
-    *)
+	       Invariant:
+	       If   G2 |- s : G1
+	       and  G1 |- G ctx
+	       then G2 |- G' = G[s] ctx
+	    *)
 
-    fun ctxSub (nil, s) = nil
-      | ctxSub (D :: G, s) = I.decSub (D, s) :: ctxSub (G, I.dot1 s)
+	    fun ctxSub (nil, s) = nil
+	      | ctxSub (D :: G, s) = I.decSub (D, s) :: ctxSub (G, I.dot1 s)
 
 
-    (* weaken2 (G, a, i, S) = w'
+	    (* weaken2 (G, a, i, S) = w'
 
-       Invariant:
-       G |- w' : Gw
-       Gw < G
-       G |- S : {Gw} V > V
-    *)
-    fun weaken2 (I.Null, a, i) = (I.id, fn S => S) 
-      | weaken2 (I.Decl (G', D as I.Dec (name, V)), a, i) = 
-        let 
-	  val (w', S') = weaken2 (G', a, i+1)
-	in
-	  if Subordinate.belowEq (I.targetFam V, a) then 
-	    (I.dot1 w', fn S => I.App (I.Root (I.BVar i, I.Nil), S))
-	  else (I.comp (w', I.shift), S')
-	end
-      
+	       Invariant:
+	       G |- w' : Gw
+	       Gw < G
+	       G |- S : {Gw} V > V
+	     *)
+	    fun weaken2 (I.Null, a, i) = (I.id, fn S => S) 
+	      | weaken2 (I.Decl (G', D as I.Dec (name, V)), a, i) = 
+  	        let 
+		  val (w', S') = weaken2 (G', a, i+1)
+		in
+		  if Subordinate.belowEq (I.targetFam V, a) then 
+		    (I.dot1 w', fn S => I.App (I.Root (I.BVar i, I.Nil), S))
+		  else (I.comp (w', I.shift), S')
+		end
 
-    (* raiseType (G, V) = {{G}} V
 
-       Invariant:
-       If G |- V : L
-       then  . |- {{G}} V : L
+	    (* raiseType (G, V) = {{G}} V
 
-       All abstractions are potentially dependent.
-    *)
-    fun raiseType (I.Null, V) = V
-      | raiseType (I.Decl (G, D), V) = raiseType (G, Abstract.piDepend ((Whnf.normalizeDec (D, I.id), I.Maybe), V))
+	     Invariant:
+	     If G |- V : L
+             then  . |- {{G}} V : L
 
-    (* raiseFor (G, F, w, sc) = F'
+	       All abstractions are potentially dependent.
+	       *)
+	    fun raiseType (I.Null, V) = V
+	      | raiseType (I.Decl (G, D), V) = raiseType (G, Abstract.piDepend ((Whnf.normalizeDec (D, I.id), I.Maybe), V))
+
+	    (* raiseFor (G, F, w, sc) = F'
 	   
-       Invariant:
-       If   G0 |- G ctx 
-       and  G0, G, GF |- F for
-       and  G0, {G} GF [...] |- w : G0
-       and  sc maps  (G0, GA |- w : G0, |GA|)  to   (G0, GA, G[..] |- s : G0, G, GF)
-       then G0, {G} GF |- F' for
-    *)
-    fun raiseFor (k, Gorig,  F as F.True, w, sc) = F 
-      | raiseFor (k, Gorig, F.Ex (I.Dec (name, V), F), w, sc) =
-	let
-	  val G = F.listToCtx (ctxSub (F.ctxToList Gorig, w))
-	  val g = I.ctxLength G
-	  val s = sc (w, k)                    
+	       Invariant:
+	       If   G0 |- G ctx 
+	       and  G0, G, GF |- F for
+	       and  G0, {G} GF [...] |- w : G0
+	       and  sc maps  (G0, GA |- w : G0, |GA|)  to   (G0, GA, G[..] |- s : G0, G, GF)
+	       then G0, {G} GF |- F' for
+	    *)
+	    fun raiseFor (k, Gorig,  F as F.True, w, sc) = F 
+	      | raiseFor (k, Gorig, F.Ex (I.Dec (name, V), F), w, sc) =
+		let
+		  val G = F.listToCtx (ctxSub (F.ctxToList Gorig, w))
+		  val g = I.ctxLength G
+		  val s = sc (w, k)                    
 					(* G0, {G}GF[..], G |- s : G0, G, GF *)
-	  val V' = I.EClo (V, s)
+		  val V' = I.EClo (V, s)
 					(* G0, {G}GF[..], G |- V' : type *)
-	  val (nw, S) = weaken2 (G, I.targetFam V, 1)
+		  val (nw, S) = weaken2 (G, I.targetFam V, 1)
 					(* G0, {G}GF[..], G |- nw : G0, {G}GF[..], Gw
-					 Gw < G *)
-	    
-	  val iw = Whnf.invert nw	  
-					(* G0, {G}GF[..], Gw |- iw : G0, {G}GF[..], G *)
-	  val Gw = Whnf.strengthen (iw, G)
+					   Gw < G *)
+
+		  val iw = Whnf.invert nw	  
+  					(* G0, {G}GF[..], Gw |- iw : G0, {G}GF[..], G *)
+  		  val Gw = Whnf.strengthen (iw, G)
 					(* Generalize the invariant for Whnf.strengthen --cs *)
-	  val V'' = Whnf.normalize (V', iw)
+		  val V'' = Whnf.normalize (V', iw)
 					(* G0, {G}GF[..], Gw |- V'' = V'[iw] : type*)
-	  val V''' = Whnf.normalize (raiseType (Gw, V''), I.id)
+		  val V''' = Whnf.normalize (raiseType (Gw, V''), I.id)
 					(* G0, {G}GF[..] |- V''' = {Gw} V'' : type*)
-	  val S''' = S I.Nil
+		  val S''' = S I.Nil
 					(* G0, {G}GF[..], G[..] |- S''' : {Gw} V''[..] > V''[..] *)
 					(* G0, {G}GF[..], G |- s : G0, G, GF *)
 
-	  val sc' = fn (w', k') => 
-	              let
+		  val sc' = fn (w', k') => 
+		              let
 					(* G0, GA |- w' : G0 *)
-			val s' = sc (w', k')
+				val s' = sc (w', k')
 				        (* G0, GA, G[..] |- s' : G0, G, GF *)
-		      in
-			I.Dot (I.Exp (I.Root (I.BVar (g+k'-k), S''')), s')
+			      in
+				I.Dot (I.Exp (I.Root (I.BVar (g+k'-k), S''')), s')
 					(* G0, GA, G[..] |- (g+k'-k). S', s' : G0, G, GF, V *)
-		      end
-	  val F' = raiseFor (k+1, Gorig, F, I.comp (w, I.shift), sc')
-	in
-	  F.Ex (I.Dec (name, V'''), F')
-	end
+			      end
+		  val F' = raiseFor (k+1, Gorig, F, I.comp (w, I.shift), sc')
+		in
+		  F.Ex (I.Dec (name, V'''), F')
+		end
 	
-      | raiseFor (k, Gorig, F.All (F.Prim (I.Dec (name, V)), F), w, sc) =
-	let
+	      | raiseFor (k, Gorig, F.All (F.Prim (I.Dec (name, V)), F), w, sc) =
+		let
 (*		  val G = F.listToCtx (ctxSub (F.ctxToList Gorig, w))
 		  val g = I.ctxLength G
 		  val s = sc (w, k)                    
@@ -763,42 +808,42 @@ struct
 		in
 		  F.All (F.Prim (I.Dec (name, V')), F')
 *)
-	  val G = F.listToCtx (ctxSub (F.ctxToList Gorig, w))
-	  val g = I.ctxLength G
-	  val s = sc (w, k)                    
+		  val G = F.listToCtx (ctxSub (F.ctxToList Gorig, w))
+		  val g = I.ctxLength G
+		  val s = sc (w, k)                    
 					(* G0, {G}GF[..], G |- s : G0, G, GF *)
-	  val V' = I.EClo (V, s)
+		  val V' = I.EClo (V, s)
 					(* G0, {G}GF[..], G |- V' : type *)
-	  val (nw, S) = weaken2 (G, I.targetFam V, 1)
+		  val (nw, S) = weaken2 (G, I.targetFam V, 1)
 					(* G0, {G}GF[..], G |- nw : G0, {G}GF[..], Gw
-					 Gw < G *)
-	    
-	  val iw = Whnf.invert nw	  
+					   Gw < G *)
+
+		  val iw = Whnf.invert nw	  
   					(* G0, {G}GF[..], Gw |- iw : G0, {G}GF[..], G *)
-	  val Gw = Whnf.strengthen (iw, G)
+  		  val Gw = Whnf.strengthen (iw, G)
 					(* Generalize the invariant for Whnf.strengthen --cs *)
-	  val V'' = Whnf.normalize (V', iw)
+		  val V'' = Whnf.normalize (V', iw)
 					(* G0, {G}GF[..], Gw |- V'' = V'[iw] : type*)
-	  val V''' = Whnf.normalize (raiseType (Gw, V''), I.id)
+		  val V''' = Whnf.normalize (raiseType (Gw, V''), I.id)
 					(* G0, {G}GF[..] |- V''' = {Gw} V'' : type*)
-	  val S''' = S I.Nil
+		  val S''' = S I.Nil
 					(* G0, {G}GF[..], G[..] |- S''' : {Gw} V''[..] > V''[..] *)
 					(* G0, {G}GF[..], G |- s : G0, G, GF *)
 
-	  val sc' = fn (w', k') => 
-	              let
+		  val sc' = fn (w', k') => 
+		              let
 					(* G0, GA |- w' : G0 *)
-			val s' = sc (w', k')
+				val s' = sc (w', k')
 				        (* G0, GA, G[..] |- s' : G0, G, GF *)
-		      in
-			I.Dot (I.Exp (I.Root (I.BVar (g+k'-k), S''')), s')
+			      in
+				I.Dot (I.Exp (I.Root (I.BVar (g+k'-k), S''')), s')
 					(* G0, GA, G[..] |- (g+k'-k). S', s' : G0, G, GF, V *)
-		      end
-	  val F' = raiseFor (k+1, Gorig, F, I.comp (w, I.shift), sc')
-        in
-	  F.All(F.Prim (I.Dec (name, V''')), F')
-	end
-    (* the other case of F.All (F.Block _, _) is not yet covered *)
+			      end
+		  val F' = raiseFor (k+1, Gorig, F, I.comp (w, I.shift), sc')
+		in
+		  F.All(F.Prim (I.Dec (name, V''')), F')
+		end
+	        (* the other case of F.All (F.Block _, _) is not yet covered *)
 
 	      
     fun extend (K, nil) = K
@@ -821,7 +866,7 @@ struct
 	  val k' = I.ctxLength K'
 	  val (GK, BK) = abstractCtx K'
 	  val _ = if !Global.doubleCheck then TypeCheck.typeCheckCtx (GK) else ()
-(*	  val _ = if !Global.doubleCheck then checkTags (GK, BK) else () *)
+	  val _ = if !Global.doubleCheck then checkTags (GK, BK) else ()
           val w' = I.comp (w, I.Shift (k'-k))
 	  val FK = abstractFor (K', 0, (F, s))
 	  val _ = if !Global.doubleCheck then FunTypeCheck.isFor (GK, FK) else ()

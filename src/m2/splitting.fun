@@ -16,9 +16,7 @@ functor Splitting (structure Global : GLOBAL
 		   structure Print : PRINT
 		   sharing Print.IntSyn = MetaSyn'.IntSyn
 		   structure Unify : UNIFY
-		   sharing Unify.IntSyn = MetaSyn'.IntSyn
-                   structure CSManager : CS_MANAGER
-                   sharing CSManager.IntSyn = MetaSyn'.IntSyn)
+		   sharing Unify.IntSyn = MetaSyn'.IntSyn) 
   : SPLITTING =
 struct
   structure MetaSyn = MetaSyn'
@@ -65,7 +63,7 @@ struct
 	  val (U, Vs') = M.createAtomConst (G, I.Const c)
 	in
 	  constCases (G, Vs, Sgn, abstract,
-		      CSManager.trail (fn () => 
+		      Trail.trail (fn () => 
 				   (if Unify.unifiable (G, Vs, Vs')
 				      then Active (abstract (I.conDecName (I.sgnLookup c) ^ "/", U))
 					   :: ops
@@ -89,7 +87,7 @@ struct
 	  val (U, Vs') = M.createAtomBVar (G, k)
 	in
 	  paramCases (G, Vs, k-1, abstract, 
-		      CSManager.trail (fn () =>
+		      Trail.trail (fn () =>
 				   (if Unify.unifiable (G, Vs, Vs')
 				      then Active (abstract (Int.toString k ^ "/", U)) :: ops
 				    else ops)
@@ -141,7 +139,6 @@ struct
       | occursInExp (k, I.Pi (DP, V)) = occursInDecP (k, DP) orelse occursInExp (k+1, V)
       | occursInExp (k, I.Root (C, S)) = occursInCon (k, C) orelse occursInSpine (k, S)
       | occursInExp (k, I.Lam (D,V)) = occursInDec (k, D) orelse occursInExp (k+1, V)
-      | occursInExp (k, I.FgnExp (cs, ops)) = occursInExp (k, Whnf.normalize (#toInternal(ops) (), I.id))
       (* no case for Redex, EVar, EClo *)
 
     and occursInCon (k, I.BVar (k')) = (k = k')
