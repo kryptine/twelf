@@ -960,9 +960,9 @@ val _ = print "."
 val _ = print "."
 	      val _ = TomegaTypeCheck.checkCtx (append (Psi2, T.embedCtx B3'))
 val _ = print ".\n"
-val _ = print (TomegaPrint.forToString (Psi2, F4) ^ "\n")
 	      val _ = TomegaTypeCheck.checkFor (Psi2, F4)
 		handle _ => raise Error' F4
+val _ = print (TomegaPrint.forToString (Psi2, F4) ^ "\n")
 val  _ = print "]"
 	      val B3 = deblockify B3'
 
@@ -1007,7 +1007,7 @@ val sigma3 = blockToIota (T.Shift (I.ctxLength B3), B3')
 
 (* ---------------- *)
 
-	      val Pat = raisePrg (B3, T.PClo (Pat', sigma3), F4)
+	      val Pat = raisePrg (B3, Normalize.normalizePrg (Pat', sigma3), F4)
 		                        (* Psi0, G3 |- Pat :: F4  *)
 		                        (* Here's a commutative diagram
 					   at work which one has to prove 

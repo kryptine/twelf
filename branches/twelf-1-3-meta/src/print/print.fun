@@ -215,6 +215,8 @@ local
     | projName (G, I.Proj (I.LVar(_, (cid, t)), i)) =
       (* note: this obscures LVar identity! *)
        "_" ^ parmName (cid, i)
+    | projName (G, I.Proj (I.Inst iota, i)) =
+       "*"    (* to be fixed --cs *)
 
 
   (* fmtCon (c) = "c" where the name is assigned according the the Name table
