@@ -506,6 +506,14 @@ struct
 			Fmt.HVbox (Fmt.String name :: Fmt.Break  :: Fspine)]
 	    end
 
+	  | formatRoot (Psi, T.Const (l), S) = 
+	    let 
+	      val T.ValDec (name, _, _) = T.lemmaLookup l
+	      val Fspine = fmtSpine (Psi, S)
+	    in
+              Fmt.Hbox [Fmt.Space, 
+			Fmt.HVbox (Fmt.String name :: Fmt.Break  :: Fspine)]
+	    end
 
 
 	(* formatPrg3 (Psi, P) = fmt
