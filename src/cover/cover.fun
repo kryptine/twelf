@@ -448,17 +448,32 @@ struct
 	      else fail ("local variable / constant clash") (* otherwise fail with no candidates *)
 	    | (I.Const _, I.BVar _) =>
 		fail ("constant / local variable clash")
+	    | (I.Proj (I.Bidx(k1), i1), I.Proj(I.Bidx(k2), i2)) =>
+	      if k1 = k2 andalso i1 = i2
+		then matchSpine (G, d, (S1, s1), (S2, s2), cands)
+	      else fail ("block index / block index clash")
+	    | (I.Proj (I.Bidx(k1), i1), I.Proj(I.LVar(r2, I.Shift(k2), (l2, t2)), i2)) =>
+	      let
+		val I.BDec (bOpt, (l1, t1)) = I.ctxDec (G, k1)
+	      in
+		if l1 <> l2 orelse i1 <> i2
+		  then fail ("block index / block variable clash")
+		else let val cands2 = matchSub (G, d, t1, t2, cands)
+		         (* instantiate instead of postponing because LVars are *)
+		         (* only instantiated to Bidx which are rigid *)
+		         (* Sun Jan  5 12:03:13 2003 -fp *)
+			 val _ = Unify.instantiateLVar (r2, I.Bidx (k1-k2))
+		     in
+		       matchSpine (G, d, (S1, s1), (S2, s2), cands2)
+		     end
+	      end
+	    (* handled in above two cases now *)
+	    (*
 	    | (I.Proj (b1, i1), I.Proj (b2, i2)) =>
 	       if (i1 = i2) then
 		 matchSpine (G, d, (S1, s1), (S2, s2),
 			     matchBlock (G, d, b1, b2, cands))
 	       else fail ("block projection / block projection clash")
-	    (* handled by matchBlock now *)
-	    (*
-	    | (I.Proj (I.Bidx (k), i), I.Proj (I.Bidx (k'), i')) =>
-		if (k = k') andalso (i = i')
-		  then matchSpine (G, d, (S1, s1), (S2, s2), cands)
-		else fail ()		(* fail with no candidates *)
             *)
             | (I.BVar (k1), I.Proj _) =>
 	      if k1 > d
@@ -521,6 +536,9 @@ struct
           matchExp (G, d, (V1, s1), (V2, s2), cands)
         (* BDec should be impossible here *)
 
+    (* matchBlock now unfolded into the first case of matchExpW *)
+    (* Sun Jan  5 12:02:49 2003 -fp *)
+    (*
     and matchBlock (G, d, I.Bidx(k), I.Bidx(k'), cands) =
         if (k = k') then cands
 	  else fail ("block index / block index clash")
@@ -545,6 +563,7 @@ struct
 		 cands2
 	       end
 	end
+    *)
 
     and matchSub (G, d, I.Shift(n1), I.Shift(n2), cands) = cands
         (* by invariant *)
@@ -1737,13 +1756,15 @@ struct
 	in
 	  substToSpine' (s, G, I.App(I.EClo Us, T))
 	end
-      | substToSpine' ( I.Dot (I.Idx _, s) , I.Decl (G, I.BDec (_, (L, t))), T) = 
-	  raise Domain
+      | substToSpine' (I.Dot (_, s) , I.Decl (G, I.BDec (_, (L, t))), T) = 
+        (* was: I.Idx in previous line, Sun Jan  5 11:02:19 2003 -fp *)
+	(* Treat like I.NDec *)
 	  (* Attempted fix, didn't work because I don't know how you
              computed splitting candidates for Blocks
 	     --cs Sat Jan  4 22:38:01 2003
-	  substToSpine' (s, G, T)
 	  *)
+	substToSpine' (s, G, T)
+
 
       (* I.Axp, I.Block(B) or other I.Undef impossible *)
 
@@ -1767,7 +1788,7 @@ struct
 	  (G', I.Dot (I.Undef, s))
 	  (* G' |- _.s : G,_ *)
 	end
-      | purify' (I.Decl (G, D)) =
+      | purify' (I.Decl (G, D as I.Dec _)) =
         let val (G', s) = purify' G
 	  (* G' |- s : G *)
 	  (* G |- D : type *)
@@ -1778,10 +1799,9 @@ struct
 	  (* G', D[s] |- s o ^ : G *)
 	  (* G', D[s] |- 1.s o ^ : G, D *)
 	end
-
-      (* added a new case to through out blocks   (you must restrict the previous
-         case to I.Dec _)
+      (* added a new case to throw out blocks
          -cs Sat Jan  4 22:55:12 2003 
+      *)
       | purify' (I.Decl (G, D as I.BDec _)) =
         let val (G', s) = purify' G
 	  (* G' |- s : G *)
@@ -1789,13 +1809,12 @@ struct
 	  (G', I.Dot (I.Undef, s))
 	  (* G' |- _.s : G,_ *)
 	end
-      *)
 
     (* purify G = G' where all NDec's have been erased from G
        If   |- G ctx
        then |- G' ctx
     *)
-    fun purify (G) = #1 (purify' (G))
+    fun purify (G) = #1 (purify' G)
 
     (* coverageCheckCases (W, Cs, G) = R
      
