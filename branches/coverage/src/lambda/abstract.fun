@@ -202,7 +202,7 @@ struct
 	  collectSpine (G, (S, s), I.Decl (collectExp (I.Null, (V, I.id), K), FV (name, V)))
       | collectExpW (G, (I.Root (I.Proj (L as I.LVar (r, l, t), i), S), s), K) =
 	if exists (eqLVar L) K
-	  then collectSpine (G, (S, s), collectSub (I.Null, t, K))
+	  then collectSpine (G, (S, s), collectSub (G, t, K))
 	    (* why not: collectSpine (G, (S, s), collectSub (I.Null, t, K)) *)
 	    (* Fri Nov 23 11:40:11 2001 -fp !!! *)
 	    (* is the I.Null really ok?  I think it must be G! *)
