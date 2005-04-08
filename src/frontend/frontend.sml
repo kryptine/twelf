@@ -250,4 +250,6 @@ structure Twelf =
 
          structure Compat = Compat
 	 structure UnknownExn = UnknownExn
+
+	 structure Transform = Transform     (* XML interface *)
 	   );

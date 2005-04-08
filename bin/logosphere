@@ -1,2 +1,2 @@
 #! /bin/sh
-exec "/Users/carsten/Library/Languages/smlnj/bin/sml" @SMLload="/Users/carsten/Library/Systems/twelf-logosphere/bin/.heap/logosphere" @SMLdebug=/dev/null
+exec "/usr/bin/sml" @SMLload="/home/carsten/twelf-logosphere/bin/.heap/logosphere" @SMLdebug=/dev/null
