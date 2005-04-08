@@ -1109,6 +1109,35 @@ struct
 	    install (Parser.parseStream instream)
 	  end)
 
+
+  (*  fun getInstallFun () = installConDec; *)
+   val _ = Transform.transform(" ", ["-i", "", "../fxtrans/lf.tf"]) 
+    
+    fun loadXML (fileName) = 
+     handleExceptions fileName (withOpenIn fileName)
+      (fn instream =>
+       let
+            val _ = ReconTerm.resetErrors fileName
+        (*  val _ = Construct.transform(installConDec)  *)
+        val _ = Export.doit "fxt" fileName "-" NONE [] LfFxt.wrapper LfFxt.checkArgs;  (* HERE *)
+        (* fun install s = install' ((Timers.time Timers.parsing S.expose) s)
+         and install' (S.Empty) = OK
+             (* Origins.installLinesInfo (fileName, Paths.getLinesInfo ()) *)
+             (* now done in installConDec *)
+              | install' (S.Cons((Parser.BeginSubsig, _), s')) =
+                  install (installSubsig (fileName, s'))
+           | install' (S.Cons(decl, s')) =
+             (install1 (fileName, decl); install s') *)
+       in
+         OK (* install (Parser.parseStream instream) *)
+       end)
+
+
+
+
+
+
+
     (* Interactive Query Top Level *)
 
     fun sLoop () = if Solve.qLoop () then OK else ABORT
@@ -1560,6 +1589,7 @@ struct
     datatype Status = datatype Status
     val reset = reset
     val loadFile = loadFile
+    val loadXML = loadXML 	
     val readDecl = readDecl
     val decl = decl
 

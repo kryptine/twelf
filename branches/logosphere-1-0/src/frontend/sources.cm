@@ -33,6 +33,14 @@ Library
   structure Subordinate
   signature STYLECHECK
   structure StyleCheck
+  structure Fdm
+  structure Shortcuts
+  structure Unicode
+  structure Util
+  structure Transform
+  structure Export
+  structure LfFxt
+  structure Construct
 is
 #if defined(NEW_CM)
   $/basis.cm
@@ -67,6 +75,13 @@ is
   ../tomega/sources.cm 
   ../prover/sources.cm
   ../flit/sources.cm
+
+  ../fxtrans/fxt-4.5.1/src/fxt.cm
+
+  ../fxtrans/lfFxt.sml
+  ../fxtrans/lfFxtGlobals.sml
+  ../fxtrans/construct.sml
+
   unknownexn.sig
   unknownexn.fun
   unknownexn-smlnj.sml
