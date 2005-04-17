@@ -17,8 +17,6 @@ struct
 
   exception Error of string
 
-  exception TimeOut
-
   type operator = (MetaSyn.State * int) * (unit -> MetaSyn.State list)
 
   local

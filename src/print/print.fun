@@ -70,6 +70,8 @@ local
 		sTS (s, I.App(I.Root(I.BVar(k), I.Nil), S))
 	    | sTS (I.Dot(I.Exp(U), s), S) =
 		sTS (s, I.App(U, S))
+	    (* Added by ABP -- 12/17/04*)
+	    | sTS (I.Dot(I.Undef, s), S) = raise Domain (* S?? *) 
       in
 	sTS (s, I.Nil)
       end 
@@ -208,8 +210,7 @@ local
   fun projName (G, I.Proj (I.Bidx(k), i)) =
       let
 	val I.BDec (SOME(bname), (cid, t)) = I.ctxLookup (G, k)
-        (* names should have been assigned by invar
-	 iant, NONE imppossible *)
+        (* names should have been assigned by invariant, NONE imppossible *)
        in
 	 bname ^ "_" ^ parmName (cid, i)
        end

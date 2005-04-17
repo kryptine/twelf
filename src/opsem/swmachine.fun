@@ -12,7 +12,6 @@ struct
   fun solve args =
     if Trace.tracing ()
       then TMachine.solve args
-    else  AbsMachine.solve args
+    else AbsMachine.solve args
 
 end;  (* functor SwMachine *)
-

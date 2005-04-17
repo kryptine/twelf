@@ -21,14 +21,11 @@ struct
   *)
   fun ctxPop (Decl (G, D)) = G
 
-  exception Error of string             (* raised if out of space     *) 
   (* ctxLookup (G, k) = D, kth declaration in G from right to left
      Invariant: 1 <= k <= |G|, where |G| is length of G
   *)
-
   fun ctxLookup (Decl (G', D), 1) = D
     | ctxLookup (Decl (G', _), k') = ctxLookup (G', k'-1)
-(*    | ctxLookup (Null, k') = (print ("Looking up k' = " ^ Int.toString k' ^ "\n"); raise Error "Out of Bounce\n")*)
     (* ctxLookup (Null, k')  should not occur by invariant *)
 
   (* ctxLength G = |G|, the number of declarations in G *)
@@ -72,9 +69,7 @@ struct
                                         (*     | X<I> : G|-V, Cnstr   *)
 
   | EClo  of Exp * Sub			(*     | U[s]                 *)
-  | AVar  of Exp option ref             (*     | A<I>                 *)   
-  | NVar  of int			(*     | n (linear, fully applied) *)
-                                        (* grafting variable *)
+  | AVar  of Exp option ref             (*     | A<I>                 *)
 
   | FgnExp of csid * FgnExp
                                         (*     | (foreign expression) *)
@@ -101,7 +96,6 @@ struct
   and Front =				(* Fronts:                    *)
     Idx of int				(* Ft ::= k                   *)
   | Exp of Exp				(*     | U                    *)
-  | Axp of Exp				(*     | U (assignable)       *)
   | Block of Block			(*     | _x                   *)
   | Undef				(*     | _                    *)
 
@@ -178,7 +172,7 @@ struct
   type bclo = Block * Sub   		(* Bs = B[s]                  *)
   type cnstr = Cnstr ref
 
-(*  exception Error of string             (* raised if out of space     *) *)
+  exception Error of string             (* raised if out of space     *)
 
 
   structure FgnExpStd = struct
@@ -396,6 +390,7 @@ struct
   val invShift = Dot(Undef, id)
 
 
+
   (* comp (s1, s2) = s'
 
      Invariant:
@@ -489,6 +484,8 @@ struct
   *)
   fun decSub (Dec (x, V), s) = Dec (x, EClo (V, s))
     | decSub (BDec (n, (l, t)), s) = BDec (n, (l, comp (t, s)))
+    (* ABP -- added case for NDec *)
+    | decSub (NDec, _) = NDec
 
   (* dot1 (s) = s'
 
@@ -530,6 +527,8 @@ struct
            *)
 	fun ctxDec' (Decl (G', Dec (x, V')), 1) = Dec (x, EClo (V', Shift (k)))
 	  | ctxDec' (Decl (G', BDec (n, (l, s))), 1) = BDec (n, (l, comp (s, Shift (k))))
+	  | ctxDec' (Decl (G', NDec), 1) = raise Domain
+
 	  | ctxDec' (Decl (G', _), k') = ctxDec' (G', k'-1)
 	 (* ctxDec' (Null, k')  should not occur by invariant *)
       in

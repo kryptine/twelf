@@ -47,8 +47,7 @@ struct
     | TOTAL				(* `%total' *) (* -fp 3/18/01 *)
     | TERMINATES			(* `%terminates' *)
     | REDUCES                           (* `%reduces' *) (* -bp  6/05/99 *)
-    | TABLED                            (* `%tabled' *)     (* -bp 11/20/01 *)
-    | KEEPTABLE                         (* `%keepTable' *)  (* -bp 11/20/01 *)
+    | TABLED                            (* `%tabled' *)  (* -bp 11/20/01 *)
     | THEOREM                           (* `%theorem' *)
     | BLOCK				(* `%block' *) (* -cs 5/29/01 *)
     | WORLDS                            (* `%worlds' *)
@@ -57,7 +56,6 @@ struct
     | ASSERT				(* `%assert' *)
     | ABBREV				(* `%abbrev' *)
     | FREEZE                            (* `%freeze' *)
-    | THAW				(* `%thaw' *)
     | DETERMINISTIC                     (* `%deterministic' *) (* -rv 11/27/01 *)
     | CLAUSE				(* `%clause' *) (* -fp 8/9/02 *)
     | SIG                               (* `%sig' *)
@@ -234,9 +232,8 @@ struct
       | lexPragmaKey (ID(_, "worlds"), r) = (WORLDS, r)
       | lexPragmaKey (ID(_, "covers"), r) = (COVERS, r)
       | lexPragmaKey (ID(_, "total"), r) = (TOTAL, r) (* -fp 3/18/01 *)
-      | lexPragmaKey (ID(_, "reduces"), r) = (REDUCES, r)         (* -bp 6/5/99 *)
-      | lexPragmaKey (ID(_, "tabled"), r) = (TABLED, r)           (* -bp 20/11/01 *)
-      | lexPragmaKey (ID(_, "keepTable"), r) = (KEEPTABLE, r)     (* -bp 20/11/04 *)
+      | lexPragmaKey (ID(_, "reduces"), r) = (REDUCES, r) (* -bp 6/5/99 *)
+      | lexPragmaKey (ID(_, "tabled"), r) = (TABLED, r) (* -bp 20/11/01 *)
       | lexPragmaKey (ID(_, "theorem"), r) = (THEOREM, r)
       | lexPragmaKey (ID(_, "prove"), r) = (PROVE, r)
       | lexPragmaKey (ID(_, "establish"), r) = (ESTABLISH, r)
@@ -250,7 +247,6 @@ struct
       | lexPragmaKey (ID(_, "compile"), r) = (COMPILE, r) (* -ABP 4/4/03 *)
       | lexPragmaKey (ID(_, "querytabled"), r) = (QUERYTABLED, r)
       | lexPragmaKey (ID(_, "freeze"), r) = (FREEZE, r)
-      | lexPragmaKey (ID(_, "thaw"), r) = (THAW, r)
       | lexPragmaKey (ID(_, "deterministic"), r) = (DETERMINISTIC, r) (* -rv 11/27/01 *)
       | lexPragmaKey (ID(_, "clause"), r) = (CLAUSE, r) (* -fp 08/09/02 *)
       | lexPragmaKey (ID(_, "sig"), r) = (SIG, r)
@@ -369,15 +365,13 @@ struct
     | toString' (BLOCK) = "%block"	(* -cs 6/3/01. *)
     | toString' (WORLDS) = "%worlds"
     | toString' (REDUCES) = "%reduces"              (*  -bp 6/5/99. *)
-    | toString' (TABLED) = "%tabled"                (*  -bp 20/11/01. *)
-    | toString' (KEEPTABLE) = "%keepTable"          (*  -bp 04/11/03. *)
+    | toString' (TABLED) = "%tabled"              (*  -bp 20/11/01. *)
     | toString' (THEOREM) = "%theorem"
     | toString' (PROVE) = "%prove"
     | toString' (ESTABLISH) = "%establish"
     | toString' (ASSERT) = "%assert"
     | toString' (ABBREV) = "%abbrev"
     | toString' (FREEZE) = "%freeze"
-    | toString' (THAW) = "%thaw"
     | toString' (DETERMINISTIC) = "%deterministic"  (* -rv 11/27/01. *)
     | toString' (CLAUSE) = "%clause" (* -fp 08/09/02 *)
     | toString' (SIG) = "%sig"

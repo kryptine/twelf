@@ -205,7 +205,7 @@ struct
     val fixityArray : Fixity.fixity Array.array =
           Array.array (maxCid+1, Fixity.Nonfix)
     fun fixityClear () = Array.modify (fn _ => Fixity.Nonfix) fixityArray
-    val namePrefArray : (string list * string list) option Array.array =
+    val namePrefArray : (string * string) option Array.array =
           Array.array (maxCid+1, NONE)
     fun namePrefClear () = Array.modify (fn _ => NONE) namePrefArray
 
@@ -511,11 +511,11 @@ struct
        Effect: install name preference for type family cid
        raise Error if cid does not refer to a type family
     *)
-    fun installNamePref (cid, (ePref, nil)) =
-          installNamePref' (cid, (ePref, [String.map Char.toLower (hd ePref)]))
-      | installNamePref (cid, (ePref, uPref)) =
+    fun installNamePref (cid, (ePref, SOME(uPref))) =
           installNamePref' (cid, (ePref, uPref))
-      
+      | installNamePref (cid, (ePref, NONE)) =
+	  installNamePref' (cid, (ePref, String.map Char.toLower ePref))
+
     fun getNamePref cid = Array.sub (namePrefArray, cid)
 
     fun installComponents (mid, namespace) =
@@ -535,8 +535,8 @@ struct
 
     fun namePrefOf'' (Exist, NONE) = "X"
       | namePrefOf'' (Univ _, NONE) = "x"
-      | namePrefOf'' (Exist, SOME(ePref, uPref)) = hd ePref
-      | namePrefOf'' (Univ _, SOME(ePref, uPref)) = hd uPref
+      | namePrefOf'' (Exist, SOME(ePref, uPref)) = ePref
+      | namePrefOf'' (Univ _, SOME(ePref, uPref)) = uPref
 
     fun namePrefOf' (Exist, NONE) = "X"
       | namePrefOf' (Univ _, NONE) = "x"
@@ -545,7 +545,6 @@ struct
         (* the following only needed because reconstruction replaces
            undetermined types with FVars *)
       | namePrefOf' (role, SOME(IntSyn.FVar _)) = namePrefOf'' (role, NONE)
-
       | namePrefOf' (role, SOME(IntSyn.NSDef cid)) = namePrefOf'' (role, Array.sub (namePrefArray, cid))
 
     (* namePrefOf (role, V) = name
@@ -789,13 +788,14 @@ struct
        way---check decName below instread of IntSyn.Dec
     *)
     fun bvarName (G, k) =
-        case IntSyn.ctxLookup (G, k)
-	  of IntSyn.Dec(SOME(name), _) => name
-	   | IntSyn.ADec(SOME(name), _) =>  name
-	   | IntSyn.NDec => "<_>" (* should be impossible *)
-	   | IntSyn.ADec(None, _) => "ADec_" 
-	   | IntSyn.Dec(None, _) => "Dec_" 
-	   | _ => raise Unprintable
+        (case IntSyn.ctxLookup (G, k)
+	   of IntSyn.Dec(SOME(name), _) => name
+	    | IntSyn.ADec(SOME(name), _) =>  name
+	    | IntSyn.NDec => "<_>" (* should be impossible *)
+	    | _ => "?" (* should be impossible *)
+	    (* | _ => raise Unprintable *)
+	     )
+              (* NONE should not happen *)
 
     (* decName' role (G, D) = G,D'
        where D' is a possible renaming of the declaration D

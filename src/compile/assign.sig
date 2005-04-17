@@ -6,9 +6,12 @@ signature ASSIGN =
 sig
   (*! structure IntSyn : INTSYN !*)
 
-  (* assignable (Us,ps) assigns the term U[s] to the 
-     linear higher-order pattern p[s]; if successfull it
-     returns a list of residual equations that have been postponed *)
+  (* exception Assignment of string *)
+  (* raises Assignment, instantiates EVars as effect *)
+  (* val assign : IntSyn.dctx * IntSyn.eclo * IntSyn.eclo -> IntSyn.Cnstr list *)
+
+  (* assignable (Us,ps) will check if term U[s] unified with template p[s] *)
+  (* returns any residual equations that had to be postpone *)
   (* EVars and AVars in ps are instantiated as an effect *)
   val assignable : IntSyn.dctx * IntSyn.eclo * IntSyn.eclo -> (IntSyn.Cnstr list) option
 
@@ -18,8 +21,4 @@ sig
   (* unifiable solves statically residuated equations *)
   val unifiable : IntSyn.dctx * IntSyn.eclo * IntSyn.eclo -> bool 
 
-  (* instance solves statically residuated equations *)
-  val instance : IntSyn.dctx * IntSyn.eclo * IntSyn.eclo -> bool 
-    
-  val firstConstArg : IntSyn.Exp * IntSyn.Sub -> IntSyn.cid option
 end; (* signature ASSIGN *)

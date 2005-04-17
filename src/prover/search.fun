@@ -333,6 +333,8 @@ struct
 	    else matchBlock (RGs', (n, i+1))
 
 
+
+
 	fun matchDProg (I.Null, _) = matchSig' (Index.lookup (cidFromHead Ha)) 
 	  | matchDProg (I.Decl (dPool', C.Dec (r, s, Ha')), n) =
 	    if eqHead (Ha, Ha') then

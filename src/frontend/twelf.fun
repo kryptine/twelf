@@ -100,10 +100,12 @@ functor Twelf
    structure AbsMachine : ABSMACHINE
    (*! sharing AbsMachine.IntSyn = IntSyn' !*)
    (*! sharing AbsMachine.CompSyn = CompSyn' !*)
-   (*! structure TableParam : TABLEPARAM !*)
+
    structure Tabled : TABLED
    (*! sharing Tabled.IntSyn = IntSyn' !*)
    (*! sharing Tabled.CompSyn = CompSyn' !*)
+   structure TableIndex : TABLEINDEX
+   (*! sharing TableIndex.IntSyn = IntSyn' !*)
    structure Solve : SOLVE
    (*! sharing Solve.IntSyn = IntSyn' !*)
      sharing type Solve.ExtQuery.query = Parser.ExtQuery.query
@@ -115,6 +117,7 @@ functor Twelf
      sharing type Fquery.ExtQuery.define = Parser.ExtQuery.define
      sharing type Fquery.ExtQuery.solve = Parser.ExtQuery.solve
 	     (*! sharing Solve.Paths = Paths !*)
+
    structure ThmSyn : THMSYN
    (*! sharing ThmSyn.Paths = Paths !*)
      sharing ThmSyn.Names = Names
@@ -128,7 +131,6 @@ functor Twelf
      sharing type ReconThm.tdecl = Parser.ThmExtSyn.tdecl
      sharing type ReconThm.rdecl = Parser.ThmExtSyn.rdecl (* -bp *)
      sharing type ReconThm.tableddecl = Parser.ThmExtSyn.tableddecl (* -bp *)
-     sharing type ReconThm.keepTabledecl = Parser.ThmExtSyn.keepTabledecl (* -bp *)
      sharing type ReconThm.wdecl = Parser.ThmExtSyn.wdecl 
      sharing type ReconThm.theorem = Parser.ThmExtSyn.theorem
      sharing type ReconThm.theoremdec = Parser.ThmExtSyn.theoremdec 
@@ -357,9 +359,7 @@ struct
 		    raise Names.Error (Paths.wrap (r, msg))
 	  val _ = Names.installConstName cid
 	  val _ = installConst fromCS (cid, fileNameocOpt)
-	          handle Subordinate.Error (msg) => raise Subordinate.Error (Paths.wrap (r, msg))
 	  val _ = Origins.installLinesInfo (fileName, Paths.getLinesInfo ())
-	  val _ =  if !Global.style >= 1 then StyleCheck.checkConDec cid else ()
 	in 
 	  cid
 	end
@@ -374,9 +374,6 @@ struct
 	           handle Names.Error msg =>
 		     raise Names.Error (Paths.wrap (r, msg))
 	  val _ = Names.installConstName cid
-	  (* val _ = Origins.installOrigin (cid, fileNameocOpt) *)
-	  val _ = (Timers.time Timers.subordinate Subordinate.installBlock) cid
-	          handle Subordinate.Error (msg) => raise Subordinate.Error (Paths.wrap (r, msg))
 	  val _ = Origins.installLinesInfo (fileName, Paths.getLinesInfo ())
 	in 
 	  cid
@@ -415,21 +412,6 @@ struct
         in
           ()
         end
-
-    fun cidToString a = Names.qidToString (Names.constQid a)
-
-    fun invalidate uninstallFun cids msg =
-        let
-	  val uninstalledCids = List.filter (fn a => uninstallFun a) cids
-	  val _ = case uninstalledCids
-                    of nil => ()
-                     | _ => Global.chPrint 4
-		            (fn () => "Invalidated " ^ msg ^ " properties of families"
-			     ^ List.foldr (fn (a,s) => " " ^ cidToString a ^ s) "\n"
-			     uninstalledCids)
-	in
-	  ()
-	end
 
     (* install1 (decl) = ()
        Installs one declaration
@@ -519,7 +501,6 @@ struct
 	     (* allocate new cid after checking modes! *)
 	     (* allocate cid after strictness has been checked! *)
 	     val cid = installConDec IntSyn.Ordinary (conDec, (fileName, ocOpt), r)
-
 	   in
 	     ()
 	   end)
@@ -556,56 +537,19 @@ struct
               case Names.constLookup qid
                 of NONE => raise Names.Error ("Undeclared identifier "
                                               ^ Names.qidToString (valOf (Names.constUndef qid))
-                                              ^ " in freeze declaration")
+                                              ^ " in freeze assertion")
                  | SOME cid => cid
           val cids = List.map toCid qids
-                     handle Names.Error (msg) =>
-		       raise Names.Error (Paths.wrap (r, msg))
-	  val frozen = Subordinate.freeze cids
-	               handle Subordinate.Error (msg) =>
-			 raise Subordinate.Error (Paths.wrap (r, msg))
+                     handle Names.Error (msg) => raise Names.Error (Paths.wrap (r, msg))
         in
-	  (* Subordinate.installFrozen cids *)
+          Subordinate.installFrozen cids
+          handle Subordinate.Error (msg) => raise Subordinate.Error (Paths.wrap (r, msg));
           if !Global.chatter >= 3
-          then print ("%freeze"
+          then print ((if !Global.chatter >= 4 then "%" else "")
+                      ^ "%freeze"
                       ^ List.foldr (fn (a, s) => " " ^ Names.qidToString (Names.constQid a) ^ s) ".\n" cids)
-          else ();
-	  if !Global.chatter >= 4
-	    then print ("Frozen:" ^ List.foldr (fn (a,s) => " " ^ Names.qidToString (Names.constQid a) ^ s) "\n" frozen)
-	  else ()
+          else ()
         end
-
-      (* %thaw <qid> ... *)
-      | install1 (fileName, (Parser.ThawDec (qids), r)) =
-	let
-	  fun toCid qid =
-	      case Names.constLookup qid
-		of NONE => raise Names.Error ("Undeclared identifier "
-					      ^ Names.qidToString (valOf (Names.constUndef qid))
-					      ^ " in thaw declaration")
-		 | SOME cid => cid
-	  val cids = List.map toCid qids
-	             handle Names.Error (msg) => raise Names.Error (Paths.wrap (r, msg))
-	  val thawed = Subordinate.thaw cids
-			handle Subordinate.Error(msg) =>
-			  raise Subordinate.Error (Paths.wrap (r, msg))
-	  val _ = if !Global.chatter >= 3
-		    then print ("%thaw"
-				^ List.foldr (fn (a, s) => " " ^ cidToString a ^ s) ".\n" cids)
-		  else ()
-	  val _ = if !Global.chatter >= 4
-		    then print ("Thawed" ^ List.foldr (fn (a,s) => " " ^ cidToString a ^ s) "\n" thawed)
-		  else ()
-          (* invalidate prior meta-theoretic properteis of signatures *)
-	  (* exempt only %mode [incremental], %covers [not stored] *)
-          val _ = invalidate WorldSyn.uninstall thawed "world"
-          val _ = invalidate Thm.uninstallTerminates thawed "termination"
-	  val _ = invalidate Thm.uninstallReduces thawed "reduction"
-          val _ = invalidate UniqueTable.uninstallMode thawed "uniqueness"
-          val _ = invalidate Total.uninstall thawed "totality"
-	in
-	  ()
-	end
 
       (* %deterministic <qid> ... *)
       | install1 (fileName, (Parser.DeterministicDec (qids), r)) = 
@@ -706,14 +650,6 @@ struct
 	let 
 	  val mdecs = List.map ReconMode.modeToMode mterms
           val _ = ReconTerm.checkErrors (r)
-	  val _ = List.app (fn (mdec as (a, _), r) =>
-			    case ModeTable.modeLookup a
-			      of NONE => ()
-			       | SOME _ =>
-				 if Subordinate.frozen [a]
-				   then raise ModeTable.Error (Paths.wrap (r, "Cannot redeclare mode for frozen constant " ^ Names.qidToString (Names.constQid a)))
-				 else ())
-		  mdecs
 	  val _ = List.app (fn (mdec as (a, _), r) => 
 	                    (case (IntSyn.conDecStatus (IntSyn.sgnLookup a))
 			       of IntSyn.Normal => ModeTable.installMode mdec
@@ -749,7 +685,6 @@ struct
           val _ = List.app (fn (mdec, r) => (Timers.time Timers.coverage Unique.checkUnique) mdec
                                 handle Unique.Error (msg) => raise Unique.Error (Paths.wrap (r, msg)))
 	          mdecs
-          (* %unique does not auto-freeze, since family must already be frozen *)
 	  val _ = if !Global.chatter >= 3 
 		    then print ("%unique " ^ ModePrint.modesToString
 				           (List.map (fn (mdec, r) => mdec) mdecs)
@@ -842,7 +777,6 @@ struct
 	            of NONE => ()
 		     | SOME msg => raise Cover.Error (Paths.wrap (r, "Relational coverage succeeds, funcational fails:\n This indicates a bug in the functional checker.\n[Functional] " ^ msg))
 *)
-          (* %total does not auto-freeze, since the predicate must already be frozen *)
 	  val _ = if !Global.chatter >= 3
 		    then print ("%total " ^ ThmPrint.tDeclToString T ^ ".\n")
 		  else ()
@@ -853,23 +787,9 @@ struct
       (* Termination declaration *)
       | install1 (fileName, (Parser.TerminatesDec lterm, _)) =
 	let
-	  val (T, rrs as (r, rs)) = ReconThm.tdeclTotDecl lterm
-	  val ThmSyn.TDecl (_, ThmSyn.Callpats(callpats)) = T
-          (* allow re-declaration since safe? *)
-	  (* Thu Mar 10 13:45:42 2005 -fp *)
-	  (*
-	  val _ = ListPair.app (fn ((a, _), r) =>
-			    if Subordinate.frozen [a]
-			      andalso ((Order.selLookup a; true) handle Order.Error _ => false)
-			    then raise Total.Error (fileName ^ ":"
-                                       ^ Paths.wrap (r, "Cannot redeclare termination order for frozen constant "
-						   ^ Names.qidToString (Names.constQid a)))
-			    else ())
-	          (callpats, rs)
-          *)
+	  val (T, rrs) = ReconThm.tdeclTotDecl lterm 
 	  val La = Thm.installTerminates (T, rrs)
   	  val _ = map (Timers.time Timers.terminate Reduces.checkFam) La   
-	  val _ = if !Global.autoFreeze then (Subordinate.freeze La; ()) else ()
 	  val _ = if !Global.chatter >= 3 
 		    then print ("%terminates " ^ ThmPrint.tDeclToString T ^ ".\n")
 		  else ()
@@ -881,24 +801,10 @@ struct
 	(* Reduces declaration *)
       | install1 (fileName, (Parser.ReducesDec lterm, _)) =
 	let
-	  val (R, rrs as (r, rs)) = ReconThm.rdeclTorDecl lterm 
-	  val ThmSyn.RDecl (_, ThmSyn.Callpats(callpats)) = R
-	  (* allow re-declaration since safe? *)
-	  (* Thu Mar 10 14:06:13 2005 -fp *)
-	  (*
-	  val _ = ListPair.app (fn ((a, _), r) =>
-			    if Subordinate.frozen [a]
-			      andalso ((Order.selLookupROrder a; true) handle Order.Error _ => false)
-			    then raise Total.Error (fileName ^ ":"
-                                       ^ Paths.wrap (r, "Cannot redeclare reduction order for frozen constant "
-						   ^ Names.qidToString (Names.constQid a)))
-			    else ())
-	          (callpats, rs)
-          *)
+	  val (R, rrs) = ReconThm.rdeclTorDecl lterm 
 	  val La = Thm.installReduces (R, rrs)
 	  (*  -bp6/12/99.   *)
 	  val _ = map (Timers.time Timers.terminate Reduces.checkFamReduction) La
-	  val _ = if !Global.autoFreeze then (Subordinate.freeze La; ()) else ()
 	  val _ = if !Global.chatter >= 3 
 		    then print ("%reduces " ^ ThmPrint.rDeclToString R ^ ".\n")
 		  else ()
@@ -914,18 +820,6 @@ struct
 	  (*  -bp6/12/99.   *)
 	  val _ = if !Global.chatter >= 3 
 		    then print ("%tabled " ^ ThmPrint.tabledDeclToString T ^ ".\n")
-		  else ()
-	in
-	  ()
-	end
-
-      (* %keepTable declaration *)
-      | install1 (fileName, (Parser.KeepTableDec tdecl, _)) =
-	let
-	  val (T,r) = ReconThm.keepTabledeclToktDecl tdecl 
-	  val La = Thm.installKeepTable T
-	  val _ = if !Global.chatter >= 3 
-		    then print ("%keeptabled " ^ ThmPrint.keepTableDeclToString T ^ ".\n")
 		  else ()
 	in
 	  ()
@@ -1026,12 +920,6 @@ struct
 	let
 	  val (ThmSyn.WDecl (qids, cp as ThmSyn.Callpats cpa), rs) =
 	         ReconThm.wdeclTowDecl wdecl
-	  val _ = ListPair.app (fn ((a, _), r) =>
-		    if Subordinate.frozen [a]
-		      then raise WorldSyn.Error (Paths.wrapLoc (Paths.Loc (fileName, r), "Cannot declare worlds for frozen family "
-								^ Names.qidToString (Names.constQid a)))
-		    else ())
-	         (cpa, rs)
 	  val W = Tomega.Worlds
 	      (List.map (fn qid => case Names.constLookup qid
 			            of NONE => raise Names.Error ("Undeclared label "
@@ -1043,9 +931,6 @@ struct
 	          handle WorldSyn.Error (msg)
 		         (* error location inaccurate here *)
 		         => raise WorldSyn.Error (Paths.wrapLoc (Paths.Loc (fileName, joinregions rs), msg))
-	  val _ = if !Global.autoFreeze
-		    then (Subordinate.freeze (List.map (fn (a, _) => a) cpa) ; ())
-		  else ()
 	  val _ = if !Global.chatter >= 3 
 		    then print ("%worlds " ^ WorldPrint.worldsToString W ^ " "
 				^ ThmPrint.callpatsToString cp ^ ".\n")
@@ -1262,7 +1147,6 @@ struct
     (* reset () = () clears all global tables, including the signature *)
     fun reset () = (IntSyn.sgnReset (); Names.reset (); Origins.reset ();
 		    ModeTable.reset ();
-		    UniqueTable.reset (); (* -fp Wed Mar  9 20:24:45 2005 *)
 		    Index.reset (); 
 		    IndexSkolem.reset ();
 		    Subordinate.reset ();
@@ -1273,8 +1157,6 @@ struct
 		    FunSyn.labelReset ();
 		    CompSyn.sProgReset (); (* necessary? -fp; yes - bp*)
 		    CompSyn.detTableReset (); (*  -bp *)
-		    Compile.sProgReset (); (* resetting substitution trees *)
-
                     ModSyn.reset ();
                     CSManager.resetSolvers ();
                     context := NONE
@@ -1559,6 +1441,14 @@ struct
 	fun sgn () = printSgnTeX ()
 	fun prog () = printProgTeX ()
       end
+
+(*      structure Table =
+	struct
+	  fun print () = TableIndex.printTable ()
+          fun printEntries () = TableIndex.printTableEntries()
+	end
+
+*)
     end
 
     structure Trace :
@@ -1600,26 +1490,38 @@ struct
 
     structure Compile :
     sig
-      datatype Opt = datatype CompSyn.Opt
-      val optimize : Opt ref
+      val optimize : bool ref
     end
     =
     struct
-      datatype Opt = datatype CompSyn.Opt      
-      val optimize = CompSyn.optimize
+      val optimize = Compile.optimize
     end
 
-    structure Recon :
-    sig
-      datatype TraceMode = datatype ReconTerm.TraceMode
-      val trace : bool ref
-      val traceMode : TraceMode ref
-    end
-    =
+    structure Table : 
+      sig 
+	datatype Strategy = datatype TableIndex.Strategy
+	val strategy : Strategy ref
+	val strengthen : bool ref
+	val top : unit -> unit
+      end 
+    = 
     struct
-      datatype TraceMode = datatype ReconTerm.TraceMode
-      val trace = ReconTerm.trace
-      val traceMode = ReconTerm.traceMode
+      datatype Strategy = datatype TableIndex.Strategy
+      val strategy = TableIndex.strategy
+      val strengthen = TableIndex.strengthen
+      	  
+      (* top () = () starts interactive query loop *)
+      fun top () = 
+	  let 
+	    fun sLoopT () = if Solve.qLoopT () then OK else ABORT
+      
+	    fun topLoopT () = 
+	        case (handleExceptions "stdIn" sLoopT) () (* "stdIn" as fake fileName *)
+		  of ABORT => topLoopT ()
+		   | OK => ()
+	  in 
+	    topLoopT ()
+	  end 
     end
 
     structure Recon :
@@ -1653,8 +1555,6 @@ struct
     val chatter : int ref = Global.chatter
     val doubleCheck : bool ref = Global.doubleCheck
     val unsafe : bool ref = Global.unsafe
-    val autoFreeze : bool ref = Global.autoFreeze
-    val timeLimit : (Time.time option) ref = Global.timeLimit
 
     datatype Status = datatype Status
     val reset = reset
@@ -1676,39 +1576,7 @@ struct
     = Config
     val make = make
 
-
-    val version = "Twelf 1.5R2, Mar 13, 2005 (tabling,autoFreeze)"
-
-    structure Table : 
-      sig 
-	datatype Strategy = datatype TableParam.Strategy
-	val strategy : Strategy ref
-	val strengthen : bool ref
-	val resetGlobalTable : unit -> unit
-	val top : unit -> unit
-      end 
-    = 
-  struct
-    datatype Strategy = datatype TableParam.Strategy
-    val strategy = TableParam.strategy
-    val strengthen = TableParam.strengthen
-      	  
-    val resetGlobalTable = TableParam.resetGlobalTable
-
-    (* top () = () starts interactive query loop *)
-    fun top () = 
-      let 
-	fun sLoopT () = if Solve.qLoopT () then OK else ABORT
-      
-	fun topLoopT () = 
-	  case (handleExceptions "stdIn" sLoopT) () (* "stdIn" as fake fileName *)
-	    of ABORT => topLoopT ()
-	  | OK => ()
-      in 
-	topLoopT ()
-      end 
-  end
-
+    val version = "Twelf 1.5, Aug 2003 (Tomega, Cover, Unique)"
 
   end  (* local *)
 end; (* functor Twelf *)

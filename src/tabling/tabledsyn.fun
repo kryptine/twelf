@@ -34,16 +34,7 @@ struct
         
        Effect: the tabled is stored with the type family a
     *)
-    fun installTabled a = Table.insert tabledSignature (a, false)
-
-    (* installTabled (a, tabled) = ()
-        
-       Effect: the tabled is stored with the type family a
-    *)
-
-    fun installKeepTable a = 
-      ((* Table.delete tabledSignature a; *)
-       Table.insertShadow tabledSignature (a, true);())
+    fun installTabled a = Table.insert tabledSignature (a, true)
 
   
     (* tablingLookup a = bool
@@ -56,26 +47,10 @@ struct
      (case (Table.lookup tabledSignature a) of 
        NONE => false
      | SOME _ => true)
-
-
-    (* keepTable a = bool
-
-       if we should keep the table for this predicate a
-        then returns true
-	  otherwise false
-    *)
-
-    fun keepTable a = 
-     (case (Table.lookup tabledSignature a) of 
-       NONE => false
-     | SOME true => true
-     | SOME false => false)
 	
   in
     val reset = reset
     val installTabled = installTabled
-    val installKeepTable =  installKeepTable
     val tabledLookup = tabledLookup
-    val keepTable = keepTable
   end
 end;  (* functor TabledSyn *)

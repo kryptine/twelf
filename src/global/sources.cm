@@ -2,8 +2,5 @@ Library
   signature GLOBAL
   structure Global
 is
-#if defined(NEW_CM)
-  $/basis.cm
-#endif
   global.sig
   global.sml

@@ -23,7 +23,6 @@ struct
   structure StateSyn = StateSyn'
 
   exception Error of string
-  exception TimeOut
 
   type operator = (unit -> int * FunSyn.Pro)
 

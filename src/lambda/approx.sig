@@ -13,9 +13,10 @@ sig
               
   datatype Exp =
       Uni of Uni
-    | Arrow of Exp * Exp 
+    | Arrow of Exp * Exp
     | Const of IntSyn.Head (* Const/Def/NSDef *)
     | CVar of Exp option ref
+    | AdamVar of IntSyn.Exp option ref * IntSyn.Dec IntSyn.Ctx
     | Undefined
 
   val Type : Uni
@@ -33,6 +34,7 @@ sig
 
   val uniToApx : IntSyn.Uni -> Uni
   val classToApx : IntSyn.Exp -> Exp * Uni
+  val expToApx : IntSyn.Exp -> Exp * Exp (* Added reference by ABP:  2-17-05 *)
   val exactToApx : IntSyn.Exp * IntSyn.Exp -> Exp * Exp * Uni
 
   exception Ambiguous

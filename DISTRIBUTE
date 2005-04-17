@@ -18,11 +18,6 @@ For release:
   create updated file load.sml
   CM.mkusefile "load.sml";
 
-  update polyml/load-twelf.sml
-
-  update mlton/*.cm (requires cmcat program in $PATH)
-  cd mlton ; make mlton-cm-files
-
   bin/clean
   bin/clean-cm  (ignore warning messages)
 

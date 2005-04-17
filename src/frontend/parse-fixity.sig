@@ -9,6 +9,6 @@ sig
 
   val parseFixity' : ((Names.Qid * Paths.region) * Names.Fixity.fixity) Parsing.parser
   val parseNamePref' : ((Names.Qid * Paths.region)
-			* (string list * string list)) Parsing.parser
+			* (string * string option)) Parsing.parser
 
 end;  (* signature PARSE_FIXITY *)

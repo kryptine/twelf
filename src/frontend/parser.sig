@@ -17,7 +17,7 @@ sig
   datatype fileParseResult =
       ConDec of ExtConDec.condec
     | FixDec of (Names.Qid * Paths.region) * Names.Fixity.fixity
-    | NamePref of (Names.Qid * Paths.region) * (string list * string list)
+    | NamePref of (Names.Qid * Paths.region) * (string * string option)
     | ModeDec of ExtModes.modedec list
     | UniqueDec of ExtModes.modedec list (* -fp 8/17/03 *)
     | CoversDec of ExtModes.modedec list
@@ -26,7 +26,6 @@ sig
     | WorldDec of ThmExtSyn.wdecl
     | ReducesDec of ThmExtSyn.rdecl   (* -bp *)
     | TabledDec of ThmExtSyn.tableddecl 
-    | KeepTableDec of ThmExtSyn.keepTabledecl 
     | TheoremDec of ThmExtSyn.theoremdec
     | ProveDec of ThmExtSyn.prove
     | EstablishDec of ThmExtSyn.establish
@@ -38,7 +37,6 @@ sig
     | Solve of ExtQuery.define list * ExtQuery.solve
     | AbbrevDec of ExtConDec.condec
     | FreezeDec of Names.Qid list
-    | ThawDec of Names.Qid list
     | DeterministicDec of Names.Qid list  (* -rv *)
     | ClauseDec of ExtConDec.condec (* -fp *)
     | SigDef of ModExtSyn.sigdef

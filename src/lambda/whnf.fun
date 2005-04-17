@@ -1,4 +1,4 @@
-(* Weak Head-Normal Forms *)  
+(* Weak Head-Normal Forms *)
 (* Author: Frank Pfenning, Carsten Schuermann *)
 (* Modified: Roberto Virga *)
 
@@ -214,7 +214,8 @@ struct
     and whnfRoot ((BVar (k), S), s)   =
         (case bvarSub (k, s)
 	   of Idx (k) => (Root (BVar (k), SClo (S, s)), id)
-	    | Exp (U) => whnfRedex (whnf (U, id), (S, s)))
+	    | Exp (U) => whnfRedex (whnf (U, id), (S, s))
+	    | Undef => raise Domain)	   
       (* Undef should be impossible *)
       | whnfRoot ((Proj (B as Bidx _, i), S), s) = 
 	 (* could blockSub (B, s) return instantiated LVar ? *)
@@ -296,7 +297,6 @@ struct
        and   G |- (U @ S) [s] == U' [s'] : W'
        and   (U', s') in whnf
     *)
-
     and expandDef (Root (Def (d), S), s) =
           (* why the call to whnf?  isn't constDef (d) in nf? -kw *)
 	  whnfRedex (whnf (constDef (d), id), (S, s))
@@ -327,7 +327,6 @@ struct
                    
     fun spineToSub (Nil, s) = s
       | spineToSub (App (U, S), s) = spineToSub (S, dotEta (Exp (U), s))
-
 
     (* inferSpine ((S, s1), (V, s2)) = (V', s')
 
@@ -426,10 +425,6 @@ struct
       | normalizeExpW (Us as (EVar _, s)) = EClo Us
       | normalizeExpW (FgnExp csfe , s) =
           FgnExpStd.Map.apply csfe (fn U => normalizeExp (U, s))
-      | normalizeExpW (Us as (AVar(ref (SOME(U))) ,s)) = 
-	  normalizeExpW (U,s)
-      | normalizeExpW (Us as (AVar _  ,s)) = (print "Normalize  AVAR\n"; raise Error "")
-
 
     and normalizeSpine (Nil, s) = 
           Nil 
@@ -441,6 +436,7 @@ struct
     and normalizeDec (Dec (xOpt, V), s) = Dec (xOpt, normalizeExp (V, s))
       | normalizeDec (BDec (xOpt, (c, t)), s) = 
          BDec (xOpt, (c, normalizeSub (comp (t, s))))
+
     and normalizeDecP ((D, P), s) = (normalizeDec (D, s), P)
 
     (* dead code -fp *)

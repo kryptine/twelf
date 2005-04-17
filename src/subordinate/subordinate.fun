@@ -47,7 +47,6 @@ struct
     val memoCounter = ref 0
 
     (* Apply f to every node reachable from b *)
-    (* Includes the node itself (reflexive) *)
     fun appReachable f b =
         let fun rch (b, visited) =
 	        if IntSet.member (b, visited)
@@ -76,8 +75,6 @@ struct
     fun reachable (b, a) = reach (b, a, IntSet.empty)
 
     (* b must be new *)
-    (* this is sometimes violated below, is this a bug? *)
-    (* Thu Mar 10 13:13:01 2005 -fp *)
     fun addNewEdge (b, a) =
         ( memoCounter := !memoCounter+1 ;
 	  memoInsert ((b,a), (true, !memoCounter)) ;
@@ -98,13 +95,7 @@ struct
            of SOME frozen => frozen
             | NONE => false)
 
-    fun fSet (a, frozen) =
-        let val _ = Global.chPrint 5
-	            (fn () => (if frozen then "Freezing " else "Thawing ")
-		              ^ Names.qidToString (Names.constQid a) ^ "\n")
-	in
-	  fInsert (a, frozen)
-	end
+    fun fSet (a, frozen) = fInsert (a, frozen)
 
     (* pre: a is not a type definition *)
     fun checkFreeze (c, a) =
@@ -115,30 +106,19 @@ struct
                           ^ Names.qidToString (Names.constQid (a)))
         else ()
 
-    (* no longer needed since freeze is now transitive *)
-    (* Sat Mar 12 21:40:15 2005 -fp *)
-    (*
     fun frozenSubError (a, b) =
         raise Error ("Freezing violation: frozen type family "
                      ^ Names.qidToString (Names.constQid b)
                      ^ "\nwould depend on unfrozen type family "
                      ^ Names.qidToString (Names.constQid a))
-    *)
 
-    (* no longer needed since freeze is now transitive *)
-    (* Sat Mar 12 21:40:15 2005 -fp *)
     (* pre: a, b are not type definitions *)
-    (*
     fun checkFrozenSub (a, b) =
         (case (fGet a, fGet b)
            of (false, true) => frozenSubError (a, b)
             | _ => ())
-    *)
 
     (* pre: b is not a type definition *)
-    (* no longer needed since freeze is transitive *)
-    (* Sat Mar 12 21:38:58 2005 -fp *)
-    (*
     fun checkMakeFrozen (b, otherFrozen) =
         (* Is this broken ??? *)
         (* Mon Nov 11 16:54:29 2002 -fp *)
@@ -158,12 +138,11 @@ struct
 	  if fGet b then ()
 	  else appReachable check b
 	end
-    *)
 
     fun expandFamilyAbbrevs a =
         (case I.constUni a
            of I.Type => raise Error ("Constant " ^ Names.qidToString (Names.constQid a)
-                                     ^ " must be a type family to be frozen or thawed")
+                                     ^ " must be a type family to be frozen")
             | I.Kind =>
         (case IntSyn.sgnLookup a
            of IntSyn.ConDec _ => a
@@ -173,46 +152,13 @@ struct
             | IntSyn.AbbrevDef _ =>
                 IntSyn.targetFam (IntSyn.constDef a)))
 
-    (* superseded by freeze *)
-    (*
     fun installFrozen (L) =
         let
           val L = map expandFamilyAbbrevs L
-	  (* val _ = print ("L = " ^ (foldl (fn (c,s) => Names.qidToString (Names.constQid c) ^ s) "\n" L)); *)
         in
           List.app (fn a => checkMakeFrozen (a, L)) L;
           List.app (fn a => fSet (a, true)) L
         end
-    *)
-
-    (* freeze L = ()
-       freezes all families in L, and all families transitively
-       reachable from families in L
-
-       Intended to be called from programs
-    *)
-    val freezeList : IntSet.intset ref = ref IntSet.empty
-    fun freeze (L) =
-        let
-	  val _ = freezeList := IntSet.empty
-	  val L' = map expandFamilyAbbrevs L
-	  val _ = List.app (fn a =>
-			    appReachable (fn b =>
-					  (fSet (b, true);
-					   freezeList := IntSet.insert(b, !freezeList))) a)
-	          L'
-	  val cids = IntSet.foldl (op::) nil (!freezeList)
-	in
-	  cids
-	end
-
-    (* frozen L = true if one of the families in L is frozen *)
-    fun frozen (L) =
-        let
-	  val L' = map expandFamilyAbbrevs L
-	in
-	  List.exists (fn a => fGet a) L'
-	end
 
     (* a <| b = true iff a is (transitively) subordinate to b
 
@@ -243,32 +189,7 @@ struct
 
     fun addSubord (a, b) =
         if below (a, b) then ()
-	else if fGet b
-	       (* if b is frozen and not already b #> a *)
-	       (* subordination would change; signal error *)
-	       then raise Error ("Freezing violation: "
-				 ^ Names.qidToString (Names.constQid b)
-				 ^ " would depend on "
-				 ^ Names.qidToString (Names.constQid a))
-	     else addNewEdge (b, a)
-
-    (* Thawing frozen families *)
-    (* Returns list of families that were thawed *)
-    val aboveList : IntSyn.cid list ref = ref nil
-    fun addIfBelowEq a's =
-        fn b => if List.exists (fn a => belowEq (a, b)) a's
-		  then aboveList := b::(!aboveList)
-		else ()
-
-    fun thaw a's =
-        let
-	  val a's' = map expandFamilyAbbrevs a's
-	  val _ = aboveList := nil
-	  val _ = Table.app (fn (b,_) => addIfBelowEq a's' b) soGraph;
-	  val _ = List.app (fn b => fSet(b, false)) (!aboveList)
-	in
-	  !aboveList
-	end
+	else addNewEdge (b, a)
 
     (*
        Definition graph
@@ -411,25 +332,6 @@ struct
 			  installTypeN' (V, a))
 	end
 
-    (* installBlock b = ()
-       Effect: if b : Block, add subordination from Block into table
-    *)
-    (* BDec, ADec, NDec are disallowed here *)
-    fun installDec (I.Dec(_,V)) = installTypeN V
-
-    fun installSome (I.Null) = ()
-      | installSome (I.Decl(G, D)) =
-        ( installSome G; installDec D )
-
-    (* b must be block *)
-    fun installBlock b =
-        let
-	  val I.BlockDec(_, _, G, Ds) = I.sgnLookup b
-	in
-	  installSome G;
-	  List.app (fn D => installDec D) Ds
-	end
-
     (* Respecting subordination *)
 
     (* checkBelow (a, b) = () iff a <| b
@@ -478,12 +380,10 @@ struct
     *)
 
     fun showFam (a, bs) =
-        (print (Names.qidToString (Names.constQid a)
-		^ (if fGet a then " #> " else " |> ")
+        (print (Names.qidToString (Names.constQid a) ^ " |> "
 		^ famsToString (bs, "\n")))
 
     fun show () = Table.app showFam soGraph;
-
 
     (* weaken (G, a) = (w') *)
     fun weaken (I.Null, a) = I.id
@@ -495,7 +395,7 @@ struct
 	  else I.comp (w', I.shift)
 	end
 
- 
+
     (* showDef () = ()
        Effect: print some statistics about constant definitions
     *)
@@ -546,13 +446,7 @@ struct
      
     val install = install
     val installDef = installDef
-    val installBlock = installBlock
-
-    (* val installFrozen = installFrozen *)
-
-    val freeze = freeze
-    val frozen = frozen
-    val thaw = thaw
+    val installFrozen = installFrozen
 
     val below = below
     val belowEq = belowEq

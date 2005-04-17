@@ -50,16 +50,7 @@ struct
     fun resetROrder () = Table.clear RedOrderTable
 
     fun install (cid, O) = Table.insert OrderTable (cid, O)
-    fun uninstall cid =
-        case Table.lookup OrderTable cid
-          of NONE => false
-           | SOME _ => (Table.delete OrderTable cid ; true)
-
     fun installROrder (cid, P) = Table.insert RedOrderTable (cid, P)
-    fun uninstallROrder cid =
-        case Table.lookup RedOrderTable cid
-          of NONE => false
-           | SOME _ => (Table.delete RedOrderTable cid ; true)
 
 
     fun lookup cid = Table.lookup OrderTable cid
@@ -117,9 +108,7 @@ struct
     val reset = reset
     val resetROrder = resetROrder
     val install = install
-    val uninstall = uninstall
     val installROrder = installROrder
-    val uninstallROrder = uninstallROrder
     val selLookup = selLookup
     val selLookupROrder = selLookupROrder
     val mutLookup = mutLookup

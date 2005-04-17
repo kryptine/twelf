@@ -131,31 +131,17 @@ struct
   fun reconTraceModeToString (Twelf.Recon.Progressive) = "Progressive"
     | reconTraceModeToString (Twelf.Recon.Omniscient) = "Omniscient"
 
-
-  (* Compile options *)
-  fun getCompileOpt ("No"::nil) = Twelf.Compile.No
-    | getCompileOpt ("LinearHeads"::nil) = Twelf.Compile.LinearHeads
-    | getCompileOpt ("Indexing"::nil) = Twelf.Compile.Indexing
-    | getCompileOpt (nil) = error "Missing tabling strategy"
-    | getCompileOpt (t::nil) = error (quote t ^ " is not a compile option (must be No, LinearHeads, or Indexing ")
-    | getCompileOpt (ts) = error "Extraneous arguments"
-
-  fun compOptToString (Twelf.Compile.No) = "No"
-    | compOptToString (Twelf.Compile.LinearHeads) = "LinearHeads"
-    | compOptToString (Twelf.Compile.Indexing) = "Indexing"
-
   (* Setting Twelf parameters *)
   fun setParm ("chatter"::ts) = Twelf.chatter := getNat ts
     | setParm ("doubleCheck"::ts) = Twelf.doubleCheck := getBool ts
     | setParm ("unsafe"::ts) = Twelf.unsafe := getBool ts
-    | setParm ("autoFreeze"::ts) = Twelf.autoFreeze := getBool ts
     | setParm ("Print.implicit"::ts) = Twelf.Print.implicit := getBool ts
     | setParm ("Print.depth"::ts) = Twelf.Print.depth := getLimit ts
     | setParm ("Print.length"::ts) = Twelf.Print.length := getLimit ts
     | setParm ("Print.indent"::ts) = Twelf.Print.indent := getNat ts
     | setParm ("Print.width"::ts) = Twelf.Print.width := getNat ts
     | setParm ("Trace.detail"::ts) = Twelf.Trace.detail := getNat ts
-    | setParm ("Compile.optimize"::ts) = Twelf.Compile.optimize := getCompileOpt ts
+    | setParm ("Compile.optimize"::ts) = Twelf.Compile.optimize := getBool ts
     | setParm ("Recon.trace"::ts) = Twelf.Recon.trace := getBool ts
     | setParm ("Recon.traceMode"::ts) = Twelf.Recon.traceMode := getReconTraceMode ts
     | setParm ("Prover.strategy"::ts) = Twelf.Prover.strategy := getStrategy ts
@@ -170,20 +156,19 @@ struct
   fun getParm ("chatter"::ts) = Int.toString (!Twelf.chatter)
     | getParm ("doubleCheck"::ts) = Bool.toString (!Twelf.doubleCheck)
     | getParm ("unsafe"::ts) = Bool.toString (!Twelf.unsafe)
-    | getParm ("autoFreeze"::ts) = Bool.toString (!Twelf.autoFreeze)
     | getParm ("Print.implicit"::ts) = Bool.toString (!Twelf.Print.implicit)
     | getParm ("Print.depth"::ts) = limitToString (!Twelf.Print.depth)
     | getParm ("Print.length"::ts) = limitToString (!Twelf.Print.length)
     | getParm ("Print.indent"::ts) = Int.toString (!Twelf.Print.indent)
     | getParm ("Print.width"::ts) = Int.toString (!Twelf.Print.width)
     | getParm ("Trace.detail"::ts) = Int.toString (!Twelf.Trace.detail)
-    | getParm ("Compile.optimize"::ts) = compOptToString (!Twelf.Compile.optimize)
+    | getParm ("Compile.optimize"::ts) = Bool.toString (!Twelf.Compile.optimize)
     | getParm ("Recon.trace"::ts) = Bool.toString (!Twelf.Recon.trace)
     | getParm ("Recon.traceMode"::ts) = reconTraceModeToString (!Twelf.Recon.traceMode)
     | getParm ("Prover.strategy"::ts) = strategyToString (!Twelf.Prover.strategy)
     | getParm ("Prover.maxSplit"::ts) = Int.toString (!Twelf.Prover.maxSplit)
     | getParm ("Prover.maxRecurse"::ts) = Int.toString (!Twelf.Prover.maxRecurse)
-   | getParm ("Table.strategy"::ts) = tableStrategyToString (!Twelf.Table.strategy) 
+    | getParm ("Table.strategy"::ts) = tableStrategyToString (!Twelf.Table.strategy)
     | getParm (t::ts) = error ("Unknown parameter " ^ quote t)
     | getParm (nil) = error ("Missing parameter")
 
@@ -229,7 +214,6 @@ struct
 \  chatter <nat>               - Level of verbosity (0 = none, 3 = default)\n\
 \  doubleCheck <bool>          - Perform additional internal type-checking\n\
 \  unsafe <bool>               - Allow unsafe operations (%assert)\n\
-\  autoFreeze <bool>           - Freeze families involved in meta-theorems\n\
 \  Print.implicit <bool>       - Print implicit arguments\n\
 \  Print.depth <limit>         - Cut off printing at depth <limit>\n\
 \  Print.length <limit>        - Cut off printing at length <limit>\n\

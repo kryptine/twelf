@@ -234,9 +234,6 @@ struct
           Parsing.error (r, "Expected identifier, found token "
                             ^ L.toString t)
 
-    fun parseThaw' (f, qids) = (* same syntax as %freeze *)
-          parseFreeze' (f, qids)
-
     fun parseDeterministic' (f as LS.Cons ((L.ID _, _), _), qids) =
         let
           val ((ids, (L.ID (idCase, name), r1)), f') = parseQualId' f
@@ -422,7 +419,6 @@ struct
     val parseQualId' = parseQualId'
     val parseQualIds' = parseQualIds'
     val parseFreeze' = (fn f => parseFreeze' (f, nil))
-    val parseThaw' = (fn f => parseThaw' (f, nil))
     val parseDeterministic' = (fn f => parseDeterministic' (f, nil))
     val parseCompile' = (fn f => parseCompile' (f, nil)) (* -ABP 4/4/03 *)
     val parseTerm' = (fn f => parseExp' (f, nil))

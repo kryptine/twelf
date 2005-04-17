@@ -82,10 +82,17 @@ struct
 	   clauseToString t (IntSyn.Decl(G, D'), r)
 	 end
 
-    fun subgoalsToString t (G, True) = t ^ "True "
-      | subgoalsToString t (G, Conjunct(Goal, A, Sg)) = 
-        t  ^ goalToString t (IntSyn.Decl(G,IntSyn.Dec(NONE, A)), Goal) ^ " and " ^ subgoalsToString t (G, Sg)
-
+(*
+      | clauseToString t (G, Axists(sopt, r)) =
+	 let
+	   val s = case sopt of
+	     NONE => (ctr := ctr+1 ; ("X_" ^ Int.tostring ctr))
+	       | SOME s => s
+	 in 
+	   t ^ "EXISTS' " ^ s ^ "\n" ^ 
+	   clauseToString t (IntSyn.Decl(G, D'), r) 
+	 end
+*)
     (* conDecToString (c, clause) printed representation of static clause *)
     fun conDecToString (c, SClause(r)) = 
 	let
@@ -123,8 +130,6 @@ struct
 	 ^ "\nParameter " ^ x ^ ":\t"
 	 ^ Print.expToString (G, A)
      (* case for CompSyn.BDec is still missing *)
-
-
 
   end  (* local open ... *)
 

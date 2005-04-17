@@ -53,10 +53,6 @@ struct
   datatype TabledDecl = 
     TabledDecl of IntSyn.cid
 
-  (* KeepTable declaration *)
-  datatype KeepTableDecl = 
-    KeepTableDecl of IntSyn.cid
-
   (* Theorem declaration *)
   datatype ThDecl =
     ThDecl of (IntSyn.Dec IntSyn.Ctx * IntSyn.Dec IntSyn.Ctx) list

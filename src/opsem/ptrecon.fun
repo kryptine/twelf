@@ -11,9 +11,7 @@ functor PtRecon ((*! structure IntSyn' : INTSYN !*)
 		    (*! sharing Unify.IntSyn = IntSyn' !*)
                     structure Assign : ASSIGN
 		    (*! sharing Assign.IntSyn = IntSyn' !*)
-		    (*! structure TableParam : TABLEPARAM !*)
-		    structure MemoTable : MEMOTABLE		
-		    (*! sharing MemoTable.TableParam = TableParam !*)
+
 		    structure Index : INDEX
 		    (*! sharing Index.IntSyn = IntSyn' !*)
 		    (* CPrint currently unused *)
@@ -30,12 +28,10 @@ struct
 
   (*! structure IntSyn = IntSyn' !*)
   (*! structure CompSyn = CompSyn' !*)
-  (*! structure TableParam = TableParam !*)
 
   local
     structure I = IntSyn
     structure C = CompSyn
-    structure MT = MemoTable      
   in
 
     exception Error of string
@@ -71,7 +67,7 @@ struct
      Non-determinism within the rules is resolved by oracle
   *)
 
-  (* solve' (o, (g, s), dp, sc) => ()
+  (* solve (o, (g, s), dp, sc) => ()
      Invariants:
        o = oracle
        dp = (G, dPool) where  G ~ dPool  (context G matches dPool)
@@ -82,37 +78,20 @@ struct
      Effects: instantiation of EVars in g, s, and dp
               any effect  sc M  might have
   *)
-  fun solve' (O, (C.Atom(p), s), dp as C.DProg (G, dPool), sc) = 
-    matchAtom (O, (p,s), dp, sc)
-    | solve' (O, (C.Impl(r, A, Ha, g), s), C.DProg (G, dPool), sc) =
+  fun solve (O, (C.Atom(p), s), dp, sc) = matchAtom (O, (p,s), dp, sc)
+    | solve (O, (C.Impl(r, A, a, g), s), C.DProg (G, dPool), sc) =
       let
 	val D' = I.Dec(NONE, I.EClo(A,s))
       in
-	 if (!TableParam.strengthen) 
-	   then 
-	     (case MT.memberCtx ((G,I.EClo(A,s)), G) of
-		SOME(D) => 
-		  let 
-		     val X = I.newEVar(G, I.EClo(A, s)) 		      
-		   in
-		     (* need to reuse label for this assumption .... *)
-		     solve' (O, (g, I.Dot(I.Exp(X),s)), C.DProg (G, dPool), (fn (O,M) => sc (O, I.Lam(D',M))))
-		   end
-		 | NONE => solve' (O, (g, I.dot1 s), C.DProg (I.Decl(G, D'), I.Decl (dPool, C.Dec(r, s, Ha))),
-				  (fn (O,M) => sc (O,I.Lam (D', M)))))
-	 else
-	   solve' (O, (g, I.dot1 s), C.DProg (I.Decl(G, D'), I.Decl (dPool, C.Dec(r, s, Ha))),
-		  (fn (O,M) => sc (O, (I.Lam (D', M))))) 
-(*	solve' (O, (g, I.dot1 s), C.DProg (I.Decl(G, D'), I.Decl (dPool, C.Dec (r, s, Ha))),
-	       (fn (O,M) => sc (O, (I.Lam (D', M)))))*)
+	solve (O, (g, I.dot1 s), C.DProg (I.Decl(G, D'), I.Decl (dPool, C.Dec (r, s, a))),
+	       (fn (O,M) => sc (O, (I.Lam (D', M)))))
       end
-    | solve' (O, (C.All(D, g), s), C.DProg (G, dPool), sc) =
+    | solve (O, (C.All(D, g), s), C.DProg (G, dPool), sc) =
       let
-	val D' = Names.decLUName (G, I.decSub (D, s)) 
-	(* val D' = I.decSub (D, s) *)
+	val D' = I.decSub (D, s)
       in
-	solve' (O, (g, I.dot1 s), C.DProg (I.Decl(G, D'), I.Decl(dPool, C.Parameter)),
-	       (fn (O, M) => sc (O, (I.Lam (D', M)))))
+	solve (O, (g, I.dot1 s), C.DProg (I.Decl(G, D'), I.Decl(dPool, C.Parameter)),
+	       (fn (O,M) => sc (O, (I.Lam (D', M)))))
       end
 
   (* rsolve (O, (p,s'), (r,s), dp, sc) = ()
@@ -129,23 +108,16 @@ struct
               any effect  sc S  might have
   *)
   and rSolve (O, ps', (C.Eq(Q), s), C.DProg (G, dPool), sc) =
-      if Unify.unifiable (G, (Q, s), ps') (* effect: instantiate EVars *)
-	then sc (O, I.Nil) 		  (* call success continuation *)
-      else (let val _ = (print "Unification Failed -- SHOULD NEVER HAPPEN!\n";
-			 print (Print.expToString (G, I.EClo(ps')) ^ " unify ");
-			 print (Print.expToString (G, I.EClo(Q, s)) ^ "\n"))
-	    in
-	      ()
-	    end)
-	  (* fail *)
+     (if Unify.unifiable (G, ps', (Q, s)) (* effect: instantiate EVars *)
+	then sc (O, I.Nil)			(* call success continuation *)
+      else ()				(* fail *)
+	)
 
     | rSolve (O, ps', (C.Assign(Q, eqns), s), dp as C.DProg(G, dPool), sc) = 
 	(case Assign.assignable (G, ps', (Q, s)) of
 	  SOME(cnstr) => 	    
-	    if aSolve((eqns, s), dp, cnstr)
-	      then sc (O, I.Nil)
-	    else  print "aSolve cnstr not solvable -- SHOULD NEVER HAPPEN\n"
-        | NONE => print "Clause Head not assignable -- SHOULD NEVER HAPPEN\n")
+	    aSolve((eqns, s), dp, cnstr, (fn () => sc (O, I.Nil)))
+        | NONE => ())
 
     | rSolve (O, ps', (C.And(r, A, g), s), dp as C.DProg (G, dPool), sc) =
       let
@@ -153,7 +125,7 @@ struct
 	val X = I.newEVar (G, I.EClo(A, s))
       in
         rSolve (O, ps', (r, I.Dot(I.Exp(X), s)), dp,
-		(fn (O, S) => solve' (O, (g, s), dp,
+		(fn (O, S) => solve (O, (g, s), dp,
 				(fn (O, M) => sc (O, (I.App (M, S)))))))
       end
     | rSolve (O, ps', (C.Exists(I.Dec(_,A), r), s), dp as C.DProg (G, dPool), sc) =
@@ -181,15 +153,19 @@ struct
        else res = Fail
      Effects: instantiation of EVars in ag[s], dp and sc () *)
 
-  and aSolve ((C.Trivial, s), dp, cnstr) = 
-       Assign.solveCnstr cnstr 
-    | aSolve ((C.UnifyEq(G',e1, N, eqns), s), dp as C.DProg(G, dPool), cnstr) =
+  and aSolve ((C.Trivial, s), dp, cnstr, sc) = 
+        (if Assign.solveCnstr cnstr then
+	  sc ()
+	else 
+	   ())
+    | aSolve ((C.UnifyEq(G',e1, N, eqns), s), dp as C.DProg(G, dPool), cnstr, sc) =
       let
 	val (G'') = compose'(G', G)
 	val s' = shift (G', s)
       in 
-	 Assign.unifiable (G'', (N, s'), (e1, s')) andalso
-	      aSolve ((eqns, s), dp, cnstr)
+	if Assign.unifiable (G'', (N, s'), (e1, s')) then  	  
+	      aSolve ((eqns, s), dp, cnstr, sc)
+	else ()
      end
     
 
@@ -213,15 +189,19 @@ struct
            with c1.
         *)
 	fun matchSig (nil, k) = 
-	     raise Error (" \noracle #Pc does not exist \n")
+	  let 
+	  in 
+	     raise Error (" \noracle #pc does not exist \n") end
 	     (* should not happen *)
 	  | matchSig (((Hc as (I.Const c))::sgn'), k) =
 	    if c = k then 
 	      let
 		val C.SClause(r) = C.sProgLookup (cidFromHead Hc)
 	      in
-		rSolve (O, ps', (r, I.id), dp,
-			(fn (O,S) => sc (O, (I.Root(Hc, S)))))
+		(* trail to undo EVar instantiations *)
+		CSManager.trail (fn () =>
+				 rSolve (O, ps', (r, I.id), dp,
+					 (fn (O,S) => sc (O, (I.Root(Hc, S))))))
 	      end
 	    else 
 	      matchSig (sgn', k)
@@ -230,8 +210,10 @@ struct
 	      let
 		val C.SClause(r) = C.sProgLookup (cidFromHead Hc)
 	      in
-		rSolve (O, ps', (r, I.id), dp,
-			(fn (O,S) => sc (O, (I.Root(Hc, S)))))
+		(* trail to undo EVar instantiations *)
+		CSManager.trail (fn () =>
+				 rSolve (O, ps', (r, I.id), dp,
+					 (fn (O,S) => sc (O, (I.Root(Hc, S))))))
 	      end
 	    else 
 	      matchSig (sgn', k)
@@ -243,28 +225,44 @@ struct
         *)
 	fun matchDProg (I.Null, i, k) =
 	    (* dynamic program exhausted -- shouldn't happen *)
-	    raise Error ("\n selected dynamic clause number does not exist in current dynamic clause pool!\n")
+	    raise Error ("\n selected dynamic clause number does not exist in current dynamic clause pool! -- SHOULD NOT HAPPEN \n")
 	  | matchDProg (I.Decl (dPool', C.Dec (r, s, Ha')), 1, k) =
 	    if eqHead (Ha, Ha')
-	      then 
-		rSolve (O, ps', (r, I.comp(s, I.Shift(k))), dp,
-			(fn (O,S) => sc (O, (I.Root(I.BVar(k), S)))))
+	      then (* trail to undo EVar instantiations *)
+		    (CSManager.trail (fn () =>
+		                      rSolve (O, ps', (r, I.comp(s, I.Shift(k))), dp,
+				              (fn (O,S) => sc (O, (I.Root(I.BVar(k), S)))))))
 	    else (* shouldn't happen *) 
-	      raise Error ("\n selected dynamic clause does not match current goal!\n")
+	      raise Error ("\n selected dynamic clause does not match current goal! -- SHOULD NOT HAPPEN \n")
 	      
 	  | matchDProg (I.Decl (dPool', dc), i ,k) =
 	      matchDProg (dPool', i-1, k)
+
+        fun matchConstraint (solve, try) =
+              let
+                val succeeded =
+                  CSManager.trail
+                    (fn () =>
+                       case (solve (G, I.SClo (S, s), try))
+                         of SOME(U) => (sc (O, U) ; true)
+                          | NONE => false)
+              in
+                if succeeded
+                then matchConstraint (solve, try+1)
+                else ()
+              end      
+
       in
-	(case Ho of 
-	   C.Pc i => matchSig (Index.lookup (cidFromHead Ha), i)
-	 | C.Dc i => matchDProg (dPool, i, i)
-	 | C.Csolver U => sc (O, U))
+  (*      case I.constStatus(cidFromHead Ha)
+          of (I.Constraint (cs, solve)) => matchConstraint (solve, 0)
+           | _ => *)
+	    (case Ho of 
+	            (C.Pc i) => matchSig (Index.lookup (cidFromHead Ha), i)
+		  | (C.Dc i) => matchDProg (dPool, i, i)
+	          | C.Csolver => (case I.constStatus(cidFromHead Ha)
+			       of (I.Constraint (cs, solve)) => matchConstraint (solve, 0)
+				 | _ => raise Error (" \noracle #csc but no constraint solver defined \n")))
       end
-
-
-  fun solve (O, (g, s), dp as C.DProg(G, dPool), sc) = 
-      solve' (O, (g,s), dp, sc) handle Error msg => print msg
-
   end (* local ... *)
 
 end; (* functor PtRecon *)

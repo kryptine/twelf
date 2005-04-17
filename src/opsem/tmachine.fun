@@ -55,6 +55,9 @@ struct
      return to indicate backtracking.
   *)
 
+    fun raiseType (I.Null, U) = U
+      | raiseType (I.Decl(G, D), U) = I.Lam(D, raiseType (G, U))
+
     fun cidFromHead (I.Const a) = a
       | cidFromHead (I.Def a) = a
 

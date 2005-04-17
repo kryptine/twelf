@@ -1,5 +1,5 @@
 (* MLton version *)
-(* For use with MLton >= 20040227 *)
+(* For use with MLton >= 20030716 *)
 Group is
 ../src/compat/array.sig
 ../src/compat/vector.sig
@@ -9,7 +9,8 @@ Group is
 ../src/compat/timer.sig
 ../src/compat/compat.sig
 ../src/compat/compat.fun
-../src/compat/compat.sml
+../src/compat/text-io-97.sml
+../src/compat/compat-mlton-20030716.sml
 ../src/timing/timing.sml
 ../src/timing/timers.sig
 ../src/timing/timers.fun

@@ -48,7 +48,7 @@ struct
   datatype fileParseResult =
       ConDec of ExtConDec.condec
     | FixDec of (Names.Qid * Paths.region) * Names.Fixity.fixity
-    | NamePref of (Names.Qid * Paths.region) * (string list * string list)
+    | NamePref of (Names.Qid * Paths.region) * (string * string option)
     | ModeDec of ExtModes.modedec list
     | UniqueDec of ExtModes.modedec list (* -fp 8/17/03 *)
     | CoversDec of ExtModes.modedec list
@@ -57,7 +57,6 @@ struct
     | WorldDec of ThmExtSyn.wdecl
     | ReducesDec of ThmExtSyn.rdecl   (* -bp *)
     | TabledDec of ThmExtSyn.tableddecl 
-    | KeepTableDec of ThmExtSyn.keepTabledecl 
     | TheoremDec of ThmExtSyn.theoremdec
     | ProveDec of ThmExtSyn.prove
     | EstablishDec of ThmExtSyn.establish
@@ -69,7 +68,6 @@ struct
     | Solve of ExtQuery.define list * ExtQuery.solve
     | AbbrevDec of ExtConDec.condec
     | FreezeDec of Names.Qid list
-    | ThawDec of Names.Qid list
     | DeterministicDec of Names.Qid list  (* -rv *)
     | ClauseDec of ExtConDec.condec (* -fp *)
     | SigDef of ModExtSyn.sigdef
@@ -189,13 +187,12 @@ struct
       | parseStream' (f as LS.Cons ((L.WORLDS, r), s'), sc) = parseWorlds' (f, sc)
       | parseStream' (f as LS.Cons ((L.REDUCES, r), s'), sc) = parseReduces' (f, sc) (* -bp *)
       | parseStream' (f as LS.Cons ((L.TABLED, r), s'), sc) = parseTabled' (f, sc) (* -bp *)
-      | parseStream' (f as LS.Cons ((L.KEEPTABLE, r), s'), sc) = parseKeepTable' (f, sc) (* -bp *)
+
       | parseStream' (f as LS.Cons ((L.THEOREM, r), s'), sc) = parseTheorem' (f, sc)
       | parseStream' (f as LS.Cons ((L.PROVE, r), s'), sc) = parseProve' (f, sc)
       | parseStream' (f as LS.Cons ((L.ESTABLISH, r), s'), sc) = parseEstablish' (f, sc)
       | parseStream' (f as LS.Cons ((L.ASSERT, r), s'), sc) = parseAssert' (f, sc)
       | parseStream' (f as LS.Cons ((L.FREEZE, r), s'), sc) = parseFreeze' (f, sc)
-      | parseStream' (f as LS.Cons ((L.THAW, r), s'), sc) = parseThaw' (f, sc)
       | parseStream' (f as LS.Cons ((L.DETERMINISTIC, r), s'), sc) = parseDeterministic' (f, sc) (* -rv *)
       | parseStream' (f as LS.Cons ((L.COMPILE, r), s'), sc) = parseCompile' (f, sc) (* -ABP 4/4/03 *)
       | parseStream' (f as LS.Cons ((L.CLAUSE, r), s'), sc) = parseClause' (f, sc) (* -fp *)
@@ -306,14 +303,6 @@ struct
 	  Stream.Cons ((TabledDec ldec, r), parseStream (stripDot f', sc))
 	end
 
-    and parseKeepTable' (f as LS.Cons ((_, r0), _), sc) = 
-	let
-	  val (ldec, f' as LS.Cons ((_, r'), _)) = ParseThm.parseKeepTable' (f)
-          val r = Paths.join (r0, r')
-	in
-	  Stream.Cons ((KeepTableDec ldec, r), parseStream (stripDot f', sc))
-	end
-
     and parseWorlds' (f as LS.Cons ((_, r0), _), sc) =
         let
 	  val (ldec, f' as LS.Cons ((_, r'), _)) = ParseThm.parseWorlds' (f)
@@ -362,15 +351,6 @@ struct
         in
           Stream.Cons ((FreezeDec qids, r), parseStream (stripDot f', sc))
         end
-
-    and parseThaw' (f as LS.Cons ((_, r0), s), sc) =
-        let
-	  val (qids, f' as LS.Cons ((_, r'), _)) = ParseTerm.parseThaw' (LS.expose s)
-	  val r = Paths.join (r0, r')
-	  val qids = map Names.Qid qids
-	in
-	  Stream.Cons ((ThawDec qids, r), parseStream (stripDot f', sc))
-	end
 
     and parseDeterministic' (f as LS.Cons ((_, r0), s), sc) =
         let

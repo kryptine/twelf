@@ -1,5 +1,5 @@
 (* MLton version *)
-(* For use with MLton >= 20040227 *)
+(* For use with MLton < 20030716 *)
 Group is
 ../src/compat/array.sig
 ../src/compat/vector.sig
@@ -9,7 +9,12 @@ Group is
 ../src/compat/timer.sig
 ../src/compat/compat.sig
 ../src/compat/compat.fun
-../src/compat/compat.sml
+../src/compat/array-97.sml
+../src/compat/vector-97.sml
+../src/compat/substring-97.sml
+../src/compat/text-io-97.sml
+../src/compat/timer-97.sml
+../src/compat/compat-smlnj98.sml
 ../src/timing/timing.sml
 ../src/timing/timers.sig
 ../src/timing/timers.fun
@@ -32,6 +37,8 @@ Group is
 ../src/table/string-hash.sig
 ../src/table/string-hash.sml
 ../src/table/red-black-tree.fun
+../src/compat/vector-slice.sig
+../src/compat/vector-slice.sml
 ../src/table/sparse-array.sig
 ../src/table/sparse-array.fun
 ../src/table/sparse-array2.sig
@@ -55,8 +62,6 @@ Group is
 ../src/lambda/constraints.fun
 ../src/lambda/unify.sig
 ../src/lambda/unify.fun
-../src/lambda/match.sig
-../src/lambda/match.fun
 ../src/lambda/abstract.sig
 ../src/lambda/abstract.fun
 ../src/lambda/approx.sig
@@ -106,6 +111,8 @@ Group is
 ../src/tabling/tabledsyn.fun
 ../src/tabling/tabled.sml
 ../src/subordinate/intset.sml
+../src/compat/array-slice.sig
+../src/compat/array-slice.sml
 ../src/subordinate/subordinate.sig
 ../src/subordinate/subordinate.fun
 ../src/subordinate/subordinate.sml
@@ -145,14 +152,10 @@ Group is
 ../src/thm/thm.sig
 ../src/thm/thm.fun
 ../src/thm/thm.sml
-../src/table/red-black-set.sig
-../src/table/red-black-set.sml
 ../src/compile/compsyn.sig
 ../src/compile/compsyn.fun
 ../src/compile/cprint.sig
 ../src/compile/cprint.fun
-../src/compile/subtree.sig
-../src/compile/subtree.fun
 ../src/compile/compile.sig
 ../src/compile/compile.fun
 ../src/compile/assign.sig
@@ -160,23 +163,16 @@ Group is
 ../src/compile/compile.sml
 ../src/opsem/absmachine.sig
 ../src/opsem/absmachine.fun
-../src/opsem/table-param.sig
-../src/opsem/table-param.fun
-../src/opsem/table-param.sml
-../src/opsem/abstract.sig
-../src/opsem/abstract.fun
-../src/opsem/sw-subtree.sig
-../src/opsem/subtree.fun
-../src/opsem/subtree-inst.fun
-../src/opsem/sw-subtree.fun
-../src/opsem/tabled.sig
-../src/opsem/tabled.fun
 ../src/opsem/ptrecon.sig
 ../src/opsem/ptrecon.fun
+../src/opsem/abstract.sig
+../src/opsem/abstract.fun
+../src/opsem/index.sig
+../src/opsem/index.fun
+../src/opsem/tabled.sig
+../src/opsem/tabled.fun
 ../src/opsem/trace.sig
 ../src/opsem/trace.fun
-../src/opsem/absmachine-sbt.sig
-../src/opsem/absmachine-sbt.fun
 ../src/opsem/tmachine.fun
 ../src/opsem/swmachine.fun
 ../src/opsem/opsem.sml
@@ -204,8 +200,6 @@ Group is
 ../src/m2/recursion.fun
 ../src/m2/qed.sig
 ../src/m2/qed.fun
-../src/compat/time-limit.sig
-../src/compat/time-limit.sml
 ../src/m2/strategy.sig
 ../src/m2/strategy.fun
 ../src/m2/prover.sig
@@ -334,7 +328,6 @@ Group is
 ../src/frontend/unknownexn-smlnj.sml
 ../src/frontend/frontend.sml
 ../src/server/sigint.sig
-../src/server/mlton-thread.sml
 ../src/server/sigint-mlton.sml
 ../src/server/server.sml
 twelf-server.sml

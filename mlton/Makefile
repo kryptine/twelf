@@ -37,13 +37,12 @@ twelf-server: ;
 	@echo "Twelf $(version): Server"
 	@echo "*************************************************"
 	mltonversion=`$(sml) 2>&1 | awk 'NR==1 { print 0+$$2 }'`;	\
-	if   [ $$mltonversion -ge 20041109 ]; then			\
+	if   [ $$mltonversion -ge 20040227 ]; then			\
 		cmfileid="";						\
-	elif [ $$mltonversion -ge 20040227 ]; then			\
-		cmfileid="-legacy";					\
+	elif [ $$mltonversion -ge 20030716 ]; then			\
+		cmfileid="-20030716";					\
 	else								\
-		echo; echo "Error: MLton >= 20040227 required";	echo;	\
-		exit 1;							\
+		cmfileid="-97";						\
 	fi;								\
 	$(sml) mlton/twelf-server$${cmfileid}.cm ;			\
 	mv mlton/twelf-server$${cmfileid} bin/$(twelfserver)
@@ -75,24 +74,34 @@ clean: ;
 	@echo "No temporary files with MLton"
 
 
-mlton-cm-files: twelf-server-cm twelf-server-legacy-cm ;
+mlton-cm-files: twelf-server-cm twelf-server-20030716-cm twelf-server-97-cm ;
 
 twelf-server-cm: ;
 	{							\
 	echo "(* MLton version *)" ;				\
-	echo "(* For use with MLton >= 20041109 *)" ;		\
+	echo "(* For use with MLton >= 20040227 *)" ;		\
 	echo "Group is" ;					\
-	cmcat -DMLton_20041109 -DMLton_20040227 ../server.cm ;	\
+	cmcat -DMLton_20040227 -DMLton_20030716 ../server.cm ;	\
 	echo "twelf-server.sml" ;				\
 	}							\
 	> twelf-server.cm
 
-twelf-server-legacy-cm: ;
+twelf-server-20030716-cm: ;
 	{						\
 	echo "(* MLton version *)" ;			\
-	echo "(* For use with MLton >= 20040227 *)" ;	\
+	echo "(* For use with MLton >= 20030716 *)" ;	\
 	echo "Group is" ;				\
-	cmcat -DMLton_20040227 ../server.cm ;		\
+	cmcat -DMLton_20030716 ../server.cm ;		\
 	echo "twelf-server.sml" ;			\
 	}						\
-	> twelf-server-legacy.cm
+	> twelf-server-20030716.cm
+
+twelf-server-97-cm: ;
+	{						\
+	echo "(* MLton version *)" ;			\
+	echo "(* For use with MLton < 20030716 *)" ;	\
+	echo "Group is" ;				\
+	cmcat ../server.cm ;				\
+	echo "twelf-server.sml" ;			\
+	}						\
+	> twelf-server-97.cm
