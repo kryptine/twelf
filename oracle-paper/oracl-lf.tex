@@ -1442,122 +1442,327 @@ based on subordination and on not adding dynamic assumption twice)
   I don't know how important strengthening is in the context of this work.
   Can we come up with an example where it demonstrably helps? - Susmit
 \end{note}
+
 \section{Experimental Results}
 
-We show an extensive experimental evaluation of generating and
-checking proofs using compact proof witnesses. In this study, we will
-use three test suites.
+We now show an experimental evaluation of generating and checking
+proofs using compact proof witnesses. We wish to understand how the
+checking time for proofs is affected by using our proof witnesses. We
+will also study the advantages of caching subproofs. Further, since
+the primary focus is on generating small proof witnesses, we will
+study how the size of the proof witnesses change by varying
+parameters. We hope this will serve as a guide to those wishing to 
+generate and use oracles on the various tradeoffs to be made.
 
-Our first test suite is a sequent calculus of higher order logic. This 
-is a general logic. Our second test suite is a refinement type system for 
-a high-level ML-style language. This is an illustration of the use of 
-advanced type systems. Our third test suite is a set of example programs
-used in the Foundational Proof Carrying Code project at Princeton.
-\begin{note}
-  Brigitte: Can we get references/say where the others are from? --
+\subsection{Sequent Calculus}
+Our first example suite is an implementation of a sequent calculus 
+for intuitionistic propositional logic. This has the standard connectives
+for conjunction, disjunction, implication and atomic propositions 
+truth and falsehood. The calculus is one designed to find proofs using an 
+inversion based strategy.
 
-  - bp:  What do you mean ``references''. 
-  I implemented the sequent calculus in Twelf partially based on
-  Frank's ATP notes. The refinement type checking example is an
-  implementation by Frank. He did this implementation when he was
-  writing the paper on Rowan Davies and Frank Pfenning", "Intersection
-  Types and Computational Effects", ICFP'00  with Rowan.  
-
-  -bp: The experimental section should highlight some examples where
-  caching leads to savings in proof term size, and it is perfectly
-  fine if there are some examples where the saving is minimal. It is
-  an optional feature, so it may be turned on, but doesn't have to.
-\end{note}
-
-We notice that proof compression and verification is about a factor of 2
-faster than proof search using tabled logic programming. This is because 
-useless branches of the proof tree do not have to be explored. The oracle
-sizes are about 75-90 times smaller than proof terms.
-
-\begin{table*}[tbp]
+\begin{table*}[htbp]
 \begin{center}
 \begin{small}
-\begin{tabular}{|l|l|l|l|l|l|}
+\begin{tabular}{|l|l|l|l|}
 \hline
-Example & Proof Search & Proof Compression 
-& Oracle Verification & Proof Term & Oracle \\
-& Time (s) & Time (s) & Time (s) & Size (Bytes) & Size (Bytes)\\
+Example & Proof Search & Proof Compression & Oracle Verification \\
+& time (s) & time (s) & time (s)\\
 \hline
-refine-41 & 2.514 & 1.182 & 1.252 & 15630 & 169\\
-refine-42 & 3.755 & 1.993 & 1.612 & 18531 & 211\\
-refine-43 & 4.779 & 2.023 & 1.933 & 20317 & 259\\
-refine-44 & 0.600 & 0.150 & 0.130 & 6075 & 47\\
-refine-45 & 0.712 & 0.121 & 0.130 & 6075 & 47\\
-refine-46 & 0.892 & 0.130 & 0.140 & 7061 & 50\\
-refine-47 & 5.879 & 2.243 & 2.063 & 24825 & 242\\
-refine-48 & 5.247 & 2.143 & 2.033 & 24478 & 237\\
+$(A\supset B)\wedge (A\supset C)\Rightarrow A\supset B\wedge C$
+&	0.470 
+&	0.030 
+&	0.000 \\
+$(A\supset B)\vee (A\supset C)\Rightarrow A\supset B\vee C$
+&	0.380 
+&	0.010 
+&	0.000 \\
+$A\vee C\wedge (B\supset C)\Rightarrow (A\supset B)\supset C$
+&	1.700 
+&	0.010 
+&	0.010 \\
+$(A\supset C)\wedge (B\supset C)\Rightarrow A\vee B\supset C$
+&	2.180 
+&	0.020 
+&	0.000 \\
+$A\wedge B\vee C\Rightarrow (A\wedge B)\vee (A\wedge C)$
+&	0.190 
+&	0.020 
+&	0.000 \\
+$(A\wedge B)\vee (A\wedge C)\Rightarrow A\wedge B\vee C$
+&	0.760 
+&	0.010 
+&	0.000 \\
+$A\vee (B\wedge C)\Rightarrow A\vee B\wedge A\vee C$
+&	0.210 
+&	0.020 
+&	0.000 \\
+$A\vee B\wedge A\vee C\Rightarrow A\vee (B\wedge C)$
+&	0.790 
+&	0.020 
+&	0.000 \\
+$\Rightarrow (A\supset B)\wedge (A\supset C)\supset A\supset B\supset C$
+&	0.390 
+&	0.020 
+&	0.000 \\
+$\Rightarrow (A\supset C)\wedge (B\supset C)\supset A\vee B\supset C$
+&	2.430 
+&	0.010 
+&	0.010 \\
+$\Rightarrow (A\supset B)\vee (A\supset C)\supset A\supset B\vee C$
+&	0.480 
+&	0.010 
+&	0.000 \\
+$\Rightarrow A\wedge (B\supset \perp)\supset (A\supset B)\supset \perp$ 
+&	0.370 
+&	0.020 
+&	0.000 \\
 \hline
 \end{tabular}
 \end{small}
 \end{center}
-\caption{\label{tab:proofsize} Size of Oracles and proof compression
-  times(without caching? - bp)}
+\caption{\label{tab:seqtimes}
+Sequent Calculus: Times with Caching of User-Selected Predicates}
 \end{table*}
 
-We also perform experiments to see whether tabling is beneficial.
-\begin{note}
-And find it is not!! 
-Lots of time overhead, which we expect.
-And (some) additional space overhead.
-\end{note}
+In these examples, the proof search procedure uses the table in a significant
+manner. Tabling is used to detect loops in the goals considered by the
+sequent calculus. The proof compression and the verification procedures
+provide significant time speedups, since in these procedures, we already
+know the proof. This is exhibited in Table~\ref{tab:seqtimes}.
 
-\begin{table*}[tbp]
+\begin{table*}[htbp]
 \begin{center}
 \begin{small}
-\begin{tabular}{|l|l|l|l|l|l|}
+\begin{tabular}{|l|l|l|l|}
 \hline
-Example & Tabled Compression 
-& Untabled Compression & Oracle & Oracle & Table size\\
-& Time (s) & Time (s) & Size\ednote{Please clarify in the table what Oracle Size using
-  caching} (Bytes) & Size (Bytes) &\\
+Example & Proof Size & Proof Size & Oracle Size \\
+& (bytes) & (number of tokens) & (bytes)\\
 \hline
-refine-41 & 1.182 & 0.080 & 169 & 171 & 579\\
-refine-42 & 1.993 & 0.270 & 211 & 216 & 691\\
-refine-43 & 2.023 & 0.120 & 234 & 239 & 757\\
-refine-44 & 0.150 & 0.030 & 47 & 67 & 164\\
-refine-45 & 0.121 & 0.020 & 47 & 67 & 164\\
-refine-46 & 0.130 & 0.030 & 50 & 72 & 179\\
-refine-47 & 2.243 & 0.110 & 242 & 247 & 794\\
-refine-48 & 2.143 & 0.090 & 237 & 243 & 775\\
+$(A\supset B)\wedge (A\supset C)\Rightarrow A\supset B\wedge C$
+&	361 
+&	43 
+&	5 \\
+$(A\supset B)\vee (A\supset C)\Rightarrow A\supset B\vee C$
+&	292 
+&	45 
+&	5 \\
+$A\vee C\wedge (B\supset C)\Rightarrow (A\supset B)\supset C$
+&	570 
+&	50 
+&	6 \\
+$(A\supset C)\wedge (B\supset C)\Rightarrow A\vee B\supset C$
+&	561 
+&	56 
+&	6 \\
+$A\wedge B\vee C\Rightarrow (A\wedge B)\vee (A\wedge C)$
+&	280 
+&	37 
+&	6 \\
+$(A\wedge B)\vee (A\wedge C)\Rightarrow A\wedge B\vee C$
+&	437 
+&	66 
+&	7 \\
+$A\vee (B\wedge C)\Rightarrow A\vee B\wedge A\vee C$
+&	331 
+&	50 
+&	6 \\
+$A\vee B\wedge A\vee C\Rightarrow A\vee (B\wedge C)$
+&	428 
+&	47 
+&	6 \\
+$\Rightarrow (A\supset B)\wedge (A\supset C)\supset A\supset B\supset C$
+&	454 
+&	44 
+&	5 \\
+$\Rightarrow (A\supset C)\wedge (B\supset C)\supset A\vee B\supset C$
+&	792 
+&	57 
+&	6 \\
+$\Rightarrow (A\supset B)\vee (A\supset C)\supset A\supset B\vee C$
+&	440 
+&	46 
+&	5 \\
+$\Rightarrow A\wedge (B\supset \perp)\supset (A\supset B)\supset \perp$ 
+&	513 
+&	38 
+&	5 \\
 \hline
 \end{tabular}
 \end{small}
 \end{center}
-\caption{\label{tab:prooftable} Tabling during proof
-  compression}
+\caption{\label{tab:seqsizes}
+Sequent Calculus: Sizes with Caching of User-Selected Predicates}
 \end{table*}
 
-\begin{note}
-This evaluation should show:
-\begin{itemize}
-\item Time of proof checking vs proof reconstruction using small
-  witnesses
-\item Size of proof term vs Size of witness 
-\item Size of witness without caching vs Size of witnesses with
-  caching
-\item Size of the cache
-\item Time for proof compression using caching vs Time for proof
-  compression without caching (is there a performance penalty?)
-\item Overhead of using Twelf for proof compression vs using a
-  specialized system like Fleet?
-\end{itemize}
-\end{note}
-
-\subsection{Foundational Proof Carrying Code}
-Here we consider the typed assembly language. The type system
-guarantees safety.
-
-\subsection{Sequent Calculus as a general Safety Logic}
-Here we consider the sequent calculus as a general safety logic.
+Next, we turn our attention to questions of proof size. 
+Table~\ref{tab:seqsizes} compares the size of our proof witnesses to the
+size of the original proof. The original proof is measured both by number 
+of bytes as well as the number of tokens. These figures are assuming 
+caching is done of predicates the user has selected, and the encoding of
+the oracle is in terms of the unary encoding scheme described earlier.
 
 \subsection{Refinement Types as an advanced type system}
-In this section, we consider an advanced type system based on
-refinement types for a high-level ML-like language. 
+Our next example is an advanced type system for a high-level
+call-by-value functional language. The language has functions, a
+fixpoint construct, booleans and bitstrings. The type system for the
+language has refinement types, as described in Davies and
+Pfenning~\cite{davies+:intersection}. In particular, the type of
+bitstrings is refined by zero and strictly positive number
+representations.
+
+In Table~\ref{tab:reftimes} we demonstrate the time improvements that
+can be had if we know the proof already. We achieve a speedup of
+between 2 and 6 times. This figure is achieved if we are caching
+subgoals to get maximum compressions. As we see later, even more gains
+can be achieved by turning off caching. Turning the cache off however
+would overstate the gains, since proof search has to use tabling to
+find the proof. This gain comes about since we do not have to explore 
+unproductive branches of the proof tree.
+
+We also compare proof size to the size of the compact witness we
+produce in Table~\ref{tab:refsizes}. We notice that the compact oracle
+is about 1 \% of the size of the proof term.
+
+\begin{table*}[htbp]
+\begin{center}
+\begin{small}
+\begin{tabular}{|l|l|l|l|l|}
+\hline
+Example & Proof Search & Proof Compression 
+& Oracle Verification & Speedup ( 1 / 2 )\\
+& Time (s) (1) & Time (s) (2) & Time (s) & \\
+\hline
+refine-41 & 5.810 & 1.180 & 1.100 & 4.92 \\
+refine-42 & 8.420 & 1.600 & 1.490 & 5.26 \\
+refine-43 & 11.470 & 1.920 & 1.820 & 5.97 \\
+refine-44 & 0.390 & 0.170 & 0.130 & 2.29 \\
+refine-45 & 0.390 & 0.140 & 0.130 & 2.78 \\
+refine-46 & 0.420 & 0.160 & 0.130 & 2.62 \\
+refine-47 & 12.550 & 2.310 & 1.850 & 5.43 \\
+refine-48 & 11.880 & 1.920 & 2.130 & 6.18 \\
+\hline
+\end{tabular}
+\end{small}
+\end{center}
+\caption{\label{tab:reftimes} Refinement Type System : 
+Proof Compression Times with Caching}
+\end{table*}
+
+\begin{table*}[htbp]
+\begin{center}
+\begin{small}
+\begin{tabular}{|l|l|l|l|l|l|}
+\hline
+Example & Proof Term & Proof Term & Oracle & Proof Size\\
+& Size (Bytes) (1) & Size (Tokens) & Size (Bytes) (2) & percentage (2 / 1)\\
+\hline
+refine-41 & 15654 & 1159 & 169 & 1.07 \%\\
+refine-41 & 18537 & 1383 & 211 & 1.13 \%\\
+refine-43 & 20362 & 1504 & 234 & 1.14 \%\\
+refine-44 & 6074 & 509 & 47 & 0.77 \%\\
+refine-45 & 6074 & 509 & 47 & 0.77 \%\\
+refine-46 & 7060 & 546 & 50 & 0.70 \%\\
+refine-47 & 25303 & 1587 & 242 & 0.95 \%\\
+refine-48 & 24957 & 1560 & 237 & 0.94 \%\\
+\hline
+\end{tabular}
+\end{small}
+\end{center}
+\caption{\label{tab:refsizes} Refinement Type System : 
+Size of Oracles with Caching}
+\end{table*}
+
+Next we investigate the practicality of caching subgoals. Caching is 
+a fairly expensive operation, in terms of both time to store and lookup, 
+as well as the extra memory required to maintain the table. In 
+Table~\ref{tab:refcache} we investigate this tradeoff. We find that
+using caching gives us a speed hit of between 3 and 16 times. The 
+gains from this is that the size of the oracle is smaller for the
+cached version, for every experiment in this set. The gain is small
+but significant.
+
+\begin{table*}[htbp]
+\begin{center}
+\begin{small}
+\begin{tabular}{|l|l|l|l|l|l|l|l|}
+\hline
+Example & \multicolumn{3}{c}{Compression Time} & 
+\multicolumn{3}{c}{Oracle Size} & Table\\
+& Cached & Uncached & Slowdown & Cached & Uncached & Saving & Size\\
+& (s) (1) & (s) (2) & (1 / 2) & (bytes) (3) & (bytes) (4) & (4 - 3) / 4& \\
+\hline
+refine-41 & 1.180 & 0.110 & 10.72 & 169 & 171 & 1.16 \% & 579\\
+refine-42 & 1.600 & 0.410 & 3.90 & 211 & 216 & 2.31 \% & 691\\
+refine-43 & 1.920 & 0.120 & 16.0 & 234 & 239 & 2.09 \% & 757\\
+refine-44 & 0.170 & 0.040 & 4.25 & 47 & 67 & 29.85 \% & 164\\
+refine-45 & 0.140 & 0.050 & 2.80 & 47 & 67 & 29.85 \% & 164\\
+refine-46 & 0.160 & 0.040 & 4.0  & 50 & 71 & 29.57 \% & 179\\
+refine-47 & 2.310 & 0.160 & 14.43 & 242 & 247 & 2.02 \% & 794\\
+refine-48 & 1.920 & 0.160 & 12.0 & 237 & 243 & 2.46 \% & 775\\
+\hline
+\end{tabular}
+\end{small}
+\end{center}
+\caption{\label{tab:refcache} 
+Refinement Type System : 
+Caching during proof compression}
+\end{table*}
+
+\subsection{Foundational Proof Carrying Code}
+Our last example suite is an implementation from the Foundational 
+Proof Carrying Code project at Princeton~\cite{Appel01lics}. This 
+is a large program that type checks SPARC object code with the help 
+of annotations produced by a compiler. The type system used is a
+low-level type system known as LTAL~\cite{chen+:fpcc-ltal}.
+
+\begin{table*}[htbp]
+\begin{center}
+\begin{small}
+\begin{tabular}{|l|l|l|l|l|}
+\hline
+Example & Proof Search & Proof Compression & Oracle Verification & Speedup\\
+& time (s) (1) & time (s) & time (s) (2) & (1 / 2) \\
+\hline
+clos & 12.260 & 1.940 & 0.470 & 26.08\\
+mid & 10.290 & 1.800 & 0.450 & 22.86\\
+inc & 11.550 & 1.880 & 0.470 & 24.57\\
+lint & 12.840 & 2.530 & 0.700 & 18.34\\
+\hline
+\end{tabular}
+\end{small}
+\end{center}
+\caption{\label{tab:fpcctimes}
+FPCC: Times without Caching}
+\end{table*}
+
+In Table~\ref{tab:fpcctimes} we show the gains to be achieved in terms of
+time performance. In the proof carrying code scenario, asking the consumer
+to verify our compact proof witness as opposed to the proof term gives a 
+speedup of about 20 times. Also important is the size of the proof that
+must be sent to the consumer. Our proof witnesses are between 300 and 700
+times smaller than the corresponding proof terms, as we show in
+Table~\ref{tab:fpccsizes}.
+
+\begin{table*}[htbp]
+\begin{center}
+\begin{small}
+\begin{tabular}{|l|l|l|l|l|}
+\hline
+Example & Proof Size & Proof Size & Oracle Size & Gain \\
+& (bytes) (1) & (number of tokens) & (bytes)(2) & (1 / 2)\\
+\hline
+clos & 201910 & 16502 & 638 & 316.47\\
+mid & 398589 & 34250 & 528 & 754.90\\
+inc & 410600 & 35724 & 579 & 709.15\\
+lint & 441965 & 38416 & 703 & 628.68\\
+\hline
+\end{tabular}
+\end{small}
+\end{center}
+\caption{\label{tab:fpccsizes}
+FPCC: Sizes without Caching}
+\end{table*}
 
 
 \section{Related Work}
