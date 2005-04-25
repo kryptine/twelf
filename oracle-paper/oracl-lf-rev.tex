@@ -1,0 +1,1836 @@
+\documentclass{llncs}
+
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{amstext}
+\usepackage{latexsym}
+\usepackage{array}
+\usepackage{proof}
+%\usepackage{cdsty}
+\usepackage{fancyheadings}
+% \usepackage{pstricks}
+\usepackage{pstricks,pst-node,pst-tree}
+\usepackage{graphics}
+%\usepackage[dvips]{graphicx}
+\usepackage{graphicx}
+\usepackage{psfrag}
+\usepackage{code}
+\usepackage{color}
+
+\newcommand{\mygray}[1]{{\color{green}#1}}
+% \newcommand{\mygreen}{\color{green}}
+% \newcommand{\mygray}[1]{\em{ #1}}
+
+\newcommand{\bangforbindingcolon}{\mathcode`!="003A}
+\bangforbindingcolon
+\def\sig{\mathsf{sig}}
+\def\ctx{\mathsf{ctx}}
+\def\kind{\mathsf{kind}}
+\def\typeb{\mathsf{type}}
+\newcommand{\figfoot}{\vspace{1ex}\hrule}
+\newcommand{\fighead}{\hrule\vspace{1.5ex}}
+
+\newcommand{\z}{\mbox{}}
+
+%\newcommand{\typeLF}{\textsf{type}}
+%\newcommand{\propLF}{\textsf{prop}}
+
+%\newcommand{\false}{\textsf{false}}
+%\newcommand{\true}{\textsf{true}}
+%\newcommand{\andLF}{\; \textsf{and}\;}
+%\newcommand{\impLF}{\;\textsf{imp}\;}
+%\newcommand{\forallLF}{\;\textsf{forall}\;}
+%\newcommand{\existsLF}{\;\textsf{exists}\;}
+%\newcommand{\eqLF}{\;\textsf{eq}\;}
+%\newcommand{\eqilLF}{\;\textsf{eqi1}\;}
+%\newcommand{\eqirLF}{\;\textsf{eqi2}\;}
+%\newcommand{\eqalLF}{\;\textsf{eqa1}\;}
+%\newcommand{\eqarLF}{\;\textsf{eqa2}\;}
+
+% spine notation
+% \newcommand{\nil}{\textsc{nil}}
+\newcommand{\comb}{\cdot}
+
+
+\newcommand{\pfLF}{{\tt{prov}}}
+\newcommand{\typeLF}{\tt{type}}
+\newcommand{\propLF}{\tt{prop}}
+
+\newcommand{\false}{\tt{false}}
+\newcommand{\true}{\tt{true}}
+\newcommand{\andLF}{\tt{and}\;}
+\newcommand{\impLF}{\tt{imp}\;}
+\newcommand{\forallLF}{\tt{forall}\;}
+\newcommand{\existsLF}{\tt{exists}\;}
+\newcommand{\eqLF}{\tt{eq}\;}
+\newcommand{\eqilLF}{\tt{e1}}
+\newcommand{\eqirLF}{\tt{e2}}
+\newcommand{\eqalLF}{\tt{e3}}
+\newcommand{\eqarLF}{\tt{e4}}
+
+\newcommand{\orl}{\vee}
+\newcommand{\andl}{\wedge}
+\newcommand{\impl}{\supset}
+\newcommand{\ldot}{.\,}
+\newcommand{\unif}{\;\doteq\;}
+
+%\newcommand{\andI}{\textsf{andI}}
+%\newcommand{\andEL}{\textsf{andE}$_1$}
+%\newcommand{\andER}{\textsf{andE}$_2$}
+\newcommand{\impI}{\textsf{impI}}
+\newcommand{\allI}{\textsf{allI}}
+\newcommand{\allE}{\textsf{allE}}
+%\newcommand{\orIR}{\textsf{orI}$_1$}
+%\newcommand{\orIL}{\textsf{orI}$_2$}
+%\newcommand{\orE}{\textsf{orE}}
+%\newcommand{\exI}{\textsf{exI}}
+%\newcommand{\exE}{\textsf{exE}}
+\newcommand{\impE}{\textsf{impE}}
+\newcommand{\ax}{\textsf{axiom}}
+%\newcommand{\trueI}{\textsf{trueI}}
+%\newcommand{\falseE}{\textsf{falseE}}
+
+\newcommand{\listd}{\mathsf{list }}
+\newcommand{\chars}{\mathsf{char}\;}
+\newcommand{\integer}{\mathsf{int}\;}
+\newcommand{\nil}{\mathsf{nil}}
+\newcommand{\conc}{\;;\;}
+\newcommand{\cons}{\mathsf{cons }\;}
+
+\newcommand{\vd}{\vdash}
+\newcommand{\vdN}{\Vdash}
+\newcommand{\arrow}{\rightarrow}
+\newcommand{\hastype}{\mathrel{:}}
+\newcommand{\oftp}{\mathord{:}}
+\newcommand{\ofvd}{\mathord{::}}
+\newcommand{\lam}{\lambda}
+\newcommand{\turn}{\mathord{\scriptstyle \vdash}}
+
+\newcommand{\ednote}[1]{\footnote{\it #1}}
+% \newenvironment{note}{\begin{quote}\message{note!}\it}{\end{quote}}
+
+\newcommand{\lbb}{{[\![}}
+\newcommand{\rbb}{{]\!]}}
+\newcommand{\Mu}{\lbb M/u\rbb}
+\newcommand{\id}{\mathsf{id}}
+\newcommand{\msub}[1]{\lbb #1 \rbb}
+\newcommand{\inv}[1]{{#1}^{-1}\,}
+
+\newcommand{\type}{\mathsf{type}}
+\newcommand{\mctx}{\;\mathsf{mctx}}
+
+\newcommand{\bnfas}{\mathrel{::=}}
+\newcommand{\bnfalt}{\mathrel{|}}
+\title{Small proof witnesses for logical frameworks}
+\author{
+Susmit Sarkar\inst{1}\thanks{This work was supported by NSF ITR Grant 0121633:ITR/SY+SI:''Language Technology for Trustless Software Dissemination''}
+\and Brigitte Pientka\inst{2}
+%\thanks{This work has been partially supported by NSERC
+%Grant 206263 and FQRNT Grant 206473.}
+\and Karl Crary\inst{1}}%
+                                                                                
+\institute{%
+Carnegie Mellon University, Pittsburgh, USA
+\and McGill University, Montr\'eal, Canada
+}
+\date{}
+\pagestyle{plain}
+\begin{document}
+\maketitle 
+
+\begin{abstract}
+In this paper, we instrument a higher-order logic programming
+search procedure to generate and check small proof witnesses for
+the Twelf system, an implementation of the logical framework LF. In
+particular, we extend and generalize ideas from Necula and
+Rahul~\cite{Necula+01:oracle} in two main ways: 1) We consider the 
+full fragment of LF including dependent types and higher-order terms
+and 2) We will incorporate caching of sub-proofs to generate even more
+compact proof representations. Our experimental results  demonstrate
+that many of the restrictions in previous work can be overcome and
+generating and checking small witnesses within Twelf provides valuable
+addition to its general safety infrastructure.
+\end{abstract}
+
+\section{Introduction}
+Proof-carrying code applications establish trust by verifying
+compliance of the code with safety and security policies.
+A code producer verifies that the program is safe to
+run according to some predetermined safety policy, and supplies a
+binary executable together with its safety proof. Before
+executing the program, the code consumer then quickly checks the code's
+safety proof against the binary. 
+
+The Twelf system \cite{Pfenning99cade}, an implementation of the logical framework LF \cite{Harper93jacm}, provides a general safety
+infrastructure to represent and execute safety policies via a
+higher-order logic program interpretation and has been employed in
+several proof-carrying code projects
+\cite{AppelFelty00,Crary:POPL03,AppelFelten99,Crary:CADE03}.   
+Higher-order logic programming extends first order logic
+programming along two orthogonal dimensions: First, dynamic assumptions
+may be generated and used during proof search. Second, first-order terms
+are replaced with dependently typed $\lambda$-terms, thereby
+directly supporting encodings via higher-order abstract
+syntax. 
+
+One of the benefits of using Twelf is that the
+execution of a query will not only produce a yes or no answer, but
+produce a proof term as a certificate which can be checked independently. 
+This increases the confidence in the overall correctness of the
+higher-order logic programming engine, and the certificate can
+be sent to the code consumer where compliance with the code is
+checked. 
+%These features make higher-order logic
+%programming an ideal generic framework for implementing and
+%experimenting with different safety policies and reduces the effort
+%required for each particular safety policy.
+
+In this paper, we show how to instrument the higher-order logic
+programming interpreter to generate and check small proof
+witness by extending and generalizing ideas by Rahul and
+Necula\cite{Necula+01:oracle}. To obtain small proof witnesses, they
+propose to only record the non-deterministic choices during 
+logic programming execution as a bit-string. We can check such a proof
+witness by guiding a deterministic logic programming interpreter using the
+bit-string and re-running the proof. This simple idea has
+been proven to be effective in many practical examples and has also
+been used by Wu {\em{et. al}} \cite{Appel:PPDP03} for creating a
+foundational proof checker with small witnesses. However, all these
+approaches restrict themselves to a fragment of LF excluding
+higher-order terms and dependent types thereby trading the expressive
+power of the logical framework LF against simplicity of implementation
+to generate and check proof witnesses.  
+As a consequence, these systems do not support higher-order abstract
+syntax in practice, but each particular system now has to use
+encoding tricks to encode their variable binding constructs together
+with substitution operations. For example, Wu {\em et
+  al}\cite{Appel:PPDP03} encode the explicit  substitution calculus
+\cite{Abadi:POPL90} together with the necessary proofs about
+substitutions for their foundational certified code implementation. As
+the technology of certified code evolves, we will move to more
+powerful and expressive safety policies and type systems and the use
+of higher-order abstract syntax will become crucial for achieving a 
+simple, compact encoding of these systems.
+
+
+In this paper, we describe the design of generating and checking
+of small proof witnesses for the full logical framework LF. This work
+continues where Necula and Rahul \cite{Necula+01:oracle} left of 
+saying ``more experimental results are needed especially in the
+higher-order setting''. Our work has been implemented and evaluated
+within the Twelf system \cite{Pfenning99cade} making it unnecessary to
+build separate proof checking engines. To obtain a practical scalable
+implementation, we use higher-order substitution tree  indexing
+\cite{Pientka:ICLP03}. Furthermore, we improve on the size of proof
+witnesses by caching common sub-proofs\footnote{Eliminating
+  common sub-proofs is an orthogonal problem to eliminating redundant
+  implicit type information, as is proposed in \cite{Necula98lics}.}
+. 
+%Identifying and factoring out common
+%sub-proofs leads to more compact oracles and can decrease
+%proof-checking time by a factor of ?? since common sub-proofs are only
+%checked once.  
+
+%   However, all these approaches are
+% restricted to simply typed Prolog-like engines which work on the
+% fragment of hereditary Harrop formulas. Although theses approaches
+% allow dynamic assumptions, they disallow a a higher-order term
+% language where terms can be defined using $\lambda$-abstraction. This
+% means they can only support first-order abstract syntax rather than
+% higher-order abstract syntax.  The main reason for staying with a
+% simple first-order term language are that unification is decidable and
+% easily implemented. Moreover, 
+
+%two-folded: First, in simple safety policies about typed-assembly
+%language, higher-order abstract syntax is rarely used. However, as we
+%move to more complex safety policies, support for higher-order
+%abstract syntax will become more desirable. Second, techniques needed
+%to extend oracle-based proof compression and proof re-construction for
+% higher-order terms have been 
+
+%% However, the lack of support for higher-order abstract syntax
+%% encodings, means that any variable binding constructs must be
+%% explicitly encoded. The overhead in their setting is still
+%% manageable although annoying, since simple safety policies about
+%% typed assembly require variable binding constructs only in few
+%% places. However, as we move beyond proving memory safety, we predict
+%% that richer safety policies and type systems will play a more
+%% important role in proof-carrying code applications. For these richer
+%% language, support for higher-order abstract syntax will be
+%% crucial. 
+
+
+This paper is structured as follows. We give background on
+higher-order logic programming in Twelf in Section~\ref{sec:twelf}. In
+Section~\ref{sec:oracles}, we present our approach to generating and
+checking small proof witnesses. In Section~\ref{sec:indexing} we explain 
+higher-order term indexing and in Section~\ref{sec:tabling}, we
+discuss caching techniques for factoring out common subproofs. We
+conclude with a discussion of some experimental results within Twelf
+and  related work.
+
+\section{Higher-order logic programming}\label{sec:twelf}
+
+%% Higher-order logic programming in Twelf extends first-order logic
+%% programming in three main ways: First, first-order terms are replaced
+%% with (dependently) typed $\lambda$-terms. Second, the body of clauses
+%% may contain implications and universal quantification, thereby
+%% generating dynamic assumptions which may be used during proof
+%% search. Thirdly, execution of a query will produce more than a yes or
+%% no answer, and generate a proof term as a certificate which can be
+%% checked independently. These features make higher-order logic
+%% programming an ideal generic framework for implementing formal safety
+%% policies given via axioms and inference rules and executing them.
+
+The theoretical foundation underlying higher-order logic programming
+within Twelf is the LF type theory, a dependently
+typed lambda calculus  \cite{Pfenning91lf}. In this setting types are interpreted as
+clauses and goals and typing context represents the store of program
+clauses available. We will use types and formulas
+interchangeably. Types and programs are defined as follows: 
+
+\begin{minipage}[b]{6cm}
+\[
+\begin{array}{lcl}
+\mbox{Types } A & ::= & P \mid  A_1 \rightarrow A_2 \mid \Pi x:A_1.A_2 \\
+\mbox{Terms }  M & ::= & c \comb S \mid x \comb S \mid \lambda x. M  
+\end{array}
+\]
+\end{minipage}
+\begin{minipage}[b]{6cm}
+\[
+\begin{array}{lcl}
+\mbox{Programs }  \Gamma & ::= & \cdot \mid \Gamma, x:A \\
+\mbox{Spines } S & ::= & \nil \mid M ; S
+\end{array}
+\]
+\end{minipage}
+
+$P$ ranges over atomic formulas such as $a \cdot S$, where $a$ is a
+type constant. We interpret the function arrow $A_1 \rightarrow A_2$
+as implication and the $\Pi$-quantifier, denoting dependent function
+type, corresponds to the universal $\forall$-quantifier. Types, which
+are goals and clauses, are inhabited by corresponding proof terms $M$,
+and we assume that all proof terms are in normal form. 
+
+Other higher-order logic programming languages of a similar
+flavor are $\lambda$-Prolog \cite{Nadathur99cade} or
+Isabelle\cite{Paulson86}. To illustrate the notation and explain the
+problem of small proof witnesses, we will first give an example of
+encoding the natural deduction calculus in the logical framework LF
+using higher-order logic programming following the methodology in
+\cite{Harper93jacm}. For more information on how to encode formal
+systems in LF see \cite{Pfenning97}.  Using this example, we will
+explain generating and checking of small proof witnesses.
+
+\subsection{Representing Logics}
+As a running example, we will consider a fragment of intuitionistic natural
+deduction calculus consisting of implications and universal quantifiers. Propositions can
+be then described as follows:
+
+\[
+\begin{array}{llll}
+\mbox{Propositions} & A,B, C & := & \ldots \mid A \impl B \mid \forall x.A \\
+\mbox{Context} & \Gamma & := & \ldot \mid \Gamma,  A
+\end{array}
+\]
+
+Inference rules describing natural deduction are presented next.
+
+\[
+\infer[{\textsf{allI}}]{\Gamma\vdash \forall x. A}
+{\Gamma\vdash [a/x]A & a \mbox{ is new}}
+\qquad
+\infer[{\textsf{allE}}]{\Gamma\vdash [T/x]A}
+{\Gamma\vdash \forall x.A}
+\qquad
+\infer[{\textsf{hyp}}]{\Gamma, A \vdash A}
+{}
+\]
+\[
+\infer[{\textsf{impI}}]{\Gamma\vdash A\impl B}
+{\Gamma,A\vdash B}
+\qquad
+\infer[{\textsf{impE}}]{\Gamma\vdash B}
+{\Gamma\vdash A\impl B
+\quad
+\Gamma\vdash A}
+\]
+
+To represent this system in LF, we first need formation rules to
+construct terms for propositions.  We intend that terms belonging to
+{\tt prop} represent well-formed propositions and {\tt i} represents individuals.  
+%prop : type.
+%i    : type.
+%\vspace{0.1in}
+%false  : prop.
+%true   : prop.
+
+%\noindent
+%\begin{code}
+%imp : prop -> prop -> prop.       forall : (i -> prop) -> prop.
+%\end{code}
+%
+The connective for implication has type takes in two propositions and
+returns a proposition, hence the constructor {\tt imp} has type {\tt prop -> prop -> prop.} To represent the forall-quantifier, we will use
+higher-order abstract syntax. The crucial idea is to represent bound
+variables in the object language (logic) with bound variables in the
+meta-language (higher-order logic programming). Hence the type of {\tt
+  forall} is {\tt (i -> prop) -> prop}.
+
+Next we turn our attention to the inference rules. The 
+judgment for provability within this logic is denoted by the
+type family {\tt prov}.
+%
+%\begin{code}
+% prov : prop -> type.
+%\end{code}%
+%
+Each clause will correspond to an inference rule in the object
+logic. For convenience, we give the constructors descriptive names.
+% ,and follow the order of the inference rules presented earlier.
+
+\hspace{-0.65cm}
+\begin{small}
+\begin{minipage}[t]{5.5cm}
+\begin{code}
+alli: prov (forall $\lambda$x. A x)
+      <- $\Pi$x. prov (A x)
+alle: prov (A T)
+      <- prov (forall $\lambda$x. A x).
+ \end{code}
+ \end{minipage}
+\begin{minipage}[t]{5.5cm}
+\begin{code}
+impi: prov (imp A B)
+      <- (prov A -> prov B).
+impe: prov B
+      <- prov (imp A B)
+      <- prov A.
+\end{code}
+\end{minipage}
+  
+\end{small}
+
+%\z
+%truei    : prov true.
+%\z
+%falsee   : prov C
+%            <- prov false.
+
+$A$, $B$, $C$ denote existential or logic variables which are
+instantiated during proof search. Throughout the example we reverse
+the arrow {\tt{A -> B}} writing instead {\tt{B <- A}}. From a logic
+programming view, it might be more intuitive to think of the clause
+{\tt{H <- A$_1$ <- A$_2$ <- $\ldots$ <- A$_n$}} as {\tt{H <-
+    A$_1$, A$_2$, $\ldots$, A$_n$}}. There are two key ideas which
+make the encoding of the logic calculus elegant and direct.
+First, we use and manipulate dynamic assumptions which higher-order
+logic programming provides, to eliminate the need to manage
+assumptions in a list explicitly. To illustrate, we consider the
+clause {\tt impI}. To prove {\tt prov (imp A B)}, we prove {\tt prov
+B} assuming {\tt prov A} In other words, the proof for {\tt prov B}
+may use the dynamic assumption {\tt prov A}.
+Second, we use higher-order abstract syntax to encode the bound
+variables in the universal quantifier. As a consequence substitution
+in the object language can be reduced to application and
+$\beta$-reduction in the meta-language (higher-order logic
+programming). Consider the rule for all-elimination. If we have a proof of
+$\forall x.A$ , then we know that $[T/x]A$ is true for any term
+$T$. The substitution $[T/x]A$ in the object language is achieved via
+application in the meta-language {\tt (A T)}. 
+
+
+\subsection{Proof search in higher-order logic programming}
+
+Higher-order logic programming is similar to a Prolog interpreter in
+that it performs essentially a depth-first search over all the program
+clauses. The key challenges in moving to a higher order setting are
+twofold: First, we may have dynamic assumptions which may be
+used within a certain scope. Second, since we allow higher-order
+terms (i.e. terms may contain $\lambda$-abstraction), higher-order
+unification is used to unify clause heads with current goal. 
+%Third,
+%proof terms are generated which represent the proof the interpreter
+%found. These features make a language like Twelf ideal for certified
+%code systems.
+
+In this section,  we briefly describe the depth-first proof search
+procedure of the higher-order logic programming
+interpreter. Computation in logic programming is achieved through
+proof search. Given a goal (or query) $G$ and a program $\Gamma$, we
+derive $G$ by successive application of clauses of the program
+$\Gamma$. 
+%Following Miller {\em{et al}} \cite{Miller91apal}, we
+%interpret the connectives in a goal $G$ as {\em{search instructions}}
+%and the clauses in $\Gamma$ as specifications of how to continue
+%search when the goal is atomic. 
+To solve a goal $G$ from a set of clauses $\Gamma$, we decompose the
+compound goal $G$ until it is atomic and then resolved it with a
+program clause. We have the following three possible actions (for a
+more detailed description see \cite{Miller91apal}):
+
+%A proof is said to be
+%{\em{goal-oriented}} if every compound goal is immediately decomposed
+%and the program is accessed only after the goal has been reduced to an
+%atomic formula. A proof is {\em{focused}} if every time a program
+%formula is considered, it is processed up to the atoms it defines
+%without need to access any other program formula. A proof having both
+%these properties is {\em{uniform}} and a formalism such that every
+%provable goal has a uniform proof is called an abstract logic
+%programming language.  
+%In the subsequent description, we will concentrate on the
+%goal-oriented step. To solve a goal $G$ from a set of clauses $\Gamma$
+%(written as $\Gamma \vd G$), we have the following three possible
+%actions:   
+
+%\begin{figure}[h]
+%\fighead
+% \begin{center}
+\begin{small}
+% \noindent \mbox{{\bf{Solve Goal $\Gamma \vd M: G$:}}\hfill}% \\[-2.5em]
+\begin{description}
+\item[Select] $\Gamma \vd  G \Rightarrow c_i \cdot S$ \\
+    \mbox{Given an atomic goal $G$ and clauses $\Gamma$:}\hfill\\
+     Focus on a clauses $c_i : A_i$ from $\Gamma$ to establish a proof
+     $c\cdot S$ for $G$, by unifying the head of $A_i$ with the current
+     goal $G$. 
+
+\item[Augment] $\Gamma \vd  G_1 \arrow G_2 \Rightarrow \lambda u. M$ if $\Gamma,
+  u\oftp G_1 \vd G_2 \Rightarrow M$ \\
+Augment the clauses in $\Gamma$ with the dynamic assumption $u{:} G_1$ and
+establish a proof $M$ for the goal $G_2$ from the extended program
+$\Gamma, u \oftp G_1$. 
+\item[Universal] $\Gamma \vd  \Pi x. G \Rightarrow \lambda x. M$ if $\Gamma \vd
+  [a/x]G\Rightarrow [a/x]M$ where $a$ is a new parameter\\
+Given a universally quantified goal $\Pi x. G$, we generate a new parameter $a$, and establish a $[a/x]M$ proof  for $[a/x]G$ in the program context $\Gamma$.
+\end{description}
+%   \caption{Solve goal $G$ from clauses in $\Gamma$}
+%   \label{fig:solve}
+\end{small}    
+% \end{center}
+
+%\figfoot
+%\caption{\label{fig:solve}Solve goal $G$ from clauses in $\Gamma$}
+%\end{figure}
+
+Once the goal is atomic, we need to select a clause from the
+program context $\Gamma$ to establish a proof for $G$. In a logic
+programming interpreter, we consider all the clauses in $\Gamma$ in order. 
+First, we will consider the dynamic assumptions, and then we will try
+the static program clauses one after the other. 
+Let us assume, we picked a clause $A$ from the program context
+$\Gamma$ and we now need to establish a proof for $G$, by unifying the
+head of the clause $A$ with $G$ and solving the subgoals of $A$.
+%Note that during proof search we typically have the program
+%clauses $\Gamma$ and the goal $G$ we are trying to prove from the
+%clauses in $\Gamma$ as inputs, while the proof term $M$ is the output
+%of the search. 
+We will illustrate proof search by considering the following example:  
+
+\begin{code}
+prov (forall $\lambda$y. (imp (forall $\lambda$ x. p x) (p y)))  
+\end{code}
+
+which corresponds to $(\forall y. (\forall x.p(x)) \impl p(y)$).  
+where {\tt p} is a defined predicate. To prove the query, we will
+start by unifying the head of the clause ({\tt allI}) with the
+query, which results in subgoal:  
+
+\[
+\begin{array}{c}
+\Pi a. \pfLF ( \impLF (\forallLF \lambda y. p\; y)\; (p a))
+\end{array}
+\]
+
+In the {\sf{Universal}} step, we introduce a new parameter $a$
+yielding the subgoal:
+\[
+\begin{array}{c}
+\pfLF ( \impLF (\forallLF \lambda y. p\; y)\; (p a)).
+\end{array}
+\]
+
+To prove this subgoal will again inspect our clauses. Three of them
+will be applicable, namely {\tt allE}, {\tt impI}, and {\tt
+  impE}. This time we will pick the second clause {\tt impI}. Hence we
+will introduce the dynamic assumption ${\tt{u}} {:} \pfLF (\forallLF
+\lambda \;y. p\; y)$ and show $\pfLF\; {\tt (p\; y)}$ using the dynamic
+assumption {\tt{u}}. In the third step, again two clauses are
+applicable,  {\tt allE}, and {\tt impE}. Using the first one, {\tt
+  allE}, we need to show that we can prove $\pfLF (\forallLF \lambda
+y. P\; y)$. There are four possible clauses whose clause head will
+unify: the dynamic clause {\tt u} and the three program clauses {\tt
+  alli}, {\tt alle}, and {\tt impe}. Using the dynamic assumption {\tt
+  u}, we can finish the proof. Twelf's
+higher-order logic programming engine will generate the following
+proof term in explicit form:  
+
+% \hspace{-1.25cm}
+%\begin{minipage}[h]{12cm}
+\begin{code}
+(alli {\mygray{($\lambda\!\!$ x. ((forall $\lambda\!\!$ y. p y) imp p x))}}
+   $\lambda\!\!$ a. (impi {\mygray{(forall $\lambda\!\!$ y.p y) (p a)}}
+           $\lambda\!\!$ u. (alle {\mygray{($\lambda\!\!$ y.p y)}} a u))).
+\end{code}
+%\end{minipage}
+
+The final proof term not only tracks the rules which have been used in
+every step of the proof, but also tracks the instantiations for the logic
+variables in each steps. In the proof term above we show the
+instantiations in gray.
+
+
+% From an operational view point, the search can be described as
+% follows: 
+
+%\begin{table}[htbp]
+%\fighead
+%\begin{small}
+%Solve Goal $\Gamma \vd M : G$:
+%\begin{enumerate}
+%\item $\Gamma \vd (c \cdot S) : G$ \\
+%    \mbox{Given an atomic goal $G$ and clauses $\Gamma$:}\hfill\\
+%     Focus on a clauses $c : A$ from $\Gamma$ to establish a proof $S$ for $G$.
+
+%\item $\Gamma \vd \lambda u.M : G_1 \arrow G_2$ if $\Gamma, u\oftp G_1
+%  \vd M : G_2$ \\
+%Augment the clauses in $\Gamma$ with the dynamic assumption $u : G_1$ and
+%establish a proof $M$for the goal $G_2$ from the extended  program $\Gamma, u \oftp G_1$.
+%\item $\Gamma \vd \lambda a.M : \Pi x. G$ if $\Gamma \vd M : [a/x]G$ where $a$ is a new parameter\\
+%Given a universally quantified goal $\Pi x. G$, we
+%generate a new parameter $c$, and establish a proof $M$ for $[c/x]G$ in the
+% program context $\Gamma$.
+%\end{enumerate}
+%\end{small}
+%\figfoot 
+%\caption{Solve goal $G$ from clauses in $\Gamma$}
+%\label{tab:solve}
+%\end{table}
+
+%Once the goal is atomic, we need to select a clause from the
+%program context $\Gamma$ to establish a proof for $G$. In a logic
+%program interpreter, we consider all the clauses in $\Gamma$ in order. 
+%First, we will consider the dynamic assumptions, and then we will try
+%the static program clauses one after the other. 
+%Let us assume, we picked a clause $A$ from the program context
+%$\Gamma$ and we now need to establish a proof for $G$.
+
+%\begin{table}[h]
+%\fighead
+%\begin{small}
+%Focus on clause $ c : A$ to solve atomic goal $P$.
+%\begin{enumerate}
+%\item $\Gamma > P' \vd \nil : P$ \\
+% Given the atomic clause $P'$ with name $n$, we establish a proof for the
+%  atomic goal $P$, by checking  $P' = P$. If yes then
+%  succeed. Otherwise fail and backtrack.  
+%\item $\Gamma > n : G_2 \arrow G_1 \vd (M ; S) : P$ 
+%      if $\Gamma > G_1 \vd S : P$ and  $\Gamma \vd M : G_2$ \\
+%  Given the clause $G_2 \arrow G_1$ with name $n$, we establish a
+%  proof of the atomic goal $P$, by trying to use the clause $G_1$ to
+%  establish a proof $M$ for $P$. If it succeeds, we establish a proof
+%  $S$ for the goal $G_2$. If it fails,  backtrack. 
+%\item $\Gamma > n : \Pi x\oftp A_1. A_2 \vd S : P$ if $\Gamma > n :
+%  [T/x]A_2 \vd (T ; S) : P$\\
+%  Given the clause $\Pi x\oftp A_1. A_2$ with name $n$, we
+%  establish a proof $(T ; S)$for the atomic goal $P$ by instantiating
+%  $x$ with a term $T$, and use the clause $[T/x]A_2$
+%  to establish a proof $S$ for the atomic goal $P$. 
+%\end{enumerate}
+%\end{small}
+%\figfoot
+%  \caption{Focus on clause $c:A$ to solve atomic goal $P$}
+%  \label{tab:foc}
+%\end{table}
+
+As shown in \cite{Necula98lics}, the instantiations of existential
+variables need not be recorded in the explicit proof terms but can be
+reconstructed as long as we only concentrate on a fragment of LF,
+called LF$_i$. This can lead to substantial savings in proof checking
+and proof size. Proofs are roughly $\mathrm{O}(\sqrt{n})$, where $n$ is the
+size of the query. However, extending this idea to full LF has been
+difficult \cite{Reed04lfm}. Maybe more importantly, proofs in LF$_i$
+are still several times as big as the overall program they certify. 
+
+ Our goal is to reduce the proof evidence to the non-deterministic
+ choices we have made during the proof to produce small proof 
+witnesses. In the previous example, it suffices to know that in
+the first step, three possible rules apply, namely {\tt alli}, {\tt
+alle}, and {\tt impe} and we want to follow the first possibility. In
+the second step, again three possible rules apply, namely {\tt alle},
+{\tt impi}, and {\tt impe}, and we want to follow the second
+possibility. In the final step, we have four potential candidates, the
+dynamic assumption ${\tt u}{:} \forallLF \lambda y. p\; y)$, and the rules
+{\tt allI}, {\tt allE}, and {\tt impE}.  Hence it would suffice to
+store only a list of the choices made in the proof. In this example,
+the choices can be characterized by the following sequence: $1/3$,
+$2/3$, $1/2$, $1/4$, keeping in mind that dynamic assumptions are
+tried first by proof search procedures. This sequence will constitute
+our compact proof witness and is all that needs to be generated and
+sent to the verifier. In the remainder of the paper, we show how
+to incorporate this technique into Twelf.
+
+\section{Generating and checking small proof witnesses}
+\label{sec:oracles}
+
+%In this section, we describe the oracle-based proof generation and
+%checking. To generate oracles we can follow two ways. One way is to
+%modify the logic-programming proof search procedure to generate a
+%bit-string during proof search directly. As logic programming's
+%depth-first search is incomplete in general, this may not work in all
+%cases, however this may be viable with more sophisticated theorem proving
+%technology. In certifying code systems in particular, the safety proof
+%(i.e. proof term) can be generated by a certifying compiler, and
+%we merely aim at compressing the safety proof into a bit-string. This
+%enables us to use a second strategy, where we pass into the search procedure
+%described above a proof term to guide the proof search. This way, we
+%can eliminate all non-determinism from the previous search procedure.
+
+\subsection{Proof compression}
+In this section, we describe the modifications needed to generate
+a compact proof witness in form of a bit-string using the verifier's
+proof search procedure from the previous section. 
+We assume that we already have the full proof term and we are merely
+interested in compressing the proof term to a small witness in form of
+a bit-string. This is not a restriction, since in certifying code
+systems the safety proof are typically generated by a compiler. 
+%Of course, we can also try to generate the with more sophisticated 
+%(i.e. proof term) can be generated by a certifying compiler, 
+The bit-string encodes the non-deterministic choices within the proof,
+namely picking the right clause $c_1{:}A$ from the program context
+$\Gamma$ to establish a proof $S$ for $P$, once the goal $P$ is
+atomic, by unifying the head of $A$ with the atomic goal
+$P$. Potentially, there is more than one clause whose head unifies
+with $P$, and hence a proof search procedure would need to try all the
+possible choices in order. The proof witness just needs to keep track
+of what possibility was successful.
+
+%% This leads to an efficient encoding of the non-deterministic
+%% choices. If we have $k$ possibilities, we need $\lceil\log_2 k\rceil$
+%% bits. Since we know that the path through the proof tree always has to
+%% lead to a proof, if there is only one choice applying, this formula
+%% correctly says that we do not need to emit an advice.  The verifier
+%% knows how many choices apply, so it can calculate the number of bits
+%% to pick off the oracle. This means that we do not need an explicit
+%% separator between the choices, although we include them here for
+%% better readability. The witness corresponding to the non-deterministic
+%% choices in the previous example is: {\tt 100010101000}.
+%%
+%% It turns out we usually count in unary! -- Susmit
+%% I don't understand your comment. In any case you must talk about
+%% the proof witness and how it will look like in binary form - bp.
+
+For the idea to work, generating and checking witnesses have to
+perform  the same overall proof search. Moreover, the order 
+in which different choices are considered must be the same.  The only
+difference is that in proof search we would explore possibly multiple
+fruitless paths, backtracking until we find the right path. When
+generating and checking witnesses, we will consult the proof term
+or witness respectively to know which choice to consider, and thus
+eliminate uses of backtracking.
+We modify the proof search steps presented earlier in the following
+way:
+%that we pass
+%in the proof term together with the goal and output a proof witness in
+%form of a bit-string. 
+% Instead of building up a proof term recursively
+% in the {\sf{Select}}, {\sf{Augment}} and {\sf{Universal}} step, we
+% only generate the proof witness in the modified {\sf{Select}} step.
+
+%\begin{figure}[h]
+%\fighead
+%\begin{center}
+%\parbox[h]{12cm}{
+%Witness generation:\hfill}
+\begin{small}
+% \noindent \mbox{{\bf{Solve Goal $\Gamma \vd M: G$:}}\hfill}% \\[-2.5em]
+\begin{description}
+\item[Select] $\Gamma \vd c_i \cdot S: G \Rightarrow
+  \underset{1 \ldots (i-1)}{\underbrace{0\ldots 0}}1
+%\underset{(i+1) \ldots k}{\underbrace{0\ldots 0}}
+W $ \\
+    \mbox{Given an atomic goal $G$ and clauses $\Gamma$:}\hfill\\
+%    Let $k$ be the number of clauses whose head unifies with the
+%    current goal $G$ and 
+     Let $c_i : A_i$ be the $i-$th clause which leads to a
+    proof $c_i\cdot S$ of $G$ from $\Gamma$. \\
+    Focus on clauses $c_i : A_i$ from $\Gamma$ to compress a proof
+     $c\cdot S$ for $G$ to $W$.
+
+\item[Augment] $\Gamma \vd   \lambda u. M : G_1 \arrow G_2 \Rightarrow
+  W$ if $\Gamma,
+  u\oftp G_1 \vd G_2 \Rightarrow M$ \\
+Augment the clauses in $\Gamma$ with the dynamic assumption $u{:} G_1$ and
+compress a proof $M$ for $G_2$ within the extended program
+$\Gamma, u \oftp G_1$ to obtain the witness $W$. 
+\item[Universal] $\Gamma \vd  \lambda x. M : \Pi x. G \Rightarrow W$ if $\Gamma \vd
+  [a/x]M: [a/x]G\Rightarrow W$  \\ %where $a$ is a new parameter\\
+Given a universally quantified goal $\Pi x. G$, we generate a new
+parameter $a$, and compress a proof $[a/x]M$  for $[a/x]G$ in the
+program context $\Gamma$ to $W$.\\
+\end{description}
+%   \caption{Solve goal $G$ from clauses in $\Gamma$}
+\end{small}    
+%
+%\end{center}
+
+Note that the {\sf{Select}} step is deterministic as the proof term
+determines which choice will be successful. It should be intuitively
+clear that, we do not necessarily have to pass in the full proof term,
+but could directly produce a proof witness in form of a bit-string, if
+our proof search is powerful enough that it will eventually find a proof.
+
+%\figfoot
+%\caption{\label{fig:pwgen}Proof Compression}
+%\end{figure}
+
+
+%The oracle-string encodes one type of possible choices, but as we
+%briefly mentioned earlier, unification in the higher-order setting is
+%undecidable in general. In Twelf, we use a higher-order pattern
+%unification algorithm together with constraints. Higher-order pattern
+%unification is in fact decidable. Although it is too restrictive to
+%concentrate solely on higher-order patterns statically, 
+%most of the non-patterns encountered (for example $(A\;T)$), will be a
+%pattern during execution. Since we assume that we already found a proof $M$
+%for a goal $G$ without any left-over unification constraints, 
+%all the unification problems solved during execution were
+%decidable. It is worth pointing out that our proposal differs here
+%from the proposal of Necula and Rahul, who propose to encode the
+%non-deterministic choice of Huet's unification algorithm, which does
+%not distinguish between higher-order patterns and non-patterns. 
+
+\subsection{Checking small proof witnesses}
+In this section, we modify the previous search procedure, in such a
+way that it is not parameterized by the proof term $M$, but rather by
+the compact proof witness $W$ encoded as a bit-string. Therefore we
+have : Solve Goal $\Gamma \vd W : G$, where $W$ is a compact proof
+witness.   
+
+%\begin{figure}[h]
+%\fighead
+%\begin{center}
+%\parbox[h]{12cm}{
+%Witness checking via proof reconstruction:}
+\begin{small}
+% \noindent \mbox{{\bf{Solve Goal $\Gamma \vd M: G$:}}\hfill}% \\[-2.5em]
+\begin{description}
+\item[Select] $\Gamma \vd \underset{1 \ldots
+    (i-1)}{\underbrace{0\ldots 0}}1
+%\underset{(i+1) \ldots    k}{\underbrace{0\ldots 0}}
+W : G $ \\
+    \mbox{Given an atomic goal $G$ and clauses $\Gamma$:}\hfill\\
+    Let $k$ be the number of clauses whose head unifies with the
+    current goal $G$, then inspect up to $k$ bits, and
+    find the $i$-th bit which is one. \\ 
+    Focus on clauses $c_i : A_i$ from $\Gamma$ to establish a proof
+    for the atomic goal $G$ from $\Gamma$ using remaining proof witness $W$.
+\end{description}
+%   \caption{Solve goal $G$ from clauses in $\Gamma$}
+\end{small}    
+%}
+%\end{center}
+%\figfoot
+%\caption{\label{fig:pwrecon} Proof Reconstruction}
+%\end{figure}
+
+In {\sf{Select}} step, we first generate the $k$ possible candidates
+whose head will unify with the current goal $G$. If $k$ is greater
+than 1, we will examine up to $k$ bits from the witness to see which
+choice to take. If a bit $1$ occurs at position $i$ of these $k$
+bits, we will pick the $i$-th candidate. For this idea to work in practice, it is crucial that the order of choices during witness checking is same as during witness generation.
+
+In order to check the proof witnesses, we re-run the prover guided
+with the advice encoded in the bit-string. The witness checker is then
+in fact a deterministic search procedure. No backtracking is
+necessary, since all the non-deterministic choices are resolved.  
+%By
+%taking the appropriate branches (and performing the needed
+%unification), the user can be convinced that such a proof exists. 
+Note that the proof term does not need to be reconstructed. This can
+lead to savings of time and memory. On the other hand, paranoid
+consumers may need more assurance than trusting our implementation
+(including complex algorithms such as higher-order pattern
+unification). In such cases, we have an option of regenerating the
+proof term by instrumenting the search procedure above.  This amounts
+to decompressing the proof witness $W$to an explicit proof term $M$
+and use a different trusted type-checker to verify the expanded proof
+witness.
+
+\subsection{Bit-string encodings for proof witnesses}
+
+The choices as described above are choice sequences of the form
+$i_1/k_1,i_2/k_2,\ldots$, where at the $j^{th}$ stage we have $k_j$
+choices, and we want to pick $i_j$ ($1 \leq i_j \leq k_j$). With the
+tight coupling of the witness generation and checking phases, both
+phases agree on the number of choices ($k_j$) as well as the ordering
+of those choices. That is, both producer and checker agree on which
+choice is to be considered the $i_j^{th}$ one.
+
+We can now see that the separator between choices is unnecessary. We
+can decide on a encoding scheme, and pull only the requisite number of
+bits from the oracle. The witness checker will always know how many
+bits to extract.
+
+We have experimented with two simple encoding schemes, though more
+complex coding schemes can be imagined. The original proposal by
+Necula and Rahul proposed what we call the binary scheme, in that the
+number would be encoded in binary. If $k$ choices apply, this will
+require $\lceil\log k\rceil$ bits. We discover that a scheme we call
+unary encoding works better in practice. In this scheme, the choice
+number $i$ is encoded as $0 0 0 \ldots (\mbox{i-1 zeros}) 1$. This
+takes $i$ bits.
+
+The binary scheme will work better when we habitually have a large
+number of choices, and we take one of the later choices in the
+ordering considered by the producer/checker. The unary scheme will
+work better precisely in the other cases. In all our examples, we have
+observed that only a few choices typically apply. Further, logic
+programmers usually write their programs so that the more common
+choices are tried first. With these observations, unary encodings
+should outperform binary encodings, as indeed they do in experimental
+studies. This is a configurable option in our engine, and can be set
+depending on the particular proof or logic.
+
+\section{Optimizations}
+\subsection{Higher-order term indexing}\label{sec:indexing}
+
+A proof search procedure must have a way of retrieving all clauses of
+the logic program which may satisfy the current goal, since such a
+method will dictate how many choices we are returned at any step.
+Most first-order logic programming interpreter use term indexing
+strategies such as automata driven indexing \cite{} to efficiently
+retrieve all clauses whose head unifies with the current goal. 
+However, indexing strategies for higher-order terms are difficult,
+since in general retrieval and often also insertion operations rely on
+computing the most general unifier or the most specific
+generalization. However, in the higher-order case, unification is in
+general undecidable and the mgu does not necessarily exist. The same
+holds for computing the most specific generalization of two terms. 
+
+%As
+%discovered by Miller \cite{Miller91iclp}, there exists a decidable
+%fragment, called higher-order patterns. For this fragment, unification
+%and computing the most specific generalization is decidable even in
+%rich type theories with dependent types and polymorphism as shown by
+%Pfenning \cite{Pfenning91lics}.  However, these algorithms, which must
+%compute bound variable dependencies, may not be efficient in practice
+%\cite{PientkaPfenning:CADE03}.  
+We will adopt higher-order substitution trees
+\cite{Pientka:ICLP03,Pientka03phd} to index higher-order logic
+programs. Substitution tree indexing has been successfully used in a
+first-order setting \cite{Graf+Book95} and  allows the sharing of
+common sub-expressions via substitutions. This is unlike other
+non-adaptive term indexing, which only allow sharing of common term
+prefixes. To extend substitution tree indexing to the higher-order
+setting, we will concentrate on the fragment of linear higher-order
+patterns\cite{PientkaPfenning:CADE03}, where all existential variables
+must occur only once and are applied to all distinct bound
+variables. Linear higher-order patterns refine the notion of
+higher-order patterns  \cite{Miller91iclp}, where all existential
+variables must be applied to a some distinct bound variables.  In
+\cite{Pientka:ICLP03,Pientka03phd}, we give a formal description for
+computing the most specific generalization of two linear higher-order
+patterns, for inserting terms in the index and for retrieving a set of
+terms from the index s.t. the query is an instance of the term in the
+index, and show correctness. The construction of a substitution tree
+in the higher-order setting follows the overall algorithm described in
+\cite{Ramakrishnan01:indexing}. Here we will illustrate higher-order
+substitution trees by an example. 
+
+To describe higher-order substitution trees, it is crucial to
+distinguish between bound variables, existential variables and
+``internal'' existential variables. We will assume that any
+existential variable is applied to all bound variables in whose
+context it occurs in to facility simple and efficient insertion and
+retrieval algorithms. A higher-order substitution tree is a node with
+substitution $\rho$ whose range is $\Sigma$ and every child node has a
+substitution $\rho_i$ with domain $\Sigma$. In other words, any
+internal existential variable in $\Sigma$ will be defined at a later
+node in a path in the substitution tree and for every path
+from the top node $\rho_0$ with range $\Sigma_0$ to the leaf node
+$\rho_n$ we have the range of the substitution which is the
+composition of all the substitutions along this path, is empty. In
+other words, there are no internal existential variables left after we
+compose all the substitutions $\rho_n$ up to $\rho_0$. 
+%
+%For this setup to work cleanly in the higher-order
+%setting, it is crucial that we distinguish between existential
+%variables in $\Delta$ and bound variables and assumptions in
+%$\Gamma$. Moreover, it is essential that existential variables allow
+%in place up-date. In particular, we will rely on the notion of
+%existential variables which are ``fully applied'', i.e. they may
+%depend on all the bound variables they occur in.
+To illustrate, consider the following clauses describing part of a
+conversion of formulas into prenex normalform. 
+
+\begin{small}
+\[
+\begin{array}{l}
+%\eqLF :\;  \propLF \rightarrow \propLF \rightarrow \typeLF.\\[1em]
+%
+\eqilLF: \eqLF (\impLF (\existsLF \lambda x. A\; x)\; B)\quad (\forallLF \lambda x. (\impLF (A\; x)\; B)).\\
+\eqirLF: \eqLF (\impLF A\; (\forallLF \lambda x. B\;x)) \quad (\forallLF \lambda x. (\impLF A \; (B\; x))).\\
+%\eqalLF: \eqLF (\andLF (\forallLF \lambda x. A \;x) \; B)\quad (\forallLF \lambda x. (\andLF (A\; x)\; B)).\\
+\eqalLF: \eqLF (\andLF A \; (\forallLF \lambda x. B\; x)) \quad (\forallLF \lambda x. (\andLF A \; (B\;x))).\\
+\end{array}
+\]
+\end{small}
+
+We see that the four given clauses share a lot of structure. For
+example clause $\eqilLF$ and $\eqirLF$ ``almost'' agree on the second
+argument. Similarly the clauses $\eqalLF$ and $\eqarLF$. To insert
+these four clauses into a substitution tree, we need to first
+translate them into linear higher-order patterns. Although all the
+terms in these clauses fall into the pattern fragment, not all of them
+are linear patterns.
+%since all the
+%existential variables are applied to distinct variables, 
+%not all of them are applied to {\em{all}} distinct bound variables. 
+For example, in clause $\eqilLF$, 
+%\[
+%\eqLF (\impLF (\existsLF \lambda x. A\; x)\; B)\quad (\forallLF
+%\lambda x. (\impLF (A\; x)\; B)
+%\]
+%
+the existential variable $B$ does not depend on the bound variable
+$x$, in $(\forallLF \lambda x. (\impLF (A\; x)\; B)$. Hence, $B$ is
+not a linear higher-order pattern, since it is not applied to all
+bound variables in whose scope it occurs. In addition, the existential
+variable $A$ occurs twice. Before inserting the clause heads into a
+substitution tree, we linearize them by eliminating any duplicate
+occurrences of existential variables, and replacing any existential
+variable which is not fully applied with one which is. The linearized
+program  is given next:
+
+
+\begin{small}
+\[
+\begin{array}{ll}
+% \eqLF: \quad \propLF \rightarrow \propLF \rightarrow \typeLF.\\[1em]
+%
+\eqilLF: \eqLF (\impLF (\existsLF \lambda x. A\; x)\; B)\;
+                 (\forallLF \lambda x. (\impLF (A'\; x)\; (B'\;x))). \\
+\hspace{1cm}\forall x. (A'\; x) \unif (A \; x) {\textsf{ and } } B'\;x   \unif B\\[0.5em]
+\eqirLF: \eqLF (\impLF A\; (\forallLF \lambda x. B\;x))\quad
+                 (\forallLF \lambda x. (\impLF (A'\;x) \; (B'\; x))).\\
+\hspace{1cm} \forall x. (A'\; x) \unif A  {\textsf{ and }} B'\;x   \unif (B\;x)\\[0.5em]
+%\eqarLF: \eqLF (\andLF (\forallLF \lambda x. A \;x) \; B)\quad
+%                 (\forallLF \lambda x. \andLF (A'\; x) \; (B'\;x)).\\
+%\hspace{1cm} \forall x. (A'\; x) \unif (A \; x) {\textsf{ and }} B'\;x   \unif B\\[0.5em]
+\eqalLF: \eqLF (\andLF A \; (\forallLF \lambda x. B\; x)) \quad
+                 (\forallLF \lambda x. \andLF (A'\;x) \; (B' x)).\\
+\hspace{1cm} \forall x. (A'\; x) \unif A  {\textsf{ and }} B'\;x   \unif (B\;x)\\[0.5em]
+\end{array}
+\]
+\end{small}
+
+Now even more sharing becomes apparent. For example, the clauses
+$\eqilLF$ and $\eqirLF$ agree upon the last argument. Similarly, the
+clauses $\eqalLF$ and $\eqarLF$. We now compute the most specific
+generalization between these clauses, and can build up a substitution
+tree. The algorithm for computing the most specific generalization is
+given in \cite{Pientka03phd,Pientka:ICLP03}.
+
+
+\begin{figure*}[htbp]
+  \begin{center}
+    \begin{small}
+% nodesep=1pt,
+\pstree[nodesep=0.5pt,levelsep=8ex]{%
+\TR{$\eqLF\quad i_2 \quad (\forallLF \lambda x. i_1\;x)$} }{%
+  \pstree{\TR{\begin{tabular}{r}
+              $\lambda x.(\andLF (A'\;x)\; (B'\;x))/i_1$\\
+%              $(\andLF (i_3\;x)\; (i_4 \;x))/i_2$\\
+              $(\andLF A\;\;(\forallLF \lambda x. (B\;x)))/i_2$\\
+            \end{tabular}
+          }
+        }{%
+%          \pstree{\TR{\begin{tabular}{r}
+%                $\lambda y.(\forallLF \lambda x. A\;x)/i_3$,\\
+%                ${\tt \lambda y.B/i_4}$
+%              \end{tabular}
+%            }}{%
+%            \pstree{\TR{\begin{tabular}{l}
+%                  $\forall x. A'\;x\unif A\;x$\\
+%                  $B'\;x\unif B$
+%                \end{tabular}
+%              }}{ $\eqarLF$}
+%          }
+%
+%          \pstree{\TR{\begin{tabular}{r}
+%                ${\tt \lambda y.A/i_3},$\\
+%                $\lambda y.(\forallLF \lambda x. (B\;x))/i_4$
+%              \end{tabular}
+%            }
+%          }{%
+            \pstree{\TR{\begin{tabular}{l}
+                $\forall x. A'\;x\unif A$\\
+                $\forall x. B'\;x \unif B\;x$
+              \end{tabular}
+            }
+            }{$\eqarLF$}
+%          }
+        }
+%%%%% second child
+          \pstree{\TR{\begin{tabular}{r}
+                     $\lambda x.(\impLF (A'\;x)\; (B'\;x))/i_1$\\
+                     $(\impLF (i_3\;x)\; (i_4\;x))/i_2$\\
+                   \end{tabular}
+                 }}{
+                 \pstree{\TR{\begin{tabular}{r}
+                       $\lambda y.\forallLF \lambda x. A\;x/i_3$,\\
+                       ${\tt \lambda y.B/i_4}$
+                       \end{tabular}
+                     } }{%
+                     \pstree{\TR{\begin{tabular}{l}
+                           $\forall x. A'\;x\unif A\;x$\\
+                           $\forall x. B'\;x\unif B$
+                         \end{tabular}}
+                     }{$\eqirLF$}
+                   }
+                  \pstree{\TR{\begin{tabular}{r}
+                        ${\tt \lambda y.A/i_3},$\\
+                        $\lambda y.(\forallLF \lambda x.B\;x)/i_4$
+                      \end{tabular}}}{
+                    \pstree{\TR{\begin{tabular}{l}
+                          $\forall x. A'\;x \unif A$\\
+                          $\forall x. B'\;x \unif B\;x$
+                        \end{tabular}}
+                    }{$\eqilLF$}
+                  }
+                }
+              }     
+    \end{small}
+  \end{center}
+  \caption{Substitution tree}
+  \label{fig:substree}
+\end{figure*}
+
+% \end{small}
+
+By composing the substitutions along a path,
+we will obtain a clause head. By composing the substitutions in the
+left-most branch, we obtain the clause head $\eqalLF$.  
+In contrast to other indexing techniques such as discrimination tries,
+substitution trees  allows the sharing of common sub-expressions
+instead of common term prefixes. As we can see in this example, this
+is especially useful in this example, since the most sharing is done
+in the second argument. 
+
+We have chosen to index only the static set of program clauses. In
+theory, it is possible to use substitution tree indexing for dynamic
+clauses generated during proof search.  However, it is not clear how
+useful this will be, since the process of creating the tree itself is
+time-consuming. It is also noted by Necula and Rahul
+\cite{Necula+01:oracle} that indexing dynamic assumptions imposes a
+performance penalty. It is useful to pre-process the program, but the
+payoff with dynamic clauses is unclear. For dynamic clauses, we use
+only simple indexing on the type family of type.
+
+%\begin{note}
+%  \begin{itemize}
+%  \item Should we talk about lowered terms and modal variables
+%  \item Should be give an algorithm for computing the most specific
+%    generalization? (it is given in ICLP'03)
+%  \end{itemize}
+%\end{note}
+
+
+\subsection{Caching results}
+\label{sec:tabling}
+Since large proofs often have identical subproofs,  there is a
+lot of potential for sharing subproofs. The problem is particularly
+acute in machine-generated proofs for certifying machine-code which
+tend to have repeated proofs of simple facts. This problem has been
+already pointed out by Necula and Lee in \cite{NeculaLee+97:resource}
+
+\begin{quote}
+% \begin{tabular}[h]{l}
+``...it is very common for the proofs to have  
+repeated sub-proofs that should be hoisted out and 
+proved only once ...'' \cite{NeculaLee+97:resource}
+ \end{quote}
+
+
+In the context of generating and checking small proof witnesses, this
+leads to two problems.  First, the proof witnesses become larger in size than
+necessary. This means that what has to be transmitted to the verifier
+is large in size. Secondly, the performance of witness checker may
+degrade, since it spends its time uselessly proving the same fact over
+and over again. Ideally we would like to cache intermediate results
+and re-use them later. In this section, we describe an extension to
+generating and checking proof witnesses with caching. The idea can be
+briefly summarized as follows: when generating compressed witnesses
+for a goal $G$ from explicit proof terms, we store intermediate goals
+together with their compressed witness in a table, and re-use the
+result later on. For checking proof witnesses $\ldots$.
+
+Since caching everything is too overwhelming in most cases in
+practice, hence we support selective caching. The user declares
+certain  predicates to be cached, and for those we will factor out
+common sub-proofs. We will modify the {\sf{Select}} step in our
+previous search procedure to allow for caching by defining an
+auxiliary procedure {\sf CallCheck}. {\sf{CallCheck($\Gamma \vd G, \cal{T}$)}} checks whether a variant of
+the current subgoal exists or if the current subgoal is an instance of
+a previous entry. If there exists a table entry $\Gamma' \vd G'$
+s.t. $\Gamma \vd G$ is a variant (or instance) of the already existing
+entry $\Gamma' \vd G'$, then a pointer to the corresponding answer
+list is returned. If no such entry exists, $\Gamma \vd G$ is added to
+the table $\cal{T}$ and a pointer to an empty answer list is
+returned. If no entry exists, then we will continue to focus on a
+clause $c_i$ to solve the goal $\Gamma \vd G$. When we are done, we
+will add the answer substitution for the existential variables in
+$\Gamma \vd G$ together with its proof term $c_i \cdot S$ to the its
+answer list $ptr$. 
+
+If a table entry for $\Gamma \vd G$ already exists, there are two
+possible situations: 1) If the answer list contains an answer
+substitution $\theta_k$  which leads to a proof $c_i \cdot S$,
+then we will just re-use the answer substitution $\theta_k$. 2) If the
+answer list does not contain an answer which would lead to a proof
+$c_i \cdot S$, then we need to use a program clause $c_j$ to focus on
+and solve the goal $\Gamma \vd G$. The witness generation using
+caching can be summarized as follows:
+
+%\begin{figure}[h]
+%\fighead
+\begin{center}
+%\parbox[h]{12cm}{
+%Witness generation using caching}
+\begin{small}
+% \noindent \mbox{{\bf{Solve Goal $\Gamma \vd M: G$:}}\hfill}% \\[-2.5em]
+\begin{description}
+\item[Select-Cache] $\Gamma \vd c_i \cdot S: G \Rightarrow
+  \underset{1 \ldots (j-1)}{\underbrace{0\ldots 0}}1W $ \\
+    \mbox{Given an atomic goal $G$, clauses $\Gamma$, and a table $\cal{T}$:}\hfill
+\\
+    {\em{if}} CallCheck($\Gamma \vd G$, $\cal{T}$) \\
+         {\em{then}} return a pointer ptr to the answer list\\
+        \hspace{0.5cm}{\em{if}} answer($c_i \cdot S$, ptr) \\
+        \hspace{0.75cm}{\em{then}} return $\theta_j$ where $(c_i \cdot S,
+        \theta_j)$ is j-th answer in the answer list and \\
+        \hspace{1.5cm}continue to solve any open subgoals under
+         $\theta_j$ \\
+         \hspace{0.75cm}{\em otherwise}\\
+         \hspace{1cm}Let  $k''$ be the length of the answer list ptr
+         and $c_i : A_i$  be the\\
+         \hspace{1cm} i-th clause which leads to a
+         proof $c_i\cdot S$ of $G$ from 
+         $\Gamma$; then $j = k'' + i$\\
+         \hspace{1cm}Focus on clauses $c_i : A_i$ from $\Gamma$ to compress 
+         a proof $c\cdot S$ for $G$ to $W$ and \\
+         \hspace{1cm}add the answer substitution together with
+         $c_i\cdot S$ to the answer list ptr\\ 
+         % its actually not the proof term we store....would also be
+% too much... -bp
+      {\em otherwise} \\
+\hspace{0.5cm}Let  $c_j : A_j$ be the j-th clause which leads to a 
+         proof $c_i\cdot S$ of $G$ from $\Gamma$;\\
+\hspace{0.5cm}Focus on clauses $c_j : A_j$ from $\Gamma$ to compress 
+a proof $c\cdot S$ for $G$ to $W$.\\
+     \hspace{0.5cm}Add the answer substitution together with
+         $c_i\cdot S$ to the answer list ptr\\[1em]
+
+%\item[CheckGoal]($\Gamma \vd c_i \cdot S: G$)\\
+%    Check if this goal $\Gamma \vd G$ is already in the table $\cal{T}$\\
+%    \hspace{0.5cm}If Yes, return the list of answers present\\
+%    \hspace{0.5cm}If No, add goal to the cache with \\
+%    \hspace{0.7cm} initially null answer list,
+%return a pointer to this list\\
+\end{description}
+%   \caption{Solve goal $G$ from clauses in $\Gamma$}
+\end{small}    
+%
+\end{center}
+%\figfoot
+%\caption{\label{fig:pwcache} Proof Compression with Caching}
+%\end{figure}
+
+
+The generation and checking of witnesses will following similar
+algorithms, so both have identical caches. The number of choices is
+also the same in both the prover and verifier. 
+%Hence, we just need a
+%convention on which order to consider tabled answers in, and we choose
+%the choices appearing in the table to be tried later than the other choices.
+In the following, we will highlight some of the important
+invariants underlying our implementation. 
+%
+%Up to now, this has been difficult since we need to efficiently
+%store and retrieve intermediate goals. We adapt and build upon recent
+%work \cite{Pientka03phd} on memoizing intermediate goals during
+%execution as part of the tabled higher-order logic programming and
+%adapt it for witness generation and witness checking. 
+%
+%A naive implementation can result in repeatedly rescanning terms and
+%thereby degrading performance considerably. 
+Typically intermediate goal
+$G$ may contain existential  variables which are realized via
+references and destructive updates in an implementation. This achieves
+that instantiations of existential variables are immediate.On the
+other hand the state of the existential variables may change during
+proof search. Hence when tabling a given subgoal, we abstract over all the
+existential variables and store an abstract version of the
+subgoal to avoid the pollution of the table entries. A similar problem
+arises when adding answer substitutions, since answers may not
+necessarily be ground.
+%Hence before adding a subgoal with existential variables, we will
+%abstract over them and standardize the goal together with its dynamic
+%assumptions. 
+%
+In general, the invariant about table entries and answer substitutions
+are:
+%can be summarized as follows: 
+\[
+\begin{array}{ll}
+\mbox{Table entry}\quad\quad & \quad\mbox{Answer substitution}\\
+\Delta ; \Gamma \vd G & \quad \Delta' \vd \theta : \Delta
+\end{array}
+\]
+
+$\Delta$ refers to a context describing existential variables,
+$\Gamma$ describes the context for the bound variables  and dynamic
+assumptions and $G$ describes the goal we are trying to prove. 
+%In addition, we translate every subgoal into a linear higher-order pattern
+%together with some residual constraints $R$
+The design supports naturally substitution factoring based on explicit
+substitutions\cite{RamakrishnanJLP99}. With substitution factoring the
+access cost is proportional to the size of the answer substitution
+rather than the size of the answer itself. It guarantees that we only
+store the answer substitutions, and create a mechanism of returning
+answers to active subgoals that takes time linear in the size of the
+answer substitution $\theta$ rather than the size of the solved query
+$[\theta]G$. In other words, substitution factoring ensures that answer
+tables contain no information that also exists in their associated
+call table. Operationally, this means that the constant symbols in the
+subgoal need not be examined again when we insert answer
+substitutions. For this setup to work cleanly in the higher-order
+setting, it is crucial that we distinguish between existential
+variables in $\Delta$ and bound variables and assumptions 
+in $\Gamma$. 
+
+To allow easy comparison of goals $G$ with dynamic assumptions
+$\Gamma$ modulo renaming of existential variables and bound variables, we
+represent terms internally using explicit substitutions
+\cite{Abadi:POPL90} and de Bruijn indices. The basic underlying idea
+is to use a nameless representation of variables based on de Bruijn
+indices. The main advantage is that equality up to renaming
+of bound variables is reduced to syntactic equality checks, if all
+objects are in $\beta\eta$-normalform.
+
+Storing large sets of intermediate goals together with their proofs
+can only be practical if the table operations are efficient and
+exploit sharing common structure and common operations. We use
+higher-order substitution tree indexing from the previous section to
+store intermediate goals $G$ together with their dynamic assumptions
+$\Gamma$ and the corresponding proof $c_i\cdot S$\footnote{We only
+  store a skeleton of   the proof term.}. This requires however that
+goals are in linear form, i.e. all existential variables are fully
+applied. Therefore, we linearize goals $\Gamma \vd G$ during
+abstraction and factor out any non-linear sub-expressions.
+%
+%There are differences from the usual use of the table in tabled logic
+%programming. In tabled logic programming, if we encounter a goal which
+%is in the table, but whose answer we have not found yet, we suspend
+%execution. There is a notion of staging, and the goal will be
+%reactivated in the next stage, when we may have found the answer. This
+%is important for completeness of tabled logic programming. In proof
+%compression or checking, we do not care about retrieving all possible
+%proofs, just the particular proof we are interested in. Thus execution
+%is never suspended for later stages, since we know that the current
+%goal is always solvable. We will continue solving in the above situation.
+%
+%
+ This motivates the final table design: 
+
+\[
+\begin{array}{lll}
+\mbox{Table entry}\quad \quad &\quad \mbox{Residual Equ.}\quad &\quad \mbox{Answer substitution}\\
+\Delta ; \Gamma \vd G & \quad \Delta ; \Gamma \vd R  & \quad \Delta' \vd \theta : \Delta
+\end{array}
+\]
+
+where $G$ is a linear higher-order pattern, $\Gamma$ denotes the bound
+variables and dynamic assumptions and $\Delta$ describes the
+existential variables occurring in $G$ and $\Gamma$. This
+linearization step can be done together with abstraction and 
+standardization over the existential variables in goal, hence only one
+pass through the term is required. 
+
+%\subsection{Optimization: Strengthening and subsumption}
+
+%Apply strengthening to detect more identical subproofs (strengthening
+%based on subordination and on not adding dynamic assumption twice)
+
+%\begin{note}
+%  Say more about strengthening; is it critical in the proofs about the
+%  sequent calculus?  
+
+%  I don't know how important strengthening is in the context of this work.
+%  Can we come up with an example where it demonstrably helps? - Susmit
+%\end{note}
+
+\section{Experimental Results}
+
+We now show an experimental evaluation of generating and checking
+proofs using compact proof witnesses. We wish to understand how the
+checking time for proofs is affected by using our proof witnesses. We
+will also study the advantages of caching subproofs. Further, since
+the primary focus is on generating small proof witnesses, we will
+study how the size of the proof witnesses change by varying
+parameters. We hope this will serve as a guide to those wishing to 
+generate and use oracles on the various tradeoffs to be made.
+
+\subsection{Sequent Calculus}
+Our first example suite is an implementation of a sequent calculus 
+for intuitionistic propositional logic. This has the standard connectives
+for conjunction, disjunction, implication and atomic propositions 
+truth and falsehood. The calculus is one designed to find proofs using an 
+inversion based strategy.
+
+\begin{table*}[htbp]
+\begin{center}
+\begin{small}
+\begin{tabular}{|l|l|l|l|}
+\hline
+Example & Proof Search & Proof Compression & Witness Verification \\
+& time (s) & time (s) & time (s)\\
+\hline
+$(A\supset B)\wedge (A\supset C)\Rightarrow A\supset B\wedge C$
+&       0.470 
+&       0.030 
+&       0.000 \\
+$(A\supset B)\vee (A\supset C)\Rightarrow A\supset B\vee C$
+&       0.380 
+&       0.010 
+&       0.000 \\
+$A\vee C\wedge (B\supset C)\Rightarrow (A\supset B)\supset C$
+&       1.700 
+&       0.010 
+&       0.010 \\
+$(A\supset C)\wedge (B\supset C)\Rightarrow A\vee B\supset C$
+&       2.180 
+&       0.020 
+&       0.000 \\
+$A\wedge B\vee C\Rightarrow (A\wedge B)\vee (A\wedge C)$
+&       0.190 
+&       0.020 
+&       0.000 \\
+$(A\wedge B)\vee (A\wedge C)\Rightarrow A\wedge B\vee C$
+&       0.760 
+&       0.010 
+&       0.000 \\
+$A\vee (B\wedge C)\Rightarrow A\vee B\wedge A\vee C$
+&       0.210 
+&       0.020 
+&       0.000 \\
+$A\vee B\wedge A\vee C\Rightarrow A\vee (B\wedge C)$
+&       0.790 
+&       0.020 
+&       0.000 \\
+$\Rightarrow (A\supset B)\wedge (A\supset C)\supset A\supset B\supset C$
+&       0.390 
+&       0.020 
+&       0.000 \\
+$\Rightarrow (A\supset C)\wedge (B\supset C)\supset A\vee B\supset C$
+&       2.430 
+&       0.010 
+&       0.010 \\
+$\Rightarrow (A\supset B)\vee (A\supset C)\supset A\supset B\vee C$
+&       0.480 
+&       0.010 
+&       0.000 \\
+$\Rightarrow A\wedge (B\supset \perp)\supset (A\supset B)\supset \perp$ 
+&       0.370 
+&       0.020 
+&       0.000 \\
+\hline
+\end{tabular}
+\end{small}
+\end{center}
+\caption{\label{tab:seqtimes}
+Sequent Calculus: Times with Caching of User-Selected Predicates}
+\end{table*}
+
+In these examples, the proof search procedure uses the table in a significant
+manner. Tabling is used to detect loops in the goals considered by the
+sequent calculus. The proof compression and the verification procedures
+provide significant time speedups, since in these procedures, we already
+know the proof. This is exhibited in Table~\ref{tab:seqtimes}.
+
+\begin{table*}[htbp]
+\begin{center}
+\begin{small}
+\begin{tabular}{|l|l|l|l|}
+\hline
+Example & Proof Size & Proof Size & Witness Size \\
+& (bytes) & (number of tokens) & (bytes)\\
+\hline
+$(A\supset B)\wedge (A\supset C)\Rightarrow A\supset B\wedge C$
+&       361 
+&       43 
+&       5 \\
+$(A\supset B)\vee (A\supset C)\Rightarrow A\supset B\vee C$
+&       292 
+&       45 
+&       5 \\
+$A\vee C\wedge (B\supset C)\Rightarrow (A\supset B)\supset C$
+&       570 
+&       50 
+&       6 \\
+$(A\supset C)\wedge (B\supset C)\Rightarrow A\vee B\supset C$
+&       561 
+&       56 
+&       6 \\
+$A\wedge B\vee C\Rightarrow (A\wedge B)\vee (A\wedge C)$
+&       280 
+&       37 
+&       6 \\
+$(A\wedge B)\vee (A\wedge C)\Rightarrow A\wedge B\vee C$
+&       437 
+&       66 
+&       7 \\
+$A\vee (B\wedge C)\Rightarrow A\vee B\wedge A\vee C$
+&       331 
+&       50 
+&       6 \\
+$A\vee B\wedge A\vee C\Rightarrow A\vee (B\wedge C)$
+&       428 
+&       47 
+&       6 \\
+$\Rightarrow (A\supset B)\wedge (A\supset C)\supset A\supset B\supset C$
+&       454 
+&       44 
+&       5 \\
+$\Rightarrow (A\supset C)\wedge (B\supset C)\supset A\vee B\supset C$
+&       792 
+&       57 
+&       6 \\
+$\Rightarrow (A\supset B)\vee (A\supset C)\supset A\supset B\vee C$
+&       440 
+&       46 
+&       5 \\
+$\Rightarrow A\wedge (B\supset \perp)\supset (A\supset B)\supset \perp$ 
+&       513 
+&       38 
+&       5 \\
+\hline
+\end{tabular}
+\end{small}
+\end{center}
+\caption{\label{tab:seqsizes}
+Sequent Calculus: Sizes with Caching of User-Selected Predicates}
+\end{table*}
+
+
+Next, we turn our attention to questions of proof size. 
+Table~\ref{tab:seqsizes} compares the size of our proof witnesses to the
+size of the original proof. The original proof is measured both by number 
+of bytes as well as the number of tokens. These figures are assuming 
+caching is done of predicates the user has selected, and the encoding of
+the oracle is in terms of the unary encoding scheme described earlier.
+
+\subsection{Refinement Types as an advanced type system}
+Our next example is an advanced type system for a high-level
+call-by-value functional language. The language has functions, a
+fixpoint construct, booleans and bitstrings. The type system for the
+language has refinement types, as described in Davies and
+Pfenning~\cite{davies+:intersection}. In particular, the type of
+bitstrings is refined by zero and strictly positive number
+representations.
+
+In Table~\ref{tab:reftimes} we demonstrate the time improvements that
+can be had if we know the proof already. We achieve a speedup of
+between 2 and 6 times. This figure is achieved if we are caching
+subgoals to get maximum compressions. As we see later, even more gains
+can be achieved by turning off caching. Turning the cache off however
+would overstate the gains, since proof search has to use tabling to
+find the proof. This gain comes about since we do not have to explore 
+unproductive branches of the proof tree.
+
+We also compare proof size to the size of the compact witness we
+produce in Table~\ref{tab:refsizes}. We notice that the compact oracle
+is about 1 \% of the size of the proof term.
+
+\begin{table*}[htbp]
+\begin{center}
+\begin{small}
+\begin{tabular}{|l|l|l|l|l|}
+\hline
+Example & Proof Search & Proof Compression 
+& Witness Verification & Speedup ( 1 / 2 )\\
+& Time (s) (1) & Time (s) (2) & Time (s) & \\
+\hline
+mult-pos-nat & 5.810 & 1.180 & 1.100 & 4.92 \\
+mult-3-types & 8.420 & 1.600 & 1.490 & 5.26 \\
+mult & 0.390 & 0.140 & 0.130 & 2.78 \\
+square & 0.420 & 0.160 & 0.130 & 2.62 \\
+square-pos-nat & 12.550 & 2.310 & 1.850 & 5.43 \\
+square-pos-pos & 11.880 & 1.920 & 2.130 & 6.18 \\
+\hline
+\end{tabular}
+\end{small}
+\end{center}
+\caption{\label{tab:reftimes} Refinement Type System : 
+Proof Compression Times with Caching}
+\end{table*}
+
+\begin{table*}[htbp]
+\begin{center}
+\begin{small}
+\begin{tabular}{|l|l|l|l|l|l|}
+\hline
+Example & Proof Term & Proof Term & Witness & Proof Size\\
+& Size (Bytes) (1) & Size (Tokens) & Size (Bytes) (2) & percentage (2 / 1)\\
+\hline
+mult-pos-nat & 15654 & 1159 & 169 & 1.07 \%\\
+mult-3-types & 18537 & 1383 & 211 & 1.13 \%\\
+mult & 6074 & 509 & 47 & 0.77 \%\\
+square & 7060 & 546 & 50 & 0.70 \%\\
+square-pos-nat & 25303 & 1587 & 242 & 0.95 \%\\
+square-pos-pos & 24957 & 1560 & 237 & 0.94 \%\\
+\hline
+\end{tabular}
+\end{small}
+\end{center}
+\caption{\label{tab:refsizes} Refinement Type System : 
+Size of Witness with Caching}
+\end{table*}
+
+Next we investigate the practicality of caching subgoals. Caching is 
+a fairly expensive operation, in terms of both time to store and lookup, 
+as well as the extra memory required to maintain the table. In 
+Table~\ref{tab:refcache} we investigate this tradeoff. We find that
+using caching gives us a speed hit of between 3 and 16 times. The 
+gains from this is that the size of the oracle is smaller for the
+cached version, for every experiment in this set. The gain is small
+but significant.
+
+\begin{table*}[htbp]
+\begin{center}
+\begin{small}
+\begin{tabular}{|l|l|l|l|l|l|l|l|}
+\hline
+Example & \multicolumn{3}{c}{Compression Time} & 
+\multicolumn{3}{c}{Witness Size} & Table\\
+& Cached & Uncached & Slowdown & Cached & Uncached & Saving & Size\\
+& (s) (1) & (s) (2) & (1 / 2) & (bytes) (3) & (bytes) (4) & (4 - 3) / 4& \\
+\hline
+mult-pos-nat & 1.180 & 0.110 & 10.72 & 169 & 171 & 1.16 \% & 579\\
+mult-3-types & 1.600 & 0.410 & 3.90 & 211 & 216 & 2.31 \% & 691\\
+mult & 0.140 & 0.050 & 2.80 & 47 & 67 & 29.85 \% & 164\\
+square & 0.160 & 0.040 & 4.0  & 50 & 71 & 29.57 \% & 179\\
+square-pos-nat & 2.310 & 0.160 & 14.43 & 242 & 247 & 2.02 \% & 794\\
+square-pos-pos & 1.920 & 0.160 & 12.0 & 237 & 243 & 2.46 \% & 775\\
+\hline
+\end{tabular}
+\end{small}
+\end{center}
+\caption{\label{tab:refcache} 
+Refinement Type System : 
+Caching during proof compression}
+\end{table*}
+
+\subsection{Foundational Proof Carrying Code}
+Our last example suite is an implementation from the Foundational 
+Proof Carrying Code project at Princeton~\cite{Appel01lics}. This 
+is a large program that type checks SPARC object code with the help 
+of annotations produced by a compiler. The type system used is a
+low-level type system known as LTAL~\cite{chen+:fpcc-ltal}.
+
+\begin{table*}[htbp]
+\begin{center}
+\begin{small}
+\begin{tabular}{|l|l|l|l|l|}
+\hline
+Example & Proof Search & Proof Compression & Witness Verification & Speedup\\
+& time (s) (1) & time (s) & time (s) (2) & (1 / 2) \\
+\hline
+clos & 12.260 & 1.940 & 0.470 & 26.08\\
+mid & 10.290 & 1.800 & 0.450 & 22.86\\
+inc & 11.550 & 1.880 & 0.470 & 24.57\\
+lint & 12.840 & 2.530 & 0.700 & 18.34\\
+\hline
+\end{tabular}
+\end{small}
+\end{center}
+\caption{\label{tab:fpcctimes}
+FPCC: Times without Caching}
+\end{table*}
+
+In Table~\ref{tab:fpcctimes} we show the gains to be achieved in terms of
+time performance. In the proof carrying code scenario, asking the consumer
+to verify our compact proof witness as opposed to the proof term gives a 
+speedup of about 20 times. Also important is the size of the proof that
+must be sent to the consumer. Our proof witnesses are between 300 and 700
+times smaller than the corresponding proof terms, as we show in
+Table~\ref{tab:fpccsizes}.
+
+\begin{table*}[htbp]
+\begin{center}
+\begin{small}
+\begin{tabular}{|l|l|l|l|l|}
+\hline
+Example & Proof Size & Proof Size & Witness Size & Gain \\
+& (bytes) (1) & (number of tokens) & (bytes)(2) & (1 / 2)\\
+\hline
+clos & 201910 & 16502 & 638 & 316.47\\
+mid & 398589 & 34250 & 528 & 754.90\\
+inc & 410600 & 35724 & 579 & 709.15\\
+lint & 441965 & 38416 & 703 & 628.68\\
+\hline
+\end{tabular}
+\end{small}
+\end{center}
+\caption{\label{tab:fpccsizes}
+FPCC: Sizes without Caching}
+\end{table*}
+
+\section{Related Work}
+The idea of compact proof witnesses which encode the
+non-deterministic choice in a logic programming interpreter was first
+proposed by \cite{Necula+01:oracle} for a fragment of the logical
+framework LF, called LF$_i$, which excludes the use of higher-order
+terms and dependent types in practice. 
+Their main goal was to design a practical method for current
+proof-carrying code applications which would reduce the size of proofs
+sent to a consumer. To achieve this goal, their approach
+has been very pragmatic. For example they restrict themselves in
+practice to first-order terms and and significantly limit the use
+of dependent types such that LF$_i$. To achieve an efficient
+implementation, they propose the use of automata-driven indexing,
+where any higher-order features are ignored. Their indexing algorithm
+will generate a set of potential candidates of which unsound
+candidates need to be weeded out by calling full 
+higher-order unification based on Huet's algorithm. This is clearly
+wasteful and expensive in the general higher-order case, since we will
+traverse higher-order terms at least twice. Moreover, since they use
+Huet's unification algorithm, which is non-deterministic itself, 
+their proof witnesses need to record the choices made within
+higher-order unification. To avoid these problems in practice, their
+realization and their experimental evaluation does not consider terms
+defined via $\lambda$-abstraction.  %To handle some simple cases
+%like the {\tt alli} rule in our example, they introduce a
+%hack\ednote{-bp: do you know what hack they use?} to deal
+%with this special case. 
+Our work extends and continues where Necula and Rahul left of by
+saying ``more experimental results are needed especially in the
+higher-order setting''. By using linear higher-order patterns and
+higher-order substitution tree indexing, the non-determinism based on
+Huet's unification algorithm is removed. Moreover, our implementation scales
+to dependent types thereby removing any restrictions imposed by
+Necula and Rahul. In addition, we designed an extension where
+sub-proofs can be cached and re-used resulting in potentially even
+smaller proof witnesses.
+
+The idea of using oracles was also explored in
+\cite{Appel:PPDP03}. Their primary concern was to 
+achieve a minimal trusted proof checker. Their checker follows the
+path explored by Necula and Rahul and ignores higher-order terms. The
+main difference between the two approaches is that the proof rules are
+proven correct independently thereby minimizing the trusted computing
+base. Trust is not our concern here, rather we aim at extending the
+safety infrastructure already provided by Twelf with capabilities of
+generating and checking small proof witnesses. This step, we believe,
+will provide the developers of safety policies in Twelf with new
+insights about the relationship or safety rules and size of proofs.
+
+As Necula and Rahul's work, their system is not able to support
+higher-order abstract syntax, which means that that any variable
+binding constructs must be explicitly encoded. Wu {\em et
+  al}\cite{Appel:PPDP03} encode the explicit substitution calculus
+\cite{Abadi:POPL90} together with the necessary proofs about
+substitutions for their foundational implementation of LTAL. Although
+the overhead in this setting is still manageable, it is not general
+enough to handle richer safety polices. 
+
+% Our work fills this gap by describing a general purpose tool to
+% compress proofs to compact witnesses and check witnesses within the logical
+%framework LF. We believe this is a valuable addition to the general
+%safety infrastructure already provided by Twelf, which allows users to
+%gain insights into the relationship between safety policies and small
+%proofs. 
+
+%\begin{note}
+%  Susmit: say more about the difference and why ours is better.
+
+%-- Not sure what you want me to say. Is it not using oracles during
+%   higher-order unification? - Susmit
+
+%-- bp: I thought you are also generating the bits in a different
+%fashion. I thought Necula encoded each choice differently. For
+%example, one can encode pick the 3rd clause out of 4 as 0010
+%or as just 3=11. I remember some discussion with Karl, where you
+%suggested that a scheme which encodes 4 as 0010 is better although it
+%may produce larger bit-strings sometimes? -- Sofar I think it is still
+%a bit unclear *how* we actually encode the choices -- in other words
+%how is 3/4 encoded.
+
+%\end{note}
+
+
+%\begin{note}
+% 1. Should we talk about justifiers? - Susmit Yes. Especially if we
+% want to send it to ICLP. -bp see Abhik Roychoudhury and C. R. Ramakrishnan and I. V. Ramakrishnan,
+%    "Justifying proofs using memo tables", there is a more recent
+%    journal version.\\
+% 2. Do we need to describe LF$_i$? The references to a 2-level framework 
+%    may be incomprehensible to most people. On the other hand, it is not
+%    directly relevant - Susmit
+%\end{note}
+
+%It is also worth pointing out that in the higher-order setting the
+%choice of unification algorithm is crucial since not all unification
+%algorithms are deterministic. Higher-order unification based on Huet's
+%algorithm \cite{Huet75} for example is highly non-deterministic. On the
+%other hand higher-order pattern unification \cite{Miller91jlc} is
+%decidable and deterministic for higher-order patterns. Although it is too restrictive to
+%concentrate solely on higher-order patterns statically, most of the
+%non-patterns encountered (for example $(A\;T)$), will become patterns
+%during execution. Twelf uses higher-order pattern unification together
+%with constraints \cite{Pfenning91lf}, hence no non-determinism arises
+%in unification and no additional choices need to be stored in the proof
+%witness\footnote{Susmit: please check this with Frank}. 
+
+\section{Conclusion}
+In this paper, we extended the logical framework LF with small proof
+witnesses. Witness generation and checking  within the logical
+framework LF constitutes an valuable addition to the general safety
+infrastructure already provided, which not only supports
+specification and execution of safety policies, but also can provide
+insights into the relationship between safety policies and small
+safety proofs and allows for experiments with different kinds of
+encoding schemes.
+ Given the potential of 
+proof-carrying code methods and their new applications to
+proof-carrying authorization, this will provide a comprehensive guide
+for future implementations of proof checkers which need not be restricted
+to first-order Prolog-like systems. 
+
+Finally, small proof witnesses within the logical framework LF are
+interesting independently of the proof-carrying code application. They
+serve to increase the confidence in the logic programming and theorem
+proving engines. As the size of the proof term can be
+at least 4-times as big as the query we are trying to prove,
+constructing and possibly storing full proof terms during logic
+programming execution is expensive. As an example consider tabled
+higher-order logic programming, where we memoize subgoals together
+with their answers and proofs to re-use the results
+later. Constructing and storing the full proof term however would 
+impose a substantial performance penalty. Hence, small witnesses
+provide a cheap simple alternative and are in fact crucial to obtain a
+practical tabled logic programming interpreter. 
+
+%Different notion of proof witnesses, called proof justifiers have been
+%introduced in the logic programming community to ease debugging. Small proof
+%witnesses can be viewed as proof justifiers and may be used to
+%re-trace the proof.
+
+\bibliographystyle{plain}
+\bibliography{biblio}
+\end{document}
+
+
+
