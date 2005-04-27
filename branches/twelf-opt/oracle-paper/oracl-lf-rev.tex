@@ -121,7 +121,8 @@
 
 \newcommand{\bnfas}{\mathrel{::=}}
 \newcommand{\bnfalt}{\mathrel{|}}
-\title{Small proof witnesses for logical frameworks}
+% Proof witnesses using higher-order logic programming
+\title{Small proof witnesses for LF}
 \author{
 Susmit Sarkar\inst{1}\thanks{This work was supported by NSF ITR Grant 0121633:ITR/SY+SI:''Language Technology for Trustless Software Dissemination''}
 \and Brigitte Pientka\inst{2}
@@ -497,7 +498,7 @@ more detailed description see \cite{Miller91apal}):
      goal $G$. 
 
 \item[Augment] $\Gamma \vd  G_1 \arrow G_2 \Rightarrow \lambda u. M$ if $\Gamma,
-  u\oftp G_1 \vd G_2 \Rightarrow M$ \\
+  u\oftp G_1 \vd M : G_2 \Rightarrow W$ \\
 Augment the clauses in $\Gamma$ with the dynamic assumption $u{:} G_1$ and
 establish a proof $M$ for the goal $G_2$ from the extended program
 $\Gamma, u \oftp G_1$. 
@@ -906,8 +907,9 @@ However, indexing strategies for higher-order terms are difficult,
 since in general retrieval and often also insertion operations rely on
 computing the most general unifier or the most specific
 generalization. However, in the higher-order case, unification is in
-general undecidable and the mgu does not necessarily exist. The same
-holds for computing the most specific generalization of two terms. 
+general undecidable and the most general unifier does not necessarily
+exist. The same holds for computing the most specific generalization
+of two terms.  
 
 %As
 %discovered by Miller \cite{Miller91iclp}, there exists a decidable
@@ -980,11 +982,11 @@ conversion of formulas into prenex normalform.
 
 We see that the four given clauses share a lot of structure. For
 example clause $\eqilLF$ and $\eqirLF$ ``almost'' agree on the second
-argument. Similarly the clauses $\eqalLF$ and $\eqarLF$. To insert
-these four clauses into a substitution tree, we need to first
-translate them into linear higher-order patterns. Although all the
-terms in these clauses fall into the pattern fragment, not all of them
-are linear patterns.
+argument. Similarly the clauses $\eqalLF$ seems to share subexpressions
+with $\eqilLF$ and $\eqirLF$. To insert these four clauses into a
+substitution tree, we need to first translate them into linear
+higher-order patterns. Although all the terms in these clauses fall
+into the pattern fragment, not all of them are linear patterns.
 %since all the
 %existential variables are applied to distinct variables, 
 %not all of them are applied to {\em{all}} distinct bound variables. 
@@ -1249,115 +1251,116 @@ a proof $c\cdot S$ for $G$ to $W$.\\
 %\end{figure}
 
 
-The generation and checking of witnesses will following similar
-algorithms, so both have identical caches. The number of choices is
-also the same in both the prover and verifier. 
+The generation and checking of witnesses will follow similar
+algorithms, so both have identical caches and consider the same number
+of choices. 
 %Hence, we just need a
 %convention on which order to consider tabled answers in, and we choose
 %the choices appearing in the table to be tried later than the other choices.
-In the following, we will highlight some of the important
-invariants underlying our implementation. 
-%
-%Up to now, this has been difficult since we need to efficiently
-%store and retrieve intermediate goals. We adapt and build upon recent
-%work \cite{Pientka03phd} on memoizing intermediate goals during
-%execution as part of the tabled higher-order logic programming and
-%adapt it for witness generation and witness checking. 
-%
-%A naive implementation can result in repeatedly rescanning terms and
-%thereby degrading performance considerably. 
-Typically intermediate goal
-$G$ may contain existential  variables which are realized via
-references and destructive updates in an implementation. This achieves
-that instantiations of existential variables are immediate.On the
-other hand the state of the existential variables may change during
-proof search. Hence when tabling a given subgoal, we abstract over all the
-existential variables and store an abstract version of the
-subgoal to avoid the pollution of the table entries. A similar problem
-arises when adding answer substitutions, since answers may not
-necessarily be ground.
-%Hence before adding a subgoal with existential variables, we will
-%abstract over them and standardize the goal together with its dynamic
-%assumptions. 
-%
-In general, the invariant about table entries and answer substitutions
-are:
-%can be summarized as follows: 
-\[
-\begin{array}{ll}
-\mbox{Table entry}\quad\quad & \quad\mbox{Answer substitution}\\
-\Delta ; \Gamma \vd G & \quad \Delta' \vd \theta : \Delta
-\end{array}
-\]
+%In the following, we will highlight some of the important
+%invariants underlying our implementation. 
+%%
+%%Up to now, this has been difficult since we need to efficiently
+%%store and retrieve intermediate goals. We adapt and build upon recent
+%%work \cite{Pientka03phd} on memoizing intermediate goals during
+%%execution as part of the tabled higher-order logic programming and
+%%adapt it for witness generation and witness checking. 
+%%
+%%A naive implementation can result in repeatedly rescanning terms and
+%%thereby degrading performance considerably. 
+%Typically intermediate goal
+%$G$ may contain existential  variables which are realized via
+%references and destructive updates in an implementation. This achieves
+%that instantiations of existential variables are immediate.On the
+%other hand the state of the existential variables may change during
+%proof search. Hence when tabling a given subgoal, we abstract over all the
+%existential variables and store an abstract version of the
+%subgoal to avoid the pollution of the table entries. A similar problem
+%arises when adding answer substitutions, since answers may not
+%necessarily be ground.
+%%Hence before adding a subgoal with existential variables, we will
+%%abstract over them and standardize the goal together with its dynamic
+%%assumptions. 
+%%
+%In general, the invariant about table entries and answer substitutions
+%are:
+%%can be summarized as follows: 
+%\[
+%\begin{array}{ll}
+%\mbox{Table entry}\quad\quad & \quad\mbox{Answer substitution}\\
+%\Delta ; \Gamma \vd G & \quad \Delta' \vd \theta : \Delta
+%\end{array}
+%\]
 
-$\Delta$ refers to a context describing existential variables,
-$\Gamma$ describes the context for the bound variables  and dynamic
-assumptions and $G$ describes the goal we are trying to prove. 
-%In addition, we translate every subgoal into a linear higher-order pattern
-%together with some residual constraints $R$
-The design supports naturally substitution factoring based on explicit
-substitutions\cite{RamakrishnanJLP99}. With substitution factoring the
-access cost is proportional to the size of the answer substitution
-rather than the size of the answer itself. It guarantees that we only
-store the answer substitutions, and create a mechanism of returning
-answers to active subgoals that takes time linear in the size of the
-answer substitution $\theta$ rather than the size of the solved query
-$[\theta]G$. In other words, substitution factoring ensures that answer
-tables contain no information that also exists in their associated
-call table. Operationally, this means that the constant symbols in the
-subgoal need not be examined again when we insert answer
-substitutions. For this setup to work cleanly in the higher-order
-setting, it is crucial that we distinguish between existential
-variables in $\Delta$ and bound variables and assumptions 
-in $\Gamma$. 
+%$\Delta$ refers to a context describing existential variables,
+%$\Gamma$ describes the context for the bound variables  and dynamic
+%assumptions and $G$ describes the goal we are trying to prove. 
+%%In addition, we translate every subgoal into a linear higher-order pattern
+%%together with some residual constraints $R$
+%The design supports naturally substitution factoring based on explicit
+%substitutions\cite{RamakrishnanJLP99}. With substitution factoring the
+%access cost is proportional to the size of the answer substitution
+%rather than the size of the answer itself. It guarantees that we only
+%store the answer substitutions, and create a mechanism of returning
+%answers to active subgoals that takes time linear in the size of the
+%answer substitution $\theta$ rather than the size of the solved query
+%$[\theta]G$. In other words, substitution factoring ensures that answer
+%tables contain no information that also exists in their associated
+%call table. Operationally, this means that the constant symbols in the
+%subgoal need not be examined again when we insert answer
+%substitutions. For this setup to work cleanly in the higher-order
+%setting, it is crucial that we distinguish between existential
+%variables in $\Delta$ and bound variables and assumptions 
+%in $\Gamma$. 
 
-To allow easy comparison of goals $G$ with dynamic assumptions
-$\Gamma$ modulo renaming of existential variables and bound variables, we
-represent terms internally using explicit substitutions
-\cite{Abadi:POPL90} and de Bruijn indices. The basic underlying idea
-is to use a nameless representation of variables based on de Bruijn
-indices. The main advantage is that equality up to renaming
-of bound variables is reduced to syntactic equality checks, if all
-objects are in $\beta\eta$-normalform.
+%To allow easy comparison of goals $G$ with dynamic assumptions
+%$\Gamma$ modulo renaming of existential variables and bound variables, we
+%represent terms internally using explicit substitutions
+%\cite{Abadi:POPL90} and de Bruijn indices. The basic underlying idea
+%is to use a nameless representation of variables based on de Bruijn
+%indices. The main advantage is that equality up to renaming
+%of bound variables is reduced to syntactic equality checks, if all
+%objects are in $\beta\eta$-normalform.
 
-Storing large sets of intermediate goals together with their proofs
-can only be practical if the table operations are efficient and
-exploit sharing common structure and common operations. We use
-higher-order substitution tree indexing from the previous section to
-store intermediate goals $G$ together with their dynamic assumptions
-$\Gamma$ and the corresponding proof $c_i\cdot S$\footnote{We only
-  store a skeleton of   the proof term.}. This requires however that
-goals are in linear form, i.e. all existential variables are fully
-applied. Therefore, we linearize goals $\Gamma \vd G$ during
-abstraction and factor out any non-linear sub-expressions.
-%
-%There are differences from the usual use of the table in tabled logic
-%programming. In tabled logic programming, if we encounter a goal which
-%is in the table, but whose answer we have not found yet, we suspend
-%execution. There is a notion of staging, and the goal will be
-%reactivated in the next stage, when we may have found the answer. This
-%is important for completeness of tabled logic programming. In proof
-%compression or checking, we do not care about retrieving all possible
-%proofs, just the particular proof we are interested in. Thus execution
-%is never suspended for later stages, since we know that the current
-%goal is always solvable. We will continue solving in the above situation.
-%
-%
- This motivates the final table design: 
+%Storing large sets of intermediate goals together with their proofs
+%can only be practical if the table operations are efficient and
+%exploit sharing common structure and common operations. We use
+%higher-order substitution tree indexing from the previous section to
+%store intermediate goals $G$ together with their dynamic assumptions
+%$\Gamma$ and the corresponding proof $c_i\cdot S$\footnote{We only
+%  store a skeleton of   the proof term.}. This requires however that
+%goals are in linear form, i.e. all existential variables are fully
+%applied. Therefore, we linearize goals $\Gamma \vd G$ during
+%abstraction and factor out any non-linear sub-expressions.
+%%
+%%There are differences from the usual use of the table in tabled logic
+%%programming. In tabled logic programming, if we encounter a goal which
+%%is in the table, but whose answer we have not found yet, we suspend
+%%execution. There is a notion of staging, and the goal will be
+%%reactivated in the next stage, when we may have found the answer. This
+%%is important for completeness of tabled logic programming. In proof
+%%compression or checking, we do not care about retrieving all possible
+%%proofs, just the particular proof we are interested in. Thus execution
+%%is never suspended for later stages, since we know that the current
+%%goal is always solvable. We will continue solving in the above situation.
+%%
+%%
+% This motivates the final table design: 
 
-\[
-\begin{array}{lll}
-\mbox{Table entry}\quad \quad &\quad \mbox{Residual Equ.}\quad &\quad \mbox{Answer substitution}\\
-\Delta ; \Gamma \vd G & \quad \Delta ; \Gamma \vd R  & \quad \Delta' \vd \theta : \Delta
-\end{array}
-\]
+%\[
+%\begin{array}{lll}
+%\mbox{Table entry}\quad \quad &\quad \mbox{Residual Equ.}\quad &\quad \mbox{Answer substitution}\\
+%\Delta ; \Gamma \vd G & \quad \Delta ; \Gamma \vd R  & \quad \Delta' \vd \theta : \Delta
+%\end{array}
+%\]
 
-where $G$ is a linear higher-order pattern, $\Gamma$ denotes the bound
-variables and dynamic assumptions and $\Delta$ describes the
-existential variables occurring in $G$ and $\Gamma$. This
-linearization step can be done together with abstraction and 
-standardization over the existential variables in goal, hence only one
-pass through the term is required. 
+%where $G$ is a linear higher-order pattern, $\Gamma$ denotes the bound
+%variables and dynamic assumptions and $\Delta$ describes the
+%existential variables occurring in $G$ and $\Gamma$. This
+%linearization step can be done together with abstraction and 
+%standardization over the existential variables in goal, hence only one
+%pass through the term is required. 
+
 
 %\subsection{Optimization: Strengthening and subsumption}
 
@@ -1374,28 +1377,51 @@ pass through the term is required.
 
 \section{Experimental Results}
 
-We now show an experimental evaluation of generating and checking
-proofs using compact proof witnesses. We wish to understand how the
-checking time for proofs is affected by using our proof witnesses. We
-will also study the advantages of caching subproofs. Further, since
-the primary focus is on generating small proof witnesses, we will
-study how the size of the proof witnesses change by varying
-parameters. We hope this will serve as a guide to those wishing to 
-generate and use oracles on the various tradeoffs to be made.
+In this section, we give an experimental evaluation of generating and checking 
+compact proof witnesses. In particular, the results discuss the
+trade off between witness size and the time it takes to construct or check
+witness. Our comparison will be threefold: First, we will consider
+finding a proof via proof search thereby constructing a proof without
+any guidance, i.e. the witness size is zero. The downside of this approach is
+that we cannot always reconstruct the full proof automatically and we
+need to trust the a potentially large and complicated implementation
+of the higher-order logic programming engine.  Second, we will
+consider proof checking of explicit proof terms. If we send the
+explicit proof term then then checking the proof will always succeed
+and the proof checker is only a few hundred lines of code. However,
+the size of the explicit proof term is substantial. Finally, we will
+consider our approach of small proof witnesses, which only keeps track
+of minimal information to allow the proof to be re-run by a
+deterministic logic programming interpreter. As a consequence, 
+our higher-order logic programming engine is more light-weight, since
+we do not need to backtrack or trail existential variables. It
+provides a small proof witness and allows for fast witness checking,
+although the code base to be trusted is still quite larger.
+Finally, we will discuss the trade-offs of caching subproofs and compare
+different encoding schemes for describing the non-deterministic choices.    
+%Further, since 
+%the primary focus is on generating small proof witnesses, we will
+%study how the size of the proof witnesses change by varying
+%parameters. We hope this will serve as a guide to those wishing to 
+%generate and use oracles on the various tradeoffs to be made.
 
 \subsection{Sequent Calculus}
 Our first example suite is an implementation of a sequent calculus 
-for intuitionistic propositional logic. This has the standard connectives
-for conjunction, disjunction, implication and atomic propositions 
-truth and falsehood. The calculus is one designed to find proofs using an 
-inversion based strategy.
+for intuitionistic propositional logic where invertible rules are
+chained together thereby eliminating some non-determinism in the
+overall proof search. 
+%This has the standard connectives
+%for conjunction, disjunction, implication and atomic propositions 
+%truth and falsehood. The calculus is one designed to find proofs using an 
+%inversion based strategy.
 
 \begin{table*}[htbp]
 \begin{center}
 \begin{small}
 \begin{tabular}{|l|l|l|l|}
 \hline
-Example & Proof Search & Proof Compression & Witness Verification \\
+Example  & Proof Search 
+& Proof Compression & Witness Verification \\
 & time (s) & time (s) & time (s)\\
 \hline
 $(A\supset B)\wedge (A\supset C)\Rightarrow A\supset B\wedge C$
@@ -1454,9 +1480,10 @@ $\Rightarrow A\wedge (B\supset \perp)\supset (A\supset B)\supset \perp$
 Sequent Calculus: Times with Caching of User-Selected Predicates}
 \end{table*}
 
-In these examples, the proof search procedure uses the table in a significant
-manner. Tabling is used to detect loops in the goals considered by the
-sequent calculus. The proof compression and the verification procedures
+We included the time to find a proof to contrast it against the proof
+checking times. We use the tabled higher-order logic programming
+engine \cite{Pientka05,Pientka03Phd} to find proofs for the
+propositional logic. The proof compression and the verification procedures
 provide significant time speedups, since in these procedures, we already
 know the proof. This is exhibited in Table~\ref{tab:seqtimes}.
 
@@ -1524,7 +1551,6 @@ $\Rightarrow A\wedge (B\supset \perp)\supset (A\supset B)\supset \perp$
 Sequent Calculus: Sizes with Caching of User-Selected Predicates}
 \end{table*}
 
-
 Next, we turn our attention to questions of proof size. 
 Table~\ref{tab:seqsizes} compares the size of our proof witnesses to the
 size of the original proof. The original proof is measured both by number 
@@ -1541,14 +1567,16 @@ Pfenning~\cite{davies+:intersection}. In particular, the type of
 bitstrings is refined by zero and strictly positive number
 representations.
 
-In Table~\ref{tab:reftimes} we demonstrate the time improvements that
-can be had if we know the proof already. We achieve a speedup of
-between 2 and 6 times. This figure is achieved if we are caching
+Table~\ref{tab:reftimes} demonstrates that proof checking yields a
+speedup between 2 and 6 times. This figure is achieved if we are caching
 subgoals to get maximum compressions. As we see later, even more gains
 can be achieved by turning off caching. Turning the cache off however
 would overstate the gains, since proof search has to use tabling to
-find the proof. This gain comes about since we do not have to explore 
-unproductive branches of the proof tree.
+find the proof\footnote{-bp : this should be executable without
+  tabling; to be more precise, the benefit of tabling is really that
+  we get consistent performance, no matter if we prove or disprove a
+  query in these examples.}. This gain comes about since we do not
+have to explore  unproductive branches of the proof tree.
 
 We also compare proof size to the size of the compact witness we
 produce in Table~\ref{tab:refsizes}. We notice that the compact oracle
@@ -1602,7 +1630,7 @@ Size of Witness with Caching}
 Next we investigate the practicality of caching subgoals. Caching is 
 a fairly expensive operation, in terms of both time to store and lookup, 
 as well as the extra memory required to maintain the table. In 
-Table~\ref{tab:refcache} we investigate this tradeoff. We find that
+Table~\ref{tab:refcache} we investigate this trade off. We find that
 using caching gives us a speed hit of between 3 and 16 times. The 
 gains from this is that the size of the oracle is smaller for the
 cached version, for every experiment in this set. The gain is small
@@ -1699,7 +1727,7 @@ proof-carrying code applications which would reduce the size of proofs
 sent to a consumer. To achieve this goal, their approach
 has been very pragmatic. For example they restrict themselves in
 practice to first-order terms and and significantly limit the use
-of dependent types such that LF$_i$. To achieve an efficient
+of dependent types. To achieve an efficient
 implementation, they propose the use of automata-driven indexing,
 where any higher-order features are ignored. Their indexing algorithm
 will generate a set of potential candidates of which unsound
@@ -1797,7 +1825,7 @@ enough to handle richer safety polices.
 \section{Conclusion}
 In this paper, we extended the logical framework LF with small proof
 witnesses. Witness generation and checking  within the logical
-framework LF constitutes an valuable addition to the general safety
+framework LF constitutes a valuable addition to the general safety
 infrastructure already provided, which not only supports
 specification and execution of safety policies, but also can provide
 insights into the relationship between safety policies and small
@@ -1805,23 +1833,27 @@ safety proofs and allows for experiments with different kinds of
 encoding schemes.
  Given the potential of 
 proof-carrying code methods and their new applications to
-proof-carrying authorization, this will provide a comprehensive guide
-for future implementations of proof checkers which need not be restricted
-to first-order Prolog-like systems. 
+proof-carrying authorization \cite{AppelFelten99,bauer:thesis}, this
+will provide a comprehensive guide for future implementations of proof
+checkers which need not be restricted to first-order Prolog-like systems. 
 
 Finally, small proof witnesses within the logical framework LF are
 interesting independently of the proof-carrying code application. They
 serve to increase the confidence in the logic programming and theorem
 proving engines. As the size of the proof term can be
-at least 4-times as big as the query we are trying to prove,
-constructing and possibly storing full proof terms during logic
-programming execution is expensive. As an example consider tabled
-higher-order logic programming, where we memoize subgoals together
-with their answers and proofs to re-use the results
-later. Constructing and storing the full proof term however would 
-impose a substantial performance penalty. Hence, small witnesses
-provide a cheap simple alternative and are in fact crucial to obtain a
-practical tabled logic programming interpreter. 
+several orders of magnitude bigger than the query we are trying to
+prove, constructing and possibly storing full proof terms during logic
+programming proof search is expensive, and in some applications not even
+feasible. Our experience and experiments with tabled higher-order
+logic programming \cite{Pientka03phd} have demonstrated that
+small proof  constructing and storing the full proof term 
+however would  impose a substantial performance penalty. Therefore,
+our implementation of tabled higher-order logic programming uses a
+similar idea of small proof witnesses to construct proof witnesses
+effectively without compromising the efficiency of the overall
+system. 
+% provide a cheap simple alternative and are in fact crucial to obtain a
+% practical tabled logic programming interpreter. 
 
 %Different notion of proof witnesses, called proof justifiers have been
 %introduced in the logic programming community to ease debugging. Small proof
