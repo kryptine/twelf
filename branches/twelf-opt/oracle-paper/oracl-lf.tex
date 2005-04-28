@@ -135,11 +135,11 @@ Pittsburgh, PA, USA & Montreal, CA & Pittsburgh, PA, USA\\
 
 \abstract{Certified code systems require small-sized objects which can
 witness proofs in a machine-verifiable manner. We present a proof
-compression and verification engine for the logical framework LF. This
-extends ideas from previous work by Necula and
+compression and verification engine for proofs within the logical
+framework LF. This extends ideas from previous work by Necula and
 Rahul~\cite{Necula+01:oracle} in two main ways: 1) We consider the
-full fragment of LF, and 2) We will incorporate caching of sub-proofs
-to generate even more compact proof representations. This demonstrates
+full LF language, and 2) We will incorporate caching of sub-proofs to
+generate even more compact proof representations. This demonstrates
 that many of the restrictions in previous work can be overcome.
 
 Our system is integrated into the Twelf system, which has been widely
@@ -170,7 +170,8 @@ Hence, it reduces the effort required for
 each particular safety policy. 
 
 There is a price to be paid for this flexibility. Proofs within the
-logical framework may be large in size, and in one study
+logical framework may be large in size, and in one
+study~\cite{Necula98lics}
 % several mega-bytes - with LFi few tens of kilobytes (=two orders of
 % magnitude) 
 several orders of magnitude as big as the actual machine code they
@@ -206,9 +207,11 @@ along two orthogonal dimensions, first, by allowing dynamic
 assumptions to be manipulated, and second, by allowing the term
 language to become higher order by adding $\lambda$-abstraction. The
 approaches outlined above allow the first dimension, but do not treat
-a higher order term language.\ednote{Necula describes some
-higher-order extensions. We should discuss exactly what he does, maybe
-in the related work section}.
+a higher order term language.
+
+%%\ednote{Necula describes some
+%%higher-order extensions. We should discuss exactly what he does, maybe
+%%in the related work section}.
 
 This is unfortunate, since higher-order abstract syntax is often used
 for compact representations for logics. Each particular system now has
@@ -219,7 +222,7 @@ substitution calculus \cite{Abadi:POPL90} together with the necessary
 proofs about substitutions for their foundational implementation of
 LTAL. As the technology of certified code evolves, we will move to
 more powerful and expressive safety policies and type systems. The use
-of higher-order abstract syntax will become crucial for such systems.
+of higher-order abstract syntax will be crucial for such systems.
 
 The restrictions of previous work are due to two major concerns with
 higher order terms. First, use of a higher-order term language
@@ -231,8 +234,8 @@ hence allowing a straightforward implementation of Prolog-like engines
 to compress and reconstruct proofs.
 
 In this paper, we describe the design of the generation and checking
-of small proof witnesses for full LF. We demonstrate it is possible to
-extend the Twelf engine, making it unnecessary to build separate proof
+of small proof witnesses for full LF. We demonstrate it by extending
+the Twelf engine, making it unnecessary to build separate proof
 checking engines.  We propose the use of higher-order substitution
 tree indexing together with linear higher-order pattern unification to
 extend oracle-based proof checking to the higher-order
@@ -279,22 +282,18 @@ Twelf}.
 %% language, support for higher-order abstract syntax will be
 %% crucial. 
 
-Further, small proof witnesses have a role beyond certifying code
-applications. They are useful and sometimes necessary in building in
-certifying theorem proving and logic programming engines. First,
-constructing and possibly storing full proof terms is expensive,
-considering the fact that the size of the proof term can be at least
-4-times as big as the statement we are trying to prove. As an example
-consider tabled higher-order logic programming, where we memoize
-subgoals together with their answers and proofs to re-use the results
-later. Constructing and storing the full proof term however would
-impose a substantial performance penalty. Hence, small witnesses
+Our work in small proof witnesses has a role beyond certifying code
+applications. Such witnesses are useful and sometimes necessary in
+building certifying theorem proving and logic programming engines. As
+an example consider tabled higher-order logic programming, where we
+memoize subgoals together with their answers and proofs to re-use the
+results later. Constructing and storing the full proof term however
+would impose a substantial performance penalty. Here, small witnesses
 provide a cheap simple alternative and are in fact crucial to obtain a
 practical tabled logic programming interpreter. Second, there has been
-interest in producing proof justifiers\ednote{references? - Susmit} in
-the logic programming community to ease debugging. Small proof
-witnesses can be viewed as proof justifiers and may be used to
-re-trace the proof.
+interest in producing proof justifiers in the logic programming
+community to ease debugging. Small proof witnesses can be viewed as
+proof justifiers and may be used to re-trace the proof.
 
 This paper is structured as follows. We give background on
 higher-order logic programming in Twelf in Section~\ref{sec:twelf}. In
@@ -792,7 +791,8 @@ non-patterns encountered (for example $(A\;T)$), will become patterns
 during execution. Twelf uses higher-order pattern unification together
 with constraints \cite{Pfenning91lf}, hence no non-determinism arises
 in unification and no additional choices need to be stored in the proof
-witness\footnote{Susmit: please check this with Frank}. 
+witness.
+%%\footnote{Susmit: please check this with Frank}. 
 
 %% This leads to an efficient encoding of the non-deterministic
 %% choices. If we have $k$ possibilities, we need $\lceil\log_2 k\rceil$
@@ -989,13 +989,13 @@ insertion operations rely on computing the most general unifier or the
 most specific generalization. However, in the higher-order case,
 unification is in general undecidable and the mgu does not necessarily
 exist. The same holds for computing the most specific generalization
-of two terms. As discovered by Miller \cite{Miller91iclp}, there exists a decidable
-fragment, called higher-order patterns. For this fragment, unification
-and computing the most specific generalization is decidable even in
-rich type theories with dependent types and polymorphism as shown by
-Pfenning \cite{Pfenning91lics}.  However, these algorithms, which must
-compute bound variable dependencies, may not be efficient in practice
-\cite{PientkaPfenning:CADE03}.  
+of two terms. As discovered by Miller \cite{Miller91iclp}, there
+exists a decidable fragment, called higher-order patterns. For this
+fragment, unification and computing the most specific generalization
+is decidable even in rich type theories with dependent types and
+polymorphism as shown by Pfenning \cite{Pfenning91lics}.  However,
+these algorithms, which must compute bound variable dependencies, may
+not be efficient in practice \cite{PientkaPfenning:CADE03}.
 
 For the purpose of this paper, we will adopt higher-order substitution
 trees as described in \cite{Pientka:ICLP03}. Substitution tree
@@ -1101,10 +1101,12 @@ generalization between these clauses, and can build up a substitution
 tree. The algorithm for computing the most specific generalization is
 given in \cite{Pientka03phd,Pientka:ICLP03}.
 
-\begin{note}
-  Should be repeat it here? -- Or at least point out the use of modal
-  variables which are lowered?
-\end{note}
+%%\begin{note}
+%%  Should be repeat it here? -- Or at least point out the use of modal
+%%  variables which are lowered?
+%%\end{note}
+%%
+%% I don't think it is required in this paper -- Susmit
 
 \begin{figure*}[htbp]
   \begin{center}
@@ -1194,19 +1196,19 @@ We have chosen to index only the static set of program clauses. In
 theory, it is possible to use substitution tree indexing for dynamic
 clauses generated during proof search.  However, it is not clear how
 useful this will be, since the process of creating the tree itself is
-time-consuming. It is also noted by Necula and Rahul \cite{Necula+01:oracle} that
-indexing dynamic assumptions imposes a performance penalty. It is
-useful to pre-process the program, but the payoff with dynamic clauses
-is unclear. For dynamic clauses, we use only simple indexing on the
-type family of type.
+time-consuming. It is also noted by Necula and Rahul
+\cite{Necula+01:oracle} that indexing dynamic assumptions imposes a
+performance penalty. It is useful to pre-process the program, but the
+payoff with dynamic clauses is unclear. For dynamic clauses, we use
+only simple indexing on the type family of type.
 
-\begin{note}
-  \begin{itemize}
-  \item Should we talk about lowered terms and modal variables
-  \item Should be give an algorithm for computing the most specific
-    generalization? (it is given in ICLP'03)
-  \end{itemize}
-\end{note}
+%% \begin{note}
+%%   \begin{itemize}
+%%   \item Should we talk about lowered terms and modal variables
+%%   \item Should be give an algorithm for computing the most specific
+%%     generalization? (it is given in ICLP'03)
+%%   \end{itemize}
+%% \end{note}
 
 
 \section{Caching results}
@@ -1340,7 +1342,8 @@ for the existential variables in $\Delta$, we will add the answer to
 the table. The answer is a substitution for the existential variables
 in $\Delta$. In general, the answer substitution may also contain
 existential variable itself, over which we must abstract, when adding
-the answer substitution to the table\ednote{Give an example? -bp}.
+the answer substitution to the table.
+%%\ednote{Give an example? -bp}.
 
 There are differences from the usual use of the table in tabled logic
 programming. In tabled logic programming, if we encounter a goal which
@@ -1365,41 +1368,41 @@ a convention on which order to consider tabled answers in, and we
 choose the choices appearing in the table to be tried later than the
 other choices.
 
-\begin{note}
-  Susmit: Are we really first checking if $\Gamma \vd G$ is in the
-  table, and then later on we insert it???
+%% \begin{note}
+%%   Susmit: Are we really first checking if $\Gamma \vd G$ is in the
+%%   table, and then later on we insert it???
   
-   Maybe the answer is: In proof compression, we care more about
-   obtaining the shortest possible proof witness than the performance
-   of compressing proofs. 
+%%    Maybe the answer is: In proof compression, we care more about
+%%    obtaining the shortest possible proof witness than the performance
+%%    of compressing proofs. 
 
--- Added three paragraphs above - Susmit
+%% -- Added three paragraphs above - Susmit
 
-  Susmit: Are you only using variant checking or are you also using
-  subsumption?
+%%   Susmit: Are you only using variant checking or are you also using
+%%   subsumption?
 
--- Only variant. Do we need to talk about subsumption / strengthening ? - Susmit
+%% -- Only variant. Do we need to talk about subsumption / strengthening ? - Susmit
 
-  Susmit: How big is the table? Are we just memoizing *every* possible
-  subgoal encountered or are we selectively memoizing?
+%%   Susmit: How big is the table? Are we just memoizing *every* possible
+%%   subgoal encountered or are we selectively memoizing?
 
--- In the experimental section - Susmit
+%% -- In the experimental section - Susmit
 
-  Susmit: Are we caching everything or are we caching selectively?
+%%   Susmit: Are we caching everything or are we caching selectively?
 
--- Could be done either way. Experimental results are with everything
-cached. - Susmit
+%% -- Could be done either way. Experimental results are with everything
+%% cached. - Susmit
 
--- bp: I am not sure if we should just concentrate on describing
-caching of subproofs independently of tabled logic programming. That
-we re-use and modify the tabled logic programming interpreter just
-comes from the fact that how you started going about it. I think it
-would be cleaner and clearer if we think about a description of how
-caching works (or should work ) for proof compression independently of
-tabled proof search. We can add a paragraph in the related work
-section discussing differences between tabled search and tabled proof
-compression. 
-\end{note}
+%% -- bp: I am not sure if we should just concentrate on describing
+%% caching of subproofs independently of tabled logic programming. That
+%% we re-use and modify the tabled logic programming interpreter just
+%% comes from the fact that how you started going about it. I think it
+%% would be cleaner and clearer if we think about a description of how
+%% caching works (or should work ) for proof compression independently of
+%% tabled proof search. We can add a paragraph in the related work
+%% section discussing differences between tabled search and tabled proof
+%% compression. 
+%% \end{note}
 
 The following important invariants hold about the table
 
@@ -1435,13 +1438,13 @@ higher-order setting.
 Apply strengthening to detect more identical subproofs (strengthening
 based on subordination and on not adding dynamic assumption twice)
 
-\begin{note}
-  Say more about strengthening; is it critical in the proofs about the
-  sequent calculus?  
+%% \begin{note}
+%%   Say more about strengthening; is it critical in the proofs about the
+%%   sequent calculus?  
 
-  I don't know how important strengthening is in the context of this work.
-  Can we come up with an example where it demonstrably helps? - Susmit
-\end{note}
+%%   I don't know how important strengthening is in the context of this work.
+%%   Can we come up with an example where it demonstrably helps? - Susmit
+%% \end{note}
 
 \section{Experimental Results}
 
@@ -1594,6 +1597,22 @@ $\Rightarrow A\wedge (B\supset \perp)\supset (A\supset B)\supset \perp$
 \caption{\label{tab:seqsizes}
 Sequent Calculus: Sizes with Caching of User-Selected Predicates}
 \end{table*}
+
+%% \begin{note}
+%%   Brigitte: Can we get references/say where the others are from? --
+
+%%   - bp:  What do you mean ``references''. 
+%%   I implemented the sequent calculus in Twelf partially based on
+%%   Frank's ATP notes. The refinement type checking example is an
+%%   implementation by Frank. He did this implementation when he was
+%%   writing the paper on Rowan Davies and Frank Pfenning", "Intersection
+%%   Types and Computational Effects", ICFP'00  with Rowan.  
+
+%%   -bp: The experimental section should highlight some examples where
+%%   caching leads to savings in proof term size, and it is perfectly
+%%   fine if there are some examples where the saving is minimal. It is
+%%   an optional feature, so it may be turned on, but doesn't have to.
+%% \end{note}
 
 Next, we turn our attention to questions of proof size. 
 Table~\ref{tab:seqsizes} compares the size of our proof witnesses to the
@@ -1765,85 +1784,83 @@ a logic programming interpreter was first proposed by
 \cite{Necula+01:oracle} for a fragment of the logical framework LF,
 called LF$_i$. Their main goal was to design a practical method for
 the current proof-carrying code applications which would reduce the
-size of proofs. To achieve this goal, the compromised at different
-ends to suit their needs\ednote{-bp: I would say they have been
-  pragmatic. Otherwise this sounds a bit harsh and arrogant. }. First,
-they concentrate on the fragment $LF_i$, which concentrates on 2-level fragment of
+size of proofs. To create a practical system, they restricted
+themselves to fragments of the LF language.  First, they concentrate
+on the fragment $LF_i$, which concentrates on 2-level fragment of
 LF. To index program clauses, they propose the use of automata-driven
-indexing, where any higher-order features are ignored. Their
-indexing algorithm will generate a set of potential candidates, which
-may include candidates which are unsound. To weed out the unsound
+indexing, where any higher-order features are ignored. Their indexing
+algorithm will generate a set of potential candidates, which may
+include candidates which are unsound. To weed out the unsound
 candidates, full higher-order unification based on Huet's algorithm is
 called. This is clearly wasteful, since we will traverse higher-order
 terms at least twice. Moreover, since they use Huet's unification
 algorithm, which is non-deterministic itself, their theoretical
 proposal includes encoding the choices made within higher-order
 unification. To avoid these higher-order problems in practice, their
-realization and their experimental evaluation does not consider 
-terms defined via $\lambda$-abstraction. To handle some simple cases
-like the {\tt alli} rule in our example, they introduce a
-hack\ednote{-bp: do you know what hack they use?} to deal
-with this special case. 
+realization and their experimental evaluation does not consider terms
+defined via $\lambda$-abstraction. In their experimental evaluation,
+they treat a rule similar to our {\tt alli} example specially.
 
 In fact, one can say that  our work continues where Necula and Rahul
-left of saying ``more experimental results are needed especially in
+left off saying ``more experimental results are needed especially in
 the higher-order setting''. Our work extends this approach to full LF
 by removing any of these restriction, and incorporating higher-order
 term indexing as well as caching intermediate results.
 
-There is also an important difference in how we generate bit-strings:
+%% There is also an important difference in how we generate bit-strings:
 
-\begin{note}
-  Susmit: say more about the difference and why ours is better.
+%% \begin{note}
+%%   Susmit: say more about the difference and why ours is better.
 
--- Not sure what you want me to say. Is it not using oracles during
-   higher-order unification? - Susmit
+%% -- Not sure what you want me to say. Is it not using oracles during
+%%    higher-order unification? - Susmit
 
--- bp: I thought you are also generating the bits in a different
-fashion. I thought Necula encoded each choice differently. For
-example, one can encode pick the 3rd clause out of 4 as 0010
-or as just 3=11. I remember some discussion with Karl, where you
-suggested that a scheme which encodes 4 as 0010 is better although it
-may produce larger bit-strings sometimes? -- Sofar I think it is still
-a bit unclear *how* we actually encode the choices -- in other words
-how is 3/4 encoded.
+%% -- bp: I thought you are also generating the bits in a different
+%% fashion. I thought Necula encoded each choice differently. For
+%% example, one can encode pick the 3rd clause out of 4 as 0010
+%% or as just 3=11. I remember some discussion with Karl, where you
+%% suggested that a scheme which encodes 4 as 0010 is better although it
+%% may produce larger bit-strings sometimes? -- Sofar I think it is still
+%% a bit unclear *how* we actually encode the choices -- in other words
+%% how is 3/4 encoded.
 
-\end{note}
+%% \end{note}
 
 The idea of using oracles was also explored in
-\cite{Appel:PPDP03}. Their primary concern was to 
-achieve a minimal proof checker, in terms of number of lines of
-code\ednote{bp: is this true? -- my impression from reading their
-  paper was that they just argued that they use their proven typing
-  rules as a basis for proof search and proof compression and in this
-  sense it is minimal. Was their intention to really create a minimal
-  proof compression system?}. Their checker follows the path explored
-by Necula and Rahul and ignores higher-order terms. The main difference between the two
-approaches is that the proof rules are proven correct
-independently thereby minimizing the trusted computing base.
-As Necula and Rahul's work, their system is not able to support
-higher-order abstract syntax, which means that  
-that any variable binding constructs must be
-explicitly encoded. Wu {\em et al}\cite{Appel:PPDP03}
-encode the explicit substitution calculus \cite{Abadi:POPL90} together
-with the necessary proofs about substitutions for their foundational
-implementation of LTAL. Although the overhead in this setting is still
-manageable, it is not general enough to handle richer safety polices.
+\cite{Appel:PPDP03}. 
+%% Their primary concern was to 
+%% achieve a minimal proof checker, in terms of number of lines of
+%% code\ednote{bp: is this true? -- my impression from reading their
+%%   paper was that they just argued that they use their proven typing
+%%   rules as a basis for proof search and proof compression and in this
+%%   sense it is minimal. Was their intention to really create a minimal
+%%   proof compression system?}. Their checker follows the path explored
+Their checker also ignores higher-order terms. The main difference
+between their approaches and that of Necula and Rahul is that their
+proof rules are proven correct independently thereby minimizing the
+trusted computing base.  As in Necula and Rahul's work, their system is
+not able to support higher-order abstract syntax, which means that
+that any variable binding constructs must be explicitly encoded. Wu
+{\em et al}\cite{Appel:PPDP03} encode the explicit substitution
+calculus \cite{Abadi:POPL90} together with the necessary proofs about
+substitutions for their foundational implementation of LTAL. Although
+the overhead in this setting is still manageable, it is not general
+enough to handle richer safety polices.
 
  Our work fills this gap by describing a general purpose tool to
  compress proofs to compact witnesses and check proofs for the logical
 framework LF. We demonstrate that the restrictions to first-order terms
 are unnecessary. 
 
-\begin{note}
- 1. Should we talk about justifiers? - Susmit Yes. Especially if we
- want to send it to ICLP. -bp see Abhik Roychoudhury and C. R. Ramakrishnan and I. V. Ramakrishnan,
-    "Justifying proofs using memo tables", there is a more recent
-    journal version.\\
- 2. Do we need to describe LF$_i$? The references to a 2-level framework 
-    may be incomprehensible to most people. On the other hand, it is not
-    directly relevant - Susmit
-\end{note}
+%% \begin{note}
+%%  1. Should we talk about justifiers? - Susmit Yes. Especially if we
+%%  want to send it to ICLP. -bp see Abhik Roychoudhury and C. R. Ramakrishnan and I. V. Ramakrishnan,
+%%     "Justifying proofs using memo tables", there is a more recent
+%%     journal version.\\
+%%  2. Do we need to describe LF$_i$? The references to a 2-level framework 
+%%     may be incomprehensible to most people. On the other hand, it is not
+%%     directly relevant - Susmit
+%% \end{note}
 
 \section{Conclusion}
 

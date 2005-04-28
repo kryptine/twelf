@@ -121,6 +121,10 @@
 
 \newcommand{\bnfas}{\mathrel{::=}}
 \newcommand{\bnfalt}{\mathrel{|}}
+
+\addtolength{\intextsep}{-5mm}
+\addtolength{\textfloatsep}{-10mm}
+
 % Proof witnesses using higher-order logic programming
 \title{Small proof witnesses for LF}
 \author{
@@ -138,7 +142,6 @@ Carnegie Mellon University, Pittsburgh, USA
 \pagestyle{plain}
 \begin{document}
 \maketitle 
-
 \begin{abstract}
 In this paper, we instrument a higher-order logic programming
 search procedure to generate and check small proof witnesses for
@@ -1157,17 +1160,20 @@ proved only once ...'' \cite{NeculaLee+97:resource}
 
 
 In the context of generating and checking small proof witnesses, this
-leads to two problems.  First, the proof witnesses become larger in size than
-necessary. This means that what has to be transmitted to the verifier
-is large in size. Secondly, the performance of witness checker may
-degrade, since it spends its time uselessly proving the same fact over
-and over again. Ideally we would like to cache intermediate results
-and re-use them later. In this section, we describe an extension to
-generating and checking proof witnesses with caching. The idea can be
-briefly summarized as follows: when generating compressed witnesses
-for a goal $G$ from explicit proof terms, we store intermediate goals
-together with their compressed witness in a table, and re-use the
-result later on. For checking proof witnesses $\ldots$.
+leads to two problems.  First, the proof witnesses become larger in
+size than necessary. This means that what has to be transmitted to the
+verifier is large in size. Secondly, the performance of witness
+checker may degrade, since it spends its time uselessly proving the
+same fact over and over again. Ideally we would like to cache
+intermediate results and re-use them later. In this section, we
+describe an extension to generating and checking proof witnesses with
+caching. The idea can be briefly summarized as follows: when
+generating compressed witnesses for a goal $G$ from explicit proof
+terms, we store intermediate goals together with their solutions in a
+table, and re-use the result later on. For checking proof witnesses,
+we consult the oracle to see whether the tabled answer is to be
+used. Further, intermediate goals are stored similarly to the
+compression case.
 
 Since caching everything is too overwhelming in most cases in
 practice, hence we support selective caching. The user declares
@@ -1398,7 +1404,16 @@ we do not need to backtrack or trail existential variables. It
 provides a small proof witness and allows for fast witness checking,
 although the code base to be trusted is still quite larger.
 Finally, we will discuss the trade-offs of caching subproofs and compare
-different encoding schemes for describing the non-deterministic choices.    
+different encoding schemes for describing the non-deterministic choices. 
+Also, we give a study of how the encoding scheme changes the sizes of the 
+oracles.
+
+Our experiments are run on a Pentium 4 machine with 1 GB of memory size.
+The machine runs Twelf compiled by SML of New Jersey version 110.0.7, and
+runs it on the Redhat Linux 7.1 operating system, with no other programs
+running on the background. We present a representative selection of results
+from an extensive suite of experiments we have run.
+   
 %Further, since 
 %the primary focus is on generating small proof witnesses, we will
 %study how the size of the proof witnesses change by varying
@@ -1418,63 +1433,84 @@ overall proof search.
 \begin{table*}[htbp]
 \begin{center}
 \begin{small}
-\begin{tabular}{|l|l|l|l|}
+\begin{tabular}{|l|c|c|c|c|c|c|c|c|}
 \hline
-Example  & Proof Search 
-& Proof Compression & Witness Verification \\
-& time (s) & time (s) & time (s)\\
+Example & PST & WV & (PST/WV) & PS & PST & WS & (PS/WS)\\
 \hline
 $(A\supset B)\wedge (A\supset C)\Rightarrow A\supset B\wedge C$
-&       0.470 
-&       0.030 
-&       0.000 \\
-$(A\supset B)\vee (A\supset C)\Rightarrow A\supset B\vee C$
-&       0.380 
-&       0.010 
-&       0.000 \\
+&       0.47 
+&     $<$  0.01 
+& $\infty$
+&       361 
+&       43 
+&       5 
+&       72.2\\
+%% $(A\supset B)\vee (A\supset C)\Rightarrow A\supset B\vee C$
+%% &       0.380 
+%% &       0.010 
+%% &       0.000 \\
 $A\vee C\wedge (B\supset C)\Rightarrow (A\supset B)\supset C$
-&       1.700 
-&       0.010 
-&       0.010 \\
+&       1.70 
+&       0.01
+&       170 
+&       570 
+&       50 
+&       6 
+&       95\\
 $(A\supset C)\wedge (B\supset C)\Rightarrow A\vee B\supset C$
-&       2.180 
-&       0.020 
-&       0.000 \\
-$A\wedge B\vee C\Rightarrow (A\wedge B)\vee (A\wedge C)$
-&       0.190 
-&       0.020 
-&       0.000 \\
-$(A\wedge B)\vee (A\wedge C)\Rightarrow A\wedge B\vee C$
-&       0.760 
-&       0.010 
-&       0.000 \\
-$A\vee (B\wedge C)\Rightarrow A\vee B\wedge A\vee C$
-&       0.210 
-&       0.020 
-&       0.000 \\
-$A\vee B\wedge A\vee C\Rightarrow A\vee (B\wedge C)$
-&       0.790 
-&       0.020 
-&       0.000 \\
-$\Rightarrow (A\supset B)\wedge (A\supset C)\supset A\supset B\supset C$
-&       0.390 
-&       0.020 
-&       0.000 \\
+&       2.18 
+&      $<$ 0.01
+&      $\infty$ 
+&       561 
+&       56 
+&       6 
+&       93.5\\
+%% $A\wedge B\vee C\Rightarrow (A\wedge B)\vee (A\wedge C)$
+%% &       0.190 
+%% &       0.020 
+%% &       0.000 \\
+%% $(A\wedge B)\vee (A\wedge C)\Rightarrow A\wedge B\vee C$
+%% &       0.760 
+%% &       0.010 
+%% &       0.000 \\
+%% $A\vee (B\wedge C)\Rightarrow A\vee B\wedge A\vee C$
+%% &       0.210 
+%% &       0.020 
+%% &       0.000 \\
+%% $A\vee B\wedge A\vee C\Rightarrow A\vee (B\wedge C)$
+%% &       0.790 
+%% &       0.020 
+%% &       0.000 \\
+%% $\Rightarrow (A\supset B)\wedge (A\supset C)\supset A\supset B\supset C$
+%% &       0.390 
+%% &       0.020 
+%% &       0.000 \\
 $\Rightarrow (A\supset C)\wedge (B\supset C)\supset A\vee B\supset C$
-&       2.430 
-&       0.010 
-&       0.010 \\
-$\Rightarrow (A\supset B)\vee (A\supset C)\supset A\supset B\vee C$
-&       0.480 
-&       0.010 
-&       0.000 \\
-$\Rightarrow A\wedge (B\supset \perp)\supset (A\supset B)\supset \perp$ 
-&       0.370 
-&       0.020 
-&       0.000 \\
+&       2.43 
+&       0.01
+&       243 
+&       792 
+&       57 
+&       6 
+&       132\\
+%% $\Rightarrow (A\supset B)\vee (A\supset C)\supset A\supset B\vee C$
+%% &       0.480 
+%% &       0.010 
+%% &       0.000 \\
+%% $\Rightarrow A\wedge (B\supset \perp)\supset (A\supset B)\supset \perp$ 
+%% &       0.370 
+%% &       0.020 
+%% &       0.000 \\
 \hline
 \end{tabular}
 \end{small}
+\begin{tabular}{ll@{=}ll@{=}l}
+Key & PST & Proof Search time 
+&WV & Witness Verification time \\ 
+&PS & Proof Size in bytes\\
+&PST & Proof Size in Number of tokens 
+&WS & Witness Size in bytes\\
+\end{tabular} 
 \end{center}
 \caption{\label{tab:seqtimes}
 Sequent Calculus: Times with Caching of User-Selected Predicates}
@@ -1482,77 +1518,77 @@ Sequent Calculus: Times with Caching of User-Selected Predicates}
 
 We included the time to find a proof to contrast it against the proof
 checking times. We use the tabled higher-order logic programming
-engine \cite{Pientka05,Pientka03Phd} to find proofs for the
+engine \cite{Pientka05,Pientka03phd} to find proofs for the
 propositional logic. The proof compression and the verification procedures
 provide significant time speedups, since in these procedures, we already
 know the proof. This is exhibited in Table~\ref{tab:seqtimes}.
 
-\begin{table*}[htbp]
-\begin{center}
-\begin{small}
-\begin{tabular}{|l|l|l|l|}
-\hline
-Example & Proof Size & Proof Size & Witness Size \\
-& (bytes) & (number of tokens) & (bytes)\\
-\hline
-$(A\supset B)\wedge (A\supset C)\Rightarrow A\supset B\wedge C$
-&       361 
-&       43 
-&       5 \\
-$(A\supset B)\vee (A\supset C)\Rightarrow A\supset B\vee C$
-&       292 
-&       45 
-&       5 \\
-$A\vee C\wedge (B\supset C)\Rightarrow (A\supset B)\supset C$
-&       570 
-&       50 
-&       6 \\
-$(A\supset C)\wedge (B\supset C)\Rightarrow A\vee B\supset C$
-&       561 
-&       56 
-&       6 \\
-$A\wedge B\vee C\Rightarrow (A\wedge B)\vee (A\wedge C)$
-&       280 
-&       37 
-&       6 \\
-$(A\wedge B)\vee (A\wedge C)\Rightarrow A\wedge B\vee C$
-&       437 
-&       66 
-&       7 \\
-$A\vee (B\wedge C)\Rightarrow A\vee B\wedge A\vee C$
-&       331 
-&       50 
-&       6 \\
-$A\vee B\wedge A\vee C\Rightarrow A\vee (B\wedge C)$
-&       428 
-&       47 
-&       6 \\
-$\Rightarrow (A\supset B)\wedge (A\supset C)\supset A\supset B\supset C$
-&       454 
-&       44 
-&       5 \\
-$\Rightarrow (A\supset C)\wedge (B\supset C)\supset A\vee B\supset C$
-&       792 
-&       57 
-&       6 \\
-$\Rightarrow (A\supset B)\vee (A\supset C)\supset A\supset B\vee C$
-&       440 
-&       46 
-&       5 \\
-$\Rightarrow A\wedge (B\supset \perp)\supset (A\supset B)\supset \perp$ 
-&       513 
-&       38 
-&       5 \\
-\hline
-\end{tabular}
-\end{small}
-\end{center}
-\caption{\label{tab:seqsizes}
-Sequent Calculus: Sizes with Caching of User-Selected Predicates}
-\end{table*}
+%% \begin{table*}[htbp]
+%% \begin{center}
+%% \begin{small}
+%% \begin{tabular}{|l|l|l|l|}
+%% \hline
+%% Example & Proof Size & Proof Size & Witness Size \\
+%% & (bytes) & (number of tokens) & (bytes)\\
+%% \hline
+%% $(A\supset B)\wedge (A\supset C)\Rightarrow A\supset B\wedge C$
+%% &       361 
+%% &       43 
+%% &       5 \\
+%% %% $(A\supset B)\vee (A\supset C)\Rightarrow A\supset B\vee C$
+%% %% &       292 
+%% %% &       45 
+%% %% &       5 \\
+%% $A\vee C\wedge (B\supset C)\Rightarrow (A\supset B)\supset C$
+%% &       570 
+%% &       50 
+%% &       6 \\
+%% $(A\supset C)\wedge (B\supset C)\Rightarrow A\vee B\supset C$
+%% &       561 
+%% &       56 
+%% &       6 \\
+%% %% $A\wedge B\vee C\Rightarrow (A\wedge B)\vee (A\wedge C)$
+%% %% &       280 
+%% %% &       37 
+%% %% &       6 \\
+%% %% $(A\wedge B)\vee (A\wedge C)\Rightarrow A\wedge B\vee C$
+%% %% &       437 
+%% %% &       66 
+%% %% &       7 \\
+%% %% $A\vee (B\wedge C)\Rightarrow A\vee B\wedge A\vee C$
+%% %% &       331 
+%% %% &       50 
+%% %% &       6 \\
+%% %% $A\vee B\wedge A\vee C\Rightarrow A\vee (B\wedge C)$
+%% %% &       428 
+%% %% &       47 
+%% %% &       6 \\
+%% %% $\Rightarrow (A\supset B)\wedge (A\supset C)\supset A\supset B\supset C$
+%% %% &       454 
+%% %% &       44 
+%% %% &       5 \\
+%% $\Rightarrow (A\supset C)\wedge (B\supset C)\supset A\vee B\supset C$
+%% &       792 
+%% &       57 
+%% &       6 \\
+%% %% $\Rightarrow (A\supset B)\vee (A\supset C)\supset A\supset B\vee C$
+%% %% &       440 
+%% %% &       46 
+%% %% &       5 \\
+%% %% $\Rightarrow A\wedge (B\supset \perp)\supset (A\supset B)\supset \perp$ 
+%% %% &       513 
+%% %% &       38 
+%% %% &       5 \\
+%% \hline
+%% \end{tabular}
+%% \end{small}
+%% \end{center}
+%% \caption{\label{tab:seqsizes}
+%% Sequent Calculus: Sizes with Caching of User-Selected Predicates}
+%% \end{table*}
 
 Next, we turn our attention to questions of proof size. 
-Table~\ref{tab:seqsizes} compares the size of our proof witnesses to the
+Table~\ref{tab:seqtimes} compares the size of our proof witnesses to the
 size of the original proof. The original proof is measured both by number 
 of bytes as well as the number of tokens. These figures are assuming 
 caching is done of predicates the user has selected, and the encoding of
@@ -1570,62 +1606,73 @@ representations.
 Table~\ref{tab:reftimes} demonstrates that proof checking yields a
 speedup between 2 and 6 times. This figure is achieved if we are caching
 subgoals to get maximum compressions. As we see later, even more gains
-can be achieved by turning off caching. Turning the cache off however
-would overstate the gains, since proof search has to use tabling to
-find the proof\footnote{-bp : this should be executable without
-  tabling; to be more precise, the benefit of tabling is really that
-  we get consistent performance, no matter if we prove or disprove a
-  query in these examples.}. This gain comes about since we do not
-have to explore  unproductive branches of the proof tree.
+can be achieved by turning off caching. 
+%% Turning the cache off however
+%% would overstate the gains, since proof search has to use tabling to
+%% find the proof\footnote{-bp : this should be executable without
+%%   tabling; to be more precise, the benefit of tabling is really that
+%%   we get consistent performance, no matter if we prove or disprove a
+%%  query in these examples.}.
+This gain comes about since we do not have to explore unproductive
+branches of the proof tree.
 
 We also compare proof size to the size of the compact witness we
-produce in Table~\ref{tab:refsizes}. We notice that the compact oracle
+produce in Table~\ref{tab:reftimes}. We notice that the compact oracle
 is about 1 \% of the size of the proof term.
 
 \begin{table*}[htbp]
 \begin{center}
 \begin{small}
-\begin{tabular}{|l|l|l|l|l|}
+\begin{tabular}{|l|c|c|c|c|c|c|c|}
 \hline
-Example & Proof Search & Proof Compression 
-& Witness Verification & Speedup ( 1 / 2 )\\
-& Time (s) (1) & Time (s) (2) & Time (s) & \\
+Example & PST 
+& WV & ( PST / WV ) & PS & PSN & WS & (PS / WS)\\
 \hline
-mult-pos-nat & 5.810 & 1.180 & 1.100 & 4.92 \\
-mult-3-types & 8.420 & 1.600 & 1.490 & 5.26 \\
-mult & 0.390 & 0.140 & 0.130 & 2.78 \\
-square & 0.420 & 0.160 & 0.130 & 2.62 \\
-square-pos-nat & 12.550 & 2.310 & 1.850 & 5.43 \\
-square-pos-pos & 11.880 & 1.920 & 2.130 & 6.18 \\
+mult-pos-nat & 5.81 & 1.10 & 5.28
+& 15654 & 1159 & 169 & 92.62\\
+%%mult-3-types & 8.42 & 1.60 & 1.49 & 5.65 \\
+mult & 0.39 & 0.13 & 3.0 
+& 6074 & 509 & 47 & 129.23\\
+%%square & 0.42 & 0.16 & 0.13 & 2.62 \\
+square-pos-nat & 12.55 & 1.85 & 6.78 
+& 25303 & 1587 & 242 & 104.55\\
+%%square-pos-pos & 11.880 & 1.920 & 2.130 & 6.18 \\
 \hline
 \end{tabular}
+\begin{tabular}{ll@{=}ll@{=}l}
+Key & PST & Proof Search time
+&WV & Witness Verification time\\ 
+&PS & Proof Size in bytes\\
+&PST & Proof Size in Number of tokens 
+&WS & Witness Size in bytes\\
+\end{tabular} 
 \end{small}
 \end{center}
 \caption{\label{tab:reftimes} Refinement Type System : 
 Proof Compression Times with Caching}
 \end{table*}
 
-\begin{table*}[htbp]
-\begin{center}
-\begin{small}
-\begin{tabular}{|l|l|l|l|l|l|}
-\hline
-Example & Proof Term & Proof Term & Witness & Proof Size\\
-& Size (Bytes) (1) & Size (Tokens) & Size (Bytes) (2) & percentage (2 / 1)\\
-\hline
-mult-pos-nat & 15654 & 1159 & 169 & 1.07 \%\\
-mult-3-types & 18537 & 1383 & 211 & 1.13 \%\\
-mult & 6074 & 509 & 47 & 0.77 \%\\
-square & 7060 & 546 & 50 & 0.70 \%\\
-square-pos-nat & 25303 & 1587 & 242 & 0.95 \%\\
-square-pos-pos & 24957 & 1560 & 237 & 0.94 \%\\
-\hline
-\end{tabular}
-\end{small}
-\end{center}
-\caption{\label{tab:refsizes} Refinement Type System : 
-Size of Witness with Caching}
-\end{table*}
+%% \begin{table*}[htbp]
+%% \begin{center}
+%% \begin{small}
+%% \begin{tabular}{|l|l|l|l|l|l|}
+%% \hline
+%% Example & Proof Term & Proof Term & Witness & Proof Size\\
+%% & Size (Bytes) (1) & Size (Tokens) & Size (Bytes) (2) & percentage (2 / 1)\\
+%% \hline
+%% mult-pos-nat & 15654 & 1159 & 169 & 1.07 \%\\
+%% %%mult-3-types & 18537 & 1383 & 211 & 1.13 \%\\
+%% mult & 6074 & 509 & 47 & 0.77 \%\\
+%% %%square & 7060 & 546 & 50 & 0.70 \%\\
+%% square-pos-nat & 25303 & 1587 & 242 & 0.95 \%\\
+%% %%square-pos-pos & 24957 & 1560 & 237 & 0.94 \%\\
+%% \hline
+%% \end{tabular}
+%% \end{small}
+%% \end{center}
+%% \caption{\label{tab:refsizes} Refinement Type System : 
+%% Size of Witness with Caching}
+%% \end{table*}
 
 Next we investigate the practicality of caching subgoals. Caching is 
 a fairly expensive operation, in terms of both time to store and lookup, 
@@ -1639,19 +1686,19 @@ but significant.
 \begin{table*}[htbp]
 \begin{center}
 \begin{small}
-\begin{tabular}{|l|l|l|l|l|l|l|l|}
+\begin{tabular}{|l|c|c|c|c|c|c|c|}
 \hline
 Example & \multicolumn{3}{c}{Compression Time} & 
 \multicolumn{3}{c}{Witness Size} & Table\\
 & Cached & Uncached & Slowdown & Cached & Uncached & Saving & Size\\
 & (s) (1) & (s) (2) & (1 / 2) & (bytes) (3) & (bytes) (4) & (4 - 3) / 4& \\
 \hline
-mult-pos-nat & 1.180 & 0.110 & 10.72 & 169 & 171 & 1.16 \% & 579\\
-mult-3-types & 1.600 & 0.410 & 3.90 & 211 & 216 & 2.31 \% & 691\\
-mult & 0.140 & 0.050 & 2.80 & 47 & 67 & 29.85 \% & 164\\
-square & 0.160 & 0.040 & 4.0  & 50 & 71 & 29.57 \% & 179\\
-square-pos-nat & 2.310 & 0.160 & 14.43 & 242 & 247 & 2.02 \% & 794\\
-square-pos-pos & 1.920 & 0.160 & 12.0 & 237 & 243 & 2.46 \% & 775\\
+mult-pos-nat & 1.18 & 0.11 & 10.72 & 169 & 171 & 1.16 \% & 579\\
+%%mult-3-types & 1.60 & 0.41 & 3.90 & 211 & 216 & 2.31 \% & 691\\
+mult & 0.140 & 0.05 & 2.8 & 47 & 67 & 29.85 \% & 164\\
+%%square & 0.16 & 0.04 & 4.0  & 50 & 71 & 29.57 \% & 179\\
+square-pos-nat & 2.31 & 0.16 & 14.43 & 242 & 247 & 2.02 \% & 794\\
+%%square-pos-pos & 1.92 & 0.16 & 12.0 & 237 & 243 & 2.46 \% & 775\\
 \hline
 \end{tabular}
 \end{small}
@@ -1671,17 +1718,24 @@ low-level type system known as LTAL~\cite{chen+:fpcc-ltal}.
 \begin{table*}[htbp]
 \begin{center}
 \begin{small}
-\begin{tabular}{|l|l|l|l|l|}
+\begin{tabular}{|l|c|c|c|c|c|c|c|}
 \hline
-Example & Proof Search & Proof Compression & Witness Verification & Speedup\\
-& time (s) (1) & time (s) & time (s) (2) & (1 / 2) \\
+Example & PST & WV & (PST / WV) & PS & PSN & WS & (PS / WS)\\
+& (s) & (s) & & (bytes) & (tokens) & (bytes) &\\
 \hline
-clos & 12.260 & 1.940 & 0.470 & 26.08\\
-mid & 10.290 & 1.800 & 0.450 & 22.86\\
-inc & 11.550 & 1.880 & 0.470 & 24.57\\
-lint & 12.840 & 2.530 & 0.700 & 18.34\\
+clos & 12.26 & 0.47 & 26.08& 201910 & 16502 & 638 & 316.47\\
+mid & 10.29 & 0.45 & 22.86& 398589 & 34250 & 528 & 754.90\\
+inc & 11.55 & 0.47 & 24.57& 410600 & 35724 & 579 & 709.15\\
+lint & 12.84 & 0.70 & 18.34& 441965 & 38416 & 703 & 628.68\\
 \hline
 \end{tabular}
+\begin{tabular}{ll@{=}ll@{=}l}
+Key & PST & Proof Search time
+&WV & Witness Verification time\\ 
+&PS & Proof Size in bytes\\
+&PST & Proof Size in Number of tokens 
+&WS & Witness Size in bytes\\
+\end{tabular} 
 \end{small}
 \end{center}
 \caption{\label{tab:fpcctimes}
@@ -1694,26 +1748,60 @@ to verify our compact proof witness as opposed to the proof term gives a
 speedup of about 20 times. Also important is the size of the proof that
 must be sent to the consumer. Our proof witnesses are between 300 and 700
 times smaller than the corresponding proof terms, as we show in
-Table~\ref{tab:fpccsizes}.
+Table~\ref{tab:fpcctimes}.
+
+%% \begin{table*}[htbp]
+%% \begin{center}
+%% \begin{small}
+%% \begin{tabular}{|l|l|l|l|l|}
+%% \hline
+%% Example & Proof Size & Proof Size & Witness Size & Gain \\
+%% & (bytes) (1) & (number of tokens) & (bytes)(2) & (1 / 2)\\
+%% \hline
+%% clos & 201910 & 16502 & 638 & 316.47\\
+%% mid & 398589 & 34250 & 528 & 754.90\\
+%% inc & 410600 & 35724 & 579 & 709.15\\
+%% lint & 441965 & 38416 & 703 & 628.68\\
+%% \hline
+%% \end{tabular}
+%% \end{small}
+%% \end{center}
+%% \caption{\label{tab:fpccsizes}
+%% FPCC: Sizes without Caching}
+%% \end{table*}
+
+Finally, we study the issue of unary versus binary encodings of the choices.
+A representative study with examples from multiple example suites is given
+in Table~\ref{tab:unarybinary}. We notice that binary encodings always 
+increase the size of the oracle, by between 7\% and 115\%. As we discussed
+before, logic programmers usually write their programs so that the first
+few clauses are the ones that are used more commonly, in which case unary 
+encodings are better.
 
 \begin{table*}[htbp]
 \begin{center}
 \begin{small}
-\begin{tabular}{|l|l|l|l|l|}
+\begin{tabular}{|l|c|c|c|}
 \hline
-Example & Proof Size & Proof Size & Witness Size & Gain \\
-& (bytes) (1) & (number of tokens) & (bytes)(2) & (1 / 2)\\
+Example & WSU & WSB & (WSB - WSU/ WSU) \\
 \hline
-clos & 201910 & 16502 & 638 & 316.47\\
-mid & 398589 & 34250 & 528 & 754.90\\
-inc & 410600 & 35724 & 579 & 709.15\\
-lint & 441965 & 38416 & 703 & 628.68\\
+clos & 638 & 715 & 12.0 \%\\
+mid & 528 & 652 & 23.5 \%\\
+%%inc & 579 & 678 & 17.1 \%\\
+lint & 703 & 754 & 7.3 \%\\
+mult-pos-nat & 171 & 338 & 97.7 \%\\
+mult & 67 & 144 & 114.9 \%\\
+%%square-pos-nat & 247 & 475 & 92.3 \%\\
 \hline
 \end{tabular}
+\begin{tabular}{ll@{=}l}
+Key & WSU & Witness Size in bytes for Unary Encoding\\
+&WSB & Witness Size in bytes for Binary Encoding\\
+\end{tabular} 
 \end{small}
 \end{center}
-\caption{\label{tab:fpccsizes}
-FPCC: Sizes without Caching}
+\caption{\label{tab:unarybinary}
+Unary versus Binary Encodings: no Caching}
 \end{table*}
 
 \section{Related Work}
