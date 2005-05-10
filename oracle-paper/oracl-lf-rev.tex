@@ -143,17 +143,17 @@ Carnegie Mellon University, Pittsburgh, USA
 \begin{document}
 \maketitle 
 \begin{abstract}
-In this paper, we instrument a higher-order logic programming
-search procedure to generate and check small proof witnesses for
-the Twelf system, an implementation of the logical framework LF. In
-particular, we extend and generalize ideas from Necula and
-Rahul~\cite{Necula+01:oracle} in two main ways: 1) We consider the 
-full fragment of LF including dependent types and higher-order terms
-and 2) We will incorporate caching of sub-proofs to generate even more
-compact proof representations. Our experimental results  demonstrate
-that many of the restrictions in previous work can be overcome and
-generating and checking small witnesses within Twelf provides valuable
-addition to its general safety infrastructure.
+We instrument a higher-order logic programming search procedure to
+generate and check small proof witnesses for the Twelf system, an
+implementation of the logical framework LF. In particular, we extend
+and generalize ideas from Necula and Rahul~\cite{Necula+01:oracle} in
+two main ways: 1) We consider the full fragment of LF including
+dependent types and higher-order terms and 2) We incorporate caching
+of sub-proofs to generate even more compact proof representations. Our
+experimental results demonstrate that many of the restrictions in
+previous work can be overcome and generating and checking small
+witnesses within Twelf provides valuable addition to its general
+safety infrastructure.
 \end{abstract}
 
 \section{Introduction}
@@ -179,7 +179,7 @@ syntax.
 
 One of the benefits of using Twelf is that the
 execution of a query will not only produce a yes or no answer, but
-produce a proof term as a certificate which can be checked independently. 
+produce a proof term as a certificate that can be checked independently. 
 This increases the confidence in the overall correctness of the
 higher-order logic programming engine, and the certificate can
 be sent to the code consumer where compliance with the code is
@@ -219,7 +219,7 @@ simple, compact encoding of these systems.
 
 In this paper, we describe the design of generating and checking
 of small proof witnesses for the full logical framework LF. This work
-continues where Necula and Rahul \cite{Necula+01:oracle} left of 
+continues where Necula and Rahul \cite{Necula+01:oracle} left off 
 saying ``more experimental results are needed especially in the
 higher-order setting''. Our work has been implemented and evaluated
 within the Twelf system \cite{Pfenning99cade} making it unnecessary to
@@ -424,25 +424,26 @@ impe: prov B
 
 $A$, $B$, $C$ denote existential or logic variables which are
 instantiated during proof search. Throughout the example we reverse
-the arrow {\tt{A -> B}} writing instead {\tt{B <- A}}. From a logic
-programming view, it might be more intuitive to think of the clause
-{\tt{H <- A$_1$ <- A$_2$ <- $\ldots$ <- A$_n$}} as {\tt{H <-
-    A$_1$, A$_2$, $\ldots$, A$_n$}}. There are two key ideas which
-make the encoding of the logic calculus elegant and direct.
+the arrow {\tt{A -> B}} writing instead {\tt{B <- A}}. This way, goals
+appear in the order in which they are processed during proof
+search. From a logic programming view, it might be more intuitive to
+think of the clause {\tt{H <- A$_1$ <- A$_2$ <- $\ldots$ <- A$_n$}} as
+{\tt{H <- A$_1$, A$_2$, $\ldots$, A$_n$}}. There are two key ideas
+which make the encoding of the logic calculus elegant and direct.
 First, we use and manipulate dynamic assumptions which higher-order
 logic programming provides, to eliminate the need to manage
 assumptions in a list explicitly. To illustrate, we consider the
 clause {\tt impI}. To prove {\tt prov (imp A B)}, we prove {\tt prov
 B} assuming {\tt prov A} In other words, the proof for {\tt prov B}
-may use the dynamic assumption {\tt prov A}.
-Second, we use higher-order abstract syntax to encode the bound
-variables in the universal quantifier. As a consequence substitution
-in the object language can be reduced to application and
-$\beta$-reduction in the meta-language (higher-order logic
-programming). Consider the rule for all-elimination. If we have a proof of
-$\forall x.A$ , then we know that $[T/x]A$ is true for any term
-$T$. The substitution $[T/x]A$ in the object language is achieved via
-application in the meta-language {\tt (A T)}. 
+may use the dynamic assumption {\tt prov A}.  Second, we use
+higher-order abstract syntax to encode the bound variables in the
+universal quantifier. As a consequence substitution in the object
+language can be reduced to application and $\beta$-reduction in the
+meta-language (higher-order logic programming). Consider the rule for
+all-elimination. If we have a proof of $\forall x.A$ , then we know
+that $[T/x]A$ is true for any term $T$. The substitution $[T/x]A$ in
+the object language is achieved via application in the meta-language
+{\tt (A T)}.
 
 
 \subsection{Proof search in higher-order logic programming}
@@ -648,32 +649,33 @@ instantiations in gray.
 %  \label{tab:foc}
 %\end{table}
 
-As shown in \cite{Necula98lics}, the instantiations of existential
-variables need not be recorded in the explicit proof terms but can be
-reconstructed as long as we only concentrate on a fragment of LF,
-called LF$_i$. This can lead to substantial savings in proof checking
-and proof size. Proofs are roughly $\mathrm{O}(\sqrt{n})$, where $n$ is the
-size of the query. However, extending this idea to full LF has been
-difficult \cite{Reed04lfm}. Maybe more importantly, proofs in LF$_i$
-are still several times as big as the overall program they certify. 
+As shown in Necula~\cite{Necula98lics}, the instantiations of
+existential variables need not be recorded in the explicit proof terms
+but can be reconstructed as long as we only concentrate on a fragment
+of LF, called LF$_i$. This can lead to substantial savings in proof
+checking and proof size. Proofs are roughly $\mathrm{O}(\sqrt{n})$,
+where $n$ is the size of the query. However, extending this idea to
+full LF has been difficult \cite{Reed04lfm}. Maybe more importantly,
+proofs in LF$_i$ are still several times as big as the overall program
+they certify.
 
- Our goal is to reduce the proof evidence to the non-deterministic
- choices we have made during the proof to produce small proof 
-witnesses. In the previous example, it suffices to know that in
-the first step, three possible rules apply, namely {\tt alli}, {\tt
-alle}, and {\tt impe} and we want to follow the first possibility. In
-the second step, again three possible rules apply, namely {\tt alle},
-{\tt impi}, and {\tt impe}, and we want to follow the second
-possibility. In the final step, we have four potential candidates, the
-dynamic assumption ${\tt u}{:} \forallLF \lambda y. p\; y)$, and the rules
-{\tt allI}, {\tt allE}, and {\tt impE}.  Hence it would suffice to
-store only a list of the choices made in the proof. In this example,
-the choices can be characterized by the following sequence: $1/3$,
-$2/3$, $1/2$, $1/4$, keeping in mind that dynamic assumptions are
-tried first by proof search procedures. This sequence will constitute
-our compact proof witness and is all that needs to be generated and
-sent to the verifier. In the remainder of the paper, we show how
-to incorporate this technique into Twelf.
+Our goal is to produce smaller proof witnesses by reducing the proof
+evidence to the choices we make while constructing the proof.  In the
+previous example, it suffices to know that in the first step, three
+possible rules apply, namely {\tt alli}, {\tt alle}, and {\tt impe}
+and we want to follow the first possibility. In the second step, again
+three possible rules apply, namely {\tt alle}, {\tt impi}, and {\tt
+impe}, and we want to follow the second possibility. In the final
+step, we have four potential candidates, the dynamic assumption ${\tt
+u}{:} \forallLF (\lambda y. p\; y)$, and the rules {\tt allI}, {\tt
+allE}, and {\tt impE}.  Hence it would suffice to store only a list of
+the choices made in the proof. In this example, the choices can be
+characterized by the following sequence: $1/3$, $2/3$, $1/2$, $1/4$,
+keeping in mind that dynamic assumptions are tried first by proof
+search procedures. This sequence will constitute our compact proof
+witness and is all that needs to be generated and sent to the
+verifier. In the remainder of the paper, we show how to incorporate
+this technique into Twelf.
 
 \section{Generating and checking small proof witnesses}
 \label{sec:oracles}
@@ -904,15 +906,15 @@ A proof search procedure must have a way of retrieving all clauses of
 the logic program which may satisfy the current goal, since such a
 method will dictate how many choices we are returned at any step.
 Most first-order logic programming interpreter use term indexing
-strategies such as automata driven indexing \cite{} to efficiently
-retrieve all clauses whose head unifies with the current goal. 
-However, indexing strategies for higher-order terms are difficult,
-since in general retrieval and often also insertion operations rely on
-computing the most general unifier or the most specific
-generalization. However, in the higher-order case, unification is in
-general undecidable and the most general unifier does not necessarily
-exist. The same holds for computing the most specific generalization
-of two terms.  
+strategies such as automata driven indexing
+\cite{Ramakrishnan01:indexing} to efficiently retrieve all clauses
+whose head unifies with the current goal.  However, indexing
+strategies for higher-order terms are difficult, since in general
+retrieval and often also insertion operations rely on computing the
+most general unifier or the most specific generalization. However, in
+the higher-order case, unification is in general undecidable and the
+most general unifier does not necessarily exist. The same holds for
+computing the most specific generalization of two terms.
 
 %As
 %discovered by Miller \cite{Miller91iclp}, there exists a decidable
@@ -1503,7 +1505,6 @@ $\Rightarrow (A\supset C)\wedge (B\supset C)\supset A\vee B\supset C$
 %% &       0.000 \\
 \hline
 \end{tabular}
-\end{small}
 \begin{tabular}{ll@{=}ll@{=}l}
 Key & PST & Proof Search time 
 &WV & Witness Verification time \\ 
@@ -1511,6 +1512,7 @@ Key & PST & Proof Search time
 &PST & Proof Size in Number of tokens 
 &WS & Witness Size in bytes\\
 \end{tabular} 
+\end{small}
 \end{center}
 \caption{\label{tab:seqtimes}
 Sequent Calculus: Times with Caching of User-Selected Predicates}
