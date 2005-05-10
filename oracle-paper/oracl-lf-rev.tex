@@ -165,57 +165,61 @@ binary executable together with its safety proof. Before
 executing the program, the code consumer then quickly checks the code's
 safety proof against the binary. 
 
-The Twelf system \cite{Pfenning99cade}, an implementation of the logical framework LF \cite{Harper93jacm}, provides a general safety
+The Twelf system \cite{Pfenning99cade}, an implementation of the
+logical framework LF \cite{Harper93jacm}, provides a general safety
 infrastructure to represent and execute safety policies via a
 higher-order logic program interpretation and has been employed in
 several proof-carrying code projects
-\cite{AppelFelty00,Crary:POPL03,AppelFelten99,Crary:CADE03}.   
-Higher-order logic programming extends first order logic
-programming along two orthogonal dimensions: First, dynamic assumptions
-may be generated and used during proof search. Second, first-order terms
-are replaced with dependently typed $\lambda$-terms, thereby
-directly supporting encodings via higher-order abstract
-syntax. 
+\cite{AppelFelty00,Crary:POPL03,AppelFelten99,Crary:CADE03}.
+Higher-order logic programming extends first order logic programming
+along two orthogonal dimensions: First, dynamic assumptions may be
+generated and used during proof search. Second, first-order terms are
+replaced with dependently typed $\lambda$-terms, thereby directly
+supporting encodings via higher-order abstract syntax.
 
-One of the benefits of using Twelf is that the
-execution of a query will not only produce a yes or no answer, but
-produce a proof term as a certificate that can be checked independently. 
-This increases the confidence in the overall correctness of the
-higher-order logic programming engine, and the certificate can
-be sent to the code consumer where compliance with the code is
-checked. 
+One of the benefits of using Twelf is that the execution of a query
+will not only produce a yes or no answer, but produce a proof term as
+a certificate that can be checked independently.  This increases the
+confidence in the overall correctness of the higher-order logic
+programming engine, and the certificate can be sent to the code
+consumer where compliance with the code is checked.
 %These features make higher-order logic
 %programming an ideal generic framework for implementing and
 %experimenting with different safety policies and reduces the effort
 %required for each particular safety policy.
 
-In this paper, we show how to instrument the higher-order logic
-programming interpreter to generate and check small proof
-witness by extending and generalizing ideas by Rahul and
+Unfortunately, the proof terms produced by Twelf are quite big in
+size.  This creates problems in a proof carrying code setting in
+sending the proof terms across the network. We would like to produce
+small proof witnesses and check them. Our approach to this problem is
+to instrument the higher-order logic programming interpreter by
+extending and generalizing ideas by Rahul and
 Necula\cite{Necula+01:oracle}. To obtain small proof witnesses, they
-propose to only record the non-deterministic choices during 
-logic programming execution as a bit-string. We can check such a proof
-witness by guiding a deterministic logic programming interpreter using the
-bit-string and re-running the proof. This simple idea has
-been proven to be effective in many practical examples and has also
-been used by Wu {\em{et. al}} \cite{Appel:PPDP03} for creating a
-foundational proof checker with small witnesses. However, all these
-approaches restrict themselves to a fragment of LF excluding
-higher-order terms and dependent types thereby trading the expressive
-power of the logical framework LF against simplicity of implementation
-to generate and check proof witnesses.  
-As a consequence, these systems do not support higher-order abstract
-syntax in practice, but each particular system now has to use
-encoding tricks to encode their variable binding constructs together
-with substitution operations. For example, Wu {\em et
-  al}\cite{Appel:PPDP03} encode the explicit  substitution calculus
-\cite{Abadi:POPL90} together with the necessary proofs about
-substitutions for their foundational certified code implementation. As
-the technology of certified code evolves, we will move to more
-powerful and expressive safety policies and type systems and the use
-of higher-order abstract syntax will become crucial for achieving a 
-simple, compact encoding of these systems.
+propose to only record the non-deterministic choices during logic
+programming execution as a bit-string. We can check such a proof
+witness by guiding a deterministic logic programming interpreter using
+the bit-string and re-running the proof. This simple idea has been
+proven to be effective in many practical examples. We observe a
+minimum compression of a factor of 70 in proof size in our
+experiments, increasing up to a factor of almost 700 for larger
+proofs. This idea has also been used by Wu {\em{et. al}}
+\cite{Appel:PPDP03} for creating a foundational proof checker with
+small witnesses.
 
+Previous approaches restricted themselves to a fragment of LF
+excluding higher-order terms and dependent types thereby trading the
+expressive power of the logical framework LF against simplicity of
+implementation to generate and check proof witnesses.  As a
+consequence, these systems do not support higher-order abstract syntax
+in practice, but each particular system now has to use encoding tricks
+to encode their variable binding constructs together with substitution
+operations. For example, Wu {\em et al}\cite{Appel:PPDP03} encode the
+explicit substitution calculus \cite{Abadi:POPL90} together with the
+necessary proofs about substitutions for their foundational certified
+code implementation. As the technology of certified code evolves, we
+will move to more powerful and expressive safety policies and type
+systems and the use of higher-order abstract syntax will become
+crucial for achieving a simple, compact encoding of these systems.
 
 In this paper, we describe the design of generating and checking
 of small proof witnesses for the full logical framework LF. This work
