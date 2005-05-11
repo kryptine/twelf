@@ -213,7 +213,7 @@ implementation to generate and check proof witnesses.  As a
 consequence, these systems do not support higher-order abstract syntax
 in practice, but each particular system now has to use encoding tricks
 to encode their variable binding constructs together with substitution
-operations. For example, Wu {\em et al}~\cite{Appel:PPDP03} encode the
+operations. For example, Wu {\em et al.}~\cite{Appel:PPDP03} encode the
 explicit substitution calculus~\cite{Abadi:POPL90} together with the
 necessary proofs about substitutions for their foundational certified
 code implementation. As the technology of certified code evolves, we
@@ -326,7 +326,7 @@ Isabelle~\cite{Paulson86}. To illustrate the notation and explain the
 problem of small proof witnesses, we will first give an example of
 encoding the natural deduction calculus in the logical framework LF
 using higher-order logic programming following the methodology in
-Harper {\sl et al}~\cite{Harper93jacm}. For more information on how to
+Harper {\em et al.}~\cite{Harper93jacm}. For more information on how to
 encode formal systems in LF, see for example
 Pfenning~\cite{Pfenning97}.  Using this example, we will explain
 generating and checking of small proof witnesses.
@@ -470,7 +470,7 @@ interpreter. Computation in logic programming is achieved through
 proof search. Given a goal (or query) $G$ and a program $\Gamma$, we
 derive $G$ by successive application of clauses of the program
 $\Gamma$. 
-%Following Miller {\em{et al}} \cite{Miller91apal}, we
+%Following Miller {\em{et al.}} \cite{Miller91apal}, we
 %interpret the connectives in a goal $G$ as {\em{search instructions}}
 %and the clauses in $\Gamma$ as specifications of how to continue
 %search when the goal is atomic. 
@@ -813,9 +813,10 @@ proof.
 \subsection{Checking small proof witnesses}
 In this section, we modify the previous search procedure, in such a
 way that it is not parameterized by the proof term $M$, but rather by
-the compact proof witness $W$ encoded as a bit-string. Therefore we
-are given goal $G$ in a program context $\Gamma$, together with a
-proof witness $W$. The procedure is the dual of the compression case, and we show the important \mbox{{\bf Select}} case.
+the compact proof witness $W$ encoded as a bit-string. We are given
+goal $G$ in a program context $\Gamma$, together with a proof witness
+$W$. The procedure is the dual of the compression case, and we show
+the important \mbox{{\bf Select}} case.
 
 %\begin{figure}[h]
 %\fighead
@@ -1163,7 +1164,7 @@ already pointed out by Necula and Lee in \cite{NeculaLee+97:resource}
 
 \begin{quote}
 % \begin{tabular}[h]{l}
-``...it is very common for the proofs to have  
+``... it is very common for the proofs to have  
 repeated sub-proofs that should be hoisted out and 
 proved only once ...'' \cite{NeculaLee+97:resource}
  \end{quote}
@@ -1173,7 +1174,7 @@ In the context of generating and checking small proof witnesses, this
 leads to two problems.  First, the proof witnesses become larger in
 size than necessary. This means that what has to be transmitted to the
 verifier is large in size. Secondly, the performance of witness
-checker may degrade, since it spends its time uselessly proving the
+checker may degrade, since it spends its time uselessly verifying the
 same fact over and over again. Ideally we would like to cache
 intermediate results and re-use them later. In this section, we
 describe an extension to generating and checking proof witnesses with
@@ -1185,11 +1186,11 @@ we consult the oracle to see whether the tabled answer is to be
 used. Further, intermediate goals are stored similarly to the
 compression case.
 
-Since caching everything may be too overwhelming in practice, we
-support selective caching. The user declares certain predicates to be
-cached, and for those we will factor out common sub-proofs. This uses
-ideas and also the infrastructure from tabled logic
-programming~\cite{Pientka03phd,Pientka:ICLP02}. We will modify the
+We use ideas from and also infrastructure developed for tabled higher
+order logic programming~\cite{Pientka03phd,Pientka:ICLP02}.  Since
+caching everything may be too costly in practice, we support selective
+caching. The user declares certain predicates to be cached, and for
+those we will factor out common sub-proofs. We modify the
 {\sf{Select}} step in our previous search procedure to allow for
 caching by defining an auxiliary procedure {\sf
 CallCheck}. {\sf{CallCheck($\Gamma \vd G, \cal{T}$)}} checks whether a
@@ -1503,14 +1504,13 @@ propositional logic. The proof compression and the verification procedures
 provide significant time speedups, since in these procedures, we already
 know the proof. This is exhibited in Table~\ref{tab:seqtimes}.
 
-Next, we turn our attention to questions of proof size. 
-Table~\ref{tab:seqtimes} compares the size of our proof witnesses to the
-size of the original proof. The original proof is measured both by number 
-of bytes as well as the number of tokens. These figures are assuming 
-caching is done of predicates the user has selected, and the encoding of
-the oracle is in terms of the unary encoding scheme described earlier. The 
-predicate selected corresponds to saying that a formula is on the right
-of the sequent.
+Next, we turn our attention to questions of proof size.
+Table~\ref{tab:seqtimes} compares the size of our proof witnesses to
+the size of the original proof. The original proof is measured both by
+number of bytes as well as the number of tokens. These figures are
+assuming one caches the predicate saying that a formula is to the
+right of the sequent and the encoding of the oracle is in terms of the
+unary encoding scheme described earlier.
 
 %\subsection{Refinement Types as an advanced type system}
 Our second example is an advanced type system for a high-level
@@ -1522,9 +1522,9 @@ bitstrings is refined by zero and strictly positive number
 representations.
 
 Table~\ref{tab:reftimes} demonstrates that proof checking yields a
-speedup between 3 and 6 times. This figure is achieved if we are caching
-subgoals to get maximum compressions. As we see later, even more time gains
-can be achieved by turning off caching. 
+speedup between three and six times. This figure is achieved if we are
+caching subgoals to get maximum compressions. As we see later, even
+more time gains can be achieved by turning off caching.
 %% Turning the cache off however
 %% would overstate the gains, since proof search has to use tabling to
 %% find the proof\footnote{-bp : this should be executable without
@@ -1541,7 +1541,7 @@ is about 1\% of the size of the proof term.
 \begin{table*}[htbp]
 \begin{center}
 \begin{small}
-\begin{tabular}{|l|c|c|c|c|c|c|c|r|}
+\begin{tabular}{|l|r|r|r|c|r|r|r|r|}
 \hline
 Example & PST 
 & PCT & WV & ( PST / WV ) & PS & PSN & WS & (PS / WS)\\
@@ -1618,10 +1618,10 @@ to a factor of about 25 for the larger examples.
 
 \subsection{Caching: time vs space}
 Next we investigate the practicality of caching subgoals. Caching is a
-fairly expensive operation, in terms of both store and lookup time, as
-well as the extra memory required to maintain the table. In
+fairly expensive operation, in terms of both time for stores and
+lookups and the memory required to maintain the table. In
 Table~\ref{tab:refcache} we investigate this tradeoff. We find that
-using caching results in a speed penalty of between 3 and 16
+using caching results in a speed penalty of between three and fifteen
 times. The gain from this is that the size of the oracle is smaller
 for the cached version in every experiment. Disappointingly, the gain
 is usually small.
@@ -1634,7 +1634,8 @@ is usually small.
 Example & \multicolumn{3}{c}{Compression Time} & 
 \multicolumn{3}{c}{Witness Size} & Table\\
 & Cached & Uncached & Slowdown & Cached & Uncached & Saving & Size\\
-& (s) (1) & (s) (2) & (1 / 2) & (bytes) (3) & (bytes) (4) & (4 - 3) / 4& \\
+& (sec) & (sec) &  & (bytes) & (bytes) & & \\
+& (A) & (B) & (A / B) & (C) & (D) & (D - C)/D &\\
 \hline
 mult-pos-nat & 1.18 & 0.11 & 10.72 & 169 & 171 & 1.16 \% & 579\\
 %%mult-3-types & 1.60 & 0.41 & 3.90 & 211 & 216 & 2.31 \% & 691\\
@@ -1647,8 +1648,7 @@ square-pos-nat & 2.31 & 0.16 & 14.43 & 242 & 247 & 2.02 \% & 794\\
 \end{small}
 \end{center}
 \caption{\label{tab:refcache} 
-Refinement Type System : 
-Caching during proof compression}
+Refinement Type System: Caching during proof compression}
 \end{table*}
 
 \subsection{Encoding Schemes}
@@ -1721,13 +1721,14 @@ not consider terms defined via $\lambda$-abstraction.
 %treate an alli rule} to deal with this special case. 
 Our work extends and continues where Necula and Rahul left of by
 saying ``more experimental results are needed especially in the
-higher-order setting''. By using linear higher-order patterns and
-higher-order substitution tree indexing, the non-determinism based on
-Huet's unification algorithm is removed. Moreover, our implementation
-scales to dependent types thereby removing any restrictions imposed by
-Necula and Rahul. In addition, we designed an extension where
-sub-proofs can be cached and re-used resulting in somewhat smaller
-proof witnesses.
+higher-order setting.'' 
+
+By using linear higher-order patterns and higher-order substitution
+tree indexing, the non-determinism based on Huet's unification
+algorithm is removed. Moreover, our implementation scales to dependent
+types thereby removing any restrictions imposed by Necula and
+Rahul. In addition, we designed an extension where sub-proofs can be
+cached and re-used resulting in somewhat smaller proof witnesses.
 
 The idea of using oracles was also explored in Wu {\em et
 al}~\cite{Appel:PPDP03}.  Their checker follows the path explored by
@@ -1740,9 +1741,9 @@ generating and checking small proof witnesses. This step, we believe,
 will provide the developers of safety policies in Twelf with new
 insights about the relationship or safety rules and size of proofs.
 
-As in Necula and Rahul's work, Wu {\em et al}'s system is not able to
+As in Necula and Rahul's work, Wu {\em et al.}'s system is not able to
 support higher-order abstract syntax, which drastically limits its
-usefulness. Wu {\em et al}\cite{Appel:PPDP03} encode the explicit
+usefulness. Wu {\em et al.}\cite{Appel:PPDP03} encode the explicit
 substitution calculus~\cite{Abadi:POPL90} together with the necessary
 proofs about substitutions for their foundational implementation of
 LTAL. Although the overhead in this setting is still manageable, it is
