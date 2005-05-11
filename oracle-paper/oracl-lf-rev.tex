@@ -17,7 +17,7 @@
 \usepackage{code}
 \usepackage{color}
 
-\newcommand{\mygray}[1]{{\color{green}#1}}
+\newcommand{\mygray}[1]{{\color{gray}#1}}
 % \newcommand{\mygreen}{\color{green}}
 % \newcommand{\mygray}[1]{\em{ #1}}
 
@@ -321,14 +321,14 @@ type, corresponds to the universal $\forall$-quantifier. Types, which
 are goals and clauses, are inhabited by corresponding proof terms $M$,
 and we assume that all proof terms are in normal form. 
 
-Other higher-order logic programming languages of a similar
-flavor are $\lambda$-Prolog \cite{Nadathur99cade} or
-Isabelle\cite{Paulson86}. To illustrate the notation and explain the
-problem of small proof witnesses, we will first give an example of
-encoding the natural deduction calculus in the logical framework LF
-using higher-order logic programming following the methodology in
+Other higher-order logic programming languages of a similar flavor are
+$\lambda$-Prolog \cite{Nadathur99cade} or Isabelle\cite{Paulson86}. To
+illustrate the notation and explain the problem of small proof
+witnesses, we will first give an example of encoding the natural
+deduction calculus in the logical framework LF using higher-order
+logic programming following the methodology in Harper {\sl et al}
 \cite{Harper93jacm}. For more information on how to encode formal
-systems in LF see \cite{Pfenning97}.  Using this example, we will
+systems in LF, see \cite{Pfenning97}.  Using this example, we will
 explain generating and checking of small proof witnesses.
 
 \subsection{Representing Logics}
@@ -501,7 +501,7 @@ more detailed description see \cite{Miller91apal}):
 \begin{description}
 \item[Select] $\Gamma \vd  G \Rightarrow c_i \cdot S$ \\
     \mbox{Given an atomic goal $G$ and clauses $\Gamma$:}\hfill\\
-     Focus on a clauses $c_i : A_i$ from $\Gamma$ to establish a proof
+     Focus on a clause $c_i : A_i$ from $\Gamma$ to establish a proof
      $c\cdot S$ for $G$, by unifying the head of $A_i$ with the current
      goal $G$. 
 
@@ -529,7 +529,7 @@ programming interpreter, we consider all the clauses in $\Gamma$ in order.
 First, we will consider the dynamic assumptions, and then we will try
 the static program clauses one after the other. 
 Let us assume, we picked a clause $A$ from the program context
-$\Gamma$ and we now need to establish a proof for $G$, by unifying the
+$\Gamma$. We now need to establish a proof for $G$, by unifying the
 head of the clause $A$ with $G$ and solving the subgoals of $A$.
 %Note that during proof search we typically have the program
 %clauses $\Gamma$ and the goal $G$ we are trying to prove from the
@@ -731,16 +731,14 @@ of what possibility was successful.
 %% I don't understand your comment. In any case you must talk about
 %% the proof witness and how it will look like in binary form - bp.
 
-For the idea to work, generating and checking witnesses have to
-perform  the same overall proof search. Moreover, the order 
-in which different choices are considered must be the same.  The only
-difference is that in proof search we would explore possibly multiple
-fruitless paths, backtracking until we find the right path. When
-generating and checking witnesses, we will consult the proof term
-or witness respectively to know which choice to consider, and thus
-eliminate uses of backtracking.
-We modify the proof search steps presented earlier in the following
-way:
+In our approach, generating and checking witnesses essentially perform
+the same overall proof search. The only difference is that in proof
+search we would explore possibly multiple fruitless paths,
+backtracking until we find the right path. When generating and
+checking witnesses, we will consult the proof term or witness
+respectively to know which choice to consider, and thus eliminate uses
+of backtracking.  We modify the proof search steps presented earlier
+in the following way:
 %that we pass
 %in the proof term together with the goal and output a proof witness in
 %form of a bit-string. 
@@ -765,7 +763,7 @@ W $ \\
 %    current goal $G$ and 
      Let $c_i : A_i$ be the $i-$th clause which leads to a
     proof $c_i\cdot S$ of $G$ from $\Gamma$. \\
-    Focus on clauses $c_i : A_i$ from $\Gamma$ to compress a proof
+    Focus on clause $c_i : A_i$ from $\Gamma$ to compress a proof
      $c\cdot S$ for $G$ to $W$.
 
 \item[Augment] $\Gamma \vd   \lambda u. M : G_1 \arrow G_2 \Rightarrow
@@ -848,25 +846,27 @@ W : G $ \\
 In {\sf{Select}} step, we first generate the $k$ possible candidates
 whose head will unify with the current goal $G$. If $k$ is greater
 than 1, we will examine up to $k$ bits from the witness to see which
-choice to take. If a bit $1$ occurs at position $i$ of these $k$
-bits, we will pick the $i$-th candidate. For this idea to work in practice, it is crucial that the order of choices during witness checking is same as during witness generation.
+choice to take. If a bit $1$ occurs at position $i$ of these $k$ bits,
+we will pick the $i$-th candidate. For this idea to work, it is
+crucial that the order of choices during witness checking is same as
+during witness generation.
 
 In order to check the proof witnesses, we re-run the prover guided
 with the advice encoded in the bit-string. The witness checker is then
-in fact a deterministic search procedure. No backtracking is
-necessary, since all the non-deterministic choices are resolved.  
+a deterministic search procedure. No backtracking is necessary, since
+all the non-deterministic choices are resolved.
 %By
 %taking the appropriate branches (and performing the needed
 %unification), the user can be convinced that such a proof exists. 
 Note that the proof term does not need to be reconstructed. This can
 lead to savings of time and memory. On the other hand, paranoid
-consumers may need more assurance than trusting our implementation
-(including complex algorithms such as higher-order pattern
-unification). In such cases, we have an option of regenerating the
-proof term by instrumenting the search procedure above.  This amounts
-to decompressing the proof witness $W$to an explicit proof term $M$
-and use a different trusted type-checker to verify the expanded proof
-witness.
+consumers may need more assurance than simply trusting our
+implementation (including complex algorithms such as higher-order
+pattern unification). In such cases, we have an option of regenerating
+the proof term by instrumenting the search procedure above.  This
+amounts to decompressing the proof witness $W$to an explicit proof
+term $M$ and use a different trusted type-checker to verify the
+expanded proof witness.
 
 \subsection{Bit-string encodings for proof witnesses}
 
@@ -947,188 +947,190 @@ patterns, for inserting terms in the index and for retrieving a set of
 terms from the index s.t. the query is an instance of the term in the
 index, and show correctness. The construction of a substitution tree
 in the higher-order setting follows the overall algorithm described in
-\cite{Ramakrishnan01:indexing}. Here we will illustrate higher-order
-substitution trees by an example. 
+\cite{Ramakrishnan01:indexing}. 
 
-To describe higher-order substitution trees, it is crucial to
-distinguish between bound variables, existential variables and
-``internal'' existential variables. We will assume that any
-existential variable is applied to all bound variables in whose
-context it occurs in to facility simple and efficient insertion and
-retrieval algorithms. A higher-order substitution tree is a node with
-substitution $\rho$ whose range is $\Sigma$ and every child node has a
-substitution $\rho_i$ with domain $\Sigma$. In other words, any
-internal existential variable in $\Sigma$ will be defined at a later
-node in a path in the substitution tree and for every path
-from the top node $\rho_0$ with range $\Sigma_0$ to the leaf node
-$\rho_n$ we have the range of the substitution which is the
-composition of all the substitutions along this path, is empty. In
-other words, there are no internal existential variables left after we
-compose all the substitutions $\rho_n$ up to $\rho_0$. 
-%
-%For this setup to work cleanly in the higher-order
-%setting, it is crucial that we distinguish between existential
-%variables in $\Delta$ and bound variables and assumptions in
-%$\Gamma$. Moreover, it is essential that existential variables allow
-%in place up-date. In particular, we will rely on the notion of
-%existential variables which are ``fully applied'', i.e. they may
-%depend on all the bound variables they occur in.
-To illustrate, consider the following clauses describing part of a
-conversion of formulas into prenex normalform. 
+% Here we will illustrate higher-order
+% substitution trees by an example. 
 
-\begin{small}
-\[
-\begin{array}{l}
-%\eqLF :\;  \propLF \rightarrow \propLF \rightarrow \typeLF.\\[1em]
-%
-\eqilLF: \eqLF (\impLF (\existsLF \lambda x. A\; x)\; B)\quad (\forallLF \lambda x. (\impLF (A\; x)\; B)).\\
-\eqirLF: \eqLF (\impLF A\; (\forallLF \lambda x. B\;x)) \quad (\forallLF \lambda x. (\impLF A \; (B\; x))).\\
-%\eqalLF: \eqLF (\andLF (\forallLF \lambda x. A \;x) \; B)\quad (\forallLF \lambda x. (\andLF (A\; x)\; B)).\\
-\eqalLF: \eqLF (\andLF A \; (\forallLF \lambda x. B\; x)) \quad (\forallLF \lambda x. (\andLF A \; (B\;x))).\\
-\end{array}
-\]
-\end{small}
+% To describe higher-order substitution trees, it is crucial to
+% distinguish between bound variables, existential variables and
+% ``internal'' existential variables. We will assume that any
+% existential variable is applied to all bound variables in whose
+% context it occurs in to facility simple and efficient insertion and
+% retrieval algorithms. A higher-order substitution tree is a node with
+% substitution $\rho$ whose range is $\Sigma$ and every child node has a
+% substitution $\rho_i$ with domain $\Sigma$. In other words, any
+% internal existential variable in $\Sigma$ will be defined at a later
+% node in a path in the substitution tree and for every path
+% from the top node $\rho_0$ with range $\Sigma_0$ to the leaf node
+% $\rho_n$ we have the range of the substitution which is the
+% composition of all the substitutions along this path, is empty. In
+% other words, there are no internal existential variables left after we
+% compose all the substitutions $\rho_n$ up to $\rho_0$. 
+% %
+% %For this setup to work cleanly in the higher-order
+% %setting, it is crucial that we distinguish between existential
+% %variables in $\Delta$ and bound variables and assumptions in
+% %$\Gamma$. Moreover, it is essential that existential variables allow
+% %in place up-date. In particular, we will rely on the notion of
+% %existential variables which are ``fully applied'', i.e. they may
+% %depend on all the bound variables they occur in.
+% To illustrate, consider the following clauses describing part of a
+% conversion of formulas into prenex normalform. 
 
-We see that the four given clauses share a lot of structure. For
-example clause $\eqilLF$ and $\eqirLF$ ``almost'' agree on the second
-argument. Similarly the clauses $\eqalLF$ seems to share subexpressions
-with $\eqilLF$ and $\eqirLF$. To insert these four clauses into a
-substitution tree, we need to first translate them into linear
-higher-order patterns. Although all the terms in these clauses fall
-into the pattern fragment, not all of them are linear patterns.
-%since all the
-%existential variables are applied to distinct variables, 
-%not all of them are applied to {\em{all}} distinct bound variables. 
-For example, in clause $\eqilLF$, 
-%\[
-%\eqLF (\impLF (\existsLF \lambda x. A\; x)\; B)\quad (\forallLF
-%\lambda x. (\impLF (A\; x)\; B)
-%\]
-%
-the existential variable $B$ does not depend on the bound variable
-$x$, in $(\forallLF \lambda x. (\impLF (A\; x)\; B)$. Hence, $B$ is
-not a linear higher-order pattern, since it is not applied to all
-bound variables in whose scope it occurs. In addition, the existential
-variable $A$ occurs twice. Before inserting the clause heads into a
-substitution tree, we linearize them by eliminating any duplicate
-occurrences of existential variables, and replacing any existential
-variable which is not fully applied with one which is. The linearized
-program  is given next:
-
-
-\begin{small}
-\[
-\begin{array}{ll}
-% \eqLF: \quad \propLF \rightarrow \propLF \rightarrow \typeLF.\\[1em]
-%
-\eqilLF: \eqLF (\impLF (\existsLF \lambda x. A\; x)\; B)\;
-                 (\forallLF \lambda x. (\impLF (A'\; x)\; (B'\;x))). \\
-\hspace{1cm}\forall x. (A'\; x) \unif (A \; x) {\textsf{ and } } B'\;x   \unif B\\[0.5em]
-\eqirLF: \eqLF (\impLF A\; (\forallLF \lambda x. B\;x))\quad
-                 (\forallLF \lambda x. (\impLF (A'\;x) \; (B'\; x))).\\
-\hspace{1cm} \forall x. (A'\; x) \unif A  {\textsf{ and }} B'\;x   \unif (B\;x)\\[0.5em]
-%\eqarLF: \eqLF (\andLF (\forallLF \lambda x. A \;x) \; B)\quad
-%                 (\forallLF \lambda x. \andLF (A'\; x) \; (B'\;x)).\\
-%\hspace{1cm} \forall x. (A'\; x) \unif (A \; x) {\textsf{ and }} B'\;x   \unif B\\[0.5em]
-\eqalLF: \eqLF (\andLF A \; (\forallLF \lambda x. B\; x)) \quad
-                 (\forallLF \lambda x. \andLF (A'\;x) \; (B' x)).\\
-\hspace{1cm} \forall x. (A'\; x) \unif A  {\textsf{ and }} B'\;x   \unif (B\;x)\\[0.5em]
-\end{array}
-\]
-\end{small}
-
-Now even more sharing becomes apparent. For example, the clauses
-$\eqilLF$ and $\eqirLF$ agree upon the last argument. Similarly, the
-clauses $\eqalLF$ and $\eqarLF$. We now compute the most specific
-generalization between these clauses, and can build up a substitution
-tree. The algorithm for computing the most specific generalization is
-given in \cite{Pientka03phd,Pientka:ICLP03}.
-
-
-\begin{figure*}[htbp]
-  \begin{center}
-    \begin{small}
-% nodesep=1pt,
-\pstree[nodesep=0.5pt,levelsep=8ex]{%
-\TR{$\eqLF\quad i_2 \quad (\forallLF \lambda x. i_1\;x)$} }{%
-  \pstree{\TR{\begin{tabular}{r}
-              $\lambda x.(\andLF (A'\;x)\; (B'\;x))/i_1$\\
-%              $(\andLF (i_3\;x)\; (i_4 \;x))/i_2$\\
-              $(\andLF A\;\;(\forallLF \lambda x. (B\;x)))/i_2$\\
-            \end{tabular}
-          }
-        }{%
-%          \pstree{\TR{\begin{tabular}{r}
-%                $\lambda y.(\forallLF \lambda x. A\;x)/i_3$,\\
-%                ${\tt \lambda y.B/i_4}$
-%              \end{tabular}
-%            }}{%
-%            \pstree{\TR{\begin{tabular}{l}
-%                  $\forall x. A'\;x\unif A\;x$\\
-%                  $B'\;x\unif B$
-%                \end{tabular}
-%              }}{ $\eqarLF$}
-%          }
-%
-%          \pstree{\TR{\begin{tabular}{r}
-%                ${\tt \lambda y.A/i_3},$\\
-%                $\lambda y.(\forallLF \lambda x. (B\;x))/i_4$
-%              \end{tabular}
-%            }
-%          }{%
-            \pstree{\TR{\begin{tabular}{l}
-                $\forall x. A'\;x\unif A$\\
-                $\forall x. B'\;x \unif B\;x$
-              \end{tabular}
-            }
-            }{$\eqarLF$}
-%          }
-        }
-%%%%% second child
-          \pstree{\TR{\begin{tabular}{r}
-                     $\lambda x.(\impLF (A'\;x)\; (B'\;x))/i_1$\\
-                     $(\impLF (i_3\;x)\; (i_4\;x))/i_2$\\
-                   \end{tabular}
-                 }}{
-                 \pstree{\TR{\begin{tabular}{r}
-                       $\lambda y.\forallLF \lambda x. A\;x/i_3$,\\
-                       ${\tt \lambda y.B/i_4}$
-                       \end{tabular}
-                     } }{%
-                     \pstree{\TR{\begin{tabular}{l}
-                           $\forall x. A'\;x\unif A\;x$\\
-                           $\forall x. B'\;x\unif B$
-                         \end{tabular}}
-                     }{$\eqirLF$}
-                   }
-                  \pstree{\TR{\begin{tabular}{r}
-                        ${\tt \lambda y.A/i_3},$\\
-                        $\lambda y.(\forallLF \lambda x.B\;x)/i_4$
-                      \end{tabular}}}{
-                    \pstree{\TR{\begin{tabular}{l}
-                          $\forall x. A'\;x \unif A$\\
-                          $\forall x. B'\;x \unif B\;x$
-                        \end{tabular}}
-                    }{$\eqilLF$}
-                  }
-                }
-              }     
-    \end{small}
-  \end{center}
-  \caption{Substitution tree}
-  \label{fig:substree}
-\end{figure*}
-
+% \begin{small}
+% \[
+% \begin{array}{l}
+% %\eqLF :\;  \propLF \rightarrow \propLF \rightarrow \typeLF.\\[1em]
+% %
+% \eqilLF: \eqLF (\impLF (\existsLF \lambda x. A\; x)\; B)\quad (\forallLF \lambda x. (\impLF (A\; x)\; B)).\\
+% \eqirLF: \eqLF (\impLF A\; (\forallLF \lambda x. B\;x)) \quad (\forallLF \lambda x. (\impLF A \; (B\; x))).\\
+% %\eqalLF: \eqLF (\andLF (\forallLF \lambda x. A \;x) \; B)\quad (\forallLF \lambda x. (\andLF (A\; x)\; B)).\\
+% \eqalLF: \eqLF (\andLF A \; (\forallLF \lambda x. B\; x)) \quad (\forallLF \lambda x. (\andLF A \; (B\;x))).\\
+% \end{array}
+% \]
 % \end{small}
 
-By composing the substitutions along a path,
-we will obtain a clause head. By composing the substitutions in the
-left-most branch, we obtain the clause head $\eqalLF$.  
-In contrast to other indexing techniques such as discrimination tries,
-substitution trees  allows the sharing of common sub-expressions
-instead of common term prefixes. As we can see in this example, this
-is especially useful in this example, since the most sharing is done
-in the second argument. 
+% We see that the four given clauses share a lot of structure. For
+% example clause $\eqilLF$ and $\eqirLF$ ``almost'' agree on the second
+% argument. Similarly the clauses $\eqalLF$ seems to share subexpressions
+% with $\eqilLF$ and $\eqirLF$. To insert these four clauses into a
+% substitution tree, we need to first translate them into linear
+% higher-order patterns. Although all the terms in these clauses fall
+% into the pattern fragment, not all of them are linear patterns.
+% %since all the
+% %existential variables are applied to distinct variables, 
+% %not all of them are applied to {\em{all}} distinct bound variables. 
+% For example, in clause $\eqilLF$, 
+% %\[
+% %\eqLF (\impLF (\existsLF \lambda x. A\; x)\; B)\quad (\forallLF
+% %\lambda x. (\impLF (A\; x)\; B)
+% %\]
+% %
+% the existential variable $B$ does not depend on the bound variable
+% $x$, in $(\forallLF \lambda x. (\impLF (A\; x)\; B)$. Hence, $B$ is
+% not a linear higher-order pattern, since it is not applied to all
+% bound variables in whose scope it occurs. In addition, the existential
+% variable $A$ occurs twice. Before inserting the clause heads into a
+% substitution tree, we linearize them by eliminating any duplicate
+% occurrences of existential variables, and replacing any existential
+% variable which is not fully applied with one which is. The linearized
+% program  is given next:
+
+
+% \begin{small}
+% \[
+% \begin{array}{ll}
+% % \eqLF: \quad \propLF \rightarrow \propLF \rightarrow \typeLF.\\[1em]
+% %
+% \eqilLF: \eqLF (\impLF (\existsLF \lambda x. A\; x)\; B)\;
+%                  (\forallLF \lambda x. (\impLF (A'\; x)\; (B'\;x))). \\
+% \hspace{1cm}\forall x. (A'\; x) \unif (A \; x) {\textsf{ and } } B'\;x   \unif B\\[0.5em]
+% \eqirLF: \eqLF (\impLF A\; (\forallLF \lambda x. B\;x))\quad
+%                  (\forallLF \lambda x. (\impLF (A'\;x) \; (B'\; x))).\\
+% \hspace{1cm} \forall x. (A'\; x) \unif A  {\textsf{ and }} B'\;x   \unif (B\;x)\\[0.5em]
+% %\eqarLF: \eqLF (\andLF (\forallLF \lambda x. A \;x) \; B)\quad
+% %                 (\forallLF \lambda x. \andLF (A'\; x) \; (B'\;x)).\\
+% %\hspace{1cm} \forall x. (A'\; x) \unif (A \; x) {\textsf{ and }} B'\;x   \unif B\\[0.5em]
+% \eqalLF: \eqLF (\andLF A \; (\forallLF \lambda x. B\; x)) \quad
+%                  (\forallLF \lambda x. \andLF (A'\;x) \; (B' x)).\\
+% \hspace{1cm} \forall x. (A'\; x) \unif A  {\textsf{ and }} B'\;x   \unif (B\;x)\\[0.5em]
+% \end{array}
+% \]
+% \end{small}
+
+% Now even more sharing becomes apparent. For example, the clauses
+% $\eqilLF$ and $\eqirLF$ agree upon the last argument. Similarly, the
+% clauses $\eqalLF$ and $\eqarLF$. We now compute the most specific
+% generalization between these clauses, and can build up a substitution
+% tree. The algorithm for computing the most specific generalization is
+% given in \cite{Pientka03phd,Pientka:ICLP03}.
+
+
+% \begin{figure*}[htbp]
+%   \begin{center}
+%     \begin{small}
+% % nodesep=1pt,
+% \pstree[nodesep=0.5pt,levelsep=8ex]{%
+% \TR{$\eqLF\quad i_2 \quad (\forallLF \lambda x. i_1\;x)$} }{%
+%   \pstree{\TR{\begin{tabular}{r}
+%               $\lambda x.(\andLF (A'\;x)\; (B'\;x))/i_1$\\
+% %              $(\andLF (i_3\;x)\; (i_4 \;x))/i_2$\\
+%               $(\andLF A\;\;(\forallLF \lambda x. (B\;x)))/i_2$\\
+%             \end{tabular}
+%           }
+%         }{%
+% %          \pstree{\TR{\begin{tabular}{r}
+% %                $\lambda y.(\forallLF \lambda x. A\;x)/i_3$,\\
+% %                ${\tt \lambda y.B/i_4}$
+% %              \end{tabular}
+% %            }}{%
+% %            \pstree{\TR{\begin{tabular}{l}
+% %                  $\forall x. A'\;x\unif A\;x$\\
+% %                  $B'\;x\unif B$
+% %                \end{tabular}
+% %              }}{ $\eqarLF$}
+% %          }
+% %
+% %          \pstree{\TR{\begin{tabular}{r}
+% %                ${\tt \lambda y.A/i_3},$\\
+% %                $\lambda y.(\forallLF \lambda x. (B\;x))/i_4$
+% %              \end{tabular}
+% %            }
+% %          }{%
+%             \pstree{\TR{\begin{tabular}{l}
+%                 $\forall x. A'\;x\unif A$\\
+%                 $\forall x. B'\;x \unif B\;x$
+%               \end{tabular}
+%             }
+%             }{$\eqarLF$}
+% %          }
+%         }
+% %%%%% second child
+%           \pstree{\TR{\begin{tabular}{r}
+%                      $\lambda x.(\impLF (A'\;x)\; (B'\;x))/i_1$\\
+%                      $(\impLF (i_3\;x)\; (i_4\;x))/i_2$\\
+%                    \end{tabular}
+%                  }}{
+%                  \pstree{\TR{\begin{tabular}{r}
+%                        $\lambda y.\forallLF \lambda x. A\;x/i_3$,\\
+%                        ${\tt \lambda y.B/i_4}$
+%                        \end{tabular}
+%                      } }{%
+%                      \pstree{\TR{\begin{tabular}{l}
+%                            $\forall x. A'\;x\unif A\;x$\\
+%                            $\forall x. B'\;x\unif B$
+%                          \end{tabular}}
+%                      }{$\eqirLF$}
+%                    }
+%                   \pstree{\TR{\begin{tabular}{r}
+%                         ${\tt \lambda y.A/i_3},$\\
+%                         $\lambda y.(\forallLF \lambda x.B\;x)/i_4$
+%                       \end{tabular}}}{
+%                     \pstree{\TR{\begin{tabular}{l}
+%                           $\forall x. A'\;x \unif A$\\
+%                           $\forall x. B'\;x \unif B\;x$
+%                         \end{tabular}}
+%                     }{$\eqilLF$}
+%                   }
+%                 }
+%               }     
+%     \end{small}
+%   \end{center}
+%   \caption{Substitution tree}
+%   \label{fig:substree}
+% \end{figure*}
+
+% % \end{small}
+
+% By composing the substitutions along a path,
+% we will obtain a clause head. By composing the substitutions in the
+% left-most branch, we obtain the clause head $\eqalLF$.  
+% In contrast to other indexing techniques such as discrimination tries,
+% substitution trees  allows the sharing of common sub-expressions
+% instead of common term prefixes. As we can see in this example, this
+% is especially useful in this example, since the most sharing is done
+% in the second argument. 
 
 We have chosen to index only the static set of program clauses. In
 theory, it is possible to use substitution tree indexing for dynamic
@@ -1181,23 +1183,23 @@ we consult the oracle to see whether the tabled answer is to be
 used. Further, intermediate goals are stored similarly to the
 compression case.
 
-Since caching everything is too overwhelming in most cases in
-practice, hence we support selective caching. The user declares
-certain  predicates to be cached, and for those we will factor out
-common sub-proofs. We will modify the {\sf{Select}} step in our
-previous search procedure to allow for caching by defining an
-auxiliary procedure {\sf CallCheck}. {\sf{CallCheck($\Gamma \vd G, \cal{T}$)}} checks whether a variant of
-the current subgoal exists or if the current subgoal is an instance of
-a previous entry. If there exists a table entry $\Gamma' \vd G'$
-s.t. $\Gamma \vd G$ is a variant (or instance) of the already existing
-entry $\Gamma' \vd G'$, then a pointer to the corresponding answer
-list is returned. If no such entry exists, $\Gamma \vd G$ is added to
-the table $\cal{T}$ and a pointer to an empty answer list is
+Since caching everything may be too overwhelming in practice, we
+support selective caching. The user declares certain predicates to be
+cached, and for those we will factor out common sub-proofs. We will
+modify the {\sf{Select}} step in our previous search procedure to
+allow for caching by defining an auxiliary procedure {\sf
+CallCheck}. {\sf{CallCheck($\Gamma \vd G, \cal{T}$)}} checks whether a
+variant of the current subgoal exists or if the current subgoal is an
+instance of a previous entry. If there exists a table entry $\Gamma'
+\vd G'$ s.t. $\Gamma \vd G$ is a variant (or instance) of the already
+existing entry $\Gamma' \vd G'$, then a pointer to the corresponding
+answer list is returned. If no such entry exists, $\Gamma \vd G$ is
+added to the table $\cal{T}$ and a pointer to an empty answer list is
 returned. If no entry exists, then we will continue to focus on a
 clause $c_i$ to solve the goal $\Gamma \vd G$. When we are done, we
 will add the answer substitution for the existential variables in
 $\Gamma \vd G$ together with its proof term $c_i \cdot S$ to the its
-answer list $ptr$. 
+answer list $ptr$.
 
 If a table entry for $\Gamma \vd G$ already exists, there are two
 possible situations: 1) If the answer list contains an answer
@@ -1389,36 +1391,29 @@ of choices.
 
 \section{Experimental Results}
 
-In this section, we give an experimental evaluation of generating and checking 
-compact proof witnesses. In particular, the results discuss the
-trade off between witness size and the time it takes to construct or check
-witness. Our comparison will be threefold: First, we will consider
-finding a proof via proof search thereby constructing a proof without
-any guidance, i.e. the witness size is zero. The downside of this approach is
-that we cannot always reconstruct the full proof automatically and we
-need to trust the a potentially large and complicated implementation
-of the higher-order logic programming engine.  Second, we will
-consider proof checking of explicit proof terms. If we send the
-explicit proof term then then checking the proof will always succeed
-and the proof checker is only a few hundred lines of code. However,
-the size of the explicit proof term is substantial. Finally, we will
-consider our approach of small proof witnesses, which only keeps track
-of minimal information to allow the proof to be re-run by a
-deterministic logic programming interpreter. As a consequence, 
-our higher-order logic programming engine is more light-weight, since
-we do not need to backtrack or trail existential variables. It
-provides a small proof witness and allows for fast witness checking,
-although the code base to be trusted is still quite larger.
-Finally, we will discuss the trade-offs of caching subproofs and compare
-different encoding schemes for describing the non-deterministic choices. 
-Also, we give a study of how the encoding scheme changes the sizes of the 
-oracles.
+In this section, we give an experimental evaluation of generating and
+checking compact proof witnesses. In particular, the results discuss
+the trade off between witness size and the time it takes to construct
+or check witness. Our comparison will be between three cases: First,
+we will consider finding a proof via proof search thereby constructing
+a proof without any guidance, i.e. the witness size is zero. The
+downside of this approach is that The proof search time is also large,
+since many unproductive branches of the proof tree has to be
+searched. Second, we will consider proof checking of explicit proof
+terms. If we send the explicit proof term then the proof checker can
+be small, and this process is relatively fast. However, the size of
+the explicit proof term is substantial. Finally, we will consider our
+approach of small proof witnesses. We will also discuss the trade-offs
+of caching subproofs. Finally, we will compare different encoding
+schemes for describing the non-deterministic choices and see how this
+affects the size of the proof witness.
 
-Our experiments are run on a Pentium 4 machine with 1 GB of memory size.
-The machine runs Twelf compiled by SML of New Jersey version 110.0.7, and
-runs it on the Redhat Linux 7.1 operating system, with no other programs
-running on the background. We present a representative selection of results
-from an extensive suite of experiments we have run.
+Our experiments are run on a Pentium 4 machine running at 2GHz with 1
+GB of memory size.  The machine runs Twelf compiled by SML of New
+Jersey version 110.0.7, and runs it on the Redhat Linux 7.1 operating
+system, with no programs running on the background. We present a
+representative selection of results from an extensive suite of
+experiments we have run.
    
 %Further, since 
 %the primary focus is on generating small proof witnesses, we will
@@ -1426,37 +1421,32 @@ from an extensive suite of experiments we have run.
 %parameters. We hope this will serve as a guide to those wishing to 
 %generate and use oracles on the various tradeoffs to be made.
 
-\subsection{Sequent Calculus}
-Our first example suite is an implementation of a sequent calculus 
-for intuitionistic propositional logic where invertible rules are
-chained together thereby eliminating some non-determinism in the
-overall proof search. 
-%This has the standard connectives
-%for conjunction, disjunction, implication and atomic propositions 
-%truth and falsehood. The calculus is one designed to find proofs using an 
-%inversion based strategy.
+\subsection{Time and size tradeoffs}
+
+Our first example suite is an implementation of a sequent calculus for
+intuitionistic propositional logic where invertible rules are chained
+together thereby eliminating some non-determinism in the overall proof
+search.
 
 \begin{table*}[htbp]
 \begin{center}
 \begin{small}
-\begin{tabular}{|l|c|c|c|c|c|c|c|c|}
+\begin{tabular}{|l|c|c|c|c|c|c|c|c|c|}
 \hline
-Example & PST & WV & (PST/WV) & PS & PST & WS & (PS/WS)\\
+Example & PST & PCT & WV & (PST/WV) & PS & PST & WS & (PS/WS)\\
 \hline
 $(A\supset B)\wedge (A\supset C)\Rightarrow A\supset B\wedge C$
 &       0.47 
+&     $<$ 0.01
 &     $<$  0.01 
 & $\infty$
 &       361 
 &       43 
 &       5 
 &       72.2\\
-%% $(A\supset B)\vee (A\supset C)\Rightarrow A\supset B\vee C$
-%% &       0.380 
-%% &       0.010 
-%% &       0.000 \\
 $A\vee C\wedge (B\supset C)\Rightarrow (A\supset B)\supset C$
 &       1.70 
+&      $<$ 0.01
 &       0.01
 &       170 
 &       570 
@@ -1466,52 +1456,27 @@ $A\vee C\wedge (B\supset C)\Rightarrow (A\supset B)\supset C$
 $(A\supset C)\wedge (B\supset C)\Rightarrow A\vee B\supset C$
 &       2.18 
 &      $<$ 0.01
+&      $<$ 0.01
 &      $\infty$ 
 &       561 
 &       56 
 &       6 
 &       93.5\\
-%% $A\wedge B\vee C\Rightarrow (A\wedge B)\vee (A\wedge C)$
-%% &       0.190 
-%% &       0.020 
-%% &       0.000 \\
-%% $(A\wedge B)\vee (A\wedge C)\Rightarrow A\wedge B\vee C$
-%% &       0.760 
-%% &       0.010 
-%% &       0.000 \\
-%% $A\vee (B\wedge C)\Rightarrow A\vee B\wedge A\vee C$
-%% &       0.210 
-%% &       0.020 
-%% &       0.000 \\
-%% $A\vee B\wedge A\vee C\Rightarrow A\vee (B\wedge C)$
-%% &       0.790 
-%% &       0.020 
-%% &       0.000 \\
-%% $\Rightarrow (A\supset B)\wedge (A\supset C)\supset A\supset B\supset C$
-%% &       0.390 
-%% &       0.020 
-%% &       0.000 \\
 $\Rightarrow (A\supset C)\wedge (B\supset C)\supset A\vee B\supset C$
 &       2.43 
+&      $<$ 0.01
 &       0.01
 &       243 
 &       792 
 &       57 
 &       6 
 &       132\\
-%% $\Rightarrow (A\supset B)\vee (A\supset C)\supset A\supset B\vee C$
-%% &       0.480 
-%% &       0.010 
-%% &       0.000 \\
-%% $\Rightarrow A\wedge (B\supset \perp)\supset (A\supset B)\supset \perp$ 
-%% &       0.370 
-%% &       0.020 
-%% &       0.000 \\
 \hline
 \end{tabular}
 \begin{tabular}{ll@{=}ll@{=}l}
-Key & PST & Proof Search time 
-&WV & Witness Verification time \\ 
+Key & PST & Proof Search time (s)
+&PCT & Proof Checking time (s)\\ 
+&WV & Witness Verification time (s)\\ 
 &PS & Proof Size in bytes\\
 &PST & Proof Size in Number of tokens 
 &WS & Witness Size in bytes\\
@@ -1522,76 +1487,12 @@ Key & PST & Proof Search time
 Sequent Calculus: Times with Caching of User-Selected Predicates}
 \end{table*}
 
-We included the time to find a proof to contrast it against the proof
+We study the time to find a proof and contrast it against the proof
 checking times. We use the tabled higher-order logic programming
 engine \cite{Pientka05,Pientka03phd} to find proofs for the
 propositional logic. The proof compression and the verification procedures
 provide significant time speedups, since in these procedures, we already
 know the proof. This is exhibited in Table~\ref{tab:seqtimes}.
-
-%% \begin{table*}[htbp]
-%% \begin{center}
-%% \begin{small}
-%% \begin{tabular}{|l|l|l|l|}
-%% \hline
-%% Example & Proof Size & Proof Size & Witness Size \\
-%% & (bytes) & (number of tokens) & (bytes)\\
-%% \hline
-%% $(A\supset B)\wedge (A\supset C)\Rightarrow A\supset B\wedge C$
-%% &       361 
-%% &       43 
-%% &       5 \\
-%% %% $(A\supset B)\vee (A\supset C)\Rightarrow A\supset B\vee C$
-%% %% &       292 
-%% %% &       45 
-%% %% &       5 \\
-%% $A\vee C\wedge (B\supset C)\Rightarrow (A\supset B)\supset C$
-%% &       570 
-%% &       50 
-%% &       6 \\
-%% $(A\supset C)\wedge (B\supset C)\Rightarrow A\vee B\supset C$
-%% &       561 
-%% &       56 
-%% &       6 \\
-%% %% $A\wedge B\vee C\Rightarrow (A\wedge B)\vee (A\wedge C)$
-%% %% &       280 
-%% %% &       37 
-%% %% &       6 \\
-%% %% $(A\wedge B)\vee (A\wedge C)\Rightarrow A\wedge B\vee C$
-%% %% &       437 
-%% %% &       66 
-%% %% &       7 \\
-%% %% $A\vee (B\wedge C)\Rightarrow A\vee B\wedge A\vee C$
-%% %% &       331 
-%% %% &       50 
-%% %% &       6 \\
-%% %% $A\vee B\wedge A\vee C\Rightarrow A\vee (B\wedge C)$
-%% %% &       428 
-%% %% &       47 
-%% %% &       6 \\
-%% %% $\Rightarrow (A\supset B)\wedge (A\supset C)\supset A\supset B\supset C$
-%% %% &       454 
-%% %% &       44 
-%% %% &       5 \\
-%% $\Rightarrow (A\supset C)\wedge (B\supset C)\supset A\vee B\supset C$
-%% &       792 
-%% &       57 
-%% &       6 \\
-%% %% $\Rightarrow (A\supset B)\vee (A\supset C)\supset A\supset B\vee C$
-%% %% &       440 
-%% %% &       46 
-%% %% &       5 \\
-%% %% $\Rightarrow A\wedge (B\supset \perp)\supset (A\supset B)\supset \perp$ 
-%% %% &       513 
-%% %% &       38 
-%% %% &       5 \\
-%% \hline
-%% \end{tabular}
-%% \end{small}
-%% \end{center}
-%% \caption{\label{tab:seqsizes}
-%% Sequent Calculus: Sizes with Caching of User-Selected Predicates}
-%% \end{table*}
 
 Next, we turn our attention to questions of proof size. 
 Table~\ref{tab:seqtimes} compares the size of our proof witnesses to the
@@ -1600,8 +1501,8 @@ of bytes as well as the number of tokens. These figures are assuming
 caching is done of predicates the user has selected, and the encoding of
 the oracle is in terms of the unary encoding scheme described earlier.
 
-\subsection{Refinement Types as an advanced type system}
-Our next example is an advanced type system for a high-level
+%\subsection{Refinement Types as an advanced type system}
+Our second example is an advanced type system for a high-level
 call-by-value functional language. The language has functions, a
 fixpoint construct, booleans and bitstrings. The type system for the
 language has refinement types, as described in Davies and
@@ -1629,65 +1530,90 @@ is about 1 \% of the size of the proof term.
 \begin{table*}[htbp]
 \begin{center}
 \begin{small}
-\begin{tabular}{|l|c|c|c|c|c|c|c|}
+\begin{tabular}{|l|c|c|c|c|c|c|c|c|}
 \hline
 Example & PST 
-& WV & ( PST / WV ) & PS & PSN & WS & (PS / WS)\\
+& PCT & WV & ( PST / WV ) & PS & PSN & WS & (PS / WS)\\
 \hline
-mult-pos-nat & 5.81 & 1.10 & 5.28
+mult-pos-nat & 5.81 & 0.05 & 1.10 & 5.28
 & 15654 & 1159 & 169 & 92.62\\
-%%mult-3-types & 8.42 & 1.60 & 1.49 & 5.65 \\
-mult & 0.39 & 0.13 & 3.0 
+mult & 0.39 & 0.02 & 0.13 & 3.0 
 & 6074 & 509 & 47 & 129.23\\
-%%square & 0.42 & 0.16 & 0.13 & 2.62 \\
-square-pos-nat & 12.55 & 1.85 & 6.78 
+square-pos-nat & 12.55 & 0.06 & 1.85 & 6.78 
 & 25303 & 1587 & 242 & 104.55\\
-%%square-pos-pos & 11.880 & 1.920 & 2.130 & 6.18 \\
 \hline
 \end{tabular}
-\begin{tabular}{ll@{=}ll@{=}l}
-Key & PST & Proof Search time
-&WV & Witness Verification time\\ 
-&PS & Proof Size in bytes\\
-&PST & Proof Size in Number of tokens 
-&WS & Witness Size in bytes\\
-\end{tabular} 
+% \begin{tabular}{ll@{=}ll@{=}l}
+% Key & PST & Proof Search time
+% &PCT & Proof Checking Time \\
+% &WV & Witness Verification time\\ 
+% &PS & Proof Size in bytes\\
+% &PST & Proof Size in Number of tokens 
+% &WS & Witness Size in bytes\\
+% \end{tabular} 
 \end{small}
 \end{center}
 \caption{\label{tab:reftimes} Refinement Type System : 
 Proof Compression Times with Caching}
 \end{table*}
 
-%% \begin{table*}[htbp]
-%% \begin{center}
-%% \begin{small}
-%% \begin{tabular}{|l|l|l|l|l|l|}
-%% \hline
-%% Example & Proof Term & Proof Term & Witness & Proof Size\\
-%% & Size (Bytes) (1) & Size (Tokens) & Size (Bytes) (2) & percentage (2 / 1)\\
-%% \hline
-%% mult-pos-nat & 15654 & 1159 & 169 & 1.07 \%\\
-%% %%mult-3-types & 18537 & 1383 & 211 & 1.13 \%\\
-%% mult & 6074 & 509 & 47 & 0.77 \%\\
-%% %%square & 7060 & 546 & 50 & 0.70 \%\\
-%% square-pos-nat & 25303 & 1587 & 242 & 0.95 \%\\
-%% %%square-pos-pos & 24957 & 1560 & 237 & 0.94 \%\\
-%% \hline
-%% \end{tabular}
-%% \end{small}
-%% \end{center}
-%% \caption{\label{tab:refsizes} Refinement Type System : 
-%% Size of Witness with Caching}
-%% \end{table*}
+%\subsection{Foundational Proof Carrying Code}
+Our last example suite is an implementation from the Foundational 
+Proof Carrying Code project at Princeton~\cite{Appel01lics}. This 
+is a large program that type checks SPARC object code with the help 
+of annotations produced by a compiler. The type system used is a
+low-level type system known as LTAL~\cite{chen+:fpcc-ltal}.
 
-Next we investigate the practicality of caching subgoals. Caching is 
-a fairly expensive operation, in terms of both time to store and lookup, 
-as well as the extra memory required to maintain the table. In 
+\begin{table*}[htbp]
+\begin{center}
+\begin{small}
+\begin{tabular}{|l|c|c|c|c|c|c|c|c|}
+\hline
+Example & PST & PCT & WV & (PST / WV) & PS & PSN & WS & (PS / WS)\\
+\hline
+clos & 12.26 & 2.505 & 0.47 & 26.08& 201910 & 16502 & 638 & 316.47\\
+mid & 10.29 & 2.246 & 0.45 & 22.86& 398589 & 34250 & 528 & 754.90\\
+inc & 11.55 & 2.310 & 0.47 & 24.57& 410600 & 35724 & 579 & 709.15\\
+lint & 12.84 & 2.591 & 0.70 & 18.34& 441965 & 38416 & 703 & 628.68\\
+\hline
+\end{tabular}
+% \begin{tabular}{ll@{=}ll@{=}l}
+% Key & PST & Proof Search time
+% &PCT & Proof Compression time \\
+% &WV & Witness Verification time\\ 
+% &PS & Proof Size in bytes\\
+% &PST & Proof Size in Number of tokens 
+% &WS & Witness Size in bytes\\
+% \end{tabular} 
+\end{small}
+\end{center}
+\caption{\label{tab:fpcctimes}
+FPCC: Times without Caching}
+\end{table*}
+
+In Table~\ref{tab:fpcctimes} we show the gains to be achieved in terms
+of time performance. In the proof carrying code scenario, asking the
+consumer to verify our compact proof witness as opposed to doing proof
+search gives a speedup of about 20 times. Also important is the size
+of the proof that must be sent to the consumer. Our proof witnesses
+are between 300 and 700 times smaller than the corresponding proof
+terms, as we show in Table~\ref{tab:fpcctimes}.
+
+We notice that as proof sizes become bigger, our mechanisms perform
+better at compressing proofs.  The space savings go from a factor of
+about 70 in the smallest examples all the way to about 700 times for
+our largest examples. The gains in time are from a factor of about 5
+to a factor of about 25 for the larger examples.
+
+\subsection{Caching: time vs space}
+Next we investigate the practicality of caching subgoals. Caching is a
+fairly expensive operation, in terms of both time to store and lookup,
+as well as the extra memory required to maintain the table. In
 Table~\ref{tab:refcache} we investigate this trade off. We find that
-using caching gives us a speed hit of between 3 and 16 times. The 
+using caching gives us a speed hit of between 3 and 16 times. The
 gains from this is that the size of the oracle is smaller for the
-cached version, for every experiment in this set. The gain is small
-but significant.
+cached version, for every experiment we tried. The gain is usually
+small.
 
 \begin{table*}[htbp]
 \begin{center}
@@ -1714,68 +1640,7 @@ Refinement Type System :
 Caching during proof compression}
 \end{table*}
 
-\subsection{Foundational Proof Carrying Code}
-Our last example suite is an implementation from the Foundational 
-Proof Carrying Code project at Princeton~\cite{Appel01lics}. This 
-is a large program that type checks SPARC object code with the help 
-of annotations produced by a compiler. The type system used is a
-low-level type system known as LTAL~\cite{chen+:fpcc-ltal}.
-
-\begin{table*}[htbp]
-\begin{center}
-\begin{small}
-\begin{tabular}{|l|c|c|c|c|c|c|c|}
-\hline
-Example & PST & WV & (PST / WV) & PS & PSN & WS & (PS / WS)\\
-& (s) & (s) & & (bytes) & (tokens) & (bytes) &\\
-\hline
-clos & 12.26 & 0.47 & 26.08& 201910 & 16502 & 638 & 316.47\\
-mid & 10.29 & 0.45 & 22.86& 398589 & 34250 & 528 & 754.90\\
-inc & 11.55 & 0.47 & 24.57& 410600 & 35724 & 579 & 709.15\\
-lint & 12.84 & 0.70 & 18.34& 441965 & 38416 & 703 & 628.68\\
-\hline
-\end{tabular}
-\begin{tabular}{ll@{=}ll@{=}l}
-Key & PST & Proof Search time
-&WV & Witness Verification time\\ 
-&PS & Proof Size in bytes\\
-&PST & Proof Size in Number of tokens 
-&WS & Witness Size in bytes\\
-\end{tabular} 
-\end{small}
-\end{center}
-\caption{\label{tab:fpcctimes}
-FPCC: Times without Caching}
-\end{table*}
-
-In Table~\ref{tab:fpcctimes} we show the gains to be achieved in terms of
-time performance. In the proof carrying code scenario, asking the consumer
-to verify our compact proof witness as opposed to the proof term gives a 
-speedup of about 20 times. Also important is the size of the proof that
-must be sent to the consumer. Our proof witnesses are between 300 and 700
-times smaller than the corresponding proof terms, as we show in
-Table~\ref{tab:fpcctimes}.
-
-%% \begin{table*}[htbp]
-%% \begin{center}
-%% \begin{small}
-%% \begin{tabular}{|l|l|l|l|l|}
-%% \hline
-%% Example & Proof Size & Proof Size & Witness Size & Gain \\
-%% & (bytes) (1) & (number of tokens) & (bytes)(2) & (1 / 2)\\
-%% \hline
-%% clos & 201910 & 16502 & 638 & 316.47\\
-%% mid & 398589 & 34250 & 528 & 754.90\\
-%% inc & 410600 & 35724 & 579 & 709.15\\
-%% lint & 441965 & 38416 & 703 & 628.68\\
-%% \hline
-%% \end{tabular}
-%% \end{small}
-%% \end{center}
-%% \caption{\label{tab:fpccsizes}
-%% FPCC: Sizes without Caching}
-%% \end{table*}
-
+\subsection{Encoding Schemes}
 Finally, we study the issue of unary versus binary encodings of the choices.
 A representative study with examples from multiple example suites is given
 in Table~\ref{tab:unarybinary}. We notice that binary encodings always 
@@ -1785,8 +1650,9 @@ few clauses are the ones that are used more commonly, in which case unary
 encodings are better.
 
 \begin{table*}[htbp]
-\begin{center}
+%\begin{center}
 \begin{small}
+\begin{minipage}{3in}
 \begin{tabular}{|l|c|c|c|}
 \hline
 Example & WSU & WSB & (WSB - WSU/ WSU) \\
@@ -1800,73 +1666,77 @@ mult & 67 & 144 & 114.9 \%\\
 %%square-pos-nat & 247 & 475 & 92.3 \%\\
 \hline
 \end{tabular}
-\begin{tabular}{ll@{=}l}
-Key & WSU & Witness Size in bytes for Unary Encoding\\
-&WSB & Witness Size in bytes for Binary Encoding\\
+\end{minipage}
+\begin{minipage}{1in}
+\begin{tabular}{lll}
+Key & WSU = & Witness Size \\ &&(Unary Encoded)\\
+&WSB = & Witness Size \\&&(Binary Encoded)\\
 \end{tabular} 
+\end{minipage}
 \end{small}
-\end{center}
+%\end{center}
 \caption{\label{tab:unarybinary}
 Unary versus Binary Encodings: no Caching}
 \end{table*}
 
 \section{Related Work}
-The idea of compact proof witnesses which encode the
-non-deterministic choice in a logic programming interpreter was first
-proposed by \cite{Necula+01:oracle} for a fragment of the logical
-framework LF, called LF$_i$, which excludes the use of higher-order
-terms and dependent types in practice. 
-Their main goal was to design a practical method for current
-proof-carrying code applications which would reduce the size of proofs
-sent to a consumer. To achieve this goal, their approach
-has been very pragmatic. For example they restrict themselves in
-practice to first-order terms and and significantly limit the use
-of dependent types. To achieve an efficient
-implementation, they propose the use of automata-driven indexing,
-where any higher-order features are ignored. Their indexing algorithm
-will generate a set of potential candidates of which unsound
-candidates need to be weeded out by calling full 
-higher-order unification based on Huet's algorithm. This is clearly
-wasteful and expensive in the general higher-order case, since we will
-traverse higher-order terms at least twice. Moreover, since they use
-Huet's unification algorithm, which is non-deterministic itself, 
-their proof witnesses need to record the choices made within
-higher-order unification. To avoid these problems in practice, their
-realization and their experimental evaluation does not consider terms
-defined via $\lambda$-abstraction.  %To handle some simple cases
+The idea of compact proof witnesses which encode the non-deterministic
+choice in a logic programming interpreter was first proposed by
+\cite{Necula+01:oracle} for a fragment of the logical framework LF,
+called LF$_i$, which excludes the use of higher-order terms and
+significantly limit the use of dependent types in practice.  Their
+main goal was to design a practical method for current proof-carrying
+code applications which would reduce the size of proofs sent to a
+consumer.
+% To achieve this goal, their approach
+% has been very pragmatic. For example they restrict themselves in
+% practice to first-order terms and and significantly limit the use
+% of dependent types. 
+To achieve an efficient implementation, they propose the use of
+automata-driven indexing, where any higher-order features are
+ignored. Their indexing algorithm will generate a set of potential
+candidates of which unsound candidates need to be weeded out by
+calling full higher-order unification based on Huet's algorithm. This
+is clearly wasteful and expensive in the general higher-order case,
+since we will traverse higher-order terms at least twice. Moreover,
+since they use Huet's unification algorithm, which is
+non-deterministic itself, their proof witnesses need to record the
+choices made within higher-order unification. To avoid these problems
+in practice, their realization and their experimental evaluation does
+not consider terms defined via $\lambda$-abstraction.  
+%To handle some simple cases
 %like the {\tt alli} rule in our example, they introduce a
-%hack\ednote{-bp: do you know what hack they use?} to deal
-%with this special case. 
+%hack\ednote{-bp: do you know what hack they use? -susmit:they specially
+%treate an alli rule} to deal with this special case. 
 Our work extends and continues where Necula and Rahul left of by
 saying ``more experimental results are needed especially in the
 higher-order setting''. By using linear higher-order patterns and
 higher-order substitution tree indexing, the non-determinism based on
-Huet's unification algorithm is removed. Moreover, our implementation scales
-to dependent types thereby removing any restrictions imposed by
+Huet's unification algorithm is removed. Moreover, our implementation
+scales to dependent types thereby removing any restrictions imposed by
 Necula and Rahul. In addition, we designed an extension where
-sub-proofs can be cached and re-used resulting in potentially even
-smaller proof witnesses.
+sub-proofs can be cached and re-used resulting in somewhat smaller
+proof witnesses.
 
-The idea of using oracles was also explored in
-\cite{Appel:PPDP03}. Their primary concern was to 
-achieve a minimal trusted proof checker. Their checker follows the
-path explored by Necula and Rahul and ignores higher-order terms. The
-main difference between the two approaches is that the proof rules are
-proven correct independently thereby minimizing the trusted computing
-base. Trust is not our concern here, rather we aim at extending the
-safety infrastructure already provided by Twelf with capabilities of
-generating and checking small proof witnesses. This step, we believe,
-will provide the developers of safety policies in Twelf with new
-insights about the relationship or safety rules and size of proofs.
+The idea of using oracles was also explored in \cite{Appel:PPDP03}.
+Their checker follows the path explored by Necula and Rahul and
+ignores higher-order terms. The main difference between the two
+approaches is that the proof rules are proven correct independently
+thereby minimizing the trusted computing base. Trust is not our
+concern here, rather we aim at extending the safety infrastructure
+already provided by Twelf with capabilities of generating and checking
+small proof witnesses. This step, we believe, will provide the
+developers of safety policies in Twelf with new insights about the
+relationship or safety rules and size of proofs.
 
-As Necula and Rahul's work, their system is not able to support
-higher-order abstract syntax, which means that that any variable
-binding constructs must be explicitly encoded. Wu {\em et
-  al}\cite{Appel:PPDP03} encode the explicit substitution calculus
+As in Necula and Rahul's work, Wu {\em et al}'s system is not able to
+support higher-order abstract syntax, which means that that any
+variable binding constructs must be explicitly encoded. Wu {\em et
+al}\cite{Appel:PPDP03} encode the explicit substitution calculus
 \cite{Abadi:POPL90} together with the necessary proofs about
 substitutions for their foundational implementation of LTAL. Although
 the overhead in this setting is still manageable, it is not general
-enough to handle richer safety polices. 
+enough to handle richer safety polices.
 
 % Our work fills this gap by describing a general purpose tool to
 % compress proofs to compact witnesses and check witnesses within the logical
@@ -1918,34 +1788,33 @@ enough to handle richer safety polices.
 
 \section{Conclusion}
 In this paper, we extended the logical framework LF with small proof
-witnesses. Witness generation and checking  within the logical
+witnesses. Witness generation and checking within the logical
 framework LF constitutes a valuable addition to the general safety
-infrastructure already provided, which not only supports
-specification and execution of safety policies, but also can provide
-insights into the relationship between safety policies and small
-safety proofs and allows for experiments with different kinds of
-encoding schemes.
- Given the potential of 
-proof-carrying code methods and their new applications to
-proof-carrying authorization \cite{AppelFelten99,bauer:thesis}, this
-will provide a comprehensive guide for future implementations of proof
-checkers which need not be restricted to first-order Prolog-like systems. 
+infrastructure already provided, which not only supports specification
+and execution of safety policies, but also can provide insights into
+the relationship between safety policies and small safety proofs and
+allows for experiments with different kinds of encoding schemes.
+Given the potential of proof-carrying code methods and their new
+applications to proof-carrying authorization
+\cite{AppelFelten99,bauer:thesis}, this will provide a comprehensive
+guide for future implementations of proof checkers which need not be
+restricted to first-order Prolog-like systems.
 
-Finally, small proof witnesses within the logical framework LF are
-interesting independently of the proof-carrying code application. They
-serve to increase the confidence in the logic programming and theorem
-proving engines. As the size of the proof term can be
-several orders of magnitude bigger than the query we are trying to
-prove, constructing and possibly storing full proof terms during logic
-programming proof search is expensive, and in some applications not even
-feasible. Our experience and experiments with tabled higher-order
-logic programming \cite{Pientka03phd} have demonstrated that
-small proof  constructing and storing the full proof term 
-however would  impose a substantial performance penalty. Therefore,
-our implementation of tabled higher-order logic programming uses a
-similar idea of small proof witnesses to construct proof witnesses
-effectively without compromising the efficiency of the overall
-system. 
+% Finally, small proof witnesses within the logical framework LF are
+% interesting independently of the proof-carrying code application. They
+% serve to increase the confidence in the logic programming and theorem
+% proving engines. As the size of the proof term can be
+% several orders of magnitude bigger than the query we are trying to
+% prove, constructing and possibly storing full proof terms during logic
+% programming proof search is expensive, and in some applications not even
+% feasible. Our experience and experiments with tabled higher-order
+% logic programming \cite{Pientka03phd} have demonstrated that
+% small proof  constructing and storing the full proof term 
+% however would  impose a substantial performance penalty. Therefore,
+% our implementation of tabled higher-order logic programming uses a
+% similar idea of small proof witnesses to construct proof witnesses
+% effectively without compromising the efficiency of the overall
+% system. 
 % provide a cheap simple alternative and are in fact crucial to obtain a
 % practical tabled logic programming interpreter. 
 
