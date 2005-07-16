@@ -148,8 +148,8 @@ generate and check small proof witnesses for the Twelf system, an
 implementation of the logical framework LF. In particular, we extend
 and generalize ideas from Necula and Rahul~\cite{Necula+01:oracle} in
 two main ways: 1) We consider the full fragment of LF including
-dependent types and higher-order terms and 2) We incorporate caching
-of sub-proofs to generate even more compact proof representations. Our
+dependent types and higher-order terms and 2) We study the use of
+caching of sub-proofs to further compact proof representations. Our
 experimental results demonstrate that many of the restrictions in
 previous work can be overcome and generating and checking small
 witnesses within Twelf provides valuable addition to its general
@@ -313,12 +313,16 @@ interchangeably. Types and programs are defined as follows:
 \]
 \end{minipage}
 
-$P$ ranges over atomic formulas such as $a \cdot S$, where $a$ is a
-type constant. We interpret the function arrow $A_1 \rightarrow A_2$
-as implication and the $\Pi$-quantifier, denoting dependent function
+We present terms and types using the spine
+notation~\cite{cervesato+:spine}. We use metavariables $x$ to range
+over term level variables. There are constants at both the term level,
+denoted by $c$, and at type level, denoted by $a$.  $P$ ranges over
+atomic formulas such as $a \cdot S$, {\em i.e.} type constants applied
+to spines. We interpret the function arrow $A_1 \rightarrow A_2$ as
+implication and the $\Pi$-quantifier, denoting dependent function
 type, corresponds to the universal $\forall$-quantifier. Types, which
 are goals and clauses, are inhabited by corresponding proof terms $M$,
-and we assume that all proof terms are in normal form. 
+and we assume that all proof terms are in normal form.
 
 Other higher-order logic programming languages of a similar flavor are
 $\lambda$-Prolog~\cite{Nadathur99cade} or
@@ -379,12 +383,14 @@ construct terms for propositions.  We intend that terms belonging to
 %imp : prop -> prop -> prop.       forall : (i -> prop) -> prop.
 %\end{code}
 %
-The connective for implication has type takes in two propositions and
-returns a proposition, hence the constructor {\tt imp} has type {\tt prop -> prop -> prop.} To represent the forall-quantifier, we will use
-higher-order abstract syntax. The crucial idea is to represent bound
-variables in the object language (logic) with bound variables in the
-meta-language (higher-order logic programming). Hence the type of {\tt
-  forall} is {\tt (i -> prop) -> prop}.
+The connective for implication has a type that takes in two
+propositions and returns a proposition, hence the constructor {\tt
+imp} has type {\tt prop -> prop -> prop.} To represent the
+forall-quantifier, we will use higher-order abstract syntax. The
+crucial idea is to represent bound variables in the object language
+(logic) with bound variables in the meta-language (higher-order logic
+programming). Hence the type of {\tt forall} is {\tt (i -> prop) ->
+prop}.
 
 Next we turn our attention to the inference rules. The 
 judgment for provability within this logic is denoted by the
@@ -477,7 +483,7 @@ $\Gamma$.
 To solve a goal $G$ from a set of clauses $\Gamma$, we decompose the
 compound goal $G$ until it is atomic and then resolved it with a
 program clause. We have the following three possible actions (for a
-more detailed description see Miller~\cite{Miller91apal}):
+more detailed description see Miller {\em{et al.}}~\cite{Miller91apal}):
 
 %A proof is said to be
 %{\em{goal-oriented}} if every compound goal is immediately decomposed
@@ -501,12 +507,13 @@ more detailed description see Miller~\cite{Miller91apal}):
 \begin{description}
 \item[Select] $\Gamma \vd  G \Rightarrow c_i \cdot S$ \\
     \mbox{Given an atomic goal $G$ and clauses $\Gamma$:}\hfill\\
-     Focus on a clause $c_i : A_i$ from $\Gamma$ to establish a proof
-     $c_i\cdot S$ for $G$, by unifying the head of $A_i$ with the current
-     goal $G$. 
+     Focus on a clause $c_i : A_i$ from $\Gamma$ by unifying the 
+     head of $A_i$ with the current goal $G$. 
+     Solve the subgoals of the clause, yielding a proof spine $S$.
+     The proof term established for $G$ is $c_i\cdot S$.
 
 \item[Augment] $\Gamma \vd  G_1 \arrow G_2 \Rightarrow \lambda u. M$ if $\Gamma,
-  u\oftp G_1 \vd M : G_2 \Rightarrow W$ \\
+  u\oftp G_1 \vd G_2 \Rightarrow M$ \\
 Augment the clauses in $\Gamma$ with the dynamic assumption $u{:} G_1$ and
 establish a proof $M$ for the goal $G_2$ from the extended program
 $\Gamma, u \oftp G_1$. 
@@ -560,7 +567,7 @@ yielding the subgoal:
 \end{array}
 \]
 
-To prove this subgoal will again inspect our clauses. Three of them
+To prove this subgoal we will again inspect our clauses. Three of them
 will be applicable, namely {\tt allE}, {\tt impI}, and {\tt
   impE}. This time we will pick the second clause {\tt impI}. Hence we
 will introduce the dynamic assumption ${\tt{u}} {:} \pfLF (\forallLF
@@ -763,12 +770,12 @@ W $ \\
 %    current goal $G$ and 
      Let $c_i : A_i$ be the $i-$th clause from $\Gamma$ whose head 
      unifies with goal $G$.\\
-    Focus on clause $c_i : A_i$ from $\Gamma$ to compress a proof
-     $c_i\cdot S$ for $G$ to $W$.
+    Focus on clause $c_i : A_i$ from $\Gamma$. Use the proof spine $S$ 
+    to guide the solving of subgoals, yielding witness $W$.
 
 \item[Augment] $\Gamma \vd   \lambda u. M : G_1 \arrow G_2 \Rightarrow
   W$ if $\Gamma,
-  u\oftp G_1 \vd G_2 \Rightarrow M$ \\
+  u\oftp G_1 \vd M : G_2 \Rightarrow W$ \\
 Augment the clauses in $\Gamma$ with the dynamic assumption $u{:} G_1$ and
 compress a proof $M$ for $G_2$ within the extended program
 $\Gamma, u \oftp G_1$ to obtain the witness $W$. 
@@ -1203,7 +1210,7 @@ added to the table $\cal{T}$ and a pointer to an empty answer list is
 returned. If no entry exists, then we will continue to focus on a
 clause $c_i$ to solve the goal $\Gamma \vd G$. When we are done, we
 will add the answer substitution for the existential variables in
-$\Gamma \vd G$ together with its proof term $c_i \cdot S$ to the its
+$\Gamma \vd G$ together with its proof term $c_i \cdot S$ to its
 answer list $ptr$.
 
 If a table entry for $\Gamma \vd G$ already exists, there are two
@@ -1546,12 +1553,12 @@ is about 1\% of the size of the proof term.
 Example & PST 
 & PCT & WV & ( PST / WV ) & PS & PSN & WS & (PS / WS)\\
 \hline
-mult-pos-nat & 5.81 & 0.05 & 1.10 & 5.28
-& 15654 & 1159 & 169 & 92.62\\
-mult & 0.39 & 0.02 & 0.13 & 3.00 
-& 6074 & 509 & 47 & 129.23\\
-square-pos-nat & 12.55 & 0.06 & 1.85 & 6.78 
-& 25303 & 1587 & 242 & 104.55\\
+mult-pos-nat & 5.81 & 0.05 & 1.10 & 5.3
+& 15654 & 1159 & 169 & 92.6\\
+mult & 0.39 & 0.02 & 0.13 & 3.0
+& 6074 & 509 & 47 & 129.2\\
+square-pos-nat & 12.55 & 0.06 & 1.85 & 6.8 
+& 25303 & 1587 & 242 & 104.6\\
 \hline
 \end{tabular}
 % \begin{tabular}{ll@{=}ll@{=}l}
@@ -1582,10 +1589,10 @@ low-level type system known as LTAL~\cite{chen+:fpcc-ltal}.
 \hline
 Example & PST & PCT & WV & (PST / WV) & PS & PSN & WS & (PS / WS)\\
 \hline
-clos & 12.26 & 2.505 & 0.47 & 26.08& 201910 & 16502 & 638 & 316.47\\
-mid & 10.29 & 2.246 & 0.45 & 22.86& 398589 & 34250 & 528 & 754.90\\
-inc & 11.55 & 2.310 & 0.47 & 24.57& 410600 & 35724 & 579 & 709.15\\
-lint & 12.84 & 2.591 & 0.70 & 18.34& 441965 & 38416 & 703 & 628.68\\
+clos & 12.26 & 2.505 & 0.47 & 26.1& 201,910 & 16,502 & 638 & 316.5\\
+mid & 10.29 & 2.246 & 0.45 & 22.9& 398,589 & 34,250 & 528 & 754.9\\
+inc & 11.55 & 2.310 & 0.47 & 24.6& 410,600 & 35,724 & 579 & 709.2\\
+lint & 12.84 & 2.591 & 0.70 & 18.3& 441,965 & 38,416 & 703 & 628.7\\
 \hline
 \end{tabular}
 % \begin{tabular}{ll@{=}ll@{=}l}
@@ -1637,11 +1644,11 @@ Example & \multicolumn{3}{c}{Compression Time} &
 & (sec) & (sec) &  & (bytes) & (bytes) & & \\
 & (A) & (B) & (A / B) & (C) & (D) & (D - C)/D &\\
 \hline
-mult-pos-nat & 1.18 & 0.11 & 10.72 & 169 & 171 & 1.16 \% & 579\\
+mult-pos-nat & 1.18 & 0.11 & 10.7 & 169 & 171 & \ 1.2 \% & 579\\
 %%mult-3-types & 1.60 & 0.41 & 3.90 & 211 & 216 & 2.31 \% & 691\\
-mult & 0.140 & 0.05 & 2.8 & 47 & 67 & 29.85 \% & 164\\
+mult & 0.140 & 0.05 & \ 2.8 & 47 & 67 & 29.9 \% & 164\\
 %%square & 0.16 & 0.04 & 4.0  & 50 & 71 & 29.57 \% & 179\\
-square-pos-nat & 2.31 & 0.16 & 14.43 & 242 & 247 & 2.02 \% & 794\\
+square-pos-nat & 2.31 & 0.16 & 14.4 & 242 & 247 & \ 2.0 \% & 794\\
 %%square-pos-pos & 1.92 & 0.16 & 12.0 & 237 & 243 & 2.46 \% & 775\\
 \hline
 \end{tabular}
