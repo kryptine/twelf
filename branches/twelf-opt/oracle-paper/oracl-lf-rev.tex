@@ -1726,27 +1726,30 @@ not consider terms defined via $\lambda$-abstraction.
 %like the {\tt alli} rule in our example, they introduce a
 %hack\ednote{-bp: do you know what hack they use? -susmit:they specially
 %treate an alli rule} to deal with this special case. 
-Our work extends and continues where Necula and Rahul left of by
-saying ``more experimental results are needed especially in the
-higher-order setting.'' 
+%Our work extends and continues where Necula and Rahul left of by
+%saying ``more experimental results are needed especially in the
+%higher-order setting.'' 
+We use linear higher-order patterns and higher-order substitution
+tree indexing to remove the non-determinism based on Huet's unification
+algorithm. 
 
-By using linear higher-order patterns and higher-order substitution
-tree indexing, the non-determinism based on Huet's unification
-algorithm is removed. Moreover, our implementation scales to dependent
-types thereby removing any restrictions imposed by Necula and
-Rahul. In addition, we designed an extension where sub-proofs can be
-cached and re-used resulting in somewhat smaller proof witnesses.
+%Moreover, our implementation scales to dependent
+%types thereby removing any restrictions imposed by Necula and
+%Rahul. In addition, we designed an extension where sub-proofs can be
+%cached and re-used resulting in somewhat smaller proof witnesses.
 
 The idea of using oracles was also explored in Wu {\em et
-al}~\cite{Appel:PPDP03}.  Their checker follows the path explored by
-Necula and Rahul and ignores higher-order terms. The main difference
-between the two approaches is that the proof rules are proven correct
-independently thereby minimizing the trusted computing base. Trust is
-not our concern here, rather we aim at extending the safety
-infrastructure already provided by Twelf with capabilities of
-generating and checking small proof witnesses. This step, we believe,
-will provide the developers of safety policies in Twelf with new
-insights about the relationship or safety rules and size of proofs.
+al}~\cite{Appel:PPDP03}.  
+%Their checker follows the path explored by
+%Necula and Rahul and ignores higher-order terms. 
+The main difference between their approach and that of Necula and
+Rahul is that the proof rules are proven correct independently thereby
+minimizing the trusted computing base. Trust is not our concern here,
+rather we aim at extending the safety infrastructure already provided
+by Twelf with capabilities of generating and checking small proof
+witnesses. This step, we believe, will provide the developers of
+safety policies in Twelf with new insights about the relationship or
+safety rules and size of proofs.
 
 As in Necula and Rahul's work, Wu {\em et al.}'s system is not able to
 support higher-order abstract syntax, which drastically limits its
