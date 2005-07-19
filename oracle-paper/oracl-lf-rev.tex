@@ -11,13 +11,14 @@
 % \usepackage{pstricks}
 \usepackage{pstricks,pst-node,pst-tree}
 \usepackage{graphics}
-%\usepackage[dvips]{graphicx}
+% \usepackage[dvips]{graphicx}
 \usepackage{graphicx}
 \usepackage{psfrag}
 \usepackage{code}
 \usepackage{color}
 
-\newcommand{\mygray}[1]{{\color{gray}#1}}
+% \newcommand{\mygray}[1]{{\color{gray}#1}}
+\newcommand{\mygray}[1]{{\color{green}#1}}
 % \newcommand{\mygreen}{\color{green}}
 % \newcommand{\mygray}[1]{\em{ #1}}
 
@@ -867,15 +868,18 @@ all the non-deterministic choices are resolved.
 %By
 %taking the appropriate branches (and performing the needed
 %unification), the user can be convinced that such a proof exists. 
-Note that the proof term does not need to be reconstructed. This can
-lead to savings of time and memory. On the other hand, paranoid
-consumers may need more assurance than simply trusting our
-implementation (including complex algorithms such as higher-order
-pattern unification). In such cases, we have an option of regenerating
-the proof term by instrumenting the search procedure above.  This
-amounts to decompressing the proof witness $W$to an explicit proof
-term $M$ and use a different trusted type-checker to verify the
-expanded proof witness.
+Note that the proof term does not need to be reconstructed. 
+%This can
+%lead to savings of time and memory. On the other hand, paranoid
+%consumers may need more assurance than simply trusting our
+%implementation. 
+%(including complex algorithms such as higher-order
+%pattern unification). 
+%In such cases, we have an option of regenerating
+%the proof term by instrumenting the search procedure above.  This
+%amounts to decompressing the proof witness $W$to an explicit proof
+%term $M$ and use a different trusted type-checker to verify the
+%expanded proof witness.
 
 \subsection{Bit-string encodings for proof witnesses}
 
@@ -1148,9 +1152,11 @@ clauses generated during proof search.  However, it is not clear how
 useful this will be, since the process of creating the tree itself is
 time-consuming. It is also noted by Necula and
 Rahul~\cite{Necula+01:oracle} that indexing dynamic assumptions
-imposes a performance penalty. It is useful to pre-process the
-program, but the payoff with dynamic clauses is unclear. For dynamic
-clauses, we use only simple indexing on the type family of type.
+imposes a performance penalty. 
+
+%It is useful to pre-process the
+%program, but the payoff with dynamic clauses is unclear. For dynamic
+%clauses, we use only simple indexing on the type family of type.
 
 %\begin{note}
 %  \begin{itemize}
@@ -1168,13 +1174,14 @@ lot of potential for sharing subproofs. The problem is particularly
 acute in machine-generated proofs for certifying machine-code which
 tend to have repeated proofs of simple facts. This problem has been
 already pointed out by Necula and Lee in \cite{NeculaLee+97:resource}
-
-\begin{quote}
+who wrote:
+%
+%\begin{quote}
 % \begin{tabular}[h]{l}
 ``... it is very common for the proofs to have  
 repeated sub-proofs that should be hoisted out and 
 proved only once ...'' \cite{NeculaLee+97:resource}
- \end{quote}
+% \end{quote}
 
 
 In the context of generating and checking small proof witnesses, this
@@ -1419,8 +1426,8 @@ since many unproductive branches of the proof tree have to be
 searched. Second, we will consider proof checking of explicit proof
 terms. If we send the explicit proof term then the proof checker can
 be small, and this process is relatively fast. However, the size of
-the explicit proof term is substantial. Finally, we will consider our
-approach of small proof witnesses. We will also discuss the trade-offs
+the explicit proof term is substantial. We will consider our
+approach of small proof witnesses and discuss the trade-offs
 of caching subproofs. Finally, we will compare different encoding
 schemes for describing the non-deterministic choices and see how this
 affects the size of the proof witness.
@@ -1445,8 +1452,9 @@ intuitionistic propositional logic where invertible rules are chained
 together thereby eliminating some non-determinism in the overall proof
 search.
 
-\begin{table*}[htbp]
+%\begin{table*}[htbp]
 \begin{center}
+Sequent Calculus: Times with Caching of User-Selected Predicates
 \begin{small}
 \begin{tabular}{|l|c|c|r|c|c|c|c|c|r|}
 \hline
@@ -1491,63 +1499,50 @@ $\Rightarrow (A\supset C)\wedge (B\supset C)\supset A\vee B\supset C$
 \hline
 \end{tabular}
 \begin{tabular}{ll@{=}l}
-Key & PST & Proof Search time (s)\\
+Key: & PST & Proof Search time (s)\\
 &PCT & Proof Checking time (s)\\ 
-&WV & Witness Verification time (s)\\ 
-&PS & Proof Size in bytes\\
-&PST & Proof Size in Number of tokens \\
-&WS & Witness Size in bytes\\
+&WV & Witness Verification time (s)
+\end{tabular} 
+\begin{tabular}{l@{=}l}
+PS & Proof Size in bytes\\
+PST & Proof Size in Number of tokens \\
+WS & Witness Size in bytes\\
 \end{tabular} 
 \end{small}
 \end{center}
-\caption{\label{tab:seqtimes}
-Sequent Calculus: Times with Caching of User-Selected Predicates}
-\end{table*}
+%\caption{\label{tab:seqtimes}
+%Sequent Calculus: Times with Caching of User-Selected Predicates}
+%\end{table*}
 
 We study the time to find a proof and contrast it against the proof
 checking times. We use the tabled higher-order logic programming
 engine \cite{Pientka05,Pientka03phd} to find proofs for the
 propositional logic. The proof compression and the verification procedures
 provide significant time speedups, since in these procedures, we already
-know the proof. This is exhibited in Table~\ref{tab:seqtimes}.
-
+know the proof. % This is exhibited in Table~\ref{tab:seqtimes}.
 Next, we turn our attention to questions of proof size.
-Table~\ref{tab:seqtimes} compares the size of our proof witnesses to
-the size of the original proof. The original proof is measured both by
-number of bytes as well as the number of tokens. These figures are
-assuming one caches the predicate saying that a formula is to the
-right of the sequent and the encoding of the oracle is in terms of the
-unary encoding scheme described earlier.
+%Table~\ref{tab:seqtimes} compares the size of our proof witnesses to
+%the size of the original proof. 
+The original proof is measured both by number of bytes as well as the
+number of tokens, while the compact proof witness is produced using
+the unary encoding described earlier.  
+% These figures are
+% assuming one caches the predicate saying that a formula is to the
+% right of the sequent and the encoding of the oracle is in terms of the
+% unary encoding scheme described earlier.
 
 %\subsection{Refinement Types as an advanced type system}
 Our second example is an advanced type system for a high-level
-call-by-value functional language. The language has functions, a
-fixpoint construct, booleans and bitstrings. The type system for the
-language has refinement types, as described in Davies and
-Pfenning~\cite{davies+:intersection}. In particular, the type of
+call-by-value functional language using refinement types
+\cite{davies+:intersection}. The language has functions, a fixpoint
+construct, booleans and bitstrings. In particular, the type of  
 bitstrings is refined by zero and strictly positive number
 representations.
 
-Table~\ref{tab:reftimes} demonstrates that proof checking yields a
-speedup between three and six times. This figure is achieved if we are
-caching subgoals to get maximum compressions. As we see later, even
-more time gains can be achieved by turning off caching.
-%% Turning the cache off however
-%% would overstate the gains, since proof search has to use tabling to
-%% find the proof\footnote{-bp : this should be executable without
-%%   tabling; to be more precise, the benefit of tabling is really that
-%%   we get consistent performance, no matter if we prove or disprove a
-%%  query in these examples.}.
-These gains come about because we do not have to explore unproductive
-branches of the proof tree.
-
-We also compare proof size to the size of the compact witness we
-produce in Table~\ref{tab:reftimes}. We notice that the compact oracle
-is about 1\% of the size of the proof term.
-
-\begin{table*}[htbp]
+%\begin{table*}[htbp]
 \begin{center}
 \begin{small}
+Refinement Type System : Proof Compression Times with Caching
 \begin{tabular}{|l|r|r|r|c|r|r|r|r|}
 \hline
 Example & PST 
@@ -1571,9 +1566,27 @@ square-pos-nat & 12.55 & 0.06 & 1.85 & 6.8
 % \end{tabular} 
 \end{small}
 \end{center}
-\caption{\label{tab:reftimes} Refinement Type System : 
-Proof Compression Times with Caching}
-\end{table*}
+%\caption{\label{tab:reftimes} Refinement Type System : Proof Compression Times with Caching}
+%\end{table*}
+
+The experimental results demonstrates that proof checking yields a
+speedup between three and six times. This figure is achieved if we are
+caching subgoals to get maximum compressions. As we see later, even
+more time gains can be achieved by turning off caching, since we do
+not explore unproductive branches in the proof tree.
+%% Turning the cache off however
+%% would overstate the gains, since proof search has to use tabling to
+%% find the proof\footnote{-bp : this should be executable without
+%%   tabling; to be more precise, the benefit of tabling is really that
+%%   we get consistent performance, no matter if we prove or disprove a
+%%  query in these examples.}.
+%These gains come about because we do not have to explore unproductive
+%branches of the proof tree.
+%
+Finally, % when comparing proof size to the size of the compact
+% witness , 
+we notice that the compact oracle is about 1\% of the size of the
+proof term.% (see Table~\ref{tab:reftimes}). 
 
 %\subsection{Foundational Proof Carrying Code}
 Our last example suite is an implementation from the Foundational 
@@ -1582,8 +1595,9 @@ is a large program that type checks SPARC object code with the help
 of annotations produced by a compiler. The type system used is a
 low-level type system known as LTAL~\cite{chen+:fpcc-ltal}.
 
-\begin{table*}[htbp]
+%\begin{table*}[htbp]
 \begin{center}
+FPCC: Times without Caching
 \begin{small}
 \begin{tabular}{|l|c|c|c|c|c|c|c|c|}
 \hline
@@ -1605,19 +1619,21 @@ lint & 12.84 & 2.591 & 0.70 & 18.3& 441,965 & 38,416 & 703 & 628.7\\
 % \end{tabular} 
 \end{small}
 \end{center}
-\caption{\label{tab:fpcctimes}
-FPCC: Times without Caching}
-\end{table*}
+%\caption{\label{tab:fpcctimes}
+%FPCC: Times without Caching}
+%\end{table*}
 
-In Table~\ref{tab:fpcctimes} we show the gains to be achieved in terms
-of time performance. In the proof carrying code scenario, asking the
+
+%In Table~\ref{tab:fpcctimes} we show the gains to be achieved in terms
+%of time. 
+In the proof carrying code scenario, asking the
 consumer to verify our compact proof witness as opposed to doing proof
 search gives a speedup of about 20 times. Also important is the size
 of the proof that must be sent to the consumer. Our proof witnesses
 are between 300 and 700 times smaller than the corresponding proof
-terms, as we show in Table~\ref{tab:fpcctimes}.
-
-We notice that as proof sizes become bigger, our mechanisms perform
+terms.
+%, as we show in Table~\ref{tab:fpcctimes}.
+Finally, we notice that as proof sizes become bigger, our mechanisms perform
 better at compressing proofs.  The space savings go from a factor of
 about 70 in the smallest examples all the way to about 700 times for
 our largest examples. The gains in time are from a factor of about 5
@@ -1626,15 +1642,15 @@ to a factor of about 25 for the larger examples.
 \subsection{Caching: time vs space}
 Next we investigate the practicality of caching subgoals. Caching is a
 fairly expensive operation, in terms of both time for stores and
-lookups and the memory required to maintain the table. In
-Table~\ref{tab:refcache} we investigate this tradeoff. We find that
-using caching results in a speed penalty of between three and fifteen
-times. The gain from this is that the size of the oracle is smaller
-for the cached version in every experiment. Disappointingly, the gain
-is usually small.
+lookups and the memory required to maintain the table and we
+investigate this tradeoff next. As our result show,caching results in
+a speed penalty of between three and fifteen times. The gain from this
+is that the size of the oracle is smaller for the cached version in
+every experiment. Disappointingly, the gain is usually small.
 
-\begin{table*}[htbp]
+%\begin{table*}[htbp]
 \begin{center}
+Refinement Type System: Caching during proof compression
 \begin{small}
 \begin{tabular}{|l|c|c|c|c|c|c|c|}
 \hline
@@ -1654,24 +1670,26 @@ square-pos-nat & 2.31 & 0.16 & 14.4 & 242 & 247 & \ 2.0 \% & 794\\
 \end{tabular}
 \end{small}
 \end{center}
-\caption{\label{tab:refcache} 
-Refinement Type System: Caching during proof compression}
-\end{table*}
+%\caption{\label{tab:refcache} 
+%Refinement Type System: Caching during proof compression}
+%\end{table*}
 
 \subsection{Encoding Schemes}
 Finally, we study the issue of unary versus binary encodings of the choices.
 A representative study with examples from multiple example suites is given
-in Table~\ref{tab:unarybinary}. We notice that binary encodings always 
+next. % in Table~\ref{tab:unarybinary}.
+ We notice that binary encodings always 
 increase the size of the oracle, by between 7\% and 115\%. As we discussed
 before, logic programmers usually write their programs so that the first
 few clauses are the ones that are used more commonly, in which case unary 
 encodings are better.
 
-\begin{table*}[htbp]
+%\begin{table*}[htbp]
 %\begin{center}
 \begin{small}
 \begin{minipage}{3in}
 \begin{tabular}{|l|c|c|c|}
+\multicolumn{4}{c}{Unary versus Binary Encodings: no Caching}\\
 \hline
 Example & WSU & WSB & (WSB - WSU/ WSU) \\
 \hline
@@ -1693,15 +1711,15 @@ Key & WSU = & Witness Size \\ &&(Unary Encoded)\\
 \end{minipage}
 \end{small}
 %\end{center}
-\caption{\label{tab:unarybinary}
-Unary versus Binary Encodings: no Caching}
-\end{table*}
+%\caption{\label{tab:unarybinary}
+%Unary versus Binary Encodings: no Caching}
+%\end{table*}
 
 \section{Related Work}
 The idea of compact proof witnesses that encode the non-deterministic
 choice in a logic programming interpreter was first proposed by Necula
 and Rahul~\cite{Necula+01:oracle} for a fragment of the logical
-framework LF, called LF$_i$, that excludes the use of higher-order
+framework LF, that excludes the use of higher-order
 terms and significantly limits the use of dependent types in practice.
 Their main goal was to design a practical method for current
 proof-carrying code applications to reduce the size of proofs
@@ -1717,9 +1735,8 @@ candidates from which unsound candidates need to be weeded out by
 calling higher-order unification based on Huet's algorithm. This
 is clearly wasteful and expensive in the general higher-order case,
 since we will traverse higher-order terms at least twice. Moreover,
-since they use Huet's unification algorithm, which is
-non-deterministic itself, their proof witnesses need to record the
-choices made within higher-order unification. To avoid these problems
+since Huet's unification algorithm is non-deterministic itself, their
+proof witnesses also records the choices made during unification. To avoid these problems
 in practice, their realization and their experimental evaluation does
 not consider terms defined via $\lambda$-abstraction.  
 %To handle some simple cases
@@ -1729,9 +1746,9 @@ not consider terms defined via $\lambda$-abstraction.
 %Our work extends and continues where Necula and Rahul left of by
 %saying ``more experimental results are needed especially in the
 %higher-order setting.'' 
-We use linear higher-order patterns and higher-order substitution
-tree indexing to remove the non-determinism based on Huet's unification
-algorithm. 
+%We use linear higher-order patterns and higher-order substitution
+%tree indexing to remove the non-determinism based on Huet's unification
+%algorithm. 
 
 %Moreover, our implementation scales to dependent
 %types thereby removing any restrictions imposed by Necula and
@@ -1742,14 +1759,13 @@ The idea of using oracles was also explored in Wu {\em et
 al}~\cite{Appel:PPDP03}.  
 %Their checker follows the path explored by
 %Necula and Rahul and ignores higher-order terms. 
-The main difference between their approach and that of Necula and
-Rahul is that the proof rules are proven correct independently thereby
-minimizing the trusted computing base. Trust is not our concern here,
-rather we aim at extending the safety infrastructure already provided
-by Twelf with capabilities of generating and checking small proof
-witnesses. This step, we believe, will provide the developers of
-safety policies in Twelf with new insights about the relationship or
-safety rules and size of proofs.
+The main difference between their and the previous approach is that 
+the proof rules are proven correct independently thereby minimizing
+the trusted computing base.  Trust is not our concern here, rather we aim at extending the safety
+infrastructure already provided by Twelf with capabilities of
+generating and checking small proof witnesses. This step, we believe,
+will provide the developers of safety policies in Twelf with new
+insights about the relationship or safety rules and size of proofs.
 
 As in Necula and Rahul's work, Wu {\em et al.}'s system is not able to
 support higher-order abstract syntax, which drastically limits its
