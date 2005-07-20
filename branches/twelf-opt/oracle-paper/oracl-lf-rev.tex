@@ -17,8 +17,8 @@
 \usepackage{code}
 \usepackage{color}
 
-\newcommand{\mygray}[1]{{\color{gray}#1}}
-%\newcommand{\mygray}[1]{{\color{green}#1}}
+% \newcommand{\mygray}[1]{{\color{gray}#1}}
+\newcommand{\mygray}[1]{{\color{green}#1}}
 % \newcommand{\mygreen}{\color{green}}
 % \newcommand{\mygray}[1]{\em{ #1}}
 
@@ -132,7 +132,8 @@
 Susmit Sarkar\inst{1}\thanks{This work was supported by NSF ITR Grant 0121633:ITR/SY+SI:''Language Technology for Trustless Software Dissemination''}
 \and Brigitte Pientka\inst{2}
 %\thanks{This work has been partially supported by NSERC
-%Grant 206263 and FQRNT Grant 206473.}
+%Grant 206263}
+% and FQRNT Grant 206473.}
 \and Karl Crary\inst{1}}%
                                                                                 
 \institute{%
@@ -190,8 +191,8 @@ consumer where compliance with the code is checked.
 %required for each particular safety policy.
 
 Unfortunately, the proof terms produced by Twelf are quite big in
-size.  This creates problems in a proof carrying code setting in
-sending the proof terms across the network. We would like to produce
+size.  This creates problems in a proof carrying code setting where
+proof terms are sent across the network. We would like to produce
 small proof witnesses and check them. Our approach to this problem is
 to instrument the higher-order logic programming interpreter by
 extending and generalizing ideas by Rahul and
@@ -297,6 +298,7 @@ clauses and goals and typing context represents the store of program
 clauses available. We will use types and formulas
 interchangeably. Types and programs are defined as follows: 
 
+\begin{center}
 \begin{minipage}[b]{6.5cm}
 \[
 \begin{array}{lcl}
@@ -313,9 +315,10 @@ interchangeably. Types and programs are defined as follows:
 \end{array}
 \]
 \end{minipage}
+\end{center}
 
 We present terms and types using the spine
-notation~\cite{cervesato+:spine}. We use metavariables $x$ to range
+notation~\cite{cervesato+:spine}. We use meta-variables $x$ to range
 over term level variables. There are constants at both the term level,
 denoted by $c$, and at type level, denoted by $a$.  $P$ ranges over
 atomic formulas such as $a \cdot S$, {\em i.e.} type constants applied
@@ -349,6 +352,7 @@ be then described as follows:
 \]
 
 Inference rules describing natural deduction are presented next.
+
 
 \[
 \infer[{\textsf{allI}}]{\Gamma\vdash \forall x. A}
@@ -405,8 +409,9 @@ Each clause will correspond to an inference rule in the object
 logic. For convenience, we give the constructors descriptive names.
 % ,and follow the order of the inference rules presented earlier.
 
-\hspace{-0.65cm}
+%\hspace{-0.65cm}
 \begin{small}
+  \begin{center}
 \begin{minipage}[t]{6cm}
 \begin{code}
 alli: prov (forall $\lambda$x. A x)
@@ -422,9 +427,10 @@ impi: prov (imp A B)
 impe: prov B
       <- prov (imp A B)
       <- prov A.
+
 \end{code}
 \end{minipage}
-  
+\end{center}
 \end{small}
 
 %\z
@@ -520,7 +526,7 @@ establish a proof $M$ for the goal $G_2$ from the extended program
 $\Gamma, u \oftp G_1$. 
 \item[Universal] $\Gamma \vd  \Pi x. G \Rightarrow \lambda x. M$ if $\Gamma \vd
   [a/x]G\Rightarrow [a/x]M$ where $a$ is a new parameter\\
-Given a universally quantified goal $\Pi x. G$, we generate a new parameter $a$, and establish a $[a/x]M$ proof  for $[a/x]G$ in the program context $\Gamma$.
+Given a universally quantified goal $\Pi x. G$, we generate a new parameter $a$, and establish a proof $[a/x]M$ for the goal $[a/x]G$ in the program context $\Gamma$.
 \end{description}
 %   \caption{Solve goal $G$ from clauses in $\Gamma$}
 %   \label{fig:solve}
@@ -572,7 +578,7 @@ To prove this subgoal we will again inspect our clauses. Three of them
 will be applicable, namely {\tt allE}, {\tt impI}, and {\tt
   impE}. This time we will pick the second clause {\tt impI}. Hence we
 will introduce the dynamic assumption ${\tt{u}} {:} \pfLF (\forallLF
-\lambda \;y. p\; y)$ and show $\pfLF\; {\tt (p\; y)}$ using the dynamic
+\lambda \;y. p\; y)$ and show $\pfLF\; {\tt (p\; a)}$ using the dynamic
 assumption {\tt{u}}. In the third step, again two clauses are
 applicable,  {\tt allE}, and {\tt impE}. Using the first one, {\tt
   allE}, we need to show that we can prove $\pfLF (\forallLF \lambda
@@ -738,12 +744,12 @@ of which possibility was successful.
 
 In our approach, generating and checking witnesses essentially perform
 the same overall proof search. The only difference is that in proof
-search we would likely explore multiple fruitless paths,
-backtracking until we find the right path. When generating and
+search we would likely explore multiple fruitless paths and
+backtrack until we find the right path. When generating and
 checking witnesses, we will consult the proof term or witness
-respectively to know which choice to consider, and thus eliminate uses
-of backtracking.  We modify the proof search steps presented earlier
-in the following way:
+respectively to know which choice to consider, and thus eliminate
+backtracking.  We modify the proof search steps presented earlier  
+as follows:
 %that we pass
 %in the proof term together with the goal and output a proof witness in
 %form of a bit-string. 
@@ -887,11 +893,11 @@ $i_1/k_1,i_2/k_2,\ldots$, where at the $j^{th}$ stage we have $k_j$
 choices, and we want to pick $i_j$ ($1 \leq i_j \leq k_j$). With the
 tight coupling of the witness generation and checking phases, both
 phases agree on the number of choices ($k_j$) as well as the ordering
-of those choices. That is, both producer and checker agree on which
-choice is to be considered the $i_j^{th}$ one.
+of those choices,i.e. both producer and checker agree on which
+choice is to be considered the $i_j$-th one.
 
 We can now see that the separator between choices is unnecessary. We
-can decide on a encoding scheme, and pull only the requisite number of
+can decide on a encoding scheme, and pull only the required number of
 bits from the oracle. The witness checker will always know how many
 bits to extract.
 
@@ -917,11 +923,9 @@ depending on the particular proof or logic.
 
 \section{Optimizations}
 \subsection{Higher-order term indexing}\label{sec:indexing}
-In the {\bf Select} step in our algorithms, we need to retrieve
-clauses which may unify with the goal. The indexing method used
-dictates how many choices we are returned at any step.
-
-Most first-order logic programming interpreter use efficient term
+In the {\bf Select} step of our algorithms, we need to retrieve
+clauses which may unify with the goal. To avoid redundant computations
+most first-order logic programming interpreter use efficient term 
 indexing strategies such as automata driven
 indexing~\cite{Ramakrishnan01:indexing}. Indexing strategies for
 higher-order terms are more difficult, since in general retrieval and
@@ -964,7 +968,8 @@ The construction of a
 substitution tree in the higher-order setting follows the overall
 algorithm described in Ramakrishnan {\em et
 al}~\cite{Ramakrishnan01:indexing}. We will illustrate higher-order
-substitution trees by an example. Assume we have the following clauses:
+substitution trees by an example. Assume we have the following clauses
+which allow quantifier manipulation for first-order logic:
 % To describe higher-order substitution trees, it is crucial to
 % distinguish between bound variables, existential variables and
 % ``internal'' existential variables. We will assume that any
@@ -1140,6 +1145,100 @@ given in \cite{Pientka03phd,Pientka:ICLP03}.
 
 % \end{small}
 
+%<<<<<<< oracl-lf-rev.tex
+% Now even more sharing becomes apparent. For example, the clauses
+% $\eqilLF$ and $\eqirLF$ agree upon the last argument. Similarly, the
+% clauses $\eqalLF$ and $\eqarLF$. We now compute the most specific
+% generalization between these clauses, and can build up a substitution
+% tree. The algorithm for computing the most specific generalization is
+% given in \cite{Pientka03phd,Pientka:ICLP03}.
+
+
+% \begin{figure*}[htbp]
+%   \begin{center}
+%     \begin{small}
+% % nodesep=1pt,
+% \pstree[nodesep=0.5pt,levelsep=8ex]{%
+% \TR{$\eqLF\quad i_2 \quad (\forallLF \lambda x. i_1\;x)$} }{%
+%   \pstree{\TR{\begin{tabular}{r}
+%               $\lambda x.(\andLF (A'\;x)\; (B'\;x))/i_1$\\
+% %              $(\andLF (i_3\;x)\; (i_4 \;x))/i_2$\\
+%               $(\andLF A\;\;(\forallLF \lambda x. (B\;x)))/i_2$\\
+%             \end{tabular}
+%           }
+%         }{%
+% %          \pstree{\TR{\begin{tabular}{r}
+% %                $\lambda y.(\forallLF \lambda x. A\;x)/i_3$,\\
+% %                ${\tt \lambda y.B/i_4}$
+% %              \end{tabular}
+% %            }}{%
+% %            \pstree{\TR{\begin{tabular}{l}
+% %                  $\forall x. A'\;x\unif A\;x$\\
+% %                  $B'\;x\unif B$
+% %                \end{tabular}
+% %              }}{ $\eqarLF$}
+% %          }
+% %
+% %          \pstree{\TR{\begin{tabular}{r}
+% %                ${\tt \lambda y.A/i_3},$\\
+% %                $\lambda y.(\forallLF \lambda x. (B\;x))/i_4$
+% %              \end{tabular}
+% %            }
+% %          }{%
+%             \pstree{\TR{\begin{tabular}{l}
+%                 $\forall x. A'\;x\unif A$\\
+%                 $\forall x. B'\;x \unif B\;x$
+%               \end{tabular}
+%             }
+%             }{$\eqarLF$}
+% %          }
+%         }
+% %%%%% second child
+%           \pstree{\TR{\begin{tabular}{r}
+%                      $\lambda x.(\impLF (A'\;x)\; (B'\;x))/i_1$\\
+%                      $(\impLF (i_3\;x)\; (i_4\;x))/i_2$\\
+%                    \end{tabular}
+%                  }}{
+%                  \pstree{\TR{\begin{tabular}{r}
+%                        $\lambda y.\forallLF \lambda x. A\;x/i_3$,\\
+%                        ${\tt \lambda y.B/i_4}$
+%                        \end{tabular}
+%                      } }{%
+%                      \pstree{\TR{\begin{tabular}{l}
+%                            $\forall x. A'\;x\unif A\;x$\\
+%                            $\forall x. B'\;x\unif B$
+%                          \end{tabular}}
+%                      }{$\eqirLF$}
+%                    }
+%                   \pstree{\TR{\begin{tabular}{r}
+%                         ${\tt \lambda y.A/i_3},$\\
+%                         $\lambda y.(\forallLF \lambda x.B\;x)/i_4$
+%                       \end{tabular}}}{
+%                     \pstree{\TR{\begin{tabular}{l}
+%                           $\forall x. A'\;x \unif A$\\
+%                           $\forall x. B'\;x \unif B\;x$
+%                         \end{tabular}}
+%                     }{$\eqilLF$}
+%                   }
+%                 }
+%               }     
+%     \end{small}
+%   \end{center}
+%   \caption{Substitution tree}
+%   \label{fig:substree}
+% \end{figure*}
+
+% % \end{small}
+
+% By composing the substitutions along a path,
+% we will obtain a clause head. By composing the substitutions in the
+% left-most branch, we obtain the clause head $\eqalLF$.  b
+% In contrast to other indexing techniques such as discrimination tries,
+% substitution trees  allows the sharing of common sub-expressions
+% instead of common term prefixes. As we can see in this example, this
+% is especially useful in this example, since the most sharing is done
+% in the second argument. 
+%=======
 By composing the substitutions along a path, we will obtain a clause
 head. By composing the substitutions in the right-most branch, we
 obtain the clause head $\eqirLF$.  In contrast to other indexing
@@ -1147,6 +1246,7 @@ techniques such as discrimination tries, substitution trees allows the
 sharing of common sub-expressions instead of common term
 prefixes. This is often very useful, as we can see in this example,
 since the most sharing is done in the second argument.
+%>>>>>>> 1.1.2.12
 
 We have chosen to index only the static set of program clauses. In
 theory, substitution tree indexing can be used for dynamic clauses
@@ -1173,8 +1273,8 @@ imposes a performance penalty.
 \label{sec:tabling}
 Since large proofs often have identical subproofs, there is often
 potential for sharing subproofs, particularly in machine-generated
-proofs which tend to have repeated proofs of simple facts.
-Necula and Lee~\cite{NeculaLee+97:resource} say:
+proofs which tend to have repeated proofs of simple facts. This was
+also pointed out by Necula and Lee~\cite{NeculaLee+97:resource}:
 %
 %\begin{quote}
 % \begin{tabular}[h]{l}
@@ -1441,7 +1541,7 @@ experiments we have run.
 %parameters. We hope this will serve as a guide to those wishing to 
 %generate and use oracles on the various tradeoffs to be made.
 
-\subsection{Time and size tradeoffs}
+\subsection{Time and size trade-offs}
 
 Our first example suite is an implementation of a sequent calculus for
 intuitionistic propositional logic where invertible rules are chained
@@ -1520,7 +1620,7 @@ Next, we turn our attention to questions of proof size.
 %Table~\ref{tab:seqtimes} compares the size of our proof witnesses to
 %the size of the original proof. 
 The original proof is measured both by number of bytes as well as the
-number of tokens, while the compact proof witness is produced using
+number of tokens, and the compact proof witness is produced using
 the unary encoding described earlier.  
 % These figures are
 % assuming one caches the predicate saying that a formula is to the
@@ -1530,9 +1630,9 @@ the unary encoding described earlier.
 %\subsection{Refinement Types as an advanced type system}
 Our second example is an advanced type system for a high-level
 call-by-value functional language using refinement types
-\cite{davies+:intersection}. The language has functions, a fixpoint
-construct, booleans and bitstrings. In particular, the type of  
-bitstrings is refined by zero and strictly positive number
+\cite{davies+:intersection}. The language has functions, a fix-point
+construct, booleans and bit-strings. In particular, the type of  
+bit-strings is refined by zero and strictly positive number
 representations.
 
 %\begin{table*}[htbp]
@@ -1639,7 +1739,7 @@ to a factor of about 25 for the larger examples.
 Next we investigate the practicality of caching subgoals. Caching is a
 fairly expensive operation, in terms of both time for stores and
 lookups and the memory required to maintain the table and we
-investigate this tradeoff next. As our result show, caching results in
+investigate this trade-off next. As our result show, caching results in
 a speed penalty of between three and fifteen times. The gain from this
 is that the size of the oracle is smaller for the cached version in
 every experiment. Disappointingly, the gain is usually small.
@@ -1734,9 +1834,10 @@ calling higher-order unification based on Huet's algorithm. This
 is clearly wasteful and expensive in the general higher-order case,
 since we will traverse higher-order terms at least twice. Moreover,
 since Huet's unification algorithm is non-deterministic itself, their
-proof witnesses also records the choices made during unification. To avoid these problems
-in practice, their realization and their experimental evaluation does
-not consider terms defined via $\lambda$-abstraction.  
+proof witnesses also record the choices made during unification. To
+avoid these problems in practice, their realization and their
+experimental evaluation does not consider terms defined via
+$\lambda$-abstraction.   
 %To handle some simple cases
 %like the {\tt alli} rule in our example, they introduce a
 %hack\ednote{-bp: do you know what hack they use? -susmit:they specially
