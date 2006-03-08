@@ -19,8 +19,6 @@ struct
     structure N = Names
     structure F = Names.Fixity
     structure Idx = Index
-    structure SHT = StringHashTable
-    structure IHT = Table
 
     exception Error of string
 
@@ -89,19 +87,12 @@ struct
 
     val baseAddr : int ref = ref 0
     val startClause : int option ref = ref NONE;
-    val startSemant : int option ref = ref NONE;
 
     val tuples : int ref = ref 0
     val out : BinIO.outstream option ref = ref NONE
 
     val symTable : W.word Table.Table = Table.new 32
     val printTable : unit Table.Table = Table.new 32
-
-    val shadowTable : int SHT.Table = SHT.new 32
-    val depTable : unit IHT.Table IHT.Table = IHT.new 32
-    val recordTable : unit IHT.Table = IHT.new 32
-    val imitatesTable : int IHT.Table = IHT.new 32
-    val replaceTable : string IHT.Table = IHT.new 32
 
     fun cname cid = I.conDecName (I.sgnLookup cid)
 
@@ -416,11 +407,6 @@ struct
             of SOME(cid) => print ("Error: flag already set\n")
              | NONE => startClause := SOME(#1 (I.sgnSize ()))
 
-    fun setEndTcb () =
-          case (!startSemant)
-            of SOME(cid) => print ("Error: flag already set\n")
-             | NONE => startSemant := SOME(#1 (I.sgnSize ()))
-
     fun dumpFlagged file =
           let
             val max = #1 (I.sgnSize ())
@@ -484,284 +470,17 @@ struct
              TextIO.flushOut stream;
              TextIO.closeOut stream
            end
+                     
 
-     fun sort cmp l =
-	 let
-	     fun split l =
-		 let fun s a1 a2 nil = (a1, a2)
-		       | s a1 a2 (h::t) = s a2 (h::a1) t
-                in s nil nil l
-                end
-	     fun merge a nil = a
-	       | merge nil b = b
-	       | merge (aa as (a::ta)) (bb as (b::tb)) =
-		 case cmp (a, b) of
-		     EQUAL => (a :: b :: merge ta tb)
-		   | LESS => (a :: merge ta bb)
-		   | GREATER => (b :: merge aa tb)
-			 
-	     fun ms nil = nil
-	       | ms [s] = [s]
-	       | ms [a,b] = merge [a] [b]
-	       | ms ll = 
-		 let val (a,b) = split ll
-		 in merge (ms a) (ms b)
-		 end
-	 in ms l
-	 end
-     
-     fun sortedKeys t =
-	 let
-	     val r = ref []
-	     val _ =  IHT.app (fn x => r := x :: !r) t
-	 in
-	     sort Int.compare (map #1 (!r)) 
-	 end
-     
-    exception noPriorEntry of string
-    exception Error of string
-    
-    fun valOfE e NONE = raise e
-      | valOfE e (SOME x) = x
-	
-    val counter = ref 0
-
-    (* returns a tuple of the name of the cid and SOME of the shadowing cid if any *)
-    fun isShadowedBy cid =
-	let 
-	    val name = I.conDecName(I.sgnLookup cid)
-	    val currentcid = valOfE (noPriorEntry name) (SHT.lookup shadowTable name)
-	in 
-	    (name, if currentcid <> cid then SOME currentcid else NONE)
-	end
-
-    (* returns true if it changed any names *)
-    fun isShadowing () =
-	let
-	    (* val _ = print "clearing table...\n" *)
-	    val _ = SHT.clear shadowTable
-	    val changes = ref false
-	    fun processDep rcid cid =
-		let
-		    fun handleProblem (currentcid, name) =
-			(case Table.lookup replaceTable cid of SOME _ => ()
-		      | _ =>
-			     let
-				 val replacement = (* Option.mapPartial
-						    (fn x => (case isShadowedBy x of 
-						    (_, SOME _) => NONE 
-                                  		      | (x, NONE) => SOME x)) *) (* XXX worrying - jcreed 7/05 *)
-				     Option.map (I.conDecName o I.sgnLookup) (Table.lookup imitatesTable cid)
-			     in
-				 case replacement of 
-				     NONE => 
-					 raise Error ("Error: " ^ name ^ " (" ^ Int.toString cid ^ ") used by cid " ^ Int.toString rcid ^
-						" but shadowed by " ^ Int.toString currentcid ^ ".\n")
-				   | SOME x => ((* print ("DX planning to subtly rename " ^ Int.toString cid ^ " to " ^ x ^ "\n");  *)
-						Table.insert replaceTable (cid, x))
-			     end)
-		    val (name, sb) = isShadowedBy cid
-		in
-		    case sb of 
-			SOME currentcid => 
-			    if (cid < valOf(!startSemant) orelse cid >= valOf(!startClause))
-				(* problematic shadowing *)
-			    then handleProblem(currentcid, name)
-			    (* nonproblematic shadowing - change its name *)
-			    else let
-				     val newname = "shadowed_" ^ Int.toString(!counter)
-				 in
-				     (* print ("DX renaming " ^ Int.toString cid ^ " to " ^ newname ^ "\n"); *)
-				     I.rename(cid, newname);
-				     SHT.insert shadowTable (newname, cid);
-				     counter := !counter + 1;
-				     changes := true
-				 end
-		      | NONE => ()
-		end
-
-	    fun processCid cid =
-		let
-		    
-		    val name = I.conDecName(I.sgnLookup cid)
-		    (* val _ = print ("DX processing cid " ^ Int.toString cid ^ " which has name [" ^ name ^ "].\n") *)
-		in
-		    List.app (processDep cid) (sortedKeys(valOf(IHT.lookup depTable cid)))
-		    handle Option => ();
-		    SHT.insert shadowTable (name, cid)
-		end
-	in
-	    List.app processCid (sortedKeys recordTable) handle (e as noPriorEntry s) => (print ("Error: No Prior Entry: " ^ s ^ "\n"); raise e);
-	    !changes
-	end
-
-  fun is_def cid = ((I.constDef cid; true) handle Match => false)
-
-  fun fixityDec cid =
-      (case N.getFixity cid of
-	  (f as F.Infix _) => 
-	      F.toString f ^ " " ^ I.conDecName(I.sgnLookup cid) ^ ".\n"
-	      | _ => "")
-
-  fun record_once k cid = (case IHT.insertShadow recordTable (cid,()) of
-			       NONE => ((* print("DX Recording " ^ Int.toString cid ^ ".\n") ; *)  k cid)
-			     | SOME _ => ())
-
-  fun recordDependency (x, y) = 
-      let
-(*        val msg = "DX dep " ^ Int.toString x ^ " on " ^ Int.toString y ^ "\n" *)
-	  val table = (case IHT.lookup depTable x of SOME y => y 
-	| NONE => let val t = IHT.new 32 in IHT.insert depTable (x,t); t end)
-      in
-	  IHT.insert table (y,())
-      end
-
-  local open I in
-
-  fun etaReduce n (Root(h,sp)) = if (etaReduceSpine n sp) then SOME h else NONE
-    | etaReduce n (Lam(_,t)) = etaReduce (n + 1) t
-    | etaReduce _ _ = NONE
-  and etaReduceSpine n (App(fst,sp)) = (case (etaReduce 0 fst) of
-					    SOME (BVar n') => n = n' andalso etaReduceSpine (n-1) sp
-					  | _ => false)
-    | etaReduceSpine n Nil = true
-    | etaReduceSpine n _ = false
-      
-  fun checkTrivial cid = (case sgnLookup cid of 
-			      (AbbrevDef (_,_,_,M,V,_)) =>
-				  (case etaReduce 0 M of SOME (Const cid') => 
-				       (print ("DX inserting " ^ Int.toString cid' ^ " = " ^ Int.toString cid ^ "\n");
-					Table.insert imitatesTable (cid', cid)) | _ => ())
-			    | _ => ())
-
-  fun travExp cid (Uni _) = ()
-    | travExp cid (Pi ((D,_),B)) = (travDec cid D; travExp cid B)
-    | travExp cid (Root (H, S)) = (travHead cid H; travSpine cid S)
-    | travExp cid (Redex (M, S)) = (travExp cid M; travSpine cid S)
-    | travExp cid (Lam (D, M)) = (travDec cid D; travExp cid M)
-    | travExp cid _ = ()
-  and travDec cid (Dec (_, A)) = travExp cid A
-    | travDec cid (BDec (_, (c, _))) = (recordDependency (cid, c); traverse c)
-  and travSpine cid Nil = ()
-    | travSpine cid (App (M, S)) = (travExp cid M; travSpine cid S)
-    | travSpine cid _ = ()
-  and travHead cid h = Option.map (fn n => (recordDependency (cid, n); traverse n)) (headCID h)
-  and traverseDescendants' cid (ConDec (_,_,_,_,V,_)) = travExp cid V
-    | traverseDescendants' cid (ConDef (_,_,_,M,V,_,_)) = (travExp cid M; travExp cid V)
-    | traverseDescendants' cid (AbbrevDef (_,_,_,M,V,_)) = (travExp cid M; travExp cid V)
-    | traverseDescendants' cid _ = ()
-  and traverseDescendants cid = traverseDescendants' cid (I.sgnLookup cid)
-  and traverse cid  = 
-      let
-	  val name = conDecName(sgnLookup cid)
-	  (* val message = "DX Traversing cid = " ^ Int.toString cid ^ " name = " ^ name ^ "\n" *)
-      in
-	  record_once traverseDescendants cid
-      end
-
-  end
-
-  fun initForText () =
-      let
-      in
-	  startClause := NONE;
-	  startSemant := NONE;
-          Table.clear depTable;
-          Table.clear recordTable;
-          Table.clear imitatesTable;
-          Table.clear replaceTable
-      end
-
-  exception InfixWithImplicitArgs
-
-  fun appRange f min max =
-      if (min < max)
-	  then
-	      (f min;
-	       appRange f (min + 1) max)
-      else ()
-
-  fun dumpAll (max, first, outputSemant, outputChecker) =
-      let 
-	  val streamSemant = TextIO.openOut outputSemant
-	  val streamChecker = TextIO.openOut outputChecker
-	  val streamTcb = TextIO.openOut "dumptcb" (* DX *)
-	  fun waitUntilFalse f = if f() then waitUntilFalse f else ()
-	  fun outputCid cid = (* if cid < (valOf(!startSemant)) then () else *) (* DX *)
-	      let 
-		  val s = Print.conDecToString(I.sgnLookup cid) ^ "\n"
-		  val s' = if cid >= valOf(!startClause) andalso is_def cid 
-			   then if isClause cid 
-				then "%clause " ^ s
-				else s
-			   else s
-		  val stream = if cid < valOf(!startSemant) then streamTcb else (* DX *)
-		      if cid >= valOf(!startClause) then streamChecker else streamSemant
-	      in 
-		  TextIO.output (stream, s' ^ (fixityDec cid))
-	      end
-
-      in
-	  appRange checkTrivial 0 max;
-	  appRange traverse first max;
-	  appRange (fn cid => Table.insert recordTable (cid,())) 0 (valOf(!startSemant));
-	  waitUntilFalse isShadowing;
-	  Table.app IntSyn.rename replaceTable;
-	  List.app outputCid (sortedKeys recordTable);
-	  TextIO.closeOut (streamSemant);
-	  TextIO.closeOut (streamChecker);
-	  TextIO.closeOut (streamTcb) (* DX *)
-      end
-
-  fun dumpText (outputSemant, outputChecker) = 
-      let
-          val max = #1 (I.sgnSize ())
-
-	  (* val _ = print ("DX startSemant = " ^ Int.toString(valOf(!startSemant)) ^ "\n") *)
-	  (* val _ = print ("DX startClause = " ^ Int.toString(valOf(!startClause)) ^ "\n") *)
-
-	  fun correctFixities cid =
-	      if (cid < max)
-		  then
-		      (let
-			   val fixity = N.getFixity cid
-			   val imp = I.constImp cid
-			   val name = I.conDecName (I.sgnLookup cid)
-			   (* val _ = case fixity of F.Infix _ => print ("DX Infix " ^ Int.toString cid ^ " " ^ name ^ " " ^ Int.toString imp ^ " \n") | _ => () *)
-			   val inSemant = cid >= valOf(!startSemant) andalso cid < valOf(!startClause)
-			   val makeNonfix = 
-			       case (fixity, imp, inSemant) of 
-				   (F.Infix _, _, true) => ((*print ("DX setting nonfix " ^ Int.toString cid ^ "\n"); *) true)
-				 | (F.Infix _, 0, false) => false 
-				 | (F.Infix _, _, false) => raise InfixWithImplicitArgs
-				 | (_, _, _) => false
-		       in
-			   if makeNonfix then N.installFixity (cid, F.Nonfix) else ()
-		       end;   correctFixities (cid + 1))
-	      else ()
-		  
-	  val _ = correctFixities 0
-
-          fun error msg = print ("Error: " ^ msg ^ "\n")		  
-      in
-          case (!startClause)
-	   of SOME (cid) =>
-              (dumpAll (max, cid, outputSemant, outputChecker) handle Error msg => error msg)
-	    | NONE => error ("setFlag() has not been called yet\n")
-      end
-
-    in
+  in
     val init = init
-    val initForText = initForText
 
     val dump = dump
-    val dumpText = dumpText
 
     val setFlag = setFlag
-    val setEndTcb = setEndTcb
-
     val dumpFlagged = dumpFlagged
+
     val dumpSymTable = dumpSymTable
-    end
+  end
 
 end; (* functor Flit *)

@@ -56,7 +56,6 @@ struct
     | ESTABLISH				(* `%establish' *)
     | ASSERT				(* `%assert' *)
     | ABBREV				(* `%abbrev' *)
-    | TRUSTME                           (* `%trustme' *) (* -fp 8/26/05 *)
     | FREEZE                            (* `%freeze' *)
     | THAW				(* `%thaw' *)
     | DETERMINISTIC                     (* `%deterministic' *) (* -rv 11/27/01 *)
@@ -250,7 +249,6 @@ struct
       | lexPragmaKey (ID(_, "fquery"), r) = (FQUERY, r)
       | lexPragmaKey (ID(_, "compile"), r) = (COMPILE, r) (* -ABP 4/4/03 *)
       | lexPragmaKey (ID(_, "querytabled"), r) = (QUERYTABLED, r)
-      | lexPragmaKey (ID(_, "trustme"), r) = (TRUSTME, r)
       | lexPragmaKey (ID(_, "freeze"), r) = (FREEZE, r)
       | lexPragmaKey (ID(_, "thaw"), r) = (THAW, r)
       | lexPragmaKey (ID(_, "deterministic"), r) = (DETERMINISTIC, r) (* -rv 11/27/01 *)
@@ -378,7 +376,6 @@ struct
     | toString' (ESTABLISH) = "%establish"
     | toString' (ASSERT) = "%assert"
     | toString' (ABBREV) = "%abbrev"
-    | toString' (TRUSTME) = "%trustme"
     | toString' (FREEZE) = "%freeze"
     | toString' (THAW) = "%thaw"
     | toString' (DETERMINISTIC) = "%deterministic"  (* -rv 11/27/01. *)

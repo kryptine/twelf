@@ -20,14 +20,15 @@ functor Interactive
    structure WorldSyn : WORLDSYN
    (*! sharing WorldSyn.IntSyn = IntSyn' !*)
    (*! sharing WorldSyn.Tomega = Tomega' !*)
+   structure StatePrint : STATEPRINT 
+     sharing StatePrint.Formatter = Formatter
+     (*! sharing StatePrint.IntSyn = IntSyn' !*)
+     (*! sharing StatePrint.Tomega = Tomega' !*)
+     sharing StatePrint.State = State'
    structure Introduce : INTRODUCE
    (*! sharing Introduce.IntSyn = IntSyn' !*)
    (*! sharing Introduce.Tomega = Tomega' !*)
      sharing Introduce.State = State'
-   structure Elim : ELIM
-   (*! sharing Elim.IntSyn = IntSyn' !*)
-   (*! sharing Elim.Tomega = Tomega' !*)
-     sharing Elim.State = State'
    structure Split : SPLIT
    (*! sharing Split.IntSyn = IntSyn' !*)
    (*! sharing Split.Tomega = Tomega' !*)
@@ -36,12 +37,10 @@ functor Interactive
    (*! sharing FixedPoint.IntSyn = IntSyn' !*)
    (*! sharing FixedPoint.Tomega = Tomega' !*)
      sharing FixedPoint.State = State'
-   structure Recurse : RECURSE
-     sharing Recurse.State = State'
    structure Fill : FILL
    (*! sharing Fill.IntSyn = IntSyn' !*)
    (*! sharing Fill.Tomega = Tomega' !*)
-     sharing Fill.State = State')
+     sharing Fill.State = State') 
   : INTERACTIVE =
 struct
   (*! structure IntSyn = IntSyn' !*)
@@ -57,9 +56,6 @@ struct
     structure M = ModeSyn
     structure W = WorldSyn
       
-    fun abort s =
-        (print ("* " ^ s ^ "\n");
-	 raise Error s)
 
     (* this is pretty preliminary:
        I think we should just adapt the internal representation for formulas
@@ -144,20 +140,11 @@ struct
     | Fill      of Fill.operator
     | Introduce of Introduce.operator
     | Fix       of FixedPoint.operator
-    | Recurse   of Recurse.operator
-    | Elim      of Elim.operator
 
-    val Open : (S.State list) ref = ref []
-
-    val Menu : MenuItem list option ref = ref NONE
-      
-
-    fun SplittingToMenu (O, A) = Split O :: A
-
-    fun initOpen () = (Open := [])
-
-(*    val Solved : S.State Ring.ring ref = ref (Ring.init [])
+    val Open : S.State Ring.ring ref = ref (Ring.init [])
+    val Solved : S.State Ring.ring ref = ref (Ring.init [])
     val History : (S.State Ring.ring * S.State Ring.ring) list ref = ref nil 
+    val Menu : MenuItem list option ref = ref NONE
   
     fun initOpen () = Open := Ring.init [];
     fun initSolved () = Solved := Ring.init [];
@@ -184,6 +171,15 @@ struct
 	      Solved := Solved')
 
 
+    fun abort s =
+        (print ("* " ^ s ^ "\n");
+	 raise Error s)
+
+    fun reset () = 
+        (initOpen ();
+	 initSolved ();
+	 History := nil;
+	 Menu := NONE)
 
     fun cLToString (nil) = ""
       | cLToString (c :: nil) = 
@@ -204,18 +200,32 @@ struct
     fun RecursionToMenu (O, A) = (* Recursion O :: *) A
 
     fun InferenceToMenu (O, A) = (* Inference O :: *) A
-*)
+
+    fun menu () = 
+	if empty () then Menu := NONE
+	else 
+	  let 
+	    val S = current ()
+	    val SplitO = Split.expand S
+	    val IntroO = Introduce.expand S
+	    val FixO = FixedPoint.expand S
+(*	    val InfO = Inference.expand S
+	    val RecO = MTPRecursion.expand S *) 
+	    val FillO = Fill.expand S 
+	  in
+	    Menu := SOME (FillingToMenu (FillO,
+			  IntroduceToMenu (IntroO, 
+			  SplittingToMenu (SplitO, 
+			  FixedPointToMenu (FixO, 
+			  nil)))))
+(*	    Menu := SOME (FillingToMenu (FillO,
+					 RecursionToMenu (RecO, 
+							  InferenceToMenu (InfO,
+									   SplittingToMenu (SplitO, nil))))) *)
+	  end
 
 
-    fun normalize () =
-        (case (!Open) 
-	  of (S.State (W, Psi, P, F) :: Rest) =>
-	      (Open := (S.State (W, Psi, T.derefPrg P, F) :: Rest))
-	   | _ => ())
-	
-    fun reset () = 
-        (initOpen ();
-	 Menu := NONE)
+
 
     fun format k = 
         if k < 10 then (Int.toString k) ^ ".  "
@@ -248,13 +258,13 @@ struct
 	      in 
 		s ^ "\n  " ^ (format k) ^ (FixedPoint.menu O)
 	      end
-	    | menuToString' (k, Elim O :: M) =
+(*	    | menuToString' (k, Recursion O :: M,kOopt) =
 	      let 
-		val s = menuToString' (k+1, M)
+		val (kopt, s) = menuToString' (k+1, M, kOopt)
 	      in
-		s ^ "\n  " ^ (format k) ^ (Elim.menu O)
+		(kopt, s ^ "\n  " ^ (format k) ^ (MTPRecursion.menu O))
 	      end
-(*	    | menuToString' (k, Inference O :: M,kOopt) =
+	    | menuToString' (k, Inference O :: M,kOopt) =
 	      let 
 		val (kopt, s) = menuToString' (k+1, M, kOopt)
 	      in
@@ -269,174 +279,123 @@ struct
 
     fun printStats () = 
         let
-	  val nopen   = 0
-	  val nsolved = 0
+	  val nopen   = Ring.foldr (fn (a, b) => b+1) 0 (!Open)
+	  val nsolved = Ring.foldr (fn (a, b) => b+1) 0 (!Solved)
 	in
 	  (print "Statistics:\n\n";
 	   print ("Number of goals : " ^ (Int.toString (nopen + nsolved)) ^"\n");
 	   print ("     open goals : " ^ (Int.toString (nopen)) ^ "\n");
 	   print ("   solved goals : " ^ (Int.toString (nsolved)) ^ "\n"))
 	end
-
-    fun printmenu () =
-        (case !Open
-           of [] => abort "QED"
-	    | (S.State (W, Psi, P, F) :: R) => 
-		  (print ("\n=======================");
-		   print ("\n= META THEOREM PROVER =\n");
-		   print (TomegaPrint.ctxToString (Psi));
-		   print ("\n-----------------------\n");
-		   print (TomegaPrint.forToString (Psi, F));
-		   print ("\n-----------------------\n");
-		   print (TomegaPrint.prgToString (Psi, P));
-		   print ("\n-----------------------");
-		   print (menuToString ());
-		   print ("\n=======================\n"))
-	    | (S.StateLF (X as I.EVar (r, G, V, Cs)) :: R) => 
-		  (print ("\n=======================");
-		   print ("\n=== THEOREM PROVER ====\n");
-		   print (Print.ctxToString (I.Null, G));
-		   print ("\n-----------------------\n");
-		   print (Print.expToString (G, V));
-		   print ("\n-----------------------\n");
-		   print (Print.expToString (G, X));
-		   print ("\n-----------------------");
-		   print (menuToString ());
-		   print ("\n=======================\n")))
-
-	      
-
-    fun menu () = 
-        (case (!Open) 
-	   of [] => print "Please initialize first\n"
-            | (S.State (W, Psi, P, F) :: _) =>
-  	      let 
-		val Xs = S.collectT P
-		val F1 = map (fn (T.EVar (Psi, r, F, TC, TCs)) => (Names.varReset I.Null; 
-							     S.Focus (T.EVar (TomegaPrint.nameCtx Psi, r, F, TC, TCs), W))) Xs
-		val Ys = S.collectLF P
-		val F2 = map (fn Y => S.FocusLF Y) Ys
-
-		fun splitMenu [] = []
-		  | splitMenu (operators :: l) = map Split operators @ splitMenu l
- 
-		val split = splitMenu (map Split.expand F1) 
-
-		fun introMenu [] = []
-		  | introMenu ((SOME oper) :: l) = (Introduce oper) :: introMenu l
-		  | introMenu (NONE :: l) = introMenu l
-
-		val intro = introMenu (map Introduce.expand F1)
-
-		val fill = foldr (fn (S, l) => l @ map (fn O => Fill O) (Fill.expand S)) nil F2 
-	     
-		fun elimMenu [] = []
-		  | elimMenu (operators :: l) = map Elim operators @ elimMenu l
-
-		val elim = elimMenu (map Elim.expand F1)
-
-	      in
-		Menu := SOME (intro @ split @ fill @ elim)
- 	      end
-	    | (S.StateLF Y :: _) => 
-	      let
-		val Ys = Abstract.collectEVars (I.Null, (Y, I.id), nil)
-		val F2 = map (fn Y => S.FocusLF Y) Ys
-		val fill = foldr (fn (S, l) => l @ map (fn O => Fill O) (Fill.expand S)) nil F2 
-	      in
-		Menu := SOME (fill)		
-	      end)
-	   
+    fun printMenu () = 
+	if empty () then (print "[QED]\n")
+	else 
+	  let 
+	    val S = current ()
+	  in 
+	    (print "\n";
+	     print (StatePrint.stateToString S);
+	     print "\nSelect from the following menu:\n";
+	     print (menuToString ());
+	     print "\n")
+	  end
 
     fun select k =
 	let 
 	  fun select' (k, nil) = abort ("No such menu item")
 	    | select' (1, Split O :: _) = 
-	        (Timers.time Timers.splitting Split.apply) O
+		let 
+		  val S' = (Timers.time Timers.splitting Split.apply) O  
+		  val _ = pushHistory ()
+		  val _ = delete ()
+		  val _ = map (fn S => insert (StatePrint.nameState S)) S'
+		in
+		  (menu (); printMenu ())
+		end
 	    | select' (1, Introduce O :: _) =
-		Introduce.apply O    (* no timer yet -- cs *)
-(*	    | select' (1, Fix O :: _) =
-		FixedPoint.apply O    (* no timer yet -- cs *)
-*)	    | select' (1, Fill O :: _) =
-		(Timers.time Timers.filling Fill.apply) O
+		let 
+		  val S = Introduce.apply O    (* no timer yet -- cs *)
+		  val _ = pushHistory ()
+		  val _ = delete ()
+		  val _ = insert (StatePrint.nameState S)
+		in
+		  (menu (); printMenu ())
+		end
+	    | select' (1, Fix O :: _) =
+		let 
+		  val S = FixedPoint.apply O    (* no timer yet -- cs *)
+		  val _ = pushHistory ()
+		  val _ = delete ()
+		  val _ = insert (StatePrint.nameState S)
+		in
+		  (menu (); printMenu ())
+		end
+(*	    | select' (1, Recursion O :: _) = 
+		let 
+		  val S' = (Timers.time Timers.recursion MTPRecursion.apply) O  
+		  val _ = pushHistory ()
+		  val _ = delete ()
+		  val _ = insert (MTPrint.nameState S')
+		in
+		  (menu (); printMenu ())
+		end
+	    | select' (1, Inference O :: _) = 
+		let 
+		  val S' = (Timers.time Timers.recursion Inference.apply) O  
+		  val _ = pushHistory ()
+		  val _ = delete ()
+		  val _ = insert (MTPrint.nameState S')
+		in
+		  (menu (); printMenu ())
+		end
+*)
+	    | select' (1, Fill O :: _) =
+		let 
+		  val S' = (Timers.time Timers.filling Fill.apply) O
+		    handle Fill.Error _ =>  abort ("Filling unsuccessful: no object found")
+(*		  val _ = printFillResult P *)
+		  val _ = pushHistory ()
+		  val _ = delete ()
+		  val _ = if S.close S' then insertSolved (StatePrint.nameState S') else insert (StatePrint.nameState S')
+		in
+		  (menu (); printMenu ())
+		end
 	    | select' (k, _ :: M) = select' (k-1, M) 
 	in
 	  (case !Menu of 
 	    NONE => raise Error "No menu defined"
-	  | SOME M => (select' (k, M); normalize (); menu (); printmenu())
-	     handle S.Error s => ())
+	  | SOME M => select' (k, M))
+	     handle S.Error s => ()
 	end
 
-      
+    fun next () = (nextOpen (); menu (); printMenu ())
+
+    fun undo () = (popHistory (); menu (); printMenu ())
+
     fun init names = 
 	let 
-	  val _ = TomegaPrint.evarReset()
+	  val _ = reset ()
 	  val cL = map (fn x => valOf (Names.constLookup (valOf (Names.stringToQid x)))) names
 	  val F = convertFor cL
 	  val Ws = map W.lookup cL
-	  fun select c = (Order.selLookup c handle _ => Order.Lex [])
-
-	  val TC = Tomega.transformTC (I.Null, F, map select cL)
 	  (* so far omitted:  make sure that all parts of the theorem are
 	     declared in the same world 
           *)
 	  val (W :: _) = Ws
-	  val _ = Open :=  [S.init (F, W)]
-	  val P = (case (!Open) 
-		     of [] => abort "Initialization of proof goal failed\n"
-		   | (S.State (W, Psi, P, F) :: _) => P)
-	  val Xs = S.collectT P
-	  val F = map (fn (T.EVar (Psi, r, F, TC, TCs)) => (Names.varReset I.Null; 
-						    S.Focus (T.EVar (TomegaPrint.nameCtx Psi, r, F, TC, TCs), W))) Xs
-	  val [Ofix] = map (fn f => (FixedPoint.expand (f, TC))) F
-	  val _ = FixedPoint.apply Ofix 
-	  val _ = normalize ();
-	  val _ = menu ()
-	  val _ = printmenu ()
+	  val S = S.init (F, W)
 	in
-	  ()
+	  (insert (StatePrint.nameState S);
+	   menu ();
+	   printMenu ())
 	end
-
-
-
-    fun focus n = 
-      (case (List.find (fn (Y, m) => n = m)) (Names.namedEVars ())
-	of NONE => let
-		    val (X as T.EVar (Psi, r, F, _, _)) = TomegaPrint.evarName n
-		    val (S.State (W, _, _ , _) :: _) = ! Open
-		    val Psi' = TomegaPrint.nameCtx Psi
-		    val _ = Open := (S.State (W, Psi', X, F) :: !Open)
-		    (* think about the O here ... *)
-		    val _ = normalize ()
-		    val _ = menu ()
-		    val _ = printmenu ()
-		  in
-		    ()
-		  end
-      | SOME (Y, _) => let 
-		      val _ = Open := (S.StateLF Y :: !Open)
-  	 	      val _ = normalize ()
-		      val _ = menu ()
-		      val _ = printmenu ()
-		    in
-		      ()
-		    end)
-
-
-    fun return () = 
-      (case (!Open)
-	of [S] => if S.close S then print "[Q.E.D.]\n" else ()
-	 | (S :: Rest) => (Open := Rest ; normalize (); menu (); printmenu ()))
-	
-	  
 
   in
     val init = init
     val select = select
-    val print = printmenu
+    val print = printMenu
     val stats = printStats
+    val next = next
     val reset = reset
-    val focus = focus
-    val return = return
+    val undo = undo
   end
 end (* functor Interactive *)

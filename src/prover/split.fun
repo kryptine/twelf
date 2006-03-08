@@ -41,7 +41,7 @@ struct
     structure S = State'
       
     datatype Operator = 
-      Split of T.Prg option ref * T.Prg * string
+      Split of S.State list * string
 
     (* weaken (G, a) = w'
 
@@ -341,16 +341,16 @@ struct
 	in
 	  (T.Dot (T.Block L, t'), Xs)
 	end
-      | createSub (I.Decl (Psi, T.PDec (_, F, TC1, TC2))) =
+      | createSub (I.Decl (Psi, T.PDec (_, F))) =
 	let (* p > 0 *)
 	  val (t', Xs) = createSub Psi
-	  val XX = T.newEVarTC (I.Null, T.FClo (F, t'), TC1, TC2)
+	  val XX = T.newEVar (I.Null, T.FClo (F, t'))
 	in
 	  (T.Dot (T.Prg XX, t'), Xs)
 	end
 
 
-    (* mkCases L F= Ss 
+    (* mkStates L F= Ss 
 
        Invariant:
        If   L is a list of cases (Psi1, t1) .... (Psin, tn)
@@ -361,14 +361,9 @@ struct
        where  Psii |- Fi = F [ti]  formula 
     *)
 
-    fun mkCases (nil, F) = nil
-      | mkCases ((Psi, t) :: cs, F) = 
-        let
-	  val X = T.newEVar (Psi, T.FClo (F, t))
-	in
-	  (Psi, t, X) :: mkCases (cs, F)
-	end
-
+    fun mkStates (nil, F, W) = nil
+      | mkStates ((Psi, t) :: cs, F, W) = 
+          (S.State ((Psi, T.FClo (F, t)), W)) :: mkStates (cs, F, W)
 
     (* split S = S1 ... Sn
 
@@ -386,29 +381,8 @@ struct
 		 and  t = t' [si]
     *)
 
-    fun split (S.Focus (T.EVar (Psi, r, F, NONE, NONE), W)) =
+    fun split (S.State ((Psi, F), W)) =
       let
-	fun splitXs (G, i) (nil, _, _, _) = nil
-	  | splitXs (G, i) (X :: Xs, F, W, sc) =
-  	    let
-	      val _ = if !Global.chatter >= 6
-			then print ("Split " ^ Print.expToString (I.Null, X) ^ ".\n")
-		      else ()
-	      val Os = splitXs (G,i+1) (Xs, F, W, sc)    (* returns a list of operators *)
-	      val _ = resetCases ()
-	      val s = Print.decToString (G, I.ctxDec (G, i))
-	      val Os' = (splitEVar (X, W, sc);   
-			 Split (r, T.Case (T.Cases (mkCases (getCases (), F))), s) :: Os)
-		handle  Constraints.Error (constrs) => 
-		  (if !Global.chatter >= 6	
-		     then print ("Inactive split:\n" ^ Print.cnstrsToString (constrs) ^ "\n")
-		   else ();
-		     Os)
-	    in
-	      Os'
-	    end
-	  
-
 	val (t, Xs) = createSub Psi   (* this t will be used in the case proof term *)
 	fun init () =  addCase (Abstract.abstractTomegaSub t)
 	val G = T.coerceCtx Psi
@@ -416,6 +390,26 @@ struct
       in
 	Os
       end
+    and splitXs (G, i) (nil, _, _, _) = nil
+      | splitXs (G, i) (X :: Xs, F, W, sc) =
+        let
+	  val _ = if !Global.chatter >= 6
+		    then print ("Split " ^ Print.expToString (I.Null, X) ^ ".\n")
+		  else ()
+	  val Os = splitXs (G,i+1) (Xs, F, W, sc)    (* returns a list of operators *)
+	  val _ = resetCases ()
+	  val s = Print.decToString (G, I.ctxDec (G, i))
+	  val Os' = (splitEVar (X, W, sc);   
+		     Split (mkStates (getCases (), F, W), s) :: Os)
+	            handle  Constraints.Error (constrs) => 
+		      (if !Global.chatter >= 6	
+			 then print ("Inactive split:\n" ^ Print.cnstrsToString (constrs) ^ "\n")
+		       else ();
+			 Os)
+	in
+	  Os'
+	end
+
 
     fun expand S = split S
       
@@ -427,8 +421,11 @@ struct
        
        Side effect: If Sl contains inactive states, an exception is raised
     *)
-    fun apply (Split (r, P, s)) = (r := SOME P)    (* trailing required -cs Thu Apr 22 12:05:04 2004 *)
-    fun menu (Split (_, _, s)) = "Split " ^ s
+    fun apply (Split (Ss, s)) = Ss
+
+    fun menu (Split (_, s)) = "Split " ^ s
+
+
   in
     type operator = Operator
 

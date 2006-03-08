@@ -7,5 +7,4 @@ structure Compat :> COMPAT =
           structure Path = CompatPath97
 	  structure Substring = CompatSubstring97
 	  structure TextIO = CompatTextIO97
-	  structure Timer = CompatTimer97
-	  structure SocketIO = CompatSocketIO97);
+	  structure Timer = CompatTimer97);

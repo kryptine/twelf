@@ -143,7 +143,6 @@ functor Twelf
 
    structure WorldSyn : WORLDSYN
    (*! sharing WorldSyn.IntSyn = IntSyn' !*)
-   structure Worldify : WORLDIFY
    structure WorldPrint : WORLDPRINT
    (*! sharing WorldPrint.Tomega = Tomega !*)
 
@@ -183,8 +182,6 @@ functor Twelf
    structure CSInstaller : CS_INSTALLER
    structure Compat : COMPAT
    structure UnknownExn : UNKNOWN_EXN
-
-   structure Msg : MSG
      )
  :> TWELF =
 struct
@@ -193,20 +190,17 @@ struct
     (*! structure IntSyn = IntSyn' !*)
     structure S = Parser.Stream
 
-    fun msg s = Msg.message s
-    fun chmsg n s = Global.chMessage n s msg
-
     fun fileOpenMsg (fileName) =
 	(case !Global.chatter
 	   of 0 => ()
-	    | 1 => msg ("[Loading file " ^ fileName ^ " ...")
-	    | _ => msg ("[Opening file " ^ fileName ^ "]\n"))
+	    | 1 => print ("[Loading file " ^ fileName ^ " ...")
+	    | _ => print ("[Opening file " ^ fileName ^ "]\n"))
 
     fun fileCloseMsg (fileName) =
 	(case !Global.chatter
 	   of 0 => ()
-	    | 1 => msg ("]\n")
-	    | _ => msg ("[Closing file " ^ fileName ^ "]\n"))
+	    | 1 => print ("]\n")
+	    | _ => print ("[Closing file " ^ fileName ^ "]\n"))
 
     (* result of a computation *)
     datatype 'a Result = Value of 'a | Exception of exn
@@ -248,28 +242,29 @@ struct
 	else ""
 
     fun printProgTeX () =
-        (msg "\\begin{bigcode}\n";
+        (print "\\begin{bigcode}\n";
 	 ClausePrintTeX.printSgn ();
-	 msg "\\end{bigcode}\n")
+	 print "\\end{bigcode}\n")
 
     fun printSgnTeX () =
-        (msg "\\begin{bigcode}\n";
+        (print "\\begin{bigcode}\n";
 	 PrintTeX.printSgn ();
-         msg "\\end{bigcode}\n")
+         print "\\end{bigcode}\n")
 
     (* status ::= OK | ABORT  is the return status of various operations *)
     datatype Status = OK | ABORT
 
-    fun abort chlev (msg) = (chmsg chlev (fn () => msg); ABORT)
-    fun abortFileMsg chlev (fileName, msg) = abort chlev (fileName ^ ":" ^ msg ^ "\n")
+    fun abort (msg) = (print (msg); ABORT)
+    fun abortFileMsg (fileName, msg) = abort (fileName ^ ":" ^ msg ^ "\n")
 
-    fun abortIO (fileName, {cause = OS.SysErr (m, _), function = f, name = n}) =
-	(msg ("IO Error on file " ^ fileName ^ ":\n" ^ m ^ "\n");
+    fun abortIO (fileName, {cause = OS.SysErr (msg, _), function = f, name = n}) =
+	(print ("IO Error on file " ^ fileName ^ ":\n" ^ msg ^ "\n");
 	 ABORT)
       | abortIO (fileName, {function = f, ...}) =
-	(msg ("IO Error on file " ^ fileName ^ " from function "
+	(print ("IO Error on file " ^ fileName ^ " from function "
 		       ^ f ^ "\n");
 	 ABORT)
+
 
     (* should move to paths, or into the prover module... but not here! -cs *)
     fun joinregion (r, nil) = r
@@ -281,51 +276,49 @@ struct
     fun constraintsMsg (cnstrL) =
         "Typing ambiguous -- unresolved constraints\n" ^ Print.cnstrsToString cnstrL
 
-    (* val handleExceptions : int -> string -> ('a -> Status) -> 'a -> Status *)
-    (* handleExceptions chlev filename f x = f x
+    (* val handleExceptions : string -> ('a -> Status) -> 'a -> Status *)
+    (* handleExceptions filename f x = f x
        where standard exceptions are handled and an appropriate error message is
-       issued if chatter level is greater or equal to chlev.
-       Unrecognized exceptions are re-raised.
+       issued.  Unrecognized exceptions are re-raised.
     *)
-    fun handleExceptions chlev fileName (f:'a -> Status) (x:'a) =
+    fun handleExceptions fileName (f:'a -> Status) (x:'a) =
 	(f x
-	 handle ReconTerm.Error (msg) => abortFileMsg chlev (fileName, msg)
-	      | ReconConDec.Error (msg) => abortFileMsg chlev (fileName, msg)
-	      | ReconQuery.Error (msg) => abortFileMsg chlev (fileName, msg)
-	      | ReconMode.Error (msg) => abortFileMsg chlev (fileName, msg)
-	      | ReconThm.Error (msg) => abortFileMsg chlev (fileName, msg)
-              | ReconModule.Error (msg) => abortFileMsg chlev (fileName, msg)
-	      | TypeCheck.Error (msg) => abort 0 ("Double-checking types fails: " ^ msg ^ "\n"
+	 handle ReconTerm.Error (msg) => abortFileMsg (fileName, msg)
+	      | ReconConDec.Error (msg) => abortFileMsg (fileName, msg)
+	      | ReconQuery.Error (msg) => abortFileMsg (fileName, msg)
+	      | ReconMode.Error (msg) => abortFileMsg (fileName, msg)
+	      | ReconThm.Error (msg) => abortFileMsg (fileName, msg)
+              | ReconModule.Error (msg) => abortFileMsg (fileName, msg)
+	      | TypeCheck.Error (msg) => abort ("Double-checking types fails: " ^ msg ^ "\n"
 						^ "This indicates a bug in Twelf.\n")
-	      | Abstract.Error (msg) => abortFileMsg chlev (fileName, msg)
+	      | Abstract.Error (msg) => abortFileMsg (fileName, msg)
 	      (* | Constraints.Error (cnstrL) => abortFileMsg (fileName, constraintsMsg cnstrL) *)
-	      | Total.Error (msg) => abort chlev (msg ^ "\n")	(* Total includes filename *)
-	      | Reduces.Error (msg) => abort chlev (msg ^ "\n") (* Reduces includes filename *)
-              | Compile.Error (msg) => abortFileMsg chlev (fileName, msg)
-	      | Thm.Error (msg) => abortFileMsg chlev (fileName, msg)
-	      | ModeTable.Error (msg) => abortFileMsg chlev (fileName, msg)
-	      | ModeCheck.Error (msg) => abort chlev (msg ^ "\n") (* ModeCheck includes filename *)
-	      | ModeDec.Error (msg) => abortFileMsg chlev (fileName, msg)
-              | Unique.Error (msg) => abortFileMsg chlev (fileName, msg)
-              | Cover.Error (msg) => abortFileMsg chlev (fileName, msg)
-	      | Parsing.Error (msg) => abortFileMsg chlev (fileName, msg)
-	      | Lexer.Error (msg) => abortFileMsg chlev (fileName, msg)
-	      | IntSyn.Error (msg) => abort chlev ("Signature error: " ^ msg ^ "\n")
-	      | Names.Error (msg) => abortFileMsg chlev (fileName, msg)
+	      | Total.Error (msg) => abort (msg ^ "\n")	(* Total includes filename *)
+	      | Reduces.Error (msg) => abort (msg ^ "\n") (* Reduces includes filename *)
+              | Compile.Error (msg) => abortFileMsg (fileName, msg)
+	      | Thm.Error (msg) => abortFileMsg (fileName, msg)
+	      | ModeTable.Error (msg) => abortFileMsg (fileName, msg)
+	      | ModeCheck.Error (msg) => abort (msg ^ "\n") (* ModeCheck includes filename *)
+	      | ModeDec.Error (msg) => abortFileMsg (fileName, msg)
+              | Unique.Error (msg) => abortFileMsg (fileName, msg)
+              | Cover.Error (msg) => abortFileMsg (fileName, msg)
+	      | Parsing.Error (msg) => abortFileMsg (fileName, msg)
+	      | Lexer.Error (msg) => abortFileMsg (fileName, msg)
+	      | IntSyn.Error (msg) => abort ("Signature error: " ^ msg ^ "\n")
+	      | Names.Error (msg) => abortFileMsg (fileName, msg)
 	      (* - Not supported in polyML ABP - 4/20/03 
  	      * | IO.Io (ioError) => abortIO (fileName, ioError)
 	      *)
-	      | Solve.AbortQuery (msg) => abortFileMsg chlev (fileName, msg)
-	      | ThmSyn.Error (msg) => abortFileMsg chlev (fileName, msg)
-	      | Prover.Error (msg) => abortFileMsg chlev (fileName, msg)
-	      | Strict.Error (msg) => abortFileMsg chlev (fileName, msg)
-              | Subordinate.Error (msg) => abortFileMsg chlev (fileName, msg)
-	      | WorldSyn.Error (msg) => abort chlev (msg ^ "\n") (* includes filename *)
-	      | Worldify.Error (msg) => abort chlev (msg ^ "\n") (* includes filename *)
-              | ModSyn.Error (msg) => abortFileMsg chlev (fileName, msg)
-	      | Converter.Error (msg) => abortFileMsg chlev (fileName, msg)
-              | CSManager.Error (msg) => abort chlev ("Constraint Solver Manager error: " ^ msg ^ "\n")
-	      | exn => (abort 0 (UnknownExn.unknownExn exn); raise exn))
+	      | Solve.AbortQuery (msg) => abortFileMsg (fileName, msg)
+	      | ThmSyn.Error (msg) => abortFileMsg (fileName, msg)
+	      | Prover.Error (msg) => abortFileMsg (fileName, msg)
+	      | Strict.Error (msg) => abortFileMsg (fileName, msg)
+              | Subordinate.Error (msg) => abortFileMsg (fileName, msg)
+	      | WorldSyn.Error (msg) => abort (msg ^ "\n") (* includes filename *)
+              | ModSyn.Error (msg) => abortFileMsg (fileName, msg)
+	      | Converter.Error (msg) => abortFileMsg (fileName, msg)
+              | CSManager.Error (msg) => abort ("Constraint Solver Manager error: " ^ msg ^ "\n")
+	      | exn => (abort (UnknownExn.unknownExn exn); raise exn))
 
     (* During elaboration of a signature expression, each constant
        that that the user declares is added to this table.  At top level,
@@ -395,7 +388,7 @@ struct
           fun installAction (data as (cid, _)) =
               (installConst IntSyn.Ordinary data;
 	       if !Global.chatter >= 4
-                 then msg (Print.conDecToString (IntSyn.sgnLookup cid) ^ "\n")
+                 then print (Print.conDecToString (IntSyn.sgnLookup cid) ^ "\n")
                else ())
 
 
@@ -412,7 +405,7 @@ struct
           fun installAction (data as (cid, _)) =
               (installConst IntSyn.Ordinary data;
 	       if !Global.chatter >= 4
-                 then msg (Print.conDecToString (IntSyn.sgnLookup cid) ^ "\n")
+                 then print (Print.conDecToString (IntSyn.sgnLookup cid) ^ "\n")
                else ())
 
           val _ = ModSyn.installSig (module, !context,
@@ -430,7 +423,7 @@ struct
 	  val uninstalledCids = List.filter (fn a => uninstallFun a) cids
 	  val _ = case uninstalledCids
                     of nil => ()
-                     | _ => chmsg 4
+                     | _ => Global.chPrint 4
 		            (fn () => "Invalidated " ^ msg ^ " properties of families"
 			     ^ List.foldr (fn (a,s) => " " ^ cidToString a ^ s) "\n"
 			     uninstalledCids)
@@ -556,21 +549,6 @@ struct
 	 handle Solve.AbortQuery (msg)
 	        => raise Solve.AbortQuery (Paths.wrap (r, msg)))
 
-      (* %trustme <decl> *)
-      | install1 (fileName, (Parser.TrustMe(dec,r'), r)) =
-	let 
-          val _ = if not (!Global.unsafe)
-		    then raise Thm.Error("%trustme not safe: Toggle `unsafe' flag")
-		  else ()
-	  val _ = chmsg 3 (fn () => "[%trustme ...\n")
-	  val _ = case handleExceptions 4 fileName (fn args => (install1 args; OK)) (fileName, (dec, r))
-		   of OK => chmsg 3 (fn () => "trustme subject succeeded\n")
-		    | ABORT => chmsg 3 (fn () => "trustme subject failed; continuing\n")
-          val _ = chmsg 3 (fn () => "%]\n")
-	in
-	  ()
-	end
-
       (* %freeze <qid> ... *)
       | install1 (fileName, (Parser.FreezeDec (qids), r)) = 
         let
@@ -589,11 +567,11 @@ struct
         in
 	  (* Subordinate.installFrozen cids *)
           if !Global.chatter >= 3
-          then msg ("%freeze"
+          then print ("%freeze"
                       ^ List.foldr (fn (a, s) => " " ^ Names.qidToString (Names.constQid a) ^ s) ".\n" cids)
           else ();
 	  if !Global.chatter >= 4
-	    then msg ("Frozen:" ^ List.foldr (fn (a,s) => " " ^ Names.qidToString (Names.constQid a) ^ s) "\n" frozen)
+	    then print ("Frozen:" ^ List.foldr (fn (a,s) => " " ^ Names.qidToString (Names.constQid a) ^ s) "\n" frozen)
 	  else ()
         end
 
@@ -612,11 +590,11 @@ struct
 			handle Subordinate.Error(msg) =>
 			  raise Subordinate.Error (Paths.wrap (r, msg))
 	  val _ = if !Global.chatter >= 3
-		    then msg ("%thaw"
+		    then print ("%thaw"
 				^ List.foldr (fn (a, s) => " " ^ cidToString a ^ s) ".\n" cids)
 		  else ()
 	  val _ = if !Global.chatter >= 4
-		    then msg ("Thawed" ^ List.foldr (fn (a,s) => " " ^ cidToString a ^ s) "\n" thawed)
+		    then print ("Thawed" ^ List.foldr (fn (a,s) => " " ^ cidToString a ^ s) "\n" thawed)
 		  else ()
           (* invalidate prior meta-theoretic properteis of signatures *)
 	  (* exempt only %mode [incremental], %covers [not stored] *)
@@ -646,7 +624,7 @@ struct
         in
           List.map insertCid cids;
           if !Global.chatter >= 3
-          then msg ((if !Global.chatter >= 4 then "%" else "")
+          then print ((if !Global.chatter >= 4 then "%" else "")
                       ^ "%deterministic"
                       ^ List.foldr (fn (a, s) => " " ^ Names.qidToString (Names.constQid a) ^ s) ".\n" cids)
           else ()
@@ -686,13 +664,13 @@ struct
 	  fun f cid = IntSyn.conDecName (IntSyn.sgnLookup cid)
 
 	  val _ = if !Global.chatter >= 2 
-		    then msg ("\n" ^ 
+		    then print ("\n" ^ 
 				TomegaPrint.funToString ((map f cids, projs), P)
 				^ "\n")
 		  else ()
 
           val _ = if !Global.chatter >= 3
-		    then msg ((if !Global.chatter >= 4 then "%" else "")
+		    then print ((if !Global.chatter >= 4 then "%" else "")
 				^ "%compile"
 				^ List.foldr (fn (a, s) => " " ^ Names.qidToString (Names.constQid a) ^ s) ".\n" cids)
 		  else ()
@@ -708,7 +686,7 @@ struct
                                          ^ " in fixity declaration")
             | SOME cid => (Names.installFixity (cid, fixity);
                            if !Global.chatter >= 3
-                             then msg ((if !Global.chatter >= 4 then "%" else "")
+                             then print ((if !Global.chatter >= 4 then "%" else "")
                                          ^ Names.Fixity.toString fixity ^ " "
                                          ^ Names.qidToString (Names.constQid cid) ^ ".\n")
                            else ())
@@ -747,7 +725,7 @@ struct
 			    handle ModeCheck.Error (msg) => raise ModeCheck.Error (msg))
 	          mdecs
 	  val _ = if !Global.chatter >= 3 
-		    then msg ("%mode " ^ ModePrint.modesToString
+		    then print ("%mode " ^ ModePrint.modesToString
 				           (List.map (fn (mdec, r) => mdec) mdecs)
 					 ^ ".\n")
 		  else ()		   
@@ -773,7 +751,7 @@ struct
 	          mdecs
           (* %unique does not auto-freeze, since family must already be frozen *)
 	  val _ = if !Global.chatter >= 3 
-		    then msg ("%unique " ^ ModePrint.modesToString
+		    then print ("%unique " ^ ModePrint.modesToString
 				           (List.map (fn (mdec, r) => mdec) mdecs)
 					 ^ ".\n")
 		  else ()
@@ -791,7 +769,7 @@ struct
 			    handle Cover.Error (msg) => raise Cover.Error (Paths.wrap (r, msg)))
 	          mdecs
 	  val _ = if !Global.chatter >= 3
-		    then msg ("%covers " ^ ModePrint.modesToString
+		    then print ("%covers " ^ ModePrint.modesToString
 				             (List.map (fn (mdec, r) => mdec) mdecs)
 					   ^ ".\n")
 		  else ()
@@ -866,7 +844,7 @@ struct
 *)
           (* %total does not auto-freeze, since the predicate must already be frozen *)
 	  val _ = if !Global.chatter >= 3
-		    then msg ("%total " ^ ThmPrint.tDeclToString T ^ ".\n")
+		    then print ("%total " ^ ThmPrint.tDeclToString T ^ ".\n")
 		  else ()
 	in
 	  ()
@@ -893,7 +871,7 @@ struct
   	  val _ = map (Timers.time Timers.terminate Reduces.checkFam) La   
 	  val _ = if !Global.autoFreeze then (Subordinate.freeze La; ()) else ()
 	  val _ = if !Global.chatter >= 3 
-		    then msg ("%terminates " ^ ThmPrint.tDeclToString T ^ ".\n")
+		    then print ("%terminates " ^ ThmPrint.tDeclToString T ^ ".\n")
 		  else ()
 	in
 	  ()
@@ -922,7 +900,7 @@ struct
 	  val _ = map (Timers.time Timers.terminate Reduces.checkFamReduction) La
 	  val _ = if !Global.autoFreeze then (Subordinate.freeze La; ()) else ()
 	  val _ = if !Global.chatter >= 3 
-		    then msg ("%reduces " ^ ThmPrint.rDeclToString R ^ ".\n")
+		    then print ("%reduces " ^ ThmPrint.rDeclToString R ^ ".\n")
 		  else ()
 	in
 	  ()
@@ -935,7 +913,7 @@ struct
 	  val La = Thm.installTabled T
 	  (*  -bp6/12/99.   *)
 	  val _ = if !Global.chatter >= 3 
-		    then msg ("%tabled " ^ ThmPrint.tabledDeclToString T ^ ".\n")
+		    then print ("%tabled " ^ ThmPrint.tabledDeclToString T ^ ".\n")
 		  else ()
 	in
 	  ()
@@ -947,7 +925,7 @@ struct
 	  val (T,r) = ReconThm.keepTabledeclToktDecl tdecl 
 	  val La = Thm.installKeepTable T
 	  val _ = if !Global.chatter >= 3 
-		    then msg ("%keeptabled " ^ ThmPrint.keepTableDeclToString T ^ ".\n")
+		    then print ("%keeptabled " ^ ThmPrint.keepTableDeclToString T ^ ".\n")
 		  else ()
 	in
 	  ()
@@ -968,7 +946,7 @@ struct
 	  val MS = ThmSyn.theoremDecToModeSpine (Tdec, r)
 	  val _ = ModeTable.installMode (cid, MS)
 	  val _ = if !Global.chatter >= 3
-		    then msg ("%theorem " ^ Print.conDecToString E ^ "\n")
+		    then print ("%theorem " ^ Print.conDecToString E ^ "\n")
 		  else ()
 	in
 	  ()
@@ -980,12 +958,12 @@ struct
 	  val (ThmSyn.PDecl (depth, T), rrs) = ReconThm.proveToProve lterm 
 	  val La = Thm.installTerminates (T, rrs)  (* La is the list of type constants *)
 	  val _ = if !Global.chatter >= 3 
-		    then msg ("%prove " ^ (Int.toString depth) ^ " " ^
+		    then print ("%prove " ^ (Int.toString depth) ^ " " ^
 				       (ThmPrint.tDeclToString T) ^ ".\n")
 		  else ()
 	  val _ = Prover.init (depth, La)
 	  val _ = if !Global.chatter >= 3 
-		    then map (fn a => msg ("%mode " ^ 
+		    then map (fn a => print ("%mode " ^ 
 					     (ModePrint.modeToString (a, valOf (ModeTable.modeLookup a)))
 					     ^ ".\n")) La   (* mode must be declared!*)
 		  else [()]
@@ -994,7 +972,7 @@ struct
 	          handle Prover.Error msg
 		         => raise Prover.Error (Paths.wrap (joinregion rrs, msg)) (* times itself *)
 	  val _ = if !Global.chatter >= 3 
-		    then msg ("%QED\n")
+		    then print ("%QED\n")
 		  else ()
 		    
 	in
@@ -1008,12 +986,12 @@ struct
 	  val (ThmSyn.PDecl (depth, T), rrs) = ReconThm.establishToEstablish lterm 
 	  val La = Thm.installTerminates (T, rrs)  (* La is the list of type constants *)
 	  val _ = if !Global.chatter >= 3 
-		    then msg ("%prove " ^ (Int.toString depth) ^ " " ^
+		    then print ("%prove " ^ (Int.toString depth) ^ " " ^
 				       (ThmPrint.tDeclToString T) ^ ".\n")
 		  else ()
 	  val _ = Prover.init (depth, La)
 	  val _ = if !Global.chatter >= 3 
-		    then map (fn a => msg ("%mode " ^ 
+		    then map (fn a => print ("%mode " ^ 
 					     (ModePrint.modeToString (a, valOf (ModeTable.modeLookup a)))
 					     ^ ".\n")) La   (* mode must be declared!*)
 		  else [()]
@@ -1033,10 +1011,10 @@ struct
 	  val (cp as ThmSyn.Callpats (L), rrs) = ReconThm.assertToAssert aterm 
 	  val La = map (fn (c, P) => c) L  (* La is the list of type constants *)
 	  val _ = if !Global.chatter >= 3 
-		    then msg ("%assert " ^ (ThmPrint.callpatsToString cp) ^ ".\n")
+		    then print ("%assert " ^ (ThmPrint.callpatsToString cp) ^ ".\n")
 		  else ()
 	  val _ = if !Global.chatter >= 3 
-		    then map (fn a => msg ("%mode " ^ 
+		    then map (fn a => print ("%mode " ^ 
 					     (ModePrint.modeToString (a, valOf (ModeTable.modeLookup a)))
 					     ^ ".\n")) La   (* mode must be declared!*)
 		  else [()]
@@ -1069,15 +1047,11 @@ struct
 		    then (Subordinate.freeze (List.map (fn (a, _) => a) cpa) ; ())
 		  else ()
 	  val _ = if !Global.chatter >= 3 
-		    then msg ("%worlds " ^ WorldPrint.worldsToString W ^ " "
+		    then print ("%worlds " ^ WorldPrint.worldsToString W ^ " "
 				^ ThmPrint.callpatsToString cp ^ ".\n")
 		  else ()
 	in
-	  (Timers.time Timers.worlds (map (fn (a, _) => WorldSyn.worldcheck W a)) cpa ; ()
-	   (*if !Global.doubleCheck 
-	     then (map (fn (a,_) => Worldify.worldify a) cpa; ())
-	   else  ()  --cs Sat Aug 27 22:04:29 2005 *))
-	  
+	  (Timers.time Timers.worlds (map (fn (a, _) => WorldSyn.worldcheck W a)) cpa ; ())
 	end
       | install1 (fileName, declr as (Parser.SigDef _, _)) =
           install1WithSig (fileName, NONE, declr)
@@ -1105,7 +1079,7 @@ struct
                          | NONE => "_" (* anonymous *))
                   handle ModSyn.Error msg => raise ModSyn.Error (Paths.wrap (r, msg))
 	  val _ = if !Global.chatter >= 3 
-		    then msg ("%sig " ^ name ^ " = { ... }.\n")
+		    then print ("%sig " ^ name ^ " = { ... }.\n")
 		  else ()
         in
           ()
@@ -1122,7 +1096,7 @@ struct
                                     id)
                                | NONE => "_" (* anonymous *))
                 val _ = if !Global.chatter = 3
-                          then msg ("%struct " ^ name ^ " : { ... }.\n")
+                          then print ("%struct " ^ name ^ " : { ... }.\n")
                         else ()
               in
                 ()
@@ -1137,7 +1111,7 @@ struct
                                     id)
                                | NONE => "_" (* anonymous *))
                 val _ = if !Global.chatter = 3
-                          then msg ("%struct " ^ name ^ " = " ^ Names.qidToString (Names.structQid mid) ^ ".\n")
+                          then print ("%struct " ^ name ^ " = " ^ Names.qidToString (Names.structQid mid) ^ ".\n")
                         else ()
               in
                 ()
@@ -1150,7 +1124,7 @@ struct
           val module' = foldl (fn (inst, module) => ReconModule.moduleWhere (module, inst)) module wherecls
           val _ = includeSig (module', r, false)
           val _ = if !Global.chatter = 3
-                    then msg ("%include { ... }.\n")
+                    then print ("%include { ... }.\n")
                   else ()
         in
           ()
@@ -1164,7 +1138,7 @@ struct
           val module = ModSyn.abstractModule (ns, SOME mid)
           val _ = includeSig (module, r, true)
           val _ = if !Global.chatter = 3
-                    then msg ("%open " ^ Names.qidToString (Names.structQid mid) ^ ".\n")
+                    then print ("%open " ^ Names.qidToString (Names.structQid mid) ^ ".\n")
                   else ()
         in
           ()
@@ -1179,7 +1153,7 @@ struct
           val oldContext = !context
           val _ = context := SOME namespace
           val _ = if !Global.chatter >= 4
-                    then msg ("\n% begin subsignature\n")
+                    then print ("\n% begin subsignature\n")
                   else ()
 
           fun install s = install' ((Timers.time Timers.parsing S.expose) s)
@@ -1194,7 +1168,7 @@ struct
                 val s' = install s
                 val module = ModSyn.abstractModule (namespace, NONE)
                 val _ = if !Global.chatter >= 4
-                          then msg ("% end subsignature\n\n")
+                          then print ("% end subsignature\n\n")
                         else ()
               in
                 Value (module, s')
@@ -1233,7 +1207,7 @@ struct
        ABORT).
     *)
     fun loadFile (fileName) = 
-	handleExceptions 0 fileName (withOpenIn fileName)
+	handleExceptions fileName (withOpenIn fileName)
 	 (fn instream =>
 	  let
             val _ = ReconTerm.resetErrors fileName
@@ -1249,29 +1223,11 @@ struct
 	    install (Parser.parseStream instream)
 	  end)
 
-    (* loadString (str) = status
-       reads and processes declarations from str, issuing
-       error messages and finally returning the status (either OK or
-       ABORT).
-    *)
-    fun loadString str = handleExceptions 0 "string"
-	(fn () =>
-	    let val _ = ReconTerm.resetErrors "string"
-		fun install s = install' ((Timers.time Timers.parsing S.expose) s)
-		and install' (S.Empty) = OK
-		  | install' (S.Cons((Parser.BeginSubsig, _), s')) =
-                    (installSubsig ("string", s'); install s')
-		  | install' (S.Cons (decl, s')) =
-	            (install1 ("string", decl); install s')
-	    in
-		install (Parser.parseStream (TextIO.openString str))
-	    end) ()
-
     (* Interactive Query Top Level *)
 
     fun sLoop () = if Solve.qLoop () then OK else ABORT
 
-    fun topLoop () = case (handleExceptions 0 "stdIn" sLoop) () (* "stdIn" as fake fileName *)
+    fun topLoop () = case (handleExceptions "stdIn" sLoop) () (* "stdIn" as fake fileName *)
 		       of ABORT => topLoop ()
 			| OK => ()
 
@@ -1285,13 +1241,13 @@ struct
           (* put a more reasonable region here? -kw *)
 	  val cid = installConDec IntSyn.FromCS (conDec, ("", NONE), Paths.Reg (0,0))
 	  val _ = if !Global.chatter >= 3
-		  then msg (Print.conDecToString (conDec) ^ "\n")
+		  then print (Print.conDecToString (conDec) ^ "\n")
 		  else ()
 	  val _ = (case optFixity
 		     of SOME(fixity) =>
 			  (Names.installFixity (cid, fixity);
                            if !Global.chatter >= 3
-                             then msg ((if !Global.chatter >= 4 then "%" else "")
+                             then print ((if !Global.chatter >= 4 then "%" else "")
                                          ^ Names.Fixity.toString fixity ^ " "
                                          ^ Names.qidToString (Names.constQid cid) ^ ".\n")
                            else ())
@@ -1325,7 +1281,7 @@ struct
 		    )
 
     fun readDecl () =
-        handleExceptions 0 "stdIn"
+        handleExceptions "stdIn"
 	(fn () =>
 	 let val _ = ReconTerm.resetErrors "stdIn"
              fun install s = install' ((Timers.time Timers.parsing S.expose) s)
@@ -1341,10 +1297,10 @@ struct
     (* decl (id) = () prints declaration of constant id *)
     fun decl (id) =
         (case Names.stringToQid id
-           of NONE => (msg (id ^ " is not a well-formed qualified identifier\n"); ABORT)
+           of NONE => (print (id ^ " is not a well-formed qualified identifier\n"); ABORT)
             | SOME qid => 
         (case Names.constLookup qid
-           of NONE => (msg (Names.qidToString (valOf (Names.constUndef qid)) ^ " has not been declared\n"); ABORT)
+           of NONE => (print (Names.qidToString (valOf (Names.constUndef qid)) ^ " has not been declared\n"); ABORT)
             | SOME cid => decl' (cid)))
     and decl' (cid) =
         let
@@ -1354,10 +1310,9 @@ struct
 	  (* val mode = ModeTable.modeLookup (cid) *)
 	  (* can't get termination declaration *)
 	in
-	  msg (Print.conDecToString conDec ^ "\n");
+	  print (Print.conDecToString conDec ^ "\n");
 	  OK
 	end
-
 
     (* Support tracking file modification times for smart re-appending. *)
     structure ModFile :
@@ -1412,16 +1367,6 @@ struct
       (* suffix of configuration files: "cfg" by default *)
       val suffix = ref "cfg"
 
-	    (* mkRel transforms a relative path into an absolute one
-               by adding the specified prefix. If the path is already
-               absolute, no prefix is added to it.
-            *)
-	    fun mkRel (prefix, path) =
-                OS.Path.mkCanonical
-                  (if OS.Path.isAbsolute path
-                   then path
-                   else OS.Path.concat (prefix, path))
-	       
       (* more efficient recursive version  Sat 08/26/2002 -rv *)
       fun read config =
           let
@@ -1461,6 +1406,15 @@ struct
                 in
                   OS.Path.toString {isAbs = isAbs, vol=vol, arcs=arcs}
                 end
+	    (* mkRel transforms a relative path into an absolute one
+               by adding the specified prefix. If the path is already
+               absolute, no prefix is added to it.
+            *)
+	    fun mkRel (prefix, path) =
+                OS.Path.mkCanonical
+                  (if OS.Path.isAbsolute path
+                   then path
+                   else OS.Path.concat (prefix, path))
             fun read' (sources, configs) config =
                 withOpenIn config
                   (fn instream =>
@@ -1513,23 +1467,6 @@ struct
             handle IO.Io (ioError) => (abortIO (configFile, ioError); raise IO.io (ioError))
           *)
           end
-
-      (* Read a config file s but omit everything that is already in config c 
-         XXX: naive and inefficient implementation *)
-      fun readWithout (s, c) =
-	  let
-	      val (d,fs) = read s
-	      val (d',fs') = c
-	      val fns' = map (fn m => mkRel(d', ModFile.fileName m)) fs'
-	      fun redundant m =
-		  let 
-		      val n = mkRel(d, ModFile.fileName m) 
-		  in
-		      List.exists (fn n' => n = n') fns'
-		  end
-	  in
-	      (d, List.filter (not o redundant) fs)
-	  end
 
       fun loadAbort (mfile, OK) =
 	  let
@@ -1590,12 +1527,10 @@ struct
     structure Print :
       sig
 	val implicit : bool ref		(* false, print implicit args *)
-	val printInfix : bool ref	(* false, print fully explicit form infix when possible *)
 	val depth : int option ref	(* NONE, limit print depth *)
 	val length : int option ref	(* NONE, limit argument length *)
 	val indent : int ref		(* 3, indentation of subterms *)
 	val width : int ref		(* 80, line width *)
-	val noShadow : bool ref	        (* if true, don't print shadowed constants as "%const%" *)
         val sgn : unit -> unit		(* print signature *)
         val prog : unit -> unit		(* print signature as program *)
 	val subord : unit -> unit       (* print subordination relation *)
@@ -1610,17 +1545,15 @@ struct
     =
     struct
       val implicit = Print.implicit
-      val printInfix = Print.printInfix
       val depth = Print.printDepth
       val length = Print.printLength
       val indent = Print.Formatter.Indent
       val width = Print.Formatter.Pagewidth
-      val noShadow = Print.noShadow
       fun sgn () = Print.printSgn ()
       fun prog () = ClausePrint.printSgn ()
       fun subord () = Subordinate.show ()
       fun def () = Subordinate.showDef ()
-      fun domains () = msg (CSInstaller.version)
+      fun domains () = print (CSInstaller.version)
       structure TeX =
       struct
 	fun sgn () = printSgnTeX ()
@@ -1726,7 +1659,6 @@ struct
     datatype Status = datatype Status
     val reset = reset
     val loadFile = loadFile
-    val loadString = loadString
     val readDecl = readDecl
     val decl = decl
 
@@ -1737,8 +1669,6 @@ struct
 	type config			(* configuration *)
         val suffix : string ref         (* suffix of configuration files *)
 	val read : string -> config	(* read configuration from config file *)
-	val readWithout : string * config -> config 
-                                        (* read config file, minus contents of another *)
 	val load : config -> Status	(* reset and load configuration *)
 	val append : config -> Status	(* load configuration (w/o reset) *)
 	val define : string list -> config  (* explicitly define configuration *)
@@ -1747,7 +1677,7 @@ struct
     val make = make
 
 
-    val version = "Twelf 1.5R3, Aug 30, 2005 (%trustme)"
+    val version = "Twelf 1.5R2, Mar 13, 2005 (tabling,autoFreeze)"
 
     structure Table : 
       sig 
@@ -1771,7 +1701,7 @@ struct
 	fun sLoopT () = if Solve.qLoopT () then OK else ABORT
       
 	fun topLoopT () = 
-	  case (handleExceptions 0 "stdIn" sLoopT) () (* "stdIn" as fake fileName *)
+	  case (handleExceptions "stdIn" sLoopT) () (* "stdIn" as fake fileName *)
 	    of ABORT => topLoopT ()
 	  | OK => ()
       in 

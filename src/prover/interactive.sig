@@ -13,12 +13,10 @@ sig
   val select : int -> unit 
   val print  : unit -> unit
   val stats  : unit -> unit
-  val focus  : string -> unit
-  val return : unit -> unit
-(*   val next   : unit -> unit *)
+  val next   : unit -> unit
 
   val reset  : unit -> unit
-(*  val undo   : unit -> unit *)
+  val undo   : unit -> unit 
 end;  (* signature Interactive *)
 
 

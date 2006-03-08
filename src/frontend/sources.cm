@@ -67,7 +67,6 @@ is
   ../tomega/sources.cm 
   ../prover/sources.cm
   ../flit/sources.cm
-  ../msg/sources.cm
   unknownexn.sig
   unknownexn.fun
   unknownexn-smlnj.sml
@@ -110,4 +109,3 @@ is
   twelf.sig
   twelf.fun
   frontend.sml
-

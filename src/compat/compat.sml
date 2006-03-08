@@ -7,5 +7,4 @@ structure Compat :> COMPAT =
           structure Path = OS.Path
 	  structure Substring = Substring
 	  structure TextIO = TextIO
-	  structure Timer = Timer
-	  structure SocketIO = CompatSocketIO);
+	  structure Timer = Timer);

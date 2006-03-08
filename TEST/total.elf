@@ -30,7 +30,6 @@ foo : {O:o} pred O -> type.
 foo_ : foo a pred_.
 
 %worlds () (foo _ _).
-
 %total {} (foo _ _).
 
 bar : {O} pred O -> type.
@@ -42,4 +41,3 @@ bar_ : bar O D
 %worlds () (bar _ _).
 % Next line must fail
 % %total {} (bar _ _).
-

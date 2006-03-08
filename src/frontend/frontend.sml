@@ -29,8 +29,7 @@ structure ReconTerm =
              structure Abstract = Abstract
 	     structure Print = Print
              (*! structure CSManager = CSManager !*)
-             structure StringTree = StringRedBlackTree
-             structure Msg = Msg);
+             structure StringTree = StringRedBlackTree);
 
 structure ReconConDec =
   ReconConDec (structure Global = Global
@@ -43,8 +42,7 @@ structure ReconConDec =
                structure Strict = Strict
                structure TypeCheck = TypeCheck
                structure Timers = Timers
-               structure Print = Print
-	       structure Msg = Msg);
+               structure Print = Print);
                                                         
 structure ReconQuery =
   ReconQuery (structure Global = Global
@@ -165,9 +163,8 @@ structure Solve =
 	 (*! structure TableParam = TableParam !*)
 	 structure Tabled = Tabled
 (*	 structure TableIndex = TableIndex *)
-(*	 structure MemoTable = MemoTable *)
-	 structure Print = Print 
-         structure Msg = Msg);
+	 structure MemoTable = MemoTable
+	 structure Print = Print);
 
 
 structure Fquery =
@@ -239,7 +236,6 @@ structure Twelf =
 
 	 structure WorldSyn = WorldSyn
 	 structure WorldPrint = WorldPrint
-	 structure Worldify = Worldify
 
          structure ModSyn = ModSyn
          structure ReconModule = ReconModule
@@ -260,6 +256,4 @@ structure Twelf =
 
          structure Compat = Compat
 	 structure UnknownExn = UnknownExn
-
-	 structure Msg = Msg
 	   );

@@ -49,7 +49,6 @@ sig
     | ESTABLISH				(* `%establish' *)
     | ASSERT				(* `%assert' *)
     | ABBREV				(* `%abbrev' *)
-    | TRUSTME			        (* `%trustme' *)
     | FREEZE                            (* `%freeze' *)
     | THAW				(* `%thaw' *)
     | DETERMINISTIC                     (* `%deterministic' *) (* -rv 11/27/01 *)

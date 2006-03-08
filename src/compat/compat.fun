@@ -8,7 +8,6 @@ functor Compat
    structure Substring : COMPAT_SUBSTRING
    structure TextIO : COMPAT_TEXT_IO
    structure Timer : COMPAT_TIMER
-   structure SocketIO : COMPAT_SOCKET_IO
   )
   : COMPAT =
 struct
@@ -21,6 +20,5 @@ struct
   structure Substring = Substring
   structure TextIO = TextIO
   structure Timer = Timer
-  structure SocketIO = SocketIO
   fun inputLine97 instream = getOpt (TextIO.inputLine instream, "")
 end;

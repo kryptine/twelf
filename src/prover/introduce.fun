@@ -20,19 +20,20 @@ struct
   structure I = IntSyn
 
     exception Error = S.Error
-    type operator = T.Prg * T.Prg
+    type operator = S.State
 
-    fun stripTC (T.Abs (_, TC)) = TC
-      
-    fun stripTCOpt NONE = NONE
-      | stripTCOpt (SOME TC) = SOME (stripTC TC)
+    (* introduce (Psi, F) = (Psi', F')
 
-    fun stripDec (T.UDec D) = T.UDec D
-      | stripDec (T.PDec (name, F, TC1, TC2)) = T.PDec (name, F, TC1, stripTCOpt TC2)
+       Invariant:
+       If   Psi is a meta context
+       and  F = all x1:A1 .... xn: An. F1)
+       and  F1 does not start with an all quantifier
+       then Psi' = Psi, x1:A1, ... xn:An
+       and  F' = F1 
+    *)
 
-    fun strip I.Null = I.Null
-      | strip (I.Decl (Psi, D)) = I.Decl (strip Psi, stripDec D)
-
+    fun introduce (Psi, T.All ((D, _), F)) = introduce (I.Decl (Psi, D), F)
+      | introduce PsiF = PsiF
 
     (* expand S = S'
 
@@ -41,36 +42,25 @@ struct
        and  F does not start with an all quantifier
        then S' = (Psi, x1:A1, ... xn:An |> F)
     *)
-    fun expand (S.Focus (R as T.EVar (Psi, r, T.All ((D, _), F), NONE, NONE), W)) =  
-	  SOME (R, T.Lam (D, T.newEVar (I.Decl (strip Psi, D), F)))
-      | expand (S.Focus (R as T.EVar (Psi, r, T.Ex ((D as I.Dec (_, V), _), F), NONE, NONE), W)) =  
-	   let 
-	     val X = I.newEVar (T.coerceCtx (Psi), V)
-	     val Y = T.newEVar (Psi, T.forSub (F, T.Dot (T.Exp X, T.id)))
-	   in
-	     SOME (R, T.PairExp (X, Y))
-	   end
-      | expand (S.Focus (R as T.EVar (Psi, r, T.True, NONE, NONE), W)) = 
-	   (SOME (R, T.Unit))
+    fun expand (S.State ((Psi, F as T.All _), W)) =  SOME (S.State (introduce (Psi, F), W))
+      | expand _ = NONE
 
-      | expand (S.Focus (T.EVar (Psi, r, T.FClo (F, s), TC1, TC2), W)) = 
-	   expand (S.Focus (T.EVar (Psi, r, T.forSub (F, s), TC1, TC2), W)) 
-      | expand (S.Focus (T.EVar (Psi, r, _, _, _), W)) = NONE
 
     (* apply O = S 
      
        Invariant:
        O = S 
     *)
-    fun apply (T.EVar (_, r, _, _, _), P) = (r := SOME P)   (* need to trail for back *)
+    fun apply S = S
+
 
     (* menu O = s 
 
        Invariant:
        s = "Apply universal introduction rules"
     *)
-    fun menu (r, P) = "Intro " ^ TomegaPrint.nameEVar r
-		      
+    fun menu _ = "Intro"
+      
 
   in
     exception Error = Error

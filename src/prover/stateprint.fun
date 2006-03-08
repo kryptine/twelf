@@ -36,14 +36,14 @@ struct
     structure N = Names
     structure Fmt = Formatter
 
- 
+
     fun nameCtx I.Null = I.Null
       | nameCtx (I.Decl (Psi, T.UDec D)) = 
           I.Decl (nameCtx Psi, 
 		  T.UDec (Names.decName (T.coerceCtx Psi, D)))
-      | nameCtx (I.Decl (Psi, T.PDec (_, F, TC))) = 
+      | nameCtx (I.Decl (Psi, T.PDec (_, F))) = 
           I.Decl (nameCtx Psi, 
-		  T.PDec (SOME "s", F, TC))   (* to be fixed! --cs *)
+		  T.PDec (SOME "s", F))   (* to be fixed! --cs *)
       
 
 
@@ -54,7 +54,15 @@ struct
        then |- S' State    and S' named
        and  |- S = S' state   
     *)
-    fun nameState (S) = S
+    fun nameState (S.State ((Psi, F), W)) =
+        let 
+	  val _ = Names.varReset I.Null
+	  val Psi' = nameCtx Psi
+	    (* all this stuff should move into names.  
+	       Ask Frank  --cs *)
+	in
+	  S.State ((Psi', F), W)
+	end
 
 (*
     fun formatOrder (G, S.Arg (Us, Vs)) =
@@ -99,7 +107,7 @@ struct
           [Fmt.HVbox ([Fmt.Break, Print.formatDec (I.Null, D)])]
 	else
           [Print.formatDec (I.Null, D)]
-      | formatCtx (I.Decl (I.Null, T.PDec (SOME s, F, _))) = 
+      | formatCtx (I.Decl (I.Null, T.PDec (SOME s, F))) = 
         if !Global.chatter >= 4 then
           [Fmt.HVbox ([Fmt.Break, Fmt.String s, Fmt.Space, 
 		       Fmt.String "::", Fmt.Space, TomegaPrint.formatFor (I.Null, F)])]
@@ -117,7 +125,7 @@ struct
 	    formatCtx Psi @ [Fmt.String ",",  Fmt.Break] @ 
 	    [Fmt.Break, Print.formatDec (G, D)]
 	end
-      | formatCtx (I.Decl (Psi, T.PDec (SOME s, F, _))) =
+      | formatCtx (I.Decl (Psi, T.PDec (SOME s, F))) =
 	if !Global.chatter >= 4 then
 	  formatCtx Psi @ [Fmt.String ",", Fmt.Break, Fmt.Break] @ 
 	  [Fmt.HVbox ([Fmt.Break, Fmt.String s, Fmt.Space, Fmt.String "::", Fmt.Space, TomegaPrint.formatFor (Psi, F)])] 
@@ -132,11 +140,12 @@ struct
        If   |- S state      and  S named
        then fmt' is a format describing the state S
     *)
-    fun formatState (S.State (W, Psi, P, F, _)) =
+    fun formatState (S.State ((Psi, F), W)) =
           Fmt.Vbox0 0 1 
-	  [Fmt.String "------------------------", Fmt.Break,
+	  [Fmt.String "========================", Fmt.Break,
+	   Fmt.HVbox0 1 0 1 (formatCtx Psi), Fmt.Break,
 	   Fmt.String "------------------------", Fmt.Break,
-	   TomegaPrint.formatPrg (Psi, P)]
+	   TomegaPrint.formatFor (Psi, F)]
 
     (* formatState S = S'
      
