@@ -35,6 +35,19 @@ struct
 	  "#" ^ I.conDecName (I.sgnLookup cid) ^ "["
 	  ^ subToString (G, t) ^ "]"
 	  
+
+    (* validpts (W1, W2) = ()
+     
+       Invariant:
+       Raises Error if we are in the wrong corner of the cube
+    *)
+    fun validpts ((I.Uni I.Type, _), (I.Uni I.Kind, _)) = ()
+      | validpts ((I.Uni I.Type, _), (I.Uni I.Type, _)) = ()
+      | validpts ((I.Uni I.Kind, _), (I.Uni I.Type, _)) = raise Error ("Incompatible Universes")
+      | validpts ((I.Uni I.Kind, _), (I.Uni I.Kind, _)) = ()
+      | validpts _ = raise Error ("Type error")
+
+
     (* some well-formedness conditions are assumed for input expressions *)
     (* e.g. don't contain "Kind", Evar's are consistently instantiated, ... *)
 
@@ -70,14 +83,24 @@ struct
      *)
     and inferExpW (G, (I.Uni (L), _)) = (I.Uni (inferUni L), I.id)
       | inferExpW (G, (I.Pi ((D, _) , V), s)) = 
-	  (checkDec (G, (D, s));
-	   inferExp (I.Decl (G, I.decSub (D, s)), (V, I.dot1 s)))
+        let 
+	  val Ws1 = inferDec (G, (D, s))
+	  val Ws2 = inferExp (I.Decl (G, I.decSub (D, s)), (V, I.dot1 s))
+	in
+	  (validpts (Ws1, Ws2) ; Ws2)
+	end
       | inferExpW (G, (I.Root (C, S), s)) = 
 	  inferSpine (G, (S, s), Whnf.whnf (inferCon (G, C), I.id))
       | inferExpW (G, (I.Lam (D, U), s)) =
-	  (checkDec (G, (D, s)); 
-	   (I.Pi ((I.decSub (D, s), I.Maybe),
-		  I.EClo (inferExp (I.Decl (G, I.decSub (D, s)), (U, I.dot1 s)))), I.id))
+	let 
+	  val Ws1 = inferDec (G, (D, s))
+	  val D' = I.decSub (D, s)
+	  val (V, s') = inferExp (I.Decl (G, D'), (U, I.dot1 s))
+	  val Ws2 = inferExp (I.Decl (G, D'), (V, s'))
+	  val _ = validpts (Ws1, Ws2)
+	in
+	   (I.Pi ((D', I.Maybe), I.EClo (V, s')), I.id)
+	end
       (* no cases for Redex, EVars and EClo's *)
       | inferExpW (G, (I.FgnExp csfe, s)) =
           inferExp (G, (I.FgnExpStd.ToInternal.apply csfe (), s))    (* AK: typecheck a representative -- presumably if one rep checks, they all do *)
@@ -223,7 +246,7 @@ struct
       | checkBlock (G, U :: I, (t, I.Dec (_, V) :: L)) =
         (checkExp (G, (U, I.id), (V, t)); checkBlock (G, I, (I.Dot (I.Exp U, t), L)))
 
-    (* checkDec (G, (x:V, s)) = B
+    (* checkDec (G, (x:V, s)) = ()
 
        Invariant: 
        If G |- s : G1 
@@ -239,11 +262,33 @@ struct
 	  in
 	    checkSub (G, I.comp (t, s), Gsome)
 	  end
-      | checkDec (G, (NDec, _)) = () 
+
+    (* inferDec (G, (x:V, s)) = W
+       Not defined for blocks 
+
+       Invariant:
+       If   G |- s : G1 
+       and  G1 |- V : W'    for some W'
+       then G |- V[s] : W
+       and W = W'
+    *) 
+    and inferDec (G, (I.Dec (_, V), s)) = inferExp (G, (V, s))
+      | inferDec (G, (I.BDec (_, (c, t)), s)) =
+	  let 
+	    (* G1 |- t : GSOME *)
+	    (* G  |- s : G1 *)
+	    val (Gsome, piDecs) = I.constBlock c
+	  in
+	    (checkSub (G, I.comp (t, s), Gsome); (I.Uni I.Type, I.id))
+	    (* blocks for now contain only declarations of the form
+	       x:A and not a:K it is reasonable, because checkCtx
+	       below calls the deprecated checkDec and not inferDec
+	       --cs Fri Apr 7 14:59:13 2006 *)
+	  end
 
     and checkCtx (I.Null) =  ()
       | checkCtx (I.Decl (G, D)) = 
-          (checkCtx G; checkDec (G, (D, I.id)))
+          (checkCtx G; checkDec (G, (D, I.id)))  
 
 
     fun check (U, V) = checkExp (I.Null, (U, I.id), (V, I.id))
