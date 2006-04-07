@@ -535,7 +535,7 @@ struct
           end
         end
 
-    and inferApxDec (G, dec (name, tm, r)) =
+   and inferApxDec (G, dec (name, tm, r)) =
         let
           val (tm', V1) = checkApx (G, tm, Uni Type, Kind,
                                     "Classifier in declaration must be a type")
