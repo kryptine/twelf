@@ -1,0 +1,9 @@
+structure Planner : PLANNER =
+  struct
+    local 
+      fun plan (fname, tname) = 
+	let _ = Twelf.make fname	  
+    in
+      val plan = plan 
+    end
+  end

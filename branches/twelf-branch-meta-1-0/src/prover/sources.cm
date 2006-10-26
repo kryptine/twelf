@@ -1,6 +1,8 @@
 Library
   signature INTERACTIVE
   structure Interactive
+  signature PLANNER
+  structure Planner
 is
 #if defined(NEW_CM)
   $/basis.cm
@@ -46,3 +48,5 @@ is
   weaken.sig
   weaken.fun
   prover.sml
+  planner.sig
+  planner.fun
