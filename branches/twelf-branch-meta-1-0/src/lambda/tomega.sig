@@ -13,6 +13,31 @@ sig
     
   datatype Quantifier = Implicit | Explicit
 
+  (*
+  datatype For   		           
+  = All of Dec * For
+  | Ex  of Dec * For
+  | InjE of IntSyn.Exp
+  | InjH of IntSyn.Exp
+  | Past of For
+
+  and Dec
+  = DecH of IntSyn.Dec
+  | DecE of IntSyn.Dec
+  | Dec of string option * For 
+
+  and Exp
+  = Var of int
+  | Evidence of IntSyn.Exp
+  | Choose of Dec * Exp
+  | Match of Exp * Exp
+  | App of Exp * Exp
+  | New of Dec * Exp
+  | EVar of Exp option ref
+  | Pop of Exp
+  | Alt of Exp * Exp
+  
+*)
 
   datatype TC	=			(* Terminiation Condition     *)
     Abs of IntSyn.Dec * TC      	(* T ::= {{D}} O              *)

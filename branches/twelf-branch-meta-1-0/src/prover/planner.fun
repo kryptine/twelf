@@ -3,10 +3,10 @@ struct
 
 structure I = IntSyn;
 
-type AaName = string;
-type ApiName = string;
-type McName = string;
-type MlamName = string;
+type AaName = int;
+type ApiName = string option;
+type McName = int;
+type MlamName = string option;
 type Mbound = int;
 
 (* LF Families *)
@@ -17,6 +17,7 @@ datatype A
 (* LF Objects *)
 and M 
   = Mc of McName
+  | Md of McName
   | Mx of Mbound
   | Mlam of MlamName * A * M
   | Mapp of M * M;
@@ -56,17 +57,18 @@ and dM = Dmm of dMM
 type Mzip = dM list;
 type Azip = dA list;
 
+
 (* Embeddings of LF Type Families *)
 datatype EmbA 
-  = Aa of AaName * Azip
-  | Aapp of (A * M) * Azip
-  | Api of (ApiName * A * A) * Azip
+  = Ea of AaName * Azip
+  | Eapp of (A * M) * Azip
+  | Epi of (ApiName * A * A) * Azip
 (* LF Objects *)
 and EmbM 
-  = Mc of McName * Mzip
-  | Mx of Mbound * Mzip
-  | Mlam of (MlamName * A * M) * Mzip
-  | Mapp of (M * M) * Mzip;
+  = EMc of McName * Mzip
+  | EMx of Mbound * Mzip
+  | EMlam of (MlamName * A * M) * Mzip
+  | EMapp of (M * M) * Mzip;
 
 
 (* embeddings *)
@@ -85,6 +87,26 @@ fun embed goal rule =
     NONE;                                          
 
 type Plan = unit;
+
+
+(* Invariant : G |- V : exp    G |- M : exp *)
+fun expToA (I.Root (I.Const c, S)) = expToASpine (Aa c, S)
+  | expToA (I.Pi ((I.Dec (x, V1), _), V2)) = 
+      Api (x, expToA V1, expToA V2)
+
+and expToASpine (A, I.Nil) = A
+  | expToASpine (A, I.App (U, S)) =
+      expToASpine (Aapp (A, expToM U), S)
+  
+and expToM (I.Root (I.Const c, S)) = expToMSpine ((Mc c), S)
+  | expToM (I.Root (I.Def d, S)) = expToMSpine ((Md d), S)
+  | expToM (I.Root (I.BVar k, S)) = expToMSpine ((Mx k), S)
+  | expToM (I.Lam (I.Dec (x, V), U)) = Mlam (x, expToA V, expToM U)
+
+and expToMSpine (M, I.Nil) = M
+  | expToMSpine (M, I.App (U, S)) = 
+      expToMSpine (Mapp (M, expToM U), S)
+
 
 fun plan name = 
     let
