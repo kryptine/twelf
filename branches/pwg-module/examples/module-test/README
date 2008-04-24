@@ -1,0 +1,10 @@
+Declaring sigs and structs:
+
+<decls> ::= ...
+<sigbody> ::= <decls> | %include <signame>. <sigbody>
+<sig> ::= { <sigbody> }
+<sigdecl> ::= %sig <signame> = <sig>. | %sig <signame> = <signame>.
+<structdecl> ::=   %struct <structname> : <signame>.
+                 | %struct <structname> = <structname>.
+                 | %struct <structname> : <sig>.
+  
