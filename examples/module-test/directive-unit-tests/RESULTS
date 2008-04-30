@@ -1,0 +1,84 @@
+test-abbrev:
+	no modules: No Errors
+	module-include: PASS
+	module-open-nat: PASS
+	module-redec: PASS
+	module-open-all: PASS
+
+test-mode:
+	no modules: Occurrence of variable N in output (-) argument not necessarily ground
+	module-include: PASS
+	module-open-nat: PASS
+	module-redec: PASS 
+	module-open-all: FAIL: raise Match
+
+test-name:
+	no modules: 
+	_ : {N1:nat} plus (s (s z)) N1 (s (s N1)) = [N1:nat] plus/s (plus/s plus/z).
+
+	module-include:
+	_ :
+	   {X1:NatPlus.nat}
+	         NatPlus.plus (NatPlus.s (NatPlus.s NatPlus.z)) X1
+	                  (NatPlus.s (NatPlus.s X1))
+	   = [X1:NatPlus.nat] plus/s (plus/s plus/z).
+	module-open-nat:
+	_ : {X1:NatPlus.nat} plus (s (s z)) X1 (s (s X1))
+	   = [X1:NatPlus.nat] plus/s (plus/s plus/z).
+	module-redec:
+	_ :
+	   {X1:NatPlus.nat}
+	         NatPlus.plus (NatPlus.s (NatPlus.s NatPlus.z)) X1
+	                  (NatPlus.s (NatPlus.s X1))
+	   = [X1:NatPlus.nat] plus/s (plus/s plus/z).
+	module-open-all:
+	_ : {X1:NatPlus.nat} NatPlus.plus (s (s z)) X1 (s (s X1))
+	   = [X1:NatPlus.nat] plus/s (plus/s plus/z).
+
+test-prove:
+	no modules: 
+	%prove 5 D1 (plus-comm D1 D2).
+	%mode +{N1:nat} +{N2:nat} +{N3:nat} +{D1:plus N1 N2 N3} -{D2:plus N2 N1 N3}
+	   (plus-comm D1 D2).
+	%QED
+	%skolem plus-comm#1 :
+	      {N1:nat} {N2:nat} {N3:nat} {D1:plus N1 N2 N3} plus N2 N1 N3.
+
+	module-include: FAIL: raises Match
+	module-open-nat:
+	%prove 5 D1 (plus-comm D1 D2).
+	%mode +{N1:NatPlus.nat} +{N2:NatPlus.nat} +{N3:NatPlus.nat} +{D1:plus N1 N2 N3}
+	   -{D2:plus N2 N1 N3} (plus-comm D1 D2).
+	%QED
+	%skolem plus-comm#1 :
+			{N1:NatPlus.nat} {N2:NatPlus.nat} {N3:NatPlus.nat} {D1:plus N1 N2 N3}
+						plus N2 N1 N3.
+	module-redec: FAIL: raises Match
+	module-open-all:
+	%prove 5 D1 (plus-comm D1 D2).
+	%mode +{N1:NatPlus.nat} +{N2:NatPlus.nat} +{N3:NatPlus.nat}
+	   +{D1:NatPlus.plus N1 N2 N3} -{D2:NatPlus.plus N2 N1 N3} (plus-comm D1 D2).
+	   %QED
+	   %skolem plus-comm#1 :
+	      {N1:NatPlus.nat} {N2:NatPlus.nat} {N3:NatPlus.nat} {D1:NatPlus.plus N1 N2 N3}
+	            NatPlus.plus N2 N1 N3.
+
+test-define:
+test-solve:
+	no modules:
+	%solve 
+	plus n4 n3 N.
+	 OK
+	module-include: FAIL: No solution to %solve found
+	module-open-nat: plus n4 n3 N.
+	 OK
+	 n7 : NatPlus.nat = s (s (s (s n3))).
+	module-redec: FAIL: No solution to %solve found
+	module-open-all: FAIL: raises Match
+
+
+	no modules:
+	module-include:
+	module-open-nat:
+	module-redec:
+	module-open-all:

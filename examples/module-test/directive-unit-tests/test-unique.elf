@@ -1,0 +1,6 @@
+ps2 : plus (s N1) N2 N3 
+      <- plus N1 N2 N3.
+
+%worlds () (plus _ _ _).
+%unique plus +N1 +N2 -1N3.
+

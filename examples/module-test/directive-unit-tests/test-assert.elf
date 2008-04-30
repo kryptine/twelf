@@ -1,0 +1,15 @@
+%theorem plus-z : forall {N: nat} 
+									exists {D: plus N z N} 
+									true.
+%assert (plus-z N D).
+%theorem plus-s : forall* {N1: nat}{N2: nat}{N3: nat}
+									forall {D1: plus N1 N2 N3} 
+									exists {D2: plus N1 (s N2) (s N3)} 
+									true.
+%assert (plus-s D1 D2).
+
+%theorem plus-comm : forall* {N1: nat}{N2: nat}{N3: nat}
+										forall {D1: plus N1 N2 N3} 
+										exists {D2: plus N2 N1 N3} 
+										true.
+%prove 5 D1 (plus-comm D1 D2).

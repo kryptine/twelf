@@ -1,0 +1,29 @@
+nat-plus-reduces	: {N2}{N3}
+nat-plus N1 N2 N3
+-> type.
+%mode nat-plus-reduces +D1 +D2 +D3.
+
+-	: nat-plus-reduces _ _ nat-plus/z.
+
+-	: nat-plus-reduces _ _ (nat-plus/s DL)
+	<- nat-plus-reduces _ _ DL.
+
+	%worlds () (nat-plus-reduces _ _ _).
+	%reduces N2 <= N3 (nat-plus-reduces N2 N3 _).
+	%total {D1} (nat-plus-reduces _ _ D1).
+
+
+
+	nat-plus-reduces-s	: {N2}{N3}
+	nat-plus (nat/s N1) N2 N3
+	-> type.
+	%mode nat-plus-reduces-s +D1 +D2 +D3.
+
+	-	: nat-plus-reduces-s _ _ (nat-plus/s nat-plus/z).
+
+-	: nat-plus-reduces-s _ _ (nat-plus/s DL)
+	<- nat-plus-reduces-s _ _ DL.
+
+	%worlds () (nat-plus-reduces-s _ _ _).
+	%reduces N2 < N3 (nat-plus-reduces-s N2 N3 _).
+	%total {D1} (nat-plus-reduces-s _ _ D1).
