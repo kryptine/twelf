@@ -1,0 +1,8 @@
+
+%mode plus +N1 +N2 -N3.
+pz: plus z N N.
+ps: plus (s N1) N2 (s N3)
+	     <- plus N1 N2 N3.
+
+px: plus (s N1) N2 (s N)
+	     <- plus N1 N2 N3.

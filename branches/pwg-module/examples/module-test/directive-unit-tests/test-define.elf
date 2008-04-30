@@ -1,0 +1,12 @@
+
+n0 = z.
+n1 = s n0. 
+n2 = s n1. 
+n3 = s n2. 
+n4 = s n3. 
+
+%mode plus +N1 +N2 -N3.
+
+%define n7 = N
+%solve _ : plus n4 n3 N.
+

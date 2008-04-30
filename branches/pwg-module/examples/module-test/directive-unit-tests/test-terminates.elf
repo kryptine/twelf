@@ -1,0 +1,74 @@
+triv: nat -> nat -> type.
+%mode triv +A -B.
+
+triv/: (s N) N.
+triv/: N (s N).
+
+%terminates {} (triv _ _).
+
+a : nat -> nat -> type.
+%mode a +A +B.
+
+a0 : a z z.
+a1 : a (s N1) N
+      <- a N1 (s (s (s N))).
+
+      %terminates N (a N _).
+
+b : nat -> nat -> type.
+%mode b *A +B.
+
+b0 : b (s z) (s z).
+b1 : b N (s (s M))
+	      <- b N M
+	            <- a (s (s (s M))) M.
+
+	            %terminates N (b _ N).
+
+c : nat -> nat -> nat -> type.
+%mode c +N1 +N2 +N3.
+
+c0 : c z z z.
+c1 : c (s N1) N2 N3
+      <- c N1 N2 N3.
+      c2 : c N1 (s N2) N3
+            <- c N1 N2 N3.
+            c3 : c N1 N2 (s N3)
+        <- c N1 N2 N3.
+
+%terminates [N1 N2 N3] (c N1 N2 N3).
+
+d : nat -> nat -> nat -> type.
+%mode d +N1 +N2 +N3.
+
+d0 : d z z z.
+d1 : d (s N1) N2 N3
+      <- d N1 (s (s (s (s N2)))) (s (s N3)).
+      d2 : d N1 (s N2) N3
+            <- d N1 N2 (s N3).
+            d3 : d N1 N2 (s N3)
+        <- d N1 N2 N3.
+
+%terminates {N1 N2 N3} (d N1 N2 N3).
+
+a : nat -> nat -> nat -> type.
+b : nat -> nat -> nat -> type.
+c : nat -> nat -> nat -> type.
+
+%mode a +A +B -C.
+%mode b +A +B -C.
+%mode c +A +B -C.
+
+a/ : a N1 N2 N3
+     <- b N1 N2 N3.
+
+     b/ : b N1 N2 N3 
+          <- c N1 N2 N3.
+
+          c/z : c z z z.
+          c/sn : c (s N1) N2 N3
+          	<- a N1 N2 N3.
+          	c/ns : c N1 (s N2) N3
+          		<- c (s (s (s N1))) N2 N3.
+
+          		%terminates {(B1 B2 B3) (A1 A2 A3)} (c A3 B3 _) (b A2 B2 _) (a A1 B1 _).

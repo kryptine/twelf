@@ -1,0 +1,5 @@
+%define four = N
+%solve deriv : plus (s (s z)) (s (s z)) N.
+
+six : nat = s (s four).
+deriv2 : plus four (s (s z)) six = ps (ps deriv).

@@ -1,0 +1,12 @@
+%{ Dependencies: None }%
+%abbrev nat2 = nat.
+%abbrev z2   = z.
+s2 = s.
+
+three = s2 (s2 (s2 z)).
+
+plus : nat2 -> nat2 -> nat2 -> type.
+plus/z : plus z2 N N.
+plus/s : plus (s2 N) M (s2 P)
+		<- plus N M P.
+

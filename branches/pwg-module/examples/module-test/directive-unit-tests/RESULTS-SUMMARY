@@ -1,0 +1,33 @@
+NOTE: module-include currently uses redeclarations.  This should be fixed and tests should be rerun.
+
+test-abbrev:
+	module-include: PASS
+	module-open-nat: PASS
+	module-redec: PASS
+	module-open-all: PASS
+
+test-mode:
+	module-include: PASS
+	module-open-nat: PASS
+	module-redec: PASS
+	module-open-all: FAIL: raise Match
+
+test-name:
+	module-include: ???
+	module-open-nat: PASS
+	module-redec: ???
+	module-open-all: ???
+
+test-prove:
+	module-include: FAIL: raise Match
+	module-open-nat: PASS
+	module-redec: FAIL: raise Match
+	module-open-all: PASS
+
+test-define:
+test-solve:
+	module-include: FAIL: No solution to %solve found
+	module-open-nat: PASS
+	module-redec: FAIL: No solution to %solve found
+	module-open-all: FAIL: raises Match
+

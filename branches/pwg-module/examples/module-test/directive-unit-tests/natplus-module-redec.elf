@@ -1,0 +1,20 @@
+%struct NatPlus :
+{
+  nat : type.
+  z : nat.
+  s : nat -> nat.
+
+  plus : nat -> nat -> nat -> type.
+  plus/z : plus z N N.
+  plus/s : plus (s N) M (s P)
+    <- plus N M P.
+}.
+
+nat = NatPlus.nat.
+z = NatPlus.z.
+s = NatPlus.s.
+
+plus = NatPlus.plus.
+plus/z = NatPlus.plus/z.
+plus/s = NatPlus.plus/s.
+
