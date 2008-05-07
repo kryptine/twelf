@@ -241,6 +241,10 @@ struct
 	  | calcImplicit' (I.ConDef (_, _, k, _, V, _, _)) =
 	    (* ignore definition for defined type family since they are opaque *)
 	      abstractMode (inferMode (empty (k, I.Null, V), mS), mS)
+         (* | calcImplicit' (I.ConStructureThing?!?!?!) *)
+         (* WHAT BRANCH IS THIS TRYING TO GO INTO? *)
+         (* Does this need to be changed in the parser as well? That may
+          * be a pervasive change to (shallow) data structures *)
       in 
 	(checkName mS; calcImplicit' (I.sgnLookup a)) 
 	handle Error (msg) => error (r, msg)  (* re-raise Error with location *)
