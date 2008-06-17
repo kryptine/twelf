@@ -223,6 +223,8 @@ sig
 
   val sgnAdd   : ConDec -> cid
   val sgnLookup: cid -> ConDec
+  (* Abbrev-blowing-through lookup 
+  val sgnLookupAbbrev: cid -> ConDec option *)
   val sgnApp   : (cid -> unit) -> unit
 
   val sgnStructAdd    : StrDec -> mid
