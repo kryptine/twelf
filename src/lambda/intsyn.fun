@@ -333,6 +333,27 @@ struct
     (* 0 <= cid < !nextCid *)
     fun sgnLookup (cid) = Array.sub (sgnArray, cid)
 
+          (* XXX TODO MUST MAKE SURE THIS IS A SIMPLE ETA EXPANSION OR
+           * RETURN NONE RJS *)
+    fun findEta (exp) =
+        case exp of
+            Lam(_,exp) => findEta exp
+          | Root(h,s) => SOME h
+    
+    fun sgnLookupAbbrev (cid) = 
+        case sgnLookup cid of
+            ConDec condec => SOME(ConDec condec)
+          | ConDef condef => SOME(ConDef condef)
+          | BlockDec _ => NONE
+          | SkoDec _ => NONE
+          | AbbrevDef(name,mid,implicit,typ,kin,Kind) => 
+            (case findEta typ of
+                 SOME(Const cid) => sgnLookupAbbrev cid
+               | _ => NONE)
+          | AbbrevDef _ => NONE
+
+    (* fun checkEta  *)
+
     fun sgnApp (f) =
         let
 	  fun sgnApp' (cid) = 

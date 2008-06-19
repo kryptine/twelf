@@ -613,7 +613,11 @@ struct
 	   val _ = if !Global.chatter > 3
 		     then print ("World checking family " ^ Names.qidToString (Names.constQid a) ^ ":\n")
 		   else ()
-	   val condecs = map (fn (I.Const c) => worldifyConDec W (c, I.sgnLookup c) handle Error' (occ, s) => raise Error (wrapMsg (c, occ, s)))
+           fun sgnLookup c = 
+               case I.sgnLookupAbbrev c of
+                   NONE => raise Error ("Illegal constant in call pattern")
+                 | SOME condec => condec                   
+	   val condecs = map (fn (I.Const c) => worldifyConDec W (c, sgnLookup c) handle Error' (occ, s) => raise Error (wrapMsg (c, occ, s)))
 	                     (Index.lookup a)
 	   val _ = map (fn condec => ( print "#"
 				     ; checkConDec W condec)) condecs
