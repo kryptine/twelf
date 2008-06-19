@@ -241,12 +241,16 @@ struct
 	  | calcImplicit' (I.ConDef (_, _, k, _, V, _, _)) =
 	    (* ignore definition for defined type family since they are opaque *)
 	      abstractMode (inferMode (empty (k, I.Null, V), mS), mS)
-         (* | calcImplicit' (I.ConStructureThing?!?!?!) *)
-         (* WHAT BRANCH IS THIS TRYING TO GO INTO? *)
-         (* Does this need to be changed in the parser as well? That may
-          * be a pervasive change to (shallow) data structures *)
+          | calcImplicit' _ = 
+            raise Error("Impossible case (invariant on I.sgnLookupAbbrev")
       in 
-	(checkName mS; calcImplicit' (I.sgnLookup a)) 
+	(checkName mS; 
+           case (I.sgnLookupAbbrev a) of
+               NONE => (* Either a bad abbrev or a block or skolem const *)
+               raise Error("Identifier "^I.conDecName (I.sgnLookup a)^
+                           " is not a constant or definition")
+             | SOME condec => calcImplicit' condec
+        ) 
 	handle Error (msg) => error (r, msg)  (* re-raise Error with location *)
       end
 
