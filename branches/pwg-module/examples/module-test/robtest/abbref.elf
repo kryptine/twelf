@@ -1,0 +1,12 @@
+nat : type.
+z : nat.
+s : nat -> nat.
+
+plus : nat -> nat -> nat -> type.
+pz : plus z N N.
+ps : plus N M P -> plus (s N) M (s P).
+
+%abbrev p = plus.
+
+%mode p +A +B -C.
+%worlds () (p _ _ _).
