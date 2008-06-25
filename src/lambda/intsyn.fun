@@ -338,8 +338,41 @@ struct
     fun findEta (exp) =
         case exp of
             Lam(_,exp) => findEta exp
-          | Root(h,s) => SOME h
-    
+          | Root(h,_) => SOME h
+					| _ => NONE
+
+		fun strExp (Lam (_,e)) = ("(Lam "^(strExp e)^")")
+			| strExp (Root (h,s)) = ("\n(Root "^strHead h^","^
+															(strSpine s)^")")
+			| strExp _ = "(UNKNOWN)"
+		and strSpine (Nil) = "Nil)"
+			| strSpine (App (exp,sp)) = ("App "^(strExp exp)^";"^(strSpine sp))
+			| strSpine _ = "UNKNOWN)"
+		and strHead (BVar i) = Int.toString i
+			| strHead (Const c) = conDecName (sgnLookup c)
+			| strHead (Skonst sk) = conDecName (sgnLookup sk) 
+			| strHead (Def d) = conDecName (sgnLookup d)
+			| strHead (NSDef nsd) = conDecName (sgnLookup nsd)
+			| strHead _ = "UNKNOWN"
+
+		fun findEta (Lam (_,exp)) = findEta exp
+			| findEta (Root (h,s)) =
+				(if (testSpine s)
+				then SOME h
+				else NONE)
+			| findEta _ = NONE
+		and testSpine (Nil) = true
+			| testSpine (App (e,Nil)) =
+				(case e of
+						Root (h,Nil) => true
+					| _ => false)
+			| testSpine (App (e,s)) = false
+				(*
+					(case (findEta e) of
+							SOME h => testSpine s
+						| NONE => false)*)
+			| testSpine _ = false
+
     fun sgnLookupAbbrev (cid) = 
         case sgnLookup cid of
             ConDec condec => SOME(ConDec condec)
@@ -347,9 +380,9 @@ struct
           | BlockDec _ => NONE
           | SkoDec _ => NONE
           | AbbrevDef(name,mid,implicit,typ,kin,Kind) => 
-            (case findEta typ of
+            (case (print (strExp typ); findEta typ) of
                  SOME(Const cid) => sgnLookupAbbrev cid
-               | _ => NONE)
+               | _ => ("Bad abbrev!"; NONE))
           | AbbrevDef _ => NONE
 
     (* fun checkEta  *)
