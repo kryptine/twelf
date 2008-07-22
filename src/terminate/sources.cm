@@ -3,6 +3,8 @@ Library
   structure Checking
   signature REDUCES
   structure Reduces
+  signature LPO
+  structure Lpo
 is
 #if defined(NEW_CM)
   $/basis.cm
@@ -22,4 +24,6 @@ is
   checking.fun
   reduces.sig
   reduces.fun 
+  lpo.sig
+  lpo.fun
   terminate.sml

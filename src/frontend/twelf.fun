@@ -596,6 +596,32 @@ struct
           else ()
         end
 
+      (* %drop (<qid> <qid>) ... *)
+      | install1 (fileName, (Parser.DropDec (qidpairs), r)) = 
+        let
+          fun toCid qid =
+              case Names.constLookup qid
+                of NONE => raise Names.Error ("Undeclared identifier "
+                                              ^ Names.qidToString (valOf (Names.constUndef qid))
+                                              ^ " in drop declaration")
+                 | SOME cid => cid
+          val cidpairs = List.map (fn (qid1, qid2) => (toCid qid1, toCid qid2)) qidpairs
+                     handle Names.Error (msg) =>
+		       raise Names.Error (Paths.wrap (r, msg))
+
+	  val _ = List.app Lpo.installDrop cidpairs
+    	            handle Lpo.Error (msg) =>
+		      raise Lpo.Error (Paths.wrap (r, msg)) 
+        in
+          if !Global.chatter >= 3
+          then msg ("%drop"
+                      ^ List.foldr 
+			    (fn ((a1, a2), s) => " (" ^ 
+				Names.qidToString (Names.constQid a1) ^ " " ^
+				Names.qidToString (Names.constQid a2) ^ ")" ^ s) ".\n" cidpairs)
+          else ()
+        end
+
       (* %freeze <qid> ... *)
       | install1 (fileName, (Parser.FreezeDec (qids), r)) = 
         let
