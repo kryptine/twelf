@@ -60,7 +60,8 @@ sig
     | WHERE                             (* `%where' *)
     | INCLUDE                           (* `%include' *)
     | OPEN                              (* `%open' *)
-    | USE                               (* `%use'    *)
+    | USE                               (* `%use'    *)   
+    | DROP                              (* `%drop' *) (* -cs 08/22/08 *)
     | STRING of string                  (* string constants *)
 
   exception Error of string
