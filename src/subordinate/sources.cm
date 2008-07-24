@@ -1,6 +1,7 @@
 Library
   signature SUBORDINATE
   structure Subordinate
+  structure Precedence
   signature INTSET
   structure IntSet
 is

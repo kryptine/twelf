@@ -62,6 +62,7 @@ sig
     | OPEN                              (* `%open' *)
     | USE                               (* `%use'    *)   
     | DROP                              (* `%drop' *) (* -cs 08/22/08 *)
+    | ORDER                             (* `%order' *) (* -cs 08/23/08 *)
     | STRING of string                  (* string constants *)
 
   exception Error of string

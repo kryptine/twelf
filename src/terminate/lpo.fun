@@ -10,9 +10,10 @@ struct
     val dropArray = Array.array (maxDrop+1, (0, 0))
       : (int * int) Array.array
     val nextDrop = ref (0)
-      
-  in
 
+
+    structure P = Precedence
+      
     fun installDrop (c1, c2) = 
         let
 	  val i = !nextDrop
@@ -23,9 +24,11 @@ struct
 		nextDrop := i + 1)
 	end
 
-    fun printDrops () =
-        Array.foldl (fn ((c1, c2), ()) => 
-		     (print "("; print (Int.toString c1); print ",";
-		      print (Int.toString c2); print ")\n")) () dropArray
+    (* Invariant :  c1, c2 object level constants *)
+    fun installOrder (c1, c2) = P.addSubord (c1, c2)
+
+  in
+    val installDrop = installDrop
+    val installOrder = installOrder
   end
 end

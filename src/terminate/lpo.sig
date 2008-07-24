@@ -7,5 +7,5 @@ sig
 
   val reset : unit -> unit
   val installDrop : IntSyn.cid * IntSyn.cid -> unit
-  val printDrops : unit -> unit
+  val installOrder : IntSyn.cid * IntSyn.cid -> unit
 end
