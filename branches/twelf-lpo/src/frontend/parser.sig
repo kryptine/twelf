@@ -40,6 +40,7 @@ sig
     | TrustMe of fileParseResult * Paths.region (* -fp *)
     | SubordDec of (Names.Qid * Names.Qid) list (* -gaw *)
     | DropDec of (Names.Qid * Names.Qid) list (* -cs *)
+    | OrderDec of (Names.Qid * Names.Qid) list (* -cs *)
     | FreezeDec of Names.Qid list
     | ThawDec of Names.Qid list
     | DeterministicDec of Names.Qid list  (* -rv *)

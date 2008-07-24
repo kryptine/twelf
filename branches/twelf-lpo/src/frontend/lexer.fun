@@ -69,6 +69,7 @@ struct
     | OPEN                              (* `%open' *)
     | USE                               (* `%use' *)
     | DROP                              (* `%drop' *) (* -cs 08/22/08 *)
+    | ORDER                             (* `%order' *) (* -cs 08/23/08 *)
     | STRING of string                  (* string constants *)
 
   exception Error of string
@@ -265,6 +266,7 @@ struct
       | lexPragmaKey (ID(_, "open"), r) = (OPEN, r)
       | lexPragmaKey (ID(_, "use"), r) = (USE, r)
       | lexPragmaKey (ID(_, "drop"), r) = (DROP, r)
+      | lexPragmaKey (ID(_, "order"), r) = (ORDER, r)
       | lexPragmaKey (ID(_, s), r) =
         error (r, "Unknown keyword %" ^ s ^ " (single line comment starts with `%<whitespace>' or `%%')")
       (* comments are now started by %<whitespace> *)
@@ -395,6 +397,7 @@ struct
     | toString' (OPEN) = "%open"
     | toString' (USE) = "%use"
     | toString' (DROP) = "%drop"
+    | toString' (ORDER) = "%order"
 
  fun toString (ID(_,s)) = "identifier `" ^ s ^ "'"
    | toString (EOF) = "end of file or `%.'"
@@ -437,6 +440,7 @@ struct
   end  (* local ... *)
 
 end;  (* functor Lexer *)
+ 
 
 structure Lexer =
   Lexer (structure Stream' = Stream
