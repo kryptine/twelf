@@ -26,4 +26,5 @@ is
   reduces.fun 
   lpo.sig
   lpo.fun
+  lpochecking.fun
   terminate.sml

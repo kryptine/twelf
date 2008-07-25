@@ -1,34 +1,33 @@
 (* Termination checking based on LPOs *)
 (* Author: Jeffrey Sarnat, Carsten Schuermann *)
 
-structure Lpo =
+functor Lpo (structure Subordinate : SUBORDINATE)
+	: LPO =
 struct
   exception Error of string
-
+  datatype partialOrder = LT | EQ | NLE
   local
-    val maxDrop = Global.maxCid
-    val dropArray = Array.array (maxDrop+1, (0, 0))
-      : (int * int) Array.array
-    val nextDrop = ref (0)
-
-
-    structure P = Precedence
-      
-    fun installDrop (c1, c2) = 
-        let
-	  val i = !nextDrop
-	in
-	  if i > maxDrop
-	    then raise Error ("Drop signature size " ^ Int.toString (maxDrop+1) ^ " exceeded")
-	  else (Array.update (dropArray, i, (c1, c2)) ;
-		nextDrop := i + 1)
-	end
-
+    open Int
+    structure S = Subordinate
+    fun reset () = ()
+    fun installDrop (c1, c2) = ()
+	
     (* Invariant :  c1, c2 object level constants *)
-    fun installOrder (c1, c2) = P.addSubord (c1, c2)
-
+    fun installOrder (c1, c2) = 
+	print  ("(" ^ Int.toString c1 ^ "," ^  Int.toString c2 ^ ")\n")
+	    
+    fun orderLookup (c1, c2) = case (compare (c1, c2))
+				of LESS => LT
+				 | EQUAL => EQ
+				 | GREATER => NLE
+					      
+    fun isDropped (c1, c2) = false
+			    
   in
-    val installDrop = installDrop
-    val installOrder = installOrder
-  end
+  val reset = reset
+  val installDrop = installDrop
+  val installOrder = installOrder
+  val orderCompare = orderLookup
+  val isDropped = isDropped
+  end 
 end
