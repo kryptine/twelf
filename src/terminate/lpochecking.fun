@@ -258,6 +258,13 @@ local
 	  proveLt ((G1,Q1), D, UsVs1, UsVs1')
 	end 
 
+      | proveLt (GQ, D, (Us as (I.Root (I.Def _, S1), _), Vs), UsVs') =
+	proveLt (GQ, D, ((Whnf.expandDef Us), Vs), UsVs')
+
+      | proveLt (GQ, D, (Us as (I.Root _, _), Vs as (I.Root (I.Def _, _), _)),
+		 UsVs') = 
+	proveLt (GQ, D, (Us, Whnf.expandDef Vs), UsVs')
+
       | proveLt ((G, Q), D, ((U as I.Root _, s1),
 			    (V as I.Root _, s2)),
 			   ((I.Lam (_, U'), s1'),
@@ -273,11 +280,17 @@ local
 	  proveLt ((G1,Q1), D1, UsVs1, UsVs1')
 	end
 
-      (* currently ignores the possibility of definitions 
-         at both type and term level *) 
-      | proveLt (GQ as (G,Q), D, ((U as I.Root (h, S1), s1),
-			    Vs as (V as I.Root ((I.Const a), S2), s2)),
-		 ((U' as I.Root (h', S1'), s1'),
+      | proveLt (GQ, D, UsVs,  (Us' as (I.Root (I.Def _, _), _), Vs')) =
+	proveLt (GQ, D, UsVs, ((Whnf.expandDef Us'), Vs'))
+
+      | proveLt (GQ, D, UsVs,
+		 (Us' as (I.Root _, _), Vs' as (I.Root (I.Def _, _), _))) = 
+	proveLt (GQ, D, UsVs, (Us', Whnf.expandDef Vs'))
+
+
+      | proveLt (GQ as (G,Q), D, (Us as (U as I.Root (h, S1), s1),
+				  Vs as (V as I.Root ((I.Const a), S2), s2)),
+		 (Us' as (U' as I.Root (h', S1'), s1'),
 		  Vs' as (V' as I.Root ((I.Const a'), S2'), s2'))) =
 	let
 	  val ord = rootCompare (Q, (h, S1, s1), Vs,
@@ -286,16 +299,40 @@ local
 	  (case ord
 	    of LT => 
 	      let
-		val (I.Root (_, S1n), _) = Whnf.whnf (U, s1)
+		(* I need to apply s1 to S1 *)
+		val (I.Root (_, S1n)) = Whnf.normalize Us
 	      in
 		proveLtAll (I.constType a) (GQ, D, S1n, U')
 	      end
-		)
+
+
+	     | EQ =>
+	       let
+		 (* I need to apply s1 to S1 and s1' to S1' *)
+		 val (I.Root (_, S1n)) = Whnf.normalize Us
+		 val (Usn' as (I.Root (_, S1n'))) = Whnf.normalize Us'
+	       in
+		 proveLex (I.constType a) (GQ, D, S1n, S1n', Usn')
+	       end
+
+	     | SUB => 
+	       let
+		 (* I need to apply s2 to S2 *)
+		 val (I.Root (_, S1n')) = Whnf.normalize Us'
+	       in
+		 proveLeSome (I.constType a') (GQ, D, U, S1n')
+	       end
+	     (* implement fancy lookstuffup here *)
+	     | SUBORD => (Subordinate.below(a, a')) orelse lookstuffup ()
+
+	     | LOOKUP => lookstuffup ()
+		 )
+
 	end
 
-    and proveLtAll _ _ = false
-    and proveLeSome _ = false
-    and proveLex _ = false
+    and proveLtAll _ _ = raise (Unimp "proveLtAll")
+    and proveLeSome _ _ = raise (Unimp "proveLeSome")
+    and proveLex _ _ = raise (Unimp "proveLex")
 
 
 
@@ -305,7 +342,7 @@ local
       | proveLtO _ =
 	raise Error "Lexicographic and Simultaneous orders not supported"
 
-    fun proveEqO _ = false
+    fun proveEqO _ = raise Unimp "proveEqO"
 
     fun rightDecompose (GQ, D, Less (O,O')) = 
 	proveLtO (GQ, D, O, O')
