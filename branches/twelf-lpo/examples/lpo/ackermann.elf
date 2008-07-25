@@ -1,0 +1,6 @@
+nat: type.
+z: nat. 
+s: nat -> nat.
+acker: nat -> nat -> nat.
+
+%order (z s) (s acker).

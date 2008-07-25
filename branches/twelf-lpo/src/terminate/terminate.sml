@@ -1,6 +1,7 @@
+structure Lpo = Lpo (structure Subordinate = Subordinate)
 
 structure Checking = 
-  Checking (structure Global = Global
+  LPOChecking (structure Global = Global
 	  (*! structure IntSyn' = IntSyn !*)
 	  structure Whnf = Whnf
 	  structure Conv = Conv
@@ -14,9 +15,9 @@ structure Checking =
 	  structure Order = Order
 	  structure Paths = Paths
 	  structure Origins = Origins
+	  structure Lpo = Lpo
 	  (*! structure CSManager = CSManager !*)
 	      );
-
 
 structure Reduces =
   Reduces (structure Global = Global
