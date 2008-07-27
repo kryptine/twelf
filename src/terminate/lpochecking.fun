@@ -206,6 +206,10 @@ local
 			| AV of int
 			| EV of int
 
+    fun statToString (CONST n) = "CONST(" ^ (Int.toString n) ^ ")"
+      | statToString (AV n) =  "AV(" ^ (Int.toString n) ^ ")"
+      | statToString (EV n) =  "EV(" ^ (Int.toString n) ^ ")"
+
     fun decType (I.Dec (_, E)) = E
     
     fun hstatus(Q, I.BVar n, s) = 
@@ -226,6 +230,7 @@ local
 	let
 	  val stath = hstatus (Q, h, s)
 	  val stath' = hstatus (Q, h', s')
+	  val _ = print ("hcompare: "^ (statToString stath) ^ ", " ^ (statToString stath') ^ "\n")
 	  val cfam = I.constType
 	  val vfam = decType o (fn n => I.ctxDec (G,n))
 	  fun famComp (V, V') = 
@@ -258,9 +263,68 @@ local
 	  (stath, order, stath')
 	end
 
+
+
+    fun proveAtomic _ = raise Unimp "proveAtomic"
+
+    fun proveEq ((G,Q), D, (I.Lam(Dec, U), s), (U', s')) =
+	let
+	  val G1 = I.Decl (G, N.decLUName (G, I.decSub(Dec, s)))
+	  val Q1 = I.Decl (Q, All)
+	  val D1 = shiftDCtx D shiftOnce
+	  val Us1 = (U, I.dot1 s)
+	  val Us1' = (U', shiftOnce s')
+	in
+	  proveEq ((G1, Q1), D1, Us1, Us1') 
+	end
+
+      | proveEq (GQ, D, Us as (I.Root (I.Def _, _), _), Us') =
+	proveEq (GQ, D, (Whnf.expandDef Us), Us')
+
+      | proveEq ((G,Q), D, (U as I.Root _, s), (I.Lam(Dec', U'), s')) =
+	let
+	  val G1 = I.Decl (G, N.decLUName (G, I.decSub(Dec', s')))
+	  val Q1 = I.Decl (Q, All)
+	  val D1 = shiftDCtx D shiftOnce
+	  val Us1 = (U, shiftOnce s)
+	  val Us1' = (U', I.dot1 s')
+	in
+	  proveEq ((G1, Q1), D1, Us1, Us1') 
+	end
+      | proveEq (GQ, D, Us as (I.Root _, _), Us' as (I.Root (I.Def _, _), _)) =
+	proveEq (GQ, D, Us, (Whnf.expandDef Us'))
+	     
+      | proveEq (GQ, D, (U as I.Root (h, S), s), Us' as (I.Root (h', S'), s')) =
+	(case (hcompare GQ ((h,s), (h',s')))
+	  of (_, L.EQ(V, _), _) => proveEqList (GQ, D, (S,s), (S',s'), V)
+	   | (EV n, L.NLE(V, _), EV n') =>  
+	     (n = n') andalso proveEqList (GQ, D, (S,s), (S',s'), V)
+	   | _ => false
+		  )
+
+    and proveEqList (GQ, D, Ss, Ss', V) =
+	let
+	  val b = I.targetFam V
+	  fun proveEqList' (I.Nil, _) (I.Nil, _) _ = true
+	    | proveEqList' (I.App (U,S), s) (I.App (U',S'), s')
+			   (I.Pi ((I.Dec (_, V), _), V'))
+	      =
+	      let
+		val a = I.targetFam V
+	      in
+		if (L.isDropped(a,b)) then proveEqList' (S, s) (S',s') V'
+		else proveEq (GQ, D, (U,s), (U', s')) 
+		     andalso proveEqList' (S, s) (S',s') V'
+	      end
+	(* If SClo can happen then I need to add some cases *)
+	in
+	  proveEqList' Ss Ss' V
+	end
+
     fun proveLt ((G,Q), D, (I.Lam(Dec, U), s), (U', s')) =
 	let
 	  val G1 = I.Decl (G, N.decLUName (G, I.decSub(Dec, s)))
+	  (* val G1 = I.Decl (G, N.decLUName (G,Dec))*) 
 	  val Q1 = I.Decl (Q, All)
 	  val D1 = shiftDCtx D shiftOnce
 	  val Us1 = (U, I.dot1 s)
@@ -275,10 +339,11 @@ local
       | proveLt ((G,Q), D, (U as I.Root _, s), (I.Lam(Dec', U'), s')) =
 	let
 	  val G1 = I.Decl (G, N.decLUName (G, I.decSub(Dec', s')))
+	  (* val G1 = I.Decl (G, N.decLUName (G, Dec')) *)
 	  val Q1 = I.Decl (Q, All)
 	  val D1 = shiftDCtx D shiftOnce
-	  val Us1 = (U, shiftOnce s')
-	  val Us1' = (U', I.dot1 s)
+	  val Us1 = (U, shiftOnce s)
+	  val Us1' = (U', I.dot1 s')
 	in
 	  proveLt ((G1, Q1), D1, Us1, Us1') 
 	end
@@ -286,27 +351,85 @@ local
       | proveLt (GQ, D, Us as (I.Root _, _), Us' as (I.Root (I.Def _, _), _)) =
 	proveLt (GQ, D, Us, (Whnf.expandDef Us'))
 
-      | proveLt (GQ, D, (U as I.Root (h, S), s), (U' as I.Root (h', S'), s')) =
+      | proveLt (GQ, D, Us as (I.Root (h, S), s), 
+		 Us' as (I.Root (h', S'), s')) =
 	(case (hcompare GQ ((h,s), (h',s')))
-	  of (_, L.LT(V, V'), _) => proveLtA ()
-	   | (_, L.EQ(V, _), _) => proveLex ()
-	   | (_, L.NLE(V, V'), CONST cid) => proveLeS ()
-	   | (_, L.NLE(V, V'), AV n) => proveLeS ()
+	  of (_, L.LT(V, V'), _) => proveLtA (GQ, D, (S,s), V, Us')
+	   | (_, L.EQ(V, _), _) => proveLex (GQ, D, (S,s), (S',s'), V, Us')
+	   | (_, L.NLE(_, V'), CONST cid) => proveLeS (GQ, D, Us, (S',s'), V')
+	   | (_, L.NLE(_, V'), AV n) => proveLeS (GQ, D, Us, (S',s'), V')
+	   | _ => proveAtomic ()
 	   )
 
-    and proveLtA _ = raise Unimp "proveLtA"
+    and proveLtA (GQ, D, (S,s), VS, Us') =
+	let
+	  val b = I.targetFam VS
 
-    and proveLex _ = raise Unimp "proveLeS"
+	  (* note: VS is only being used here as a simple type, so we don't
+	   need to worry about applying substitutions to it *)
+	  fun proveLtA' _ (I.Nil) _ = true
+	    | proveLtA' s (I.App (U,S)) (I.Pi ((I.Dec (_, V), _), V')) =
+	      let
+		val a = I.targetFam V
+	      in
+		if (L.isDropped(a,b)) then proveLtA' s S V'
+		else proveLt (GQ, D, (U,s), Us') andalso proveLtA' s S V'
+	      end
+	    | proveLtA' s' (I.SClo (S, s)) VS = 
+	      let
+		val _ = print ("LtA encountered an SClo; " ^
+			"hopefully I composed the substitutions correctly\n")
+	      in
+		proveLtA' (I.comp (s',s)) S VS
+	      end
+	in
+	  proveLtA' s S VS
+	end
 
-    and proveLeS _ = raise Unimp "proveLeS"
+    and proveLex (GQ, D, Ss, Ss', VS, Us2) = 
+	let
+	  val b = I.targetFam VS
+	  fun proveLex' (I.Nil, _) (I.Nil, _) _ = false
+	    | proveLex' (I.App (U,S), s) (I.App (U',S'), s') 
+			(I.Pi ((I.Dec (_, V), _), V')) =
+	      let
+		val a = I.targetFam V
+	      in
+		if (L.isDropped(a,b)) then proveLex' (S,s) (S',s') V'
+		else (proveLt (GQ, D, (U,s), (U',s')) 
+		      andalso proveLtA (GQ, D, (S,s), V', Us2))
+		     orelse
+		     (proveEq (GQ, D, (U,s), (U',s'))
+		      andalso proveLex' (S,s) (S',s') V')
+	      end
+	in
+	  proveLex' Ss Ss' VS
+	end
 
-    and proveEq _ = raise Unimp ""
+		  
 
+    and proveLeS (GQ, D, Us, Ss', VS') = 
+	let
+	  val b = I.targetFam VS'
+	  fun proveLeS' (I.Nil, _) _ = false
+	    | proveLeS' (I.App (U', S'), s') (I.Pi ((I.Dec (_, V), _), V')) =
+	      let
+		val a = I.targetFam V
+	      in
+		if (L.isDropped(a,b)) then proveLeS' (S', s') V'
+		else proveLe(GQ, D, Us, (U',s')) orelse proveLeS' (S', s') V'
+	      end
+	in
+	  proveLeS' Ss' VS'
+	end
+
+    and proveLe (GQ, D, O, O') =
+	proveLt (GQ, D, O, O')  orelse proveEq(GQ, D, O, O')
 
     fun rightDecompose (GQ, D, Less (O,O')) = 
 	proveLt (GQ, D, O, O')
       | rightDecompose (GQ, D, Leq(O,O')) =
-	proveLt (GQ, D, O, O') orelse proveEq(GQ, D, O, O')
+	proveLe (GQ, D, O, O')
       | rightDecompose (GQ, D, Eq(O,O')) =
 	proveEq (GQ, D, O, O') 
 
