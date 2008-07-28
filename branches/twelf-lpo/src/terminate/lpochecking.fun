@@ -189,6 +189,7 @@ local
 	
 (*     fun fmtRGCtx (G, Rl) = fmtRGCtx' (Names.ctxName G, Rl)  *)
 
+    fun ecloToString G Us = Print.expToString (G, (I.EClo Us));
 	
 (*     (\*--------------------------------------------------------------------*\) *)
 
@@ -213,7 +214,7 @@ local
       | statToString (AV n) =  "AV(" ^ (Int.toString n) ^ ")"
       | statToString (EV n) =  "EV(" ^ (Int.toString n) ^ ")"
 
-    fun decType (I.Dec (_, E)) = E
+    fun decType (I.Dec (_, E)) = W.normalize (E, I.id)
     
     fun hstatus(Q, I.BVar n, s) = 
 	let
@@ -267,10 +268,100 @@ local
 	end
 
 
+    fun findContradiction _ = false (* I'm not sure if I need to impliment this*)
 
-    fun rightAtomic _ = raise Unimp "rightAtomic" 
+    (* 
+     atomic left predicates:
+     h R = h' R' where h or h' is an existentially quantified bvar
+	      and h != h'
+     h R < h R'  where h or h' is an existentially quantified bvar
 
-    fun rightEq ((G,Q), D, (I.Lam(Dec, U), s), (U', s')) =
+     atomic right predicates:
+     h R = h' R' where h or h' is an existentially quantified bvar
+	      and h != h'
+     h R < x R'  where x is a existentially quantified bvar
+
+     *)
+
+    (* invariant lookupEq (GQ, D, Us, Us')
+     D contains only atomic predicates
+     Us = Us' is an atomic predicate
+     *)
+    fun lookupEq (GQ as (G,Q), D, Us0, Us1) = 
+	let
+	  val name0 = Print.expToString (G, W.normalize Us0)
+	  val name1 = Print.expToString (G, W.normalize Us1)
+	  val _ = print ("LookupEq: " ^ name0 ^ " = " ^ name1 ^ "? ")
+	  fun lookupEq' nil = false
+	    | lookupEq' (Less _ :: D) = lookupEq' D
+	    | lookupEq' (Eq (Us2, Us3) :: D) =
+	      (* axiom rule *)
+	      (Conv.conv (Us0, Us2) andalso Conv.conv(Us1, Us3))
+	      orelse
+	      (* axiom rule with refl *)
+	      (Conv.conv (Us0, Us3) andalso Conv.conv(Us1, Us2))
+	      (* transitivity rule with refl *)
+	      orelse
+	      (Conv.conv (Us0, Us2) andalso rightEq(GQ, D, Us1, Us3))
+	      orelse
+	      (Conv.conv (Us0, Us3) andalso rightEq(GQ, D, Us1, Us2))
+	      orelse
+	      (Conv.conv (Us1, Us2) andalso rightEq(GQ, D, Us0, Us3))
+	      orelse
+	      (Conv.conv (Us1, Us3) andalso rightEq(GQ, D, Us0, Us2))
+	      orelse
+	      lookupEq' D
+	  val b = lookupEq' D
+	  val _ = print ((Bool.toString b) ^ "\n")
+	in
+	  b
+	end
+
+	  
+
+	  
+    (* invariant lookupLt (GQ, D, Us, Us')
+     D contains only atomic predicates
+     Us < Us' is an atomic predicate
+     think about nontermination!
+
+     *)
+    and lookupLt (GQ as (G,Q), D, Us0, Us1) =
+	let
+	  val name0 = ecloToString G Us0
+	  val name1 = ecloToString G Us1
+	  val _ = print ("LookupLt: " ^ name0 ^ " <? " ^ name1 ^ "\n")
+	  fun lookupLt' nil = false
+	    | lookupLt' (Less (Us2, Us3) :: D) = 
+	      let
+		val name2 = ecloToString G Us2
+		val name3 = ecloToString G Us3
+		val _ = print ("  the context has: " ^ name2 ^ " < " ^ name3 ^ "\n")
+	      in
+		(* axiom rule *)
+		(* (Conv.conv (W.whnf Us0, W.whnf Us2) andalso Conv.conv (W.whnf Us1, W.whnf Us3)) *)
+		(rightEq (GQ, D, Us0, Us2) andalso rightEq (GQ, D, Us1, Us3))
+		orelse
+		(* lt-trans and lt-eq2 *)
+		((Conv.conv (Us1, Us3))
+		 andalso 
+		 (rightLt(GQ, D, Us0, Us2) orelse rightEq(GQ, D, Us0, Us2)))
+		orelse
+		lookupLt' D
+	      end
+	    | lookupLt'(Eq (Us2, Us3) :: D)  = 
+	      (Conv.conv (Us1, Us2) andalso rightLt (GQ, D, Us0, Us1))
+	      orelse
+	      (Conv.conv (Us1, Us3) andalso rightLt (GQ, D, Us0, Us3))
+	      orelse
+	      lookupLt' D
+	  val b = lookupLt' D
+	  val _ = print ((Bool.toString b) ^ "\n")
+	in
+	  b
+	end
+
+    and rightEq ((G,Q), D, (I.Lam(Dec, U), s), (U', s')) =
 	let
 	  val G1 = I.Decl (G, N.decLUName (G, I.decSub(Dec, s)))
 	  val Q1 = I.Decl (Q, All)
@@ -297,19 +388,23 @@ local
       | rightEq (GQ, D, Us as (I.Root _, _), Us' as (I.Root (I.Def _, _), _)) =
 	rightEq (GQ, D, Us, (Whnf.expandDef Us'))
 	     
-      | rightEq (GQ, D, (U as I.Root (h, S), s), Us' as (I.Root (h', S'), s')) =
+      | rightEq (GQ, D, Us as (I.Root (h, S), s), 
+		 Us' as (I.Root (h', S'), s')) =
 	(case (hcompare GQ ((h,s), (h',s')))
 	  of (_, L.EQ(V, _), _) => rightEqList (GQ, D, (S,s), (S',s'), V)
 	   | (EV n, L.NLE(V, _), EV n') => 
 	     (print ("comparing evars for equality: " ^ Int.toString n ^ " and " ^ Int.toString n' ^ "\n");
-	     (n = n') andalso rightEqList (GQ, D, (S,s), (S',s'), V)
+	      ((n = n') andalso rightEqList (GQ, D, (S,s), (S',s'), V))
+	      orelse lookupEq (GQ, D, Us, Us')
 			      )
-	   | _ => false
+	   | (_, _, EV _) => lookupEq (GQ, D, Us,Us')
+	   | _ => findContradiction (GQ,D, Eq(Us,Us'))
+
 		  )
 
-    and rightEqList (GQ, D, Ss, Ss', V) =
+    and rightEqList (GQ as (G,Q), D, Ss, Ss', VS) =
 	let
-	  val b = I.targetFam V
+	  val b = I.targetFam VS
 	  fun rightEqList' (I.Nil, _) (I.Nil, _) _ = true
 	    | rightEqList' (I.App (U,S), s) (I.App (U',S'), s')
 			   (I.Pi ((I.Dec (_, V), _), V'))
@@ -321,12 +416,29 @@ local
 		else rightEq (GQ, D, (U,s), (U', s')) 
 		     andalso rightEqList' (S, s) (S',s') V'
 	      end
-	(* If SClo can happen then I need to add some cases *)
+	    | rightEqList' (I.SClo _, _) _ _ = (print "SCLO!!!\n"; raise Unimp "")
+	    | rightEqList' (U,_) (U',_) V = 
+	      let
+		val Uname = foldr (fn (f,s) => (Formatter.makestring_fmt f)^ " | " ^ s) "." (Print.formatSpine (G,U))
+		val Uname' = foldr (fn (f,s) => (Formatter.makestring_fmt f)^ " | " ^ s) "." (Print.formatSpine (G,U'))
+
+		val Vname = Print.expToString (G, V)
+		val _ = (case V 
+			  of (I.Pi ((Dec, _), V')) => 
+			     print ("Dec is: " ^ (Print.decToString (G,Dec)) ^ "\n")
+			   | (I.Root (I.Def n, _)) => print "aah... defined constants\n"
+			   | (I.Redex _) => print "redex?\n"
+			   | (I.EClo _) =>  print "eclos?n"
+			   | _ =>  print "not a pi or a def or a redex or an eclo?\n")
+
+	      in
+		raise Unimp ("something is wrong : [" ^ Uname ^ " ; " ^ Uname' ^ "]: "^ Vname)
+	      end
 	in
-	  rightEqList' Ss Ss' V
+	  rightEqList' Ss Ss' VS
 	end
 
-    fun rightLt ((G,Q), D, (I.Lam(Dec, U), s), (U', s')) =
+    and rightLt ((G,Q), D, (I.Lam(Dec, U), s), (U', s')) =
 	let
 	  val G1 = I.Decl (G, N.decLUName (G, I.decSub(Dec, s)))
 	  val Q1 = I.Decl (Q, All)
@@ -359,10 +471,17 @@ local
 	(case (hcompare GQ ((h,s), (h',s')))
 	  of (_, L.LT(V, V'), _) => rightLtA (GQ, D, (S,s), V, Us')
 	   | (_, L.EQ(V, _), _) => rightLex (GQ, D, (S,s), (S',s'), V, Us')
-	   | (_, L.NLE(_, V'), CONST cid) => rightLeS (GQ, D, Us, (S',s'), V')
-	   | (_, L.NLE(_, V'), AV n) => rightLeS (GQ, D, Us, (S',s'), V')
-	   | _ => rightAtomic ()
-	   )
+				   orelse
+				   rightLeS (GQ, D, Us, (S',s'), V)
+	   | (EV _, L.NLE(_,V'), CONST _) => 
+	     rightLeS (GQ, D, Us, (S',s'), V') orelse
+	     lookupLt (GQ, D, Us, Us')
+	   | (EV _, L.NLE(_,V'), AV _) => 
+	     rightLeS (GQ, D, Us, (S',s'), V') orelse
+	     lookupLt (GQ, D, Us, Us')
+	   | (EV _, _, EV _) => lookupLt (GQ, D, Us, Us')
+	   | (_, L.NLE(_, V'), _) => rightLeS (GQ, D, Us, (S',s'), V')
+				     )
 
     and rightLtA (GQ, D, (S,s), VS, Us') =
 	let
@@ -552,10 +671,33 @@ local
 	(case (hcompare GQ ((h,s), (h',s')))
 	  of (_, L.LT(V, V'), _) => leftLtA GQDP ((S,s), V, Us')
 	   | (_, L.EQ(V, _), _) => leftLex GQDP ((S,s), (S',s'), V, Us')
-	   | (_, L.NLE(_, V'), CONST cid) => 
+				   andalso
+				   leftLeS GQDP (Us, (S',s'), V)
+	   | (EV _, _, _) => 
+	     let 
+	       val name1 = ecloToString G (U,s)
+	       val name2 = ecloToString G (U',s')
+	       val _ = print ("putting " ^ name1 ^ " < " ^ name2 ^ " into the context\n")
+	     in 
+	       leftDecompose (GQ, D, Less(Us, Us')::D', P)
+	     end
+	   | (_, _, EV _) => (print "into the context it goes2\n"; leftDecompose (GQ, D, Less(Us, Us')::D', P))
+	   | (_, L.NLE(_,V'), _) => leftLeS GQDP (Us, (S',s'), V')
+
+(*
+
+	   | (stat1, L.NLE(_,V), stat2) =>
+	     (case (stat1) 
+	       of (EV _) => leftDecompose (GQ, D, Less((U,s), (U',s'))::D', P)
+		| _ =>
+	   | (CONST _, L.NLE(_, V'), CONST _) => 
 	     leftLeS GQDP (Us, (S',s'), V')
-	   | (_, L.NLE(_, V'), AV n) => leftLeS GQDP (Us, (S',s'), V')
+	   | (CONST _, L.NLE(_, V'), AV _) => 
+	     leftLeS GQDP (Us, (S',s'), V')
+	   | (AV _, L.NLE(_, V'), AV _) => 
+	     leftLeS GQDP (Us, (S',s'), V')
 	   | _ => leftDecompose (GQ, D, Less((U,s), (U',s'))::D', P)
+*)
 		  )
 
 
@@ -645,7 +787,7 @@ local
 	leftDecompose ((G,Q), map dropTypes D, nil, dropTypes P) 
 	handle (E as Unimp s) => (print (s ^ "\n"); raise E)
   in
-    val deduce = fn x => let val b = deduce x val _ =  (print "deduced: "; print (Bool.toString b); print "\n") in b end
+    val deduce = fn x => let val b = deduce x val _ =  (print "deduced: "; print (Bool.toString b); print "\n-----------------------------------\n\n") in b end
     val shiftRCtx = shiftRCtx
     val shiftPred = shiftP
   end (* local *)

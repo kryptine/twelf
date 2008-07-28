@@ -1,4 +1,8 @@
-structure Lpo = Lpo (structure Subordinate = Subordinate)
+structure Lpo = Lpo (structure Subordinate = Subordinate
+		     structure Table = HashTable (type key' = int * int
+						  val hash = 
+						      (fn (x,y) => x + 256 * y)
+						      val eq = (op =)))
 
 structure Checking = 
   LPOChecking (structure Global = Global

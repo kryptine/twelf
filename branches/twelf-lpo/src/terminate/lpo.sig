@@ -16,7 +16,7 @@ sig
 							     to the precedence
 							     ordering *)
   val isDropped : IntSyn.cid * IntSyn.cid -> bool
-
+					     
   val orderCompare : IntSyn.cid * IntSyn.cid -> IntSyn.Exp partialOrder
 
 
