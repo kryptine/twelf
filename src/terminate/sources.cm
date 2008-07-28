@@ -20,6 +20,7 @@ is
   ../subordinate/sources.cm
   ../paths/sources.cm
   ../solvers/sources.cm
+  ../table/sources.cm
   checking.sig
   checking.fun
   reduces.sig
