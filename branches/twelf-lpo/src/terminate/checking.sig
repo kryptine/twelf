@@ -30,10 +30,11 @@ sig
 
   (* mixed-prefix context *)
   type qctx = Quantifier IntSyn.Ctx
+  (* changed type to take Sub, not Sub -> Sub: -js *)
+  val shiftRCtx : rctx -> (IntSyn.Sub) -> rctx
 
-  val shiftRCtx : rctx -> (IntSyn.Sub -> IntSyn.Sub) -> rctx
-
-  val shiftPred : order Predicate ->  (IntSyn.Sub -> IntSyn.Sub) 
+  (* changed type to take Sub, not Sub -> Sub: -js *)
+  val shiftPred : order Predicate ->  (IntSyn.Sub) 
                   -> order Predicate
    
   val deduce : IntSyn.dctx * qctx * rctx * order Predicate -> bool

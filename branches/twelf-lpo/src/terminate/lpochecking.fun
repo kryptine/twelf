@@ -41,7 +41,12 @@ datatype Quantifier =        (* Quantifier to mark parameters *)
 	 All                        (* Q ::= All                     *)
        | Exist                      (*     | Exist                   *)
        | And of Paths.occ	    (*     | And                     *)
-		
+
+
+(* possible optimization:
+   take apart lambdas for Less, Leq and Eq all in one function then do 
+   reasoning on atomic terms from there. This would cut down on backtracking.
+ *)		
 
 (* If Q marks all parameters in a context G we write   G : Q               *)
 
@@ -89,6 +94,23 @@ local
       Print.expToString(G, I.EClo(Us)) ^ " = " ^ 
       Print.expToString(G, I.EClo(Us'))
       
+
+
+  fun predToString (G, Less (Us, Us')) =
+      Print.expToString(G, I.EClo(Us)) ^ " < " ^ 
+      Print.expToString(G, I.EClo(Us'))
+    | predToString (G, Leq(Us,Us')) =
+      Print.expToString(G, I.EClo(Us)) ^ " <= " ^ 
+      Print.expToString(G, I.EClo(Us'))
+    | predToString (G, Eq(Us,Us')) =
+      Print.expToString(G, I.EClo(Us)) ^ " = " ^ 
+      Print.expToString(G, I.EClo(Us'))
+    | predToString (G, Pi (Dec, P)) = 
+      "Pi " ^
+      (Print.decToString (G, Dec)) ^ ". " ^
+      (predToString (I.Decl (G, N.decLUName (G, Dec)), P))
+
+
   fun atomicRCtxToString (G, nil) = " "
     | atomicRCtxToString (G, O::nil) = atomicPredToString (G, O)
     | atomicRCtxToString (G, O::D') = 
@@ -109,21 +131,23 @@ local
 	 with its terms by applying f to it
     *)
 
-    fun shiftO (R.Arg ((U, us), (V, vs))) f =
-	R.Arg ((U, (f us)), (V, (f vs)))
-      | shiftO (R.Lex L) f = R.Lex (map (fn O => shiftO O f) L)
-      | shiftO (R.Simul L) f = R.Simul (map (fn O => shiftO O f) L)
-
-    fun shiftP (Less(O1, O2)) f = Less(shiftO O1 f, shiftO O2 f)
-      | shiftP (Leq(O1, O2)) f = Leq(shiftO O1 f, shiftO O2 f)
-      | shiftP (Eq(O1, O2)) f = Eq(shiftO O1 f, shiftO O2 f)
-	(* the previous definition for Pi was wrong -js *)
-      | shiftP (Pi(D as I.Dec(X,V), P)) f = Pi (I.decSub(D, f I.id),
-						shiftP P (f o I.dot1))
+    fun shiftO (R.Arg ((U, us), (V, vs))) s =
+	R.Arg ((U, (I.comp(us,s))), (V, (I.comp(vs,s))))
+      | shiftO (R.Lex L) s = R.Lex (map (fn O => shiftO O s) L)
+      | shiftO (R.Simul L) s = R.Simul (map (fn O => shiftO O s) L)
 
 
+    fun shiftP (Less(O1, O2)) s = Less(shiftO O1 s, shiftO O2 s)
+      | shiftP (Leq(O1, O2)) s = Leq(shiftO O1 s, shiftO O2 s)
+      | shiftP (Eq(O1, O2)) s = Eq(shiftO O1 s, shiftO O2 s)
+      | shiftP (Pi(D as I.Dec(X,V), P)) s = 
+	Pi (I.decSub (D, s), 
+	    shiftP P (I.dot1 s))
 
-    fun shiftRCtx Rl f = map (fn p => shiftP p f) Rl
+
+   
+
+    fun shiftRCtx Rl s = map (fn p => shiftP p s) Rl
 
     fun shiftArg (Less (((U1, s1), (V1, s1')), ((U2, s2), (V2, s2')))) f =
           Less (((U1, (f s1)), (V1, (f s1'))), (((U2, (f s2)), (V2, (f s2')))))
@@ -139,17 +163,42 @@ local
 
     (* my shifting *)
 
+    fun shiftOnce s = I.comp(s, I.shift)
 
-    fun shiftAP (Less((U, us), (U', us'))) f = Less ((U, f us), (U', f us'))
+    (* shiftAP (Ord f) = Ord'
+     * f is defined s.t. if  G'  t : G, then G2' |- (f t) : G2
+     * G' |- Ord wff
+     * G2' |- Ord' wff
+     *)
+
+(*    fun shiftAP (Less((U, us), (U', us'))) f = Less ((U, f us), (U', f us'))
       | shiftAP (Leq((U, us), (U', us'))) f = Leq ((U, f us), (U', f us'))
       | shiftAP (Eq((U, us), (U', us'))) f = Eq ((U, f us), (U', f us'))
       | shiftAP (Pi(D, P)) f =
 	Pi (I.decSub (D, f I.id), 
-	    shiftAP P (f o I.dot1))
+	    (* i think f o I.dot1 is right *)
+	    shiftAP P (I.dot1 o f))
 
-    fun shiftDCtx D f = map (fn p => shiftAP p f) D
 
-    fun shiftOnce s = I.comp(s, I.shift)
+    fun shiftDCtx D f = map (fn p => shiftAP p f) D 
+*)
+
+
+    fun subP s (Less((U, us), (U', us'))) =
+	Less ((U, I.comp (us, s)), (U', I.comp (us',s)))
+      | subP s (Leq((U, us), (U', us'))) = 
+	Leq ((U, I.comp (us, s)), (U', I.comp (us',s)))
+      | subP s (Eq((U, us), (U', us'))) = 
+	Eq ((U, I.comp (us, s)), (U', I.comp (us',s)))
+      | subP s (Pi(D, P)) =
+	Pi (I.decSub (D, s), 
+	    subP (I.dot1 s) P)
+
+    fun subDCtx s D = map (subP s) D
+
+    fun shiftPOnce D = subP I.shift D
+
+    fun shiftDCtxOnce D = subDCtx I.shift D
 
     (*--------------------------------------------------------------------*)
 (*    (\* Printing *\) *)
@@ -189,7 +238,10 @@ local
 	
 (*     fun fmtRGCtx (G, Rl) = fmtRGCtx' (Names.ctxName G, Rl)  *)
 
-    fun ecloToString G Us = Print.expToString (G, (I.EClo Us));
+    fun ecloToString G Us = Print.expToString (G, (I.EClo Us))
+    fun spineLength (I.Nil) = 0
+      | spineLength (I.App (U,S)) = 1 + spineLength S
+      | spineLength (I.SClo (S,s)) = (print "SClo detected!\n"; spineLength S)
 	
 (*     (\*--------------------------------------------------------------------*\) *)
 
@@ -197,7 +249,7 @@ local
     fun strSubord (a,b) = Subordinate.below(a,b) 
 			  andalso (not (Subordinate.equiv(a,b)))
 
-
+    fun strSmallerType (V, V') = strSubord ((I.targetFam V), (I.targetFam V'))
       
     fun dropTypes (Less (R.Arg (Us,Vs), R.Arg (Us', Vs'))) = Less (Us, Us')
       | dropTypes (Leq (R.Arg (Us,Vs), R.Arg (Us', Vs'))) = Leq (Us, Us')
@@ -215,6 +267,15 @@ local
       | statToString (EV n) =  "EV(" ^ (Int.toString n) ^ ")"
 
     fun decType (I.Dec (_, E)) = W.normalize (E, I.id)
+
+    fun varName G n =
+	let 
+	  val dec = I.ctxDec (G,n)
+	in
+	  (case (dec)
+	    of (I.Dec(SOME(name), _)) => name
+	     | (I.Dec(NONE, _)) => "(var #" ^ (Int.toString n) ^ ")")
+	end
     
     fun hstatus(Q, I.BVar n, s) = 
 	let
@@ -231,7 +292,7 @@ local
     (* possible optimization: have hcompare return any 
        type info it calculates *)
     fun hcompare (G,Q) ((h, s), (h', s')) =
-	let
+let
 	  val stath = hstatus (Q, h, s)
 	  val stath' = hstatus (Q, h', s')
 	  val _ = print ("hcompare: "^ (statToString stath) ^ ", " ^ (statToString stath') ^ "\n")
@@ -283,23 +344,37 @@ local
 
      *)
 
+    val debugString = ref "."
+
+
     (* invariant lookupEq (GQ, D, Us, Us')
      D contains only atomic predicates
      Us = Us' is an atomic predicate
      *)
+(*
     fun lookupEq (GQ as (G,Q), D, Us0, Us1) = 
 	let
+	  val prefix = !debugString
+	  val _ = debugString := (!debugString) ^ "e"
 	  val name0 = Print.expToString (G, W.normalize Us0)
 	  val name1 = Print.expToString (G, W.normalize Us1)
-	  val _ = print ("LookupEq: " ^ name0 ^ " = " ^ name1 ^ "? ")
+	  val _ = print ("LookupEq: " ^ name0 ^ " =? " ^ name1 ^ "\n" ^ prefix ^ "\n")
+	  fun compare (U, U') = rightEq (GQ, nil, U, U')
 	  fun lookupEq' nil = false
 	    | lookupEq' (Less _ :: D) = lookupEq' D
 	    | lookupEq' (Eq (Us2, Us3) :: D) =
 	      (* axiom rule *)
-	      (Conv.conv (Us0, Us2) andalso Conv.conv(Us1, Us3))
+	      (rightEq (GQ, D, Us0, Us2) andalso rightEq (GQ, D, Us1, Us3))
+		orelse
+	      (* axiom rule with refl *)
+	      (rightEq (GQ, D, Us0, Us3) andalso rightEq (GQ, D, Us1, Us2))
+
+	      (* axiom rule *)
+	      (* (Conv.conv (Us0, Us2) andalso Conv.conv(Us1, Us3))
 	      orelse
 	      (* axiom rule with refl *)
-	      (Conv.conv (Us0, Us3) andalso Conv.conv(Us1, Us2))
+	      (Conv.conv (Us0, Us3) andalso Conv.conv(Us1, Us2)) 
+	       *)
 	      (* transitivity rule with refl *)
 	      orelse
 	      (Conv.conv (Us0, Us2) andalso rightEq(GQ, D, Us1, Us3))
@@ -312,13 +387,48 @@ local
 	      orelse
 	      lookupEq' D
 	  val b = lookupEq' D
-	  val _ = print ((Bool.toString b) ^ "\n")
+	  val _ = print (prefix ^ " " ^ (Bool.toString b) ^ "\n")
+	  val _ = debugString := prefix
 	in
 	  b
 	end
 
 	  
+*)
 
+    fun lookupEq (GQ as (G,Q), D, Us0, Us1) = 
+	let
+	  val prefix = !debugString
+	  val _ = debugString := (!debugString) ^ "e"
+	  val name0 = Print.expToString (G, W.normalize Us0)
+	  val name1 = Print.expToString (G, W.normalize Us1)
+	  val _ = print ("LookupEq: " ^ name0 ^ " =? " ^ name1 ^ "\n" ^ prefix ^ "\n")
+	  fun compare (U, U') = rightEq (GQ, nil, U, U')
+	  fun lookupEq' nil = false
+	    | lookupEq' (Less _ :: D') = lookupEq' D'
+	    | lookupEq' (Eq (Us2, Us3) :: D') =
+	      (* axiom rule *)
+	      (compare (Us0, Us2) andalso compare(Us1, Us3))
+	      orelse
+	      (* axiom rule with refl *)
+	      (compare (Us0, Us3) andalso compare(Us1, Us2)) 
+	      (* transitivity rule with refl *)
+	      orelse
+	      (compare (Us0, Us2) andalso rightEq(GQ, D, Us1, Us3))
+	      orelse
+	      (compare (Us0, Us3) andalso rightEq(GQ, D, Us1, Us2))
+	      orelse
+	      (compare (Us1, Us2) andalso rightEq(GQ, D, Us0, Us3))
+	      orelse
+	      (compare (Us1, Us3) andalso rightEq(GQ, D, Us0, Us2))
+	      orelse
+	      lookupEq' D'
+	  val b = lookupEq' D
+	  val _ = print (prefix ^ " eq returned " ^ (Bool.toString b) ^ "\n")
+	  val _ = debugString := prefix
+	in
+	  b
+	end
 	  
     (* invariant lookupLt (GQ, D, Us, Us')
      D contains only atomic predicates
@@ -326,11 +436,51 @@ local
      think about nontermination!
 
      *)
+
     and lookupLt (GQ as (G,Q), D, Us0, Us1) =
 	let
+	  val prefix = !debugString
+	  val _ = debugString := (!debugString) ^ "l"
 	  val name0 = ecloToString G Us0
 	  val name1 = ecloToString G Us1
-	  val _ = print ("LookupLt: " ^ name0 ^ " <? " ^ name1 ^ "\n")
+	  val _ = print ("LookupLt: " ^ name0 ^ " <? " ^ name1 ^ "\n" ^ prefix ^
+ "\n")
+	  fun compare (U,U') = rightEq (GQ, nil, U, U')
+	  fun lookupLt' nil = false
+	    | lookupLt' (Less (Us2, Us3) :: D') = 
+	      (* axiom rule *)
+	      (compare (Us0, Us2) andalso compare (Us1, Us3))
+	      orelse
+	      (* lt-trans and lt-eq2 *)
+	      ((compare (Us1, Us3))
+	       andalso 
+	       (rightLt(GQ, D, Us0, Us2) orelse rightEq(GQ, D, Us0, Us2)))
+	      orelse (* missing rules *)
+	      (compare (Us0, Us2) andalso rightLt(GQ, D, Us3, Us1))
+	      orelse
+	      lookupLt' D'
+
+	    | lookupLt'(Eq (Us2, Us3) :: D')  = 
+	      (compare (Us1, Us2) andalso rightLt (GQ, D, Us0, Us1))
+	      orelse
+	      (compare (Us1, Us3) andalso rightLt (GQ, D, Us0, Us3))
+	      orelse
+	      lookupLt' D'
+	  val b = lookupLt' D
+	  val _ = print (prefix ^ " lt returned " ^ (Bool.toString b) ^ "\n")
+	  val _ = debugString := prefix
+	in
+	  b
+	end
+
+(*
+    and lookupLt (GQ as (G,Q), D, Us0, Us1) =
+	let
+	  val prefix = !debugString
+	  val _ = debugString := (!debugString) ^ "l"
+	  val name0 = ecloToString G Us0
+	  val name1 = ecloToString G Us1
+	  val _ = print ("LookupLt: " ^ name0 ^ " <? " ^ name1 ^ "\n" ^ prefix ^ "\n")
 	  fun lookupLt' nil = false
 	    | lookupLt' (Less (Us2, Us3) :: D) = 
 	      let
@@ -356,16 +506,18 @@ local
 	      orelse
 	      lookupLt' D
 	  val b = lookupLt' D
-	  val _ = print ((Bool.toString b) ^ "\n")
+	  val _ = print (prefix ^ " " ^ (Bool.toString b) ^ "\n")
+	  val _ = debugString := prefix
 	in
 	  b
 	end
-
+*)
     and rightEq ((G,Q), D, (I.Lam(Dec, U), s), (U', s')) =
 	let
 	  val G1 = I.Decl (G, N.decLUName (G, I.decSub(Dec, s)))
 	  val Q1 = I.Decl (Q, All)
-	  val D1 = shiftDCtx D shiftOnce
+(*	  val D1 = shiftDCtx D shiftOnce *)
+	  val D1 = shiftDCtxOnce D
 	  val Us1 = (U, I.dot1 s)
 	  val Us1' = (U', shiftOnce s')
 	in
@@ -379,7 +531,8 @@ local
 	let
 	  val G1 = I.Decl (G, N.decLUName (G, I.decSub(Dec', s')))
 	  val Q1 = I.Decl (Q, All)
-	  val D1 = shiftDCtx D shiftOnce
+(*	  val D1 = shiftDCtx D shiftOnce *)
+	  val D1 = shiftDCtxOnce D
 	  val Us1 = (U, shiftOnce s)
 	  val Us1' = (U', I.dot1 s')
 	in
@@ -388,15 +541,33 @@ local
       | rightEq (GQ, D, Us as (I.Root _, _), Us' as (I.Root (I.Def _, _), _)) =
 	rightEq (GQ, D, Us, (Whnf.expandDef Us'))
 	     
-      | rightEq (GQ, D, Us as (I.Root (h, S), s), 
+      | rightEq (GQ as (G,Q), D, Us as (I.Root (h, S), s), 
 		 Us' as (I.Root (h', S'), s')) =
 	(case (hcompare GQ ((h,s), (h',s')))
-	  of (_, L.EQ(V, _), _) => rightEqList (GQ, D, (S,s), (S',s'), V)
-	   | (EV n, L.NLE(V, _), EV n') => 
-	     (print ("comparing evars for equality: " ^ Int.toString n ^ " and " ^ Int.toString n' ^ "\n");
-	      ((n = n') andalso rightEqList (GQ, D, (S,s), (S',s'), V))
-	      orelse lookupEq (GQ, D, Us, Us')
-			      )
+	  of (_, L.EQ(V, V'), _) => 
+	     let
+	       val name = Print.expToString (G,V)
+	       val name' = Print.expToString (G,V')
+	       val _ = if (Conv.conv((V,I.id), (V',I.id))) then ()
+		       else raise Unimp ("hcompare said that heads with types" ^ name ^ " and " ^ name' ^ " were equal")
+	     in
+	       rightEqList (GQ, D, (S,s), (S',s'), V)
+	     end
+	   | (EV n, L.NLE(V, V'), EV n') => 
+	     let
+	       val _ = print ("comparing evars for equality: " ^ Int.toString n ^ " and " ^ Int.toString n' ^ "\n")
+	       val _ = print ("     their names are " ^ (varName G n) ^ " and " ^ (varName G n') ^ "\n")
+	       val name = Print.expToString (G,V)
+	       val name' = Print.expToString (G,V')
+	       val _ = if (n = n' andalso not (Conv.conv ((V, I.id),(V', I.id))))
+		       then raise Unimp ("hcompare returned" ^ name ^ " and " ^ name' ^ " for the type of the same existentially quantified variable")
+		       else ()
+	     in
+	       
+	       ((n = n') andalso rightEqList (GQ, D, (S,s), (S',s'), V))
+	       orelse lookupEq (GQ, D, Us, Us')
+	     end
+
 	   | (_, _, EV _) => lookupEq (GQ, D, Us,Us')
 	   | _ => findContradiction (GQ,D, Eq(Us,Us'))
 
@@ -405,7 +576,18 @@ local
     and rightEqList (GQ as (G,Q), D, Ss, Ss', VS) =
 	let
 	  val b = I.targetFam VS
-	  fun rightEqList' (I.Nil, _) (I.Nil, _) _ = true
+	  val l1 = spineLength (#1 Ss)
+	  val l2 = spineLength (#1 Ss')
+	  val _ = if (l1 <> l2) then
+		    let
+		      val Sname = foldr (fn (f,s) => (Formatter.makestring_fmt f)^ " | " ^ s) "." (Print.formatSpine (G,(I.SClo Ss)))
+		      val Sname' = foldr (fn (f,s) => (Formatter.makestring_fmt f)^ " | " ^ s) "." (Print.formatSpine (G,(I.SClo Ss')))
+		      val vname = Print.expToString (G, VS)
+		    in
+		      raise Unimp ("called rightEqList on spines of lengths " ^ Int.toString l1 ^ " and " ^ Int.toString l2 ^ "\n" ^ "     Ss = " ^ Sname ^ "\n" ^ "     Ss' = " ^ Sname' ^ "\n" ^ "     V = " ^ vname )
+		    end
+		  else ()
+	  fun rightEqList' (I.Nil, _) (I.Nil, _) (I.Root _) = true
 	    | rightEqList' (I.App (U,S), s) (I.App (U',S'), s')
 			   (I.Pi ((I.Dec (_, V), _), V'))
 	      =
@@ -417,7 +599,7 @@ local
 		     andalso rightEqList' (S, s) (S',s') V'
 	      end
 	    | rightEqList' (I.SClo _, _) _ _ = (print "SCLO!!!\n"; raise Unimp "")
-	    | rightEqList' (U,_) (U',_) V = 
+	    | rightEqList' (U, _) (U', _) V = 
 	      let
 		val Uname = foldr (fn (f,s) => (Formatter.makestring_fmt f)^ " | " ^ s) "." (Print.formatSpine (G,U))
 		val Uname' = foldr (fn (f,s) => (Formatter.makestring_fmt f)^ " | " ^ s) "." (Print.formatSpine (G,U'))
@@ -430,9 +612,9 @@ local
 			   | (I.Redex _) => print "redex?\n"
 			   | (I.EClo _) =>  print "eclos?n"
 			   | _ =>  print "not a pi or a def or a redex or an eclo?\n")
-
 	      in
-		raise Unimp ("something is wrong : [" ^ Uname ^ " ; " ^ Uname' ^ "]: "^ Vname)
+		raise
+		  Unimp ("something is wrong : [" ^ Uname ^ " ; " ^ Uname' ^ "]: "^ Vname)
 	      end
 	in
 	  rightEqList' Ss Ss' VS
@@ -442,7 +624,8 @@ local
 	let
 	  val G1 = I.Decl (G, N.decLUName (G, I.decSub(Dec, s)))
 	  val Q1 = I.Decl (Q, All)
-	  val D1 = shiftDCtx D shiftOnce
+(*	  val D1 = shiftDCtx D shiftOnce *)
+	  val D1 = shiftDCtxOnce D
 	  val Us1 = (U, I.dot1 s)
 	  val Us1' = (U', shiftOnce s')
 	in
@@ -456,7 +639,8 @@ local
 	let
 	  val G1 = I.Decl (G, N.decLUName (G, I.decSub(Dec', s')))
 	  val Q1 = I.Decl (Q, All)
-	  val D1 = shiftDCtx D shiftOnce
+(*	  val D1 = shiftDCtx D shiftOnce *)
+	  val D1 = shiftDCtxOnce D
 	  val Us1 = (U, shiftOnce s)
 	  val Us1' = (U', I.dot1 s')
 	in
@@ -473,14 +657,26 @@ local
 	   | (_, L.EQ(V, _), _) => rightLex (GQ, D, (S,s), (S',s'), V, Us')
 				   orelse
 				   rightLeS (GQ, D, Us, (S',s'), V)
+	   | (_, L.NLE(V,V'), EV _) =>
+	     strSmallerType(V,V') orelse
+	     lookupLt (GQ, D, Us, Us')
+	   | (_, L.NLE(V,V'), _) => 
+	     rightLeS (GQ, D, Us, (S',s'), V') orelse
+	     lookupLt (GQ, D, Us, Us')
+
+(*
 	   | (EV _, L.NLE(_,V'), CONST _) => 
 	     rightLeS (GQ, D, Us, (S',s'), V') orelse
 	     lookupLt (GQ, D, Us, Us')
 	   | (EV _, L.NLE(_,V'), AV _) => 
 	     rightLeS (GQ, D, Us, (S',s'), V') orelse
 	     lookupLt (GQ, D, Us, Us')
-	   | (EV _, _, EV _) => lookupLt (GQ, D, Us, Us')
-	   | (_, L.NLE(_, V'), _) => rightLeS (GQ, D, Us, (S',s'), V')
+	   | (EV _, (L.NLE(V,V')), EV _) => 
+	     strSmallerType(V,V')
+	     orelse lookupLt (GQ, D, Us, Us')
+	   | (_, L.NLE(V, V'), _) => 
+	     rightLeS (GQ, D, Us, (S',s'), V')
+*)
 				     )
 
     and rightLtA (GQ, D, (S,s), VS, Us') =
@@ -489,7 +685,7 @@ local
 
 	  (* note: VS is only being used here as a simple type, so we don't
 	   need to worry about applying substitutions to it *)
-	  fun rightLtA' _ (I.Nil) _ = true
+	  fun rightLtA' _ (I.Nil) (I.Root _) = true
 	    | rightLtA' s (I.App (U,S)) (I.Pi ((I.Dec (_, V), _), V')) =
 	      let
 		val a = I.targetFam V
@@ -511,7 +707,7 @@ local
     and rightLex (GQ, D, Ss, Ss', VS, Us2) = 
 	let
 	  val b = I.targetFam VS
-	  fun rightLex' (I.Nil, _) (I.Nil, _) _ = false
+	  fun rightLex' (I.Nil, _) (I.Nil, _) (I.Root _) = false
 	    | rightLex' (I.App (U,S), s) (I.App (U',S'), s') 
 			(I.Pi ((I.Dec (_, V), _), V')) =
 	      let
@@ -533,7 +729,7 @@ local
     and rightLeS (GQ, D, Us, Ss', VS') = 
 	let
 	  val b = I.targetFam VS'
-	  fun rightLeS' (I.Nil, _) _ = false
+	  fun rightLeS' (I.Nil, _) (I.Root _) = false
 	    | rightLeS' (I.App (U', S'), s') (I.Pi ((I.Dec (_, V), _), V')) =
 	      let
 		val a = I.targetFam V
@@ -559,8 +755,8 @@ local
 	let
 	  val G1 = I.Decl (G, N.decLUName (G, Dec)): IntSyn.dctx
 	  val Q1 = I.Decl (Q, All)
-	  val D1 = shiftDCtx D shiftOnce
-	  val P1 = shiftAP P I.dot1
+	  val D1 = shiftDCtxOnce D
+	  val P1 = P
 	in
 	  rightDecompose ((G1,Q1), D1, P1)
 	end
@@ -569,13 +765,16 @@ local
 	let
 	  val G1 = I.Decl (G, N.decLUName (G, I.decSub(Dec, s)))
 	  val Q1 = I.Decl (Q, All)
-	  val D1 = shiftDCtx D shiftOnce
+(*	  val D1 = shiftDCtx D shiftOnce
 	  val D1' = shiftDCtx D' shiftOnce
+*)
+	  val D1 = shiftDCtxOnce D
+	  val D1' = shiftDCtxOnce D'
 	  val Us1 = (U, I.dot1 s)
 	  val Us1' = (U', shiftOnce s')
-	  val P' = shiftAP P shiftOnce
+	  val P1 = shiftPOnce P
 	in
-	  leftEq (Us1, Us1') ((G1,Q1), D1, D1', P)
+	  leftEq (Us1, Us1') ((G1,Q1), D1, D1', P1)
 	end
 
       | leftEq ((Us as (I.Root (I.Def _, _), _)), Us') GQDP =
@@ -586,13 +785,17 @@ local
 	let
 	  val G1 = I.Decl (G, N.decLUName (G, I.decSub(Dec', s')))
 	  val Q1 = I.Decl (Q, All)
-	  val D1 = shiftDCtx D shiftOnce
+(*	  val D1 = shiftDCtx D shiftOnce
 	  val D1' = shiftDCtx D' shiftOnce
+*)
+	  val D1 = shiftDCtxOnce D
+	  val D1' = shiftDCtxOnce D'
 	  val Us1 = (U, shiftOnce s)
 	  val Us1' = (U', I.dot1 s')
-	  val P' = shiftAP P shiftOnce
+(*	  val P1 = shiftAP P shiftOnce *)
+	  val P1 = shiftPOnce P
 	in
-	  leftEq (Us1, Us1') ((G1, Q1), D1, D1', P')
+	  leftEq (Us1, Us1') ((G1, Q1), D1, D1', P1)
 	end
 	  
 
@@ -614,7 +817,7 @@ local
     and leftEqList (GQ, D, D', P) (Ss, Ss', VS) =
 	let
 	  val b = I.targetFam VS
-	  fun leftEqList' (I.Nil, _) (I.Nil, _) (_) D =
+	  fun leftEqList' (I.Nil, _) (I.Nil, _) (I.Root _) D =
 	      leftDecompose (GQ, D, D', P)
 	    | leftEqList' (I.App (U, S), s) (I.App (U', S'), s')
 			  (I.Pi ((I.Dec (_, V), _), V')) D =
@@ -634,13 +837,13 @@ local
 	let
 	  val G1 = I.Decl (G, N.decLUName (G, I.decSub(Dec, s)))
 	  val Q1 = I.Decl (Q, All)
-	  val D1 = shiftDCtx D shiftOnce
-	  val D1' = shiftDCtx D' shiftOnce
+	  val D1 = shiftDCtxOnce D
+	  val D1' = shiftDCtxOnce D'
 	  val Us1 = (U, I.dot1 s)
 	  val Us1' = (U', shiftOnce s')
-	  val P' = shiftAP P shiftOnce
+	  val P1 = shiftPOnce P
 	in
-	  leftLt (Us1, Us1') ((G1,Q1), D1, D1', P)
+	  leftLt (Us1, Us1') ((G1,Q1), D1, D1', P1)
 	end
 
       | leftLt ((Us as (I.Root (I.Def _, _), _)), Us') GQDP =
@@ -651,13 +854,13 @@ local
 	let
 	  val G1 = I.Decl (G, N.decLUName (G, I.decSub(Dec', s')))
 	  val Q1 = I.Decl (Q, All)
-	  val D1 = shiftDCtx D shiftOnce
-	  val D1' = shiftDCtx D' shiftOnce
+	  val D1 = shiftDCtxOnce D
+	  val D1' = shiftDCtxOnce D'
 	  val Us1 = (U, shiftOnce s)
 	  val Us1' = (U', I.dot1 s')
-	  val P' = shiftAP P shiftOnce
+	  val P1 = shiftPOnce P
 	in
-	  leftLt (Us1, Us1') ((G1, Q1), D1, D1', P')
+	  leftLt (Us1, Us1') ((G1, Q1), D1, D1', P1)
 	end
 	  
       | leftLt (Us as (I.Root _, s), Us' as (I.Root (I.Def _, _), _)) GQDP =
@@ -704,7 +907,7 @@ local
     and leftLtA (GQ, D, D', P) (Ss, VS, Us') =
 	let
 	  val b = I.targetFam VS
-	  fun leftLtA' (I.Nil, _) _ D =
+	  fun leftLtA' (I.Nil, _) (I.Root _) D =
 	      leftDecompose (GQ, D, D', P)
 	    | leftLtA' (I.App (U, S), s) (I.Pi ((I.Dec (_, V), _), V')) D = 
 	      let
@@ -721,7 +924,7 @@ local
     and leftLex (GQ, D, D', P) (Ss, Ss', VS, Us2) =
 	let
 	  val b = I.targetFam VS
-	  fun leftLex' (I.Nil, _) (I.Nil, _) _ D =
+	  fun leftLex' (I.Nil, _) (I.Nil, _) (I.Root _) D =
 	      leftDecompose (GQ, D, D', P)
 	    | leftLex' (I.App (U,S), s) (I.App (U',S'), s') 
 		       (I.Pi ((I.Dec (_, V), _), V')) D =
@@ -743,7 +946,7 @@ local
     and leftLeS (GQ, D, D', P) (Us, Ss', VS') = 
 	let
 	  val b = I.targetFam VS'
-	  fun leftLeS' (I.Nil, _) _ D = true
+	  fun leftLeS' (I.Nil, _) (I.Root _) D = true
 	    | leftLeS' (I.App(U', S'), s') (I.Pi ((I.Dec (_, V), _), V')) D = 
 	      let
 		val a = I.targetFam V
@@ -773,10 +976,12 @@ local
 	let
 	  val G1 = I.Decl (G, N.decLUName (G, Dec))
 	  val Q1 = I.Decl (Q, All)
-	  val D1 = shiftDCtx D shiftOnce
-	  val D1' = shiftDCtx D' shiftOnce
-	  val P1' = shiftAP P I.dot1
-	  val P1 = shiftAP P shiftOnce
+	  val D1 = shiftDCtxOnce D
+	  val D1' = shiftDCtxOnce D'
+	  val P1' = P' (* shiftAP P' I.dot1 *) 
+	  val P1 = shiftPOnce P
+	  val _ = print ("P' = " ^ predToString(G, (Pi (Dec,P'))) ^ "\n")
+	  val _ = print ("P1' = " ^ predToString(G1, P1') ^ "\n")
 	in
 	  leftDecompose ((G1, Q1), P1'::D1, D1', P1)
 	end
@@ -785,7 +990,10 @@ local
 
     fun deduce (G:I.dctx, Q:qctx, D:rctx, P:order Predicate) = 
 	leftDecompose ((G,Q), map dropTypes D, nil, dropTypes P) 
-	handle (E as Unimp s) => (print (s ^ "\n"); raise E)
+	handle (E as Unimp s) => (print (s ^ "\n"); 
+				  raise E ;
+				  false
+				  )
   in
     val deduce = fn x => let val b = deduce x val _ =  (print "deduced: "; print (Bool.toString b); print "\n-----------------------------------\n\n") in b end
     val shiftRCtx = shiftRCtx

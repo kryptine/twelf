@@ -256,7 +256,7 @@ struct
       | checkGoalW (G0, Q0, Rl, (I.Pi ((D, I.Maybe), V), s), (V', s'), occ) = 
 	checkGoal (I.Decl (G0, N.decLUName (G0, I.decSub (D, s))),
 		     I.Decl (Q0, C.All), 
-		     C.shiftRCtx Rl (fn s => I.comp(s, I.shift)), 
+		     C.shiftRCtx Rl I.shift, 
 		     (V, I.dot1 s), (V', I.comp(s', I.shift)), P.body occ)
       | checkGoalW (G0, Q0, Rl, Vs as (I.Root (I.Const a, S), s), 
 		    Vs' as (I.Root (I.Const a', S'), s'), occ) = 
@@ -362,7 +362,7 @@ struct
       | checkClauseW (GQR as (G0, Q0, Rl), G, Q, Vs as (I.Root (I.Const a, S), s), occ) = 
 	  let
 	    val n = I.ctxLength G
-	    val Rl' = C.shiftRCtx Rl (fn s => I.comp(s, I.Shift n))
+	    val Rl' = C.shiftRCtx Rl (I.Shift n)
 	  in 
 	    checkSubgoals (concat(G0, G), concat(Q0, Q), Rl', Vs, 0, (G, Q))
 	  end 
@@ -400,7 +400,7 @@ struct
        | checkRGoalW (G, Q, Rl, (I.Pi ((D, I.Maybe), V), s), occ) = 
            checkRGoal (I.Decl (G, N.decLUName (G, I.decSub (D, s))), 
 		      I.Decl (Q, C.All), 
-		      C.shiftRCtx Rl (fn s => I.comp(s, I.shift)),
+		      C.shiftRCtx Rl I.shift,
 		      (V, I.dot1 s), P.body occ)
 
        | checkRGoalW (G, Q, Rl, (I.Pi ((D as I.Dec (_, V1), I.No), V2), s), occ) = 
@@ -434,7 +434,7 @@ struct
     and checkRImpW (G, Q, Rl, (I.Pi ((D', I.Maybe), V'), s'), (V, s), occ) =
           checkRImp (I.Decl (G, N.decEName (G, I.decSub (D', s'))),
 		     I.Decl (Q, C.Exist), 
-		     C.shiftRCtx Rl (fn s => I.comp(s, I.shift)), 
+		     C.shiftRCtx Rl I.shift, 
 		     (V', I.dot1 s'), (V, I.comp (s, I.shift)), occ)
       | checkRImpW (G, Q, Rl, (I.Pi ((D' as I.Dec (_, V1), I.No), V2), s'), (V, s), occ) =
 	  let
@@ -469,14 +469,14 @@ struct
     and checkRClauseW (G, Q, Rl, (I.Pi ((D, I.Maybe), V), s), occ) = 
 	  checkRClause (I.Decl (G, N.decEName (G, I.decSub (D, s))), 
 			I.Decl (Q, C.Exist),
-			C.shiftRCtx Rl (fn s => I.comp(s, I.shift)), 
+			C.shiftRCtx Rl I.shift, 
 			(V, I.dot1 s), P.body occ)
 
       | checkRClauseW (G, Q, Rl, (I.Pi ((D as I.Dec (_, V1), I.No), V2), s), occ) =
 	 let
 	   val G' = I.Decl (G, I.decSub (D, s))  (* N.decEName (G, I.decSub (D, s)) *)
 	   val Q' = I.Decl (Q, C.Exist) (* will not be used *)
-	   val Rl' = C.shiftRCtx Rl (fn s => I.comp(s, I.shift))
+	   val Rl' = C.shiftRCtx Rl I.shift
 	   val Rl'' = case getROrder (G', Q', (V1, I.comp (s, I.shift)), occ)
 	                of NONE => Rl'
 		         | SOME(O) => O :: Rl'
