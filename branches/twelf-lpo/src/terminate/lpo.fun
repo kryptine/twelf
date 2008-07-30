@@ -38,7 +38,7 @@ struct
     fun isDropped (c1, c2) = 
 	(case (T.lookup dropTable (c1,c2))
 	      of NONE => false
-	       | _ => (print ("dropped: (" ^ Int.toString c1 ^", " ^ Int.toString c2 ^ ") \n"); true)
+	       | _ => true (* (print ("dropped: (" ^ Int.toString c1 ^", " ^ Int.toString c2 ^ ") \n"); true)*) 
 		      )
 			    
   in
