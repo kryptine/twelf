@@ -3,4 +3,53 @@ z: nat.
 s: nat -> nat.
 acker: nat -> nat -> nat.
 
-%order (z s) (s acker).
+red: nat -> nat -> type.
+%mode red +N -M.
+
+red_z: red z z.
+
+red_s: red (s N) (s M)
+	<- red N M.
+
+red_acker1: red (acker z N) (s M)
+	     <- red N M.
+
+red_acker2: red (acker (s N) z) M
+	     <- red (acker N (s z)) M.
+
+red_acker3: red (acker (s X) (s Y)) Z
+	     <- red (acker X (acker (s X) Y)) Z.
+
+
+lt: nat -> nat -> type.
+
+lt1: lt (s N) (acker z M)
+      <- lt N M.
+
+lt2: lt (acker N (s z)) (acker (s N) z).
+
+lt3: lt (acker X (acker (s X) Y)) (acker (s X') (s Y'))
+      <- lt X X'
+      <- lt Y Y'.
+
+lt-reduces: {X} {Y} lt X Y -> type.
+%mode lt-reduces +C +D +L.
+
+lt-reduces1: lt-reduces _ _ (lt1 L)
+	      <- lt-reduces _ _ L.
+
+lt-reduces2: lt-reduces _ _ lt2.
+
+lt-reduces3: lt-reduces _ _ (lt3 L L')
+	      <- lt-reduces _ _ L
+	      <- lt-reduces _ _ L'.
+
+%terminates (N) (red N _).
+
+%worlds () (lt-reduces _ _ _).
+%total (L) (lt-reduces _ _ L).
+%reduces X < Y (lt-reduces X Y _).
+
+
+% terminates (N) (foo N _).
+% terminates (N) (bar N _).

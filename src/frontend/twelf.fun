@@ -1402,6 +1402,7 @@ struct
 
                     ModSyn.reset ();
                     CSManager.resetSolvers ();
+		    Lpo.reset();
                     context := NONE
 		    )
 
