@@ -871,7 +871,7 @@ fun statToString (CONST n) = "CONST(" ^ (Int.toString n) ^ ")"
     and leftLe (O,O') GQDP =
 	(leftEq (O,O') GQDP) andalso (leftLt (O,O') GQDP)
 
-    and leftAtomize L (Us as (U,s)) (Us' as (U',s')) (GQDP as (G,Q, D, D', P))
+(*    and leftAtomize L (Us as (U,s)) (Us' as (U',s')) (GQDP as (G,Q, D, D', P))
       =
       (case U
 	of (I.Lam(Dec, U)) =>
@@ -907,6 +907,7 @@ fun statToString (CONST n) = "CONST(" ^ (Int.toString n) ^ ")"
 	    | (I.Root (h', S')) => raise Unimp "leftAtomize"
 				  )
 	   )
+*)
 
     and leftDecompose(GQ, nil, D', P) = rightDecompose (GQ, D', P)
       | leftDecompose (GQ as (G,Q), Less(O,O')::D, D', P) = 
