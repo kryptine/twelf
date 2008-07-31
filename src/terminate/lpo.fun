@@ -18,7 +18,10 @@ struct
 
     fun reset () = T.clear dropTable
 
-    fun installDrop cids = 
+    fun installDrop (cids as (cid1, cid2)) = 
+(*	if (S.frozen cid1 orelse (S.frozen cid2))
+	     raise Error 
+*)
 	T.insert dropTable (cids, ())
 	
     (* Invariant :  c1, c2 object level constants *)
@@ -50,9 +53,11 @@ struct
 	    
     fun orderLookup (cid1, cid2) =
 	let
-	  val dl1 = cidDropList cid1
-	  val dl2 = cidDropList cid2
+	  val a1 = I.targetFam (I.constType cid1)
+	  val a2 = I.targetFam (I.constType cid2)
 	in
+	  if (S.below(a1,a2) andalso not (S.belowEq(a1,a2)))
+	  then LT else
 	  (case (Int.compare (cid1, cid2))
 	    of LESS => LT
 	     | EQUAL => EQ

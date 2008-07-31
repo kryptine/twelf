@@ -325,6 +325,7 @@ struct
               | ModSyn.Error (msg) => abortFileMsg chlev (fileName, msg)
 	      | Converter.Error (msg) => abortFileMsg chlev (fileName, msg)
               | CSManager.Error (msg) => abort chlev ("Constraint Solver Manager error: " ^ msg ^ "\n")
+	      | Lpo.Error(msg) => abortFileMsg chlev (fileName, msg)
 	      | exn => (abort 0 (UnknownExn.unknownExn exn); raise exn))
 
     (* During elaboration of a signature expression, each constant
@@ -604,10 +605,25 @@ struct
                 of NONE => raise Names.Error ("Undeclared identifier "
                                               ^ Names.qidToString (valOf (Names.constUndef qid))
                                               ^ " in drop declaration")
-                 | SOME cid => cid
+                 | SOME cid => 
+		   let
+		     val _ = (case (IntSyn.constUni cid)
+			       of (IntSyn.Type) => 
+				  raise Lpo.Error("Expected type family constant in drop declaration, found object constant " ^ Names.qidToString qid)
+				| _ =>  ()
+					)
+		     val _ = if (Subordinate.frozen [cid])
+				then raise Lpo.Error("Frozen type family " ^ Names.qidToString qid ^ " in drop declaration")
+			     else ()
+			     
+		   in
+		     cid
+		   end
           val cidpairs = List.map (fn (qid1, qid2) => (toCid qid1, toCid qid2)) qidpairs
                      handle Names.Error (msg) =>
 		       raise Names.Error (Paths.wrap (r, msg))
+			  | Lpo.Error(msg) => 
+			    raise Lpo.Error (Paths.wrap (r, msg)) 
 
 	  val _ = List.app Lpo.installDrop cidpairs
     	            handle Lpo.Error (msg) =>
