@@ -6,9 +6,9 @@ functor Lpo (structure Subordinate : SUBORDINATE
 	: LPO =
 struct
   exception Error of string
-  datatype 'a partialOrder = LT of 'a * 'a 
-			   | EQ of 'a * 'a 
-			   | NLE of 'a * 'a
+  datatype partialOrder = LT
+			   | EQ
+			   | NLE
   local
     structure T = Table
     structure S = Subordinate
@@ -24,22 +24,43 @@ struct
     (* Invariant :  c1, c2 object level constants *)
     fun installOrder (c1, c2) = 
 	print  ("(" ^ Int.toString c1 ^ "," ^  Int.toString c2 ^ ")\n")
+
+    fun isDropped (c1, c2) = 
+	(case (T.lookup dropTable (c1,c2))
+	  of NONE => false
+	   | _ => true 
+		  )
+
+    fun getDropList n VS =
+	let
+	  val a' = I.targetFam VS
+	  fun getDrop' _ (I.Root _)  = nil
+	    | getDrop' m (I.Pi ((I.Dec(_, V), _), V')) = 
+			  let
+			    val b = (m < n) orelse 
+				    isDropped((I.targetFam V), a')
+			  in
+			    b::(getDrop' (m+1) (V'))
+			  end
+	in
+	  getDrop' 0 VS
+	end
+
+    val cidDropList = fn cid => getDropList (I.constImp cid) (I.constType cid)
 	    
     fun orderLookup (cid1, cid2) =
 	let
-	  val V1 = I.constType cid1
-	  val V2 = I.constType cid2
+	  val dl1 = cidDropList cid1
+	  val dl2 = cidDropList cid2
 	in
 	  (case (Int.compare (cid1, cid2))
-	    of LESS => LT (V1,V2)
-	     | EQUAL => EQ (V1, V2)
-	     | GREATER => NLE (V1, V2))
+	    of LESS => LT
+	     | EQUAL => EQ
+	     | GREATER => NLE
+			  )
 	end
-    fun isDropped (c1, c2) = 
-	(case (T.lookup dropTable (c1,c2))
-	      of NONE => false
-	       | _ => true (* (print ("dropped: (" ^ Int.toString c1 ^", " ^ Int.toString c2 ^ ") \n"); true)*) 
-		      )
+
+
 			    
   in
   val reset = reset
@@ -47,5 +68,7 @@ struct
   val installOrder = installOrder
   val orderCompare = orderLookup
   val isDropped = isDropped
+  val typeToDropList = getDropList 0
+  val cidDropList = cidDropList
   end 
 end
