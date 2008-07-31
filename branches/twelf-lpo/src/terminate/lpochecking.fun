@@ -226,6 +226,7 @@ fun statToString (CONST n) = "CONST(" ^ (Int.toString n) ^ ")"
 	let
 	  val n' = (case (I.bvarSub(n, s))
 		     of (I.Idx n') => n'
+		      (* this case shouldn't happen *)
 		      | (I.Exp (I.Root (I.BVar n', I.Nil))) => n')
 	  val V = decType (I.ctxDec (G,n'))
 	  val dl = L.typeToDropList V
@@ -258,7 +259,7 @@ fun statToString (CONST n) = "CONST(" ^ (Int.toString n) ^ ")"
 		 | (CONST cid, AV n') => famOrder(a,a')
 		 | (AV n, CONST cid') => famOrder(a,a')
 		 | (AV n, AV n') =>
-		   (* Conv.conv too coarse valued here: 
+		   (* Conv.conv too fine grained here: 
 		    could use simple type instead
 		    *)
 		   if (Conv.conv((V,I.id),(V',I.id))) 
