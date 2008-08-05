@@ -106,7 +106,7 @@ local
 	    | contains' (ref (cons(x, l'))) =
 	      let 
 		val b = pred x
-		val _ = print ("pred = " ^ Bool.toString b ^ "\n")
+		(* val _ = print ("pred = " ^ Bool.toString b ^ "\n")*)
 	      in	       
 		b orelse contains' l'
 	      end
