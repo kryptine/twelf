@@ -1411,6 +1411,28 @@ struct
    and ltSimulL (GQ, D, D', nil, nil, P) = 
          leftDecompose (GQ, D, D', P)
      | ltSimulL (GQ, D, D', O :: L, O' ::L', P) = 
+       (* this looks wrong--shouldn't there be one rule that looks like:
+
+	  O1 < 01', O2 = O2 |- P    O1 = 01', O2 < O2 |- P
+          -------------------------------------------------
+                   {01, O2} < {O1', O2'} |- P 
+
+          it looks like what's being implimented is this:
+
+
+                    O1 < 01, 02 <= O2' |- P
+                -----------------------------
+                   {01, O2} < {O1', O2'} |- P
+
+
+                    O1 = 01, O2 < O2' |- P
+                -----------------------------
+                   {01, O2} < {O1', O2'} |- P
+
+          at the very least, the "orelse" below should
+          probably be andalso
+          -js Fri Aug  1 10:38:14 2008
+*)
          leSimulL (GQ, (Less(O, O') :: D), D', L, L', P)
 	 orelse 
 	 ltSimulL(GQ, (Eq(O, O') :: D), D', L, L', P)
