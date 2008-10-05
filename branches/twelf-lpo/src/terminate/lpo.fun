@@ -49,7 +49,10 @@ struct
 	  getDrop' 0 VS
 	end
 
-    val cidDropList = fn cid => getDropList (I.constImp cid) (I.constType cid)
+    val cidDropList = fn cid => getDropList
+				  (I.constImp cid) 
+				  (I.constType cid)
+
 	    
     fun orderLookup (cid1, cid2) =
 	let
@@ -73,7 +76,8 @@ struct
   val installOrder = installOrder
   val orderCompare = orderLookup
   val isDropped = isDropped
-  val typeToDropList = getDropList 0
+  val typeToDropList = (* fn V => map (fn _ => false) (getDropList 0 V) *)
+      getDropList 0 
   val cidDropList = cidDropList
   end 
 end

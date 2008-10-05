@@ -128,7 +128,7 @@ local
 
     fun insert (comp, tried, untried) P = 
 	( (*print "insert\n";*)
-	if (contains (fn P' => comp(P,P')) tried) then (print "already tried it'n"; ())
+	if (contains (fn P' => comp(P,P')) tried) then (print "already tried it\n"; ())
 	else add comp untried P
 )
 
@@ -149,6 +149,68 @@ local
   end
   end (* end lookupState structure definition *)
 
+
+  structure UnionFind :>
+	    sig
+	      type u
+	      val create : int -> u
+	      val find : u -> int -> int
+	      val union : u -> int -> int -> unit
+	    end =
+  struct
+  local
+    open Array
+
+    type u = int array * int array
+
+    fun create n = (tabulate(n, fn x => x), tabulate (n, fn _ => 0))
+
+    fun find (parents, ranks) n = 
+	let
+	  (* val _ = print ("find " ^ Int.toString n ^ "\n")*)
+	  fun find' n =
+	      let
+		val parent = sub(parents, n)
+	      in
+		if (parent = n) then n
+		else 
+		  let
+		    val root = find' parent
+		    val _ = update (parents, n, root)
+		  in
+		    root
+		  end
+	      end
+	in
+	  find' n
+	end
+
+
+    fun union (u as (parents, ranks)) n m =
+	let
+	  val nRoot = find u n
+	  val mRoot = find u m
+	in
+	  if (nRoot = mRoot) then ()
+	  else
+	    let
+	      val nRank = sub (ranks, nRoot)
+	      val mRank = sub (ranks, mRoot)
+	    in
+	      case (Int.compare (nRank, mRank))
+	       of LESS => update (parents, nRoot, mRoot)
+		| GREATER => update (parents, mRoot, nRoot)
+		| EQUAL => (update (parents, mRoot, nRoot);
+			    update (ranks, nRoot, nRank + 1))
+	    end
+	end
+  in
+  type u = u
+  val create = create
+  val find = find
+  val union = union
+  end
+  end (* end structure UnionFind definition *)
    (*--------------------------------------------------------------------*)
    (* Printing atomic orders *)
 
@@ -462,6 +524,97 @@ fun statToString (CONST n) = "CONST(" ^ (Int.toString n) ^ ")"
 	      in
 		rightEq(GQ, nil, Us, Us')
 	      end
+	  val indexList = ref nil
+	  val count = ref 0
+	  fun getIndex Us =
+	      let 
+		fun getIndex' nil =
+		    let
+		      val i = !count
+		      val _ = print (Int.toString i ^ " = " ^ ecloToString G Us ^ "\n")
+
+		      val _ = indexList := (Us,i) :: !indexList
+		      val _ = count := !count + 1
+		    in
+		      i
+		    end
+		      
+		  | getIndex' ((Us', i) :: il) = 
+		    if compare (Us,Us') then i
+		    else getIndex' il
+	      in
+		getIndex' (!indexList)
+	      end
+
+	  fun lookupEq Us0 Us1 =
+	      let
+		val Ui0 = getIndex Us0
+		val Ui1 = getIndex Us1
+
+		fun makeICtx nil Di = Di
+		  | makeICtx (Less (Us2, Us3) :: D') Di = 
+		    makeICtx D' Di
+		  | makeICtx (Eq (Us2, Us3) :: D') Di = 
+		    makeICtx D' ((getIndex Us2, getIndex Us3) :: Di)
+
+		val Di = makeICtx D nil
+		val uf = UnionFind.create (!count)
+		val _ = List.app (fn (x,y) => UnionFind.union uf x y) Di
+	      in
+		UnionFind.find uf Ui0 = UnionFind.find uf Ui1
+	      end
+
+	  fun lookupLt Us0 Us1 = 
+	      let
+		val _ = print ("lookup: " ^ predToString (G,P) ^ "\n")
+		val _ = print ("in ctx: " ^ ctxToString G D ^ "\n")
+		val Ui0 = getIndex Us0
+		val Ui1 = getIndex Us1
+			  
+		fun makeICtx nil Di = Di
+		  | makeICtx (Less (Us2, Us3) :: D') Di = 
+		    makeICtx D' (Less(getIndex Us2, getIndex Us3) :: Di)
+		  | makeICtx (Eq (Us2, Us3) :: D') Di = 
+		    makeICtx D' (Eq(getIndex Us2, getIndex Us3) :: Di)
+
+		val Di = makeICtx D nil
+		val uf = UnionFind.create (!count)
+		val find = UnionFind.find uf
+		val _ = List.app (fn Eq(x,y) => UnionFind.union uf x y
+				   | _ => ()) Di
+		(* the ith element of order contains a list 
+                   of the indices greater than i *)
+		val order = Array.tabulate (!count, fn x => nil)
+		(* visited marks visited indices in the depth-first search
+		 performed by isLess*)
+		val visited = Array.tabulate (!count, fn x => false)
+		val _ = List.app 
+			(fn Less(x,y) => 
+			    let
+(*			      val _ = print ("adding " ^ Int.toString x ^ " < " ^ Int.toString y ^ "\n") *)
+			      val x' = find x
+			      val y' = find y
+			      val _ = print ("adding " ^ Int.toString x' ^ " < " ^ Int.toString y' ^ "\n")
+			    in
+			      Array.update(order, x', y'::(Array.sub(order,x')))
+			    end
+			  | _ => ()) Di
+
+		fun isLess x y =
+		    (* not (Array.sub(visited, x)) andalso *)
+		    let
+		      val _ = Array.update(visited, x, true)
+		      val b =
+			  List.exists (fn z => z = y orelse isLess z y) 
+				      (Array.sub(order,x))
+		      val _ = print ("is index " ^ Int.toString x ^ " < " ^ Int.toString y ^ "? " ^ (if b then "yes\n" else "no\n"))
+		      val _ = Array.update(visited, x, false)
+		    in
+		      b
+		    end
+	      in
+		isLess (find Ui0) (find Ui1)
+	      end
 
 	  fun compareAPred (Eq (Us0, Us0'), Eq (Us1, Us1')) =
 	      compare (Us0, Us1) andalso compare (Us0', Us1')
@@ -520,9 +673,16 @@ fun statToString (CONST n) = "CONST(" ^ (Int.toString n) ^ ")"
 	       lookup' D' P')
 
 	    | lookup' (_ :: D') P' = lookup' D' P'
+	  (* val P' = valOf (next ()) *)
 	in
-	  case (D) of (nil) => false | _ =>
-	  lookup' D (valOf (next()))
+	  (case (D) of (nil) => false 
+		     | _ =>  lookup' D (valOf (next())))
+(*		       (case (P') of (Eq (Us0, Us1)) =>
+				     lookupEq Us0 Us1
+				   | (Less (Us0, Us1)) =>
+				     lookupLt Us0 Us1)) *)
+
+(*				     lookup' D (P')))*)
 	end
 
 (*     and lookupEq (GQ as (G,Q), D, Us0, Us1) =  *)
@@ -703,7 +863,17 @@ fun statToString (CONST n) = "CONST(" ^ (Int.toString n) ^ ")"
 	     | _ =>
 	       (case (stath, stath')
 		 of (EV n, EV n') =>
-		    ((n = n') andalso rightEqList (GQ, D, (S,s), (S',s'), dl))
+		    ((n = n') andalso 
+		     (let
+			fun sameSpine I.Nil I.Nil nil = true
+			  | sameSpine (I.App(U, S)) (I.App(U',S')) (b::dl') = (if not b then print "hey, I got one!\n" else ();
+			    (b orelse Conv.conv ((U,s),(U',s'))) andalso sameSpine S S' dl')
+		      in
+			sameSpine S S' dl
+		      end
+		      )
+		     (*rightEqList (GQ, D, (S,s), (S',s'), dl)*)
+		     )
 		    orelse lookup (GQ, D, Eq(Us, Us'))
 		  | (EV n, _) => lookup (GQ, D, Eq(Us,Us'))
 		  | (_, EV n') => lookup (GQ, D, Eq(Us,Us'))
