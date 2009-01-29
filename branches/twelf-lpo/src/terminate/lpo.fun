@@ -68,13 +68,23 @@ struct
 			  )
 	end
 
-
+    fun stypeEq (I.Root (I.Def c,_)) (V') =
+	 stypeEq (I.constDef c) V'
+       | stypeEq (V) (I.Root (I.Def c',_)) =
+	 stypeEq (I.constDef c') V
+       | stypeEq  (I.Pi ((I.Dec (_, V1),_), V2))
+		  (I.Pi ((I.Dec (_, V1'),_), V2')) =
+		  (stypeEq V1 V1') andalso stypeEq V2 V2'
+       | stypeEq(I.Root (I.Const c, _)) (I.Root (I.Const c', _)) = 
+	 (* should probably involve mutual subordination *)
+	 c = c'
 			    
   in
   val reset = reset
   val installDrop = installDrop
   val installOrder = installOrder
   val orderCompare = orderLookup
+  val stypeEq = stypeEq
   val isDropped = isDropped
   val typeToDropList = (* fn V => map (fn _ => false) (getDropList 0 V) *)
       getDropList 0 

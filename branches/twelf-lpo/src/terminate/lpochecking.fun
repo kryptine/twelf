@@ -39,13 +39,14 @@ structure Order = Order
 datatype Quantifier =        (* Quantifier to mark parameters *)
 	 All                        (* Q ::= All                     *)
        | Exist                      (*     | Exist                   *)
-       | And of Paths.occ	    (*     | And                     *)
+       | And of Paths.occ	    (*     | And                     *) (* is this "exists!" or something else? -jeff *)
+       | Blank                      (*  bound variable in an argument to an EV; should only occur in lr functions -jeff *)
 
 datatype headStatus =        (* denotes the type of a head and some info *)
 	 CONST of IntSyn.cid      (* constants *) 
        | AV of int                (* All quantified BVar *)
        | EV of int                (* Exist/And quantified BVar *)
-
+       | BL of int                (* bound variable from an argument to an EV; should only occur in lr functions *)
 
 (* possible optimization:
    take apart lambdas for Less, Leq and Eq all in one function then do 
@@ -254,7 +255,7 @@ local
 fun statToString (CONST n) = "CONST(" ^ (Int.toString n) ^ ")"
   | statToString (AV n) =  "AV(" ^ (Int.toString n) ^ ")"
   | statToString (EV n) =  "EV(" ^ (Int.toString n) ^ ")"
-
+  | statToString (BL n) =  "BL(" ^ (Int.toString n) ^ ")"
       
    (*--------------------------------------------------------------------*)
    (* shifting substitutions *)
@@ -334,6 +335,20 @@ fun statToString (CONST n) = "CONST(" ^ (Int.toString n) ^ ")"
       | spineLength (I.SClo (S,s)) = (print "SClo detected!\n"; spineLength S)
 	
      (*--------------------------------------------------------------------*)
+     (* calculate a simple type *)
+     datatype SimpleType = BT of I.cid | Arrow of SimpleType * SimpleType
+						  
+     fun stripType (U) =
+	 let
+	   fun stripType' (I.Pi ((I.Dec (_, V1),_), V2)) =
+	       Arrow (stripType' V1, stripType' V2)
+	     | stripType' (I.Root (I.Const c, _)) = BT c
+	     | stripType' (I.Root (I.Def c,_)) = 
+	       stripType' (I.constDef c)
+	 in
+	   stripType' U
+	 end
+
 
     (* invariant: strsubord(a,b) =  B
 		  B iff a is strictly is subordinate to b, 
@@ -416,6 +431,7 @@ fun statToString (CONST n) = "CONST(" ^ (Int.toString n) ^ ")"
 	in
 	  (case (I.ctxLookup (Q, n'))
 			       of All => (AV n', V, dl)
+				| Blank => (BL n', V, dl)
 				| _ => (EV n', V, dl)
 				       )
 	end
@@ -442,10 +458,7 @@ fun statToString (CONST n) = "CONST(" ^ (Int.toString n) ^ ")"
 		 | (CONST cid, AV n') => famOrder(a,a')
 		 | (AV n, CONST cid') => famOrder(a,a')
 		 | (AV n, AV n') =>
-		   (* Conv.conv too fine grained here: 
-		    could use simple type instead
-		    *)
-		   if (Conv.conv((V,I.id),(V',I.id))) 
+		   if (L.stypeEq V V') (* old version: Conv.conv((V,I.id),(V',I.id)) *) 
 		   then L.EQ else famOrder(a,a')
 		 | _ => L.NLE
 			)
@@ -824,6 +837,45 @@ fun statToString (CONST n) = "CONST(" ^ (Int.toString n) ^ ")"
 (* 	  b *)
 (* 	end *)
 (* *\) *)
+    and lr (GQ, Us as (I.Root (I.Def _, _), _), Us') =
+	lr (GQ, (Whnf.expandDef Us), Us')
+      | lr (GQ, Us, Us' as (I.Root (I.Def _, _), _)) =
+	lr (GQ, Us, (Whnf.expandDef Us'))
+      | lr  (GQ as (G,Q), Us as (I.Root (h, S), s), 
+	     Us' as (I.Root (h', S'), s')) =
+	let
+	  val ((stath, a, dl), order, (stath', a', dl')) = 
+	      hcompare GQ ((h,s), (h',s'))
+	  val headLR = (order = L.EQ) orelse
+		       (case (stath, stath')
+			 of (EV n, EV n') => n = n'
+			  | (BL n, BL n') => n = n'
+			  | _ => false)
+	in
+	  headLR andalso (lrList (GQ, (S,s), (S',s'), dl))
+	end
+
+      | lr ((G,Q), (I.Lam(Dec as (I.Dec (_,V)), U),s), (I.Lam((I.Dec (_,V')), U'), s')) =
+	let
+	  val G1 = I.Decl (G, N.decLUName (G, I.decSub(Dec, s)))
+	  val Q1 = I.Decl (Q, Blank)
+	  val Us1 = (U, I.dot1 s)
+	  val Us1' = (U', I.dot1 s')
+	in
+	  (L.stypeEq V V') andalso lr ((G1,Q1), Us1, Us1')
+	end
+
+    and lrList (GQ, (S,s), (S',s'), dl) =
+	let
+	  fun lrList' (I.Nil) (I.Nil) nil = true
+	    | lrList' (I.App (U,S)) (I.App (U',S')) (b::dl) = 
+	      if b then lrList' S S' dl
+	      else lr (GQ, (U,s), (U',s'))
+		   andalso lrList' S S' dl
+	in
+	  lrList' S S' dl
+	end
+
     and rightEq ((G,Q), D, (I.Lam(Dec, U), s), (U', s')) =
 	let
 	  val G1 = I.Decl (G, N.decLUName (G, I.decSub(Dec, s)))
@@ -863,17 +915,7 @@ fun statToString (CONST n) = "CONST(" ^ (Int.toString n) ^ ")"
 	     | _ =>
 	       (case (stath, stath')
 		 of (EV n, EV n') =>
-		    ((n = n') andalso 
-		     (let
-			fun sameSpine I.Nil I.Nil nil = true
-			  | sameSpine (I.App(U, S)) (I.App(U',S')) (b::dl') = (if not b then print "hey, I got one!\n" else ();
-			    (b orelse Conv.conv ((U,s),(U',s'))) andalso sameSpine S S' dl')
-		      in
-			sameSpine S S' dl
-		      end
-		      )
-		     (*rightEqList (GQ, D, (S,s), (S',s'), dl)*)
-		     )
+		    ((n = n') andalso lrList (GQ, (S,s), (S',s'), dl))
 		    orelse lookup (GQ, D, Eq(Us, Us'))
 		  | (EV n, _) => lookup (GQ, D, Eq(Us,Us'))
 		  | (_, EV n') => lookup (GQ, D, Eq(Us,Us'))
@@ -1475,7 +1517,7 @@ fun statToString (CONST n) = "CONST(" ^ (Int.toString n) ^ ")"
 
 
     fun deduce (G:I.dctx, Q:qctx, D:rctx, P:order Predicate) = 
-	orderDecompose ((G,Q), map dropTypesP D, nil, dropTypesP P) 
+	orderDecompose ((G,Q), map dropTypesP D, nil, dropTypesP P)
 (*	handle (E as Unimp s) => (print (s ^ "\n"); 
 				  raise E ;
 				  false

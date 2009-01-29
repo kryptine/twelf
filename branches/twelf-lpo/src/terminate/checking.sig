@@ -13,7 +13,7 @@ sig
     All                  (* Q ::= All                     *)
   | Exist                (*     | Exist                     *)
   | And of Paths.occ     (*     | And                     *)
-
+  | Blank                (*  used internally in lpochecking.fun *)
 
   datatype 'a Predicate = 
     Less of 'a * 'a
