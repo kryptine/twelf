@@ -386,7 +386,7 @@ fun statToString (CONST n) = "CONST(" ^ (Int.toString n) ^ ")"
 
     fun dropTypesO (R.Arg(Us,Vs)) = R.Arg Us
       | dropTypesO (R.Lex Ol) = R.Lex (map dropTypesO Ol)
-      | dropTypesO (R.Simul Ol) = R.Lex (map dropTypesO Ol)
+      | dropTypesO (R.Simul Ol) = R.Simul (map dropTypesO Ol)
     (* 
      converts from an rctx to an I.eclo predicate list
      by throwing away types and disallowing lexicographic and 
@@ -1371,22 +1371,19 @@ fun statToString (CONST n) = "CONST(" ^ (Int.toString n) ^ ")"
 	  (* val _ = print (oPredToString (G,P) ^ "\n")*)
 	  fun lexLtDecomposeRight nil nil = false
 	    | lexLtDecomposeRight (O::Ol) (O'::Ol') = 
-	      (orderDecompose(GQ, nil, D', Less(O, O'))
-	       andalso
-	       listEqDecomposeRight Ol Ol')
-	      orelse 
-	      (orderDecompose(GQ, nil, D', Eq(O, O'))
-	       andalso lexLtDecomposeRight Ol Ol')
+		(orderDecompose(GQ, nil, D', Less(O, O')))
+		orelse 
+		(orderDecompose(GQ, nil, D', Eq(O, O'))
+		 andalso lexLtDecomposeRight Ol Ol')
 
 	  and simulLtDecomposeRight nil nil = false
 	    | simulLtDecomposeRight (O::Ol) (O'::Ol') = 
-	      (orderDecompose(GQ, nil, D', Less(O,O'))
-	       andalso 
-	       orderDecompose(GQ, nil, D', Eq(R.Simul Ol, R.Simul Ol')))
+	      ((orderDecompose(GQ, nil, D', Less(O,O')))
+	      andalso 
+	      orderDecompose(GQ, nil, D', Leq(R.Simul Ol, R.Simul Ol')))
 	      orelse
 	      (orderDecompose(GQ, nil, D', Eq(O,O'))
 	       andalso simulLtDecomposeRight Ol Ol')
-
 	  and listEqDecomposeRight nil nil = true
 	    | listEqDecomposeRight (O::Ol) (O'::Ol') = 
 	      orderDecompose(GQ, nil, D', Eq(O,O'))
@@ -1440,7 +1437,7 @@ fun statToString (CONST n) = "CONST(" ^ (Int.toString n) ^ ")"
 	  fun simulLtDecomposeLeft nil nil D =
 	      true
 	    | simulLtDecomposeLeft  (O::Ol) (O'::Ol') D =
-	      orderDecompose (GQ, Less(O, O')::Eq(R.Simul Ol, R.Simul Ol')::D,
+	      orderDecompose (GQ, Less(O, O')::Leq(R.Simul Ol, R.Simul Ol')::D,
 			      D', P)
 	      andalso
 	      simulLtDecomposeLeft Ol Ol' (Eq (O,O')::D)
