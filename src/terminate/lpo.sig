@@ -19,6 +19,9 @@ sig
 					     
   val orderCompare : IntSyn.cid * IntSyn.cid -> partialOrder
 
+  (* are the simple types of two types equivalent? *)
+  val stypeEq : IntSyn.Exp -> IntSyn.Exp -> bool
+
   (* given a type, returns a list of booleans saying which arguments
 					      are dropped from the order
    *)
