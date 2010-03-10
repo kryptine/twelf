@@ -997,7 +997,7 @@ fun statToString (CONST n) = "CONST(" ^ (Int.toString n) ^ ")"
 	   | (L.NLE) => 
 	     (case (stath, stath')
 	       of (_, EV _) => strSubord(a,a') orelse lookup (GQ, D, Less(Us, Us'))
-		| (EV _, _) =>
+		| (EV _, _) => strSubord (a,a') orelse (* should this be here?*)
 		  rightLeS (GQ, D, Us, (S',s'), dl') orelse
 		  lookup (GQ, D, Less(Us, Us'))
 		| _ => rightLeS (GQ, D, Us, (S',s'), dl')
