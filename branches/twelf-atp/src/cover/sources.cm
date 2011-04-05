@@ -26,6 +26,8 @@ is
   ../typecheck/sources.cm
   ../timing/sources.cm
   ../unique/sources.cm
+  tma.sig
+  tma.fun
   cover.sig
   cover.fun
   total.sig

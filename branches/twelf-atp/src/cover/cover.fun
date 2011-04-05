@@ -29,6 +29,7 @@ functor Cover
    (*! sharing TypeCheck.IntSyn = IntSyn' !*)
    (*! structure CSManager : CS_MANAGER !*)
    (*! sharing CSManager.IntSyn = IntSyn' !*)
+   structure Tma : TMA
    structure Timers : TIMERS)
   : COVER =
 struct
@@ -1714,6 +1715,7 @@ val _ = pr () *)
 	  val ccs = constsToTypes cs	(* calculate covering clauses *)
 	  val W = W.lookup a		(* world declarations for a; must be defined *)
 	  val missing = cover (V0, p, (W, cIn), Input(ccs), Top, nil)
+	  val _ = Tma.resolve (missing, ms)
 	  val _ = case missing
 	            of nil => ()	(* all cases covered *)
 		     | _::_ => raise Error ("Coverage error --- missing cases:\n"
@@ -1755,7 +1757,8 @@ val _ = pr () *)
 
     (* cg = CGoal (G, S)  with G |- S : {{G'}} type *)
     datatype CoverGoal =
-      CGoal of I.dctx * I.Spine
+      CGoal of I.dctx * I.Spine 
+
 
     (* cc = CClause (Gi, Si) with  Gi |- Si : {{G}} type *)
     datatype CoverClause =

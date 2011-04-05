@@ -1,3 +1,7 @@
+structure Tma = 
+  Tma (structure Print = Print
+       structure Names = Names);
+
 structure Cover =
   Cover (structure Global = Global
 	 structure Whnf = Whnf
@@ -14,6 +18,7 @@ structure Cover =
 	 (*! structure Paths = Paths !*)
 	 structure Print = Print
          structure TypeCheck = TypeCheck
+	 structure Tma = Tma
 	 (*! structure CSManager = CSManager !*)
          structure Timers = Timers);
 
