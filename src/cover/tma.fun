@@ -64,5 +64,6 @@ functor Tma
 
     fun resolve (Vs, ms)=  (print "Welcome to the theorem prover\n";
 			    print (missingToString (Vs, ms));
-			    print "\nGood-bye\n")
+			    print "\nGood-bye\n";
+			    (Vs, ms))
   end 
