@@ -5,7 +5,7 @@ tps : eval E V -> of E T -> of V T -> type.
 %mode tps +D +P -Q.
 
 % Natural Numbers
-tps_z     : tps (ev_z) (tp_z) (tp_z).
+% tps_z     : tps (ev_z) (tp_z) (tp_z).
 tps_s     : tps (ev_s D1) (tp_s P1) (tp_s Q1)
 	     <- tps D1 P1 Q1.
 
