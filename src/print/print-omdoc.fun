@@ -63,7 +63,7 @@ struct
   val cdMMT = ["mmt"]
   val cdLF = ["lf"]
   val cdTwelf = "twelf"
-  val mdLang = "http://purl.org/dc/terms/?_"
+  (* val mdLang = "http://purl.org/dc/terms/?_" *)
   
   (* XML and OMDoc constructors, return string *)
   fun ElemOpen'(label, attrs) = "<" ^ label ^ (if attrs = nil then "" else " ") ^ IDs.mkString(attrs, "", " ", "")
@@ -309,7 +309,7 @@ struct
   (* Printing non-modular symbol level declarations *)
   
   fun metaDataToString(NONE) = ""
-    | metaDataToString(SOME (c,_,r)) = ElemOpen("metadata",[Attr("language", mdLang)]) ^ nl_ind() ^
+    | metaDataToString(SOME (c,_,r)) = ElemOpen("metadata",nil) ^ nl_ind() ^
         (* ElemOpen("metadatum", [Attr("key", "origin")]) ^ r ^ ElemClose("metadatum") ^ nl() ^ *)
         ElemOpen("meta", [Attr("property","??description")]) ^ (escapeXML c) ^ ElemClose("meta") ^ nl_unind() ^
         ElemClose("metadata") ^ nl()
