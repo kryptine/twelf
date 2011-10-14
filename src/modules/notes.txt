@@ -34,6 +34,7 @@ skolem constants
 
 --------
 done
+added roles of constants: type, constructor, judgment, rule; infered using switches %syntax. and %semantics
 warnings and recoverable errors
 - problems with preserved comments cause warning
 - partial views/relations cause recoverable errors (unrecoverable error, if they are applied at the undefined argument)

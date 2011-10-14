@@ -84,6 +84,7 @@ struct
     | SymInst of ModExtSyn.syminst
     | SymCase of ModExtSyn.symcase
     | Read of ModExtSyn.read
+    | Level of ModSyn.Level
     | Namespace of ModExtSyn.namespace
     | PComment of string * Paths.region
     | Use of string
@@ -200,6 +201,8 @@ struct
       | parseStream' (f as LS.Cons ((L.INCLUDE, r), s'), sc) = parseInclude' (f, sc)(* -fr, module system *)
       | parseStream' (f as LS.Cons ((L.META, r), s'), sc) = parseInclude' (f, sc)   (* -fr, module system *)
       | parseStream' (f as LS.Cons ((L.READ, r), s'), sc) = parseRead' (f, sc)      (* -fr *)
+      | parseStream' (f as LS.Cons ((L.SYNTAX, r), s'), sc) = parseLevel' (f, sc)      (* -fr *)
+      | parseStream' (f as LS.Cons ((L.SEMANTICS, r), s'), sc) = parseLevel' (f, sc)    (* -fr *)
       | parseStream' (f as LS.Cons ((L.NAMESPACE, r), s'), sc) = parseNamespace' (f, sc) (* -fr *)
       | parseStream' (f as LS.Cons ((L.PCOMMENT com, r as Paths.Reg(i,j)), s'), sc) =
           Stream.Cons((PComment(com, Paths.Reg(i+2,j-2)), r), parseStream(s', sc))
@@ -482,6 +485,14 @@ struct
         in
 	  Stream.Cons ((Read read, r), parseStream (stripDot f', sc))
         end
+
+    and parseLevel'(f as LS.Cons((t,r),f'), sc) =
+      let val p = case t
+         of L.SYNTAX => Level ModSyn.SyntaxLevel
+          | L.SEMANTICS => Level ModSyn.SemanticsLevel
+      in
+         Stream.Cons ((p,r), parseStream (stripDot (LS.expose f'), sc))
+      end
 
     and parseNamespace' (f as LS.Cons ((_, r0), _), sc) =
         let

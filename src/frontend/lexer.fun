@@ -72,6 +72,8 @@ struct
     | IMPLICIT                          (* `%implicit' -fr Aug 09*)
     | AS                                (* `%as' -fr Jun 09*)
     | READ                              (* `%read' *)
+    | SYNTAX                            (* `%syntax' *)
+    | SEMANTICS                         (* `%semantics' *)
     | NAMESPACE                         (* `%namespace' *)
     | USE                               (* `%use' *)
     | STRING of string                  (* string constants *)
@@ -275,6 +277,8 @@ struct
       | lexPragmaKey (ID(_, "as"), r) = (AS, r)
       | lexPragmaKey (ID(_, "implicit"), r) = (IMPLICIT, r)
       | lexPragmaKey (ID(_, "read"), r) = (READ, r)
+      | lexPragmaKey (ID(_, "syntax"), r) = (SYNTAX, r)
+      | lexPragmaKey (ID(_, "semantics"), r) = (SEMANTICS, r)
       | lexPragmaKey (ID(_, "namespace"), r) = (NAMESPACE, r)
       | lexPragmaKey (ID(_, "use"), r) = (USE, r)
       | lexPragmaKey (ID(_, s), r) =
