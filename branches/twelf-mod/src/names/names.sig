@@ -29,6 +29,11 @@ sig
   
 end;  (* signature FIXITY *)
 
+signature ROLE = sig
+  datatype role = Type | Constructor | Judgment | Rule
+  val toString : role -> string
+end
+
 signature NAMES =
 sig
   (*! structure IntSyn : INTSYN !*)
@@ -39,6 +44,7 @@ sig
   exception MissingModule of URI.uri * string * string
   
   structure Fixity : FIXITY
+  structure Role : ROLE
 
   (* map between global declarations ids (IDs.cid) and their local qualified names (string list)
      optional argument of installName gives origin of name declaration if different from first argument *)
@@ -92,6 +98,12 @@ sig
   val installFixity : IDs.cid * Fixity.fixity -> unit
   val fixityLookup : IDs.cid -> Fixity.fixity
 
+  (* map global declaration id's to their roles, second argument true iff term-level constant *)
+  val installRole : IDs.cid * Role.role -> unit
+  val roleLookup : IDs.cid -> Role.role option
+  (* installs a role according to the current level *)
+  val installConstantRole : IDs.cid * IntSyn.Uni * ModSyn.Level -> unit
+  
   (* maps global declaration id's to their name preferences *)
   val installNamePref : IDs.cid * (string list * string list) -> unit
   val namePrefLookup : IDs.cid -> (string list * string list) option

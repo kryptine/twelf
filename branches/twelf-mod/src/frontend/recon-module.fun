@@ -62,7 +62,7 @@ struct
   fun modNameLookup expected (m : IDs.mid, names : IDs.Qid, r : Paths.region) =
       let val m = M.cidToMid (nameLookup expected (m,names,r)) (* no exception possible in cidToMid if "expected" is a module level concept *)
       in
-        if List.exists (fn (m',_) => m' = m) (M.getScope())
+        if List.exists (fn (m',_,_) => m' = m) (M.getScope())
         then error(r, "module " ^ M.modFoldName m ^ " can only be used when closed")
         else m
       end

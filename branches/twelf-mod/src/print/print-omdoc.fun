@@ -314,8 +314,10 @@ struct
         ElemOpen("meta", [Attr("property","??description")]) ^ (escapeXML c) ^ ElemClose("meta") ^ nl_unind() ^
         ElemClose("metadata") ^ nl()
   
-  fun fmtSymbol(name, V, Uopt, imp, params, md) =
-  	ElemOpen("constant", [Attr("name", name)]) ^ nl_ind() ^ metaDataToString md ^
+  fun fmtSymbol(name, V, Uopt, imp, params, role, md) =
+   let val roleAtts = case role of NONE => nil
+                                   | SOME r => [Attr("role", Names.Role.toString r)]
+   in ElemOpen("constant", Attr("name", name) :: roleAtts) ^ nl_ind() ^ metaDataToString md ^
   	   "<type>" ^ nl_ind() ^
   	      fmtExpTop (I.Null, (V, I.id), imp, params) ^ nl_unind() ^
   	   "</type>" ^
@@ -328,7 +330,8 @@ struct
   	          "</definition>"
   	   ) ^ nl_unind() ^
   	"</constant>"
-
+   end
+   
   fun fmtPresentation(cid) =
      let
   	fun fixatt(s) = Attr("fixity", s)
@@ -358,27 +361,27 @@ struct
      This function prints the quantifiers and abstractions only if hide = false.
   *)
   
-  fun fmtConDec (I.ConDec (name, _, imp, _, V, L), params, md) =
+  fun fmtConDec (I.ConDec (name, _, imp, _, V, L), params, role, md) =
   let
     val _ = Names.varReset IntSyn.Null
   in
-    fmtSymbol(localPath name, V, NONE, imp, params, md)
+    fmtSymbol(localPath name, V, NONE, imp, params, role, md)
   end
-  | fmtConDec (I.ConDef (name, _, imp, U, V, L, _), params, md) =
+  | fmtConDec (I.ConDef (name, _, imp, U, V, L, _), params, role, md) =
   let
     val _ = Names.varReset IntSyn.Null
   in
-	 fmtSymbol(localPath name, V, SOME U, imp, params, md)
+	 fmtSymbol(localPath name, V, SOME U, imp, params, role, md)
   end
-  | fmtConDec (I.AbbrevDef (name, parent, imp, U, V, L), params, md) =
+  | fmtConDec (I.AbbrevDef (name, parent, imp, U, V, L), params, role, md) =
   let
     val _ = Names.varReset IntSyn.Null
   in
-	 fmtSymbol(localPath name, V, SOME U, imp, params, md)
+	 fmtSymbol(localPath name, V, SOME U, imp, params, role, md)
   end
-  | fmtConDec (I.SkoDec (name, _, imp, V, L), _, _) =
+  | fmtConDec (I.SkoDec (name, _, imp, V, L), _, _, _) =
       "<!-- Skipping Skolem constant " ^ localPath name ^ "-->"
-  | fmtConDec (I.BlockDec (name, _, _, _), _, _) =
+  | fmtConDec (I.BlockDec (name, _, _, _), _, _, _) =
       "<!-- Skipping block declaration constant " ^ localPath name ^ "-->"
 
   (* Printing structural levels *)
@@ -397,7 +400,8 @@ struct
           ^ openToString(ModSyn.OpenDec tl, strOpt, params)
       end
     
-  fun conDecToString (cid, params, md) = fmtConDec (ModSyn.sgnLookup cid, params, md) ^ nl() ^ fmtPresentation(cid)
+  fun conDecToString (cid, params, md) =
+     fmtConDec(ModSyn.sgnLookup cid, params, Names.roleLookup cid, md) ^ nl() ^ fmtPresentation(cid)
 
   fun sigInclToString(ModSyn.SigIncl(m, _, opendec, _), params, md) =
      let val from = relModName(m, params)

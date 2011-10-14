@@ -149,6 +149,8 @@ sig
   val symRelOrg  : SymCase -> IDs.cid option
   val symQid     : IDs.cid -> IDs.qid
   
+  datatype Level = SyntaxLevel | SemanticsLevel
+
   (********************** Interface methods that affect the state **********************)
   
   (* called at the beginning of a module *)
@@ -170,6 +172,8 @@ sig
   val pushContext: unit -> unit
   (* pop the current scope to permit context switching *)
   val popContext : unit -> IDs.cid
+  (* sets the current level *)
+  val setCurrentLevel : Level -> unit
   val reset      : unit -> unit
 
   (********************** Interface methods that do not affect the state **********************)
@@ -246,7 +250,7 @@ sig
 
   (* methods related to the current scope (convenience except for getScope() *)    
   (* returns the list of currently open modules in inverse declaration order and their next available lid *)
-  val getScope   : unit -> (IDs.mid * IDs.lid) list 
+  val getScope   : unit -> (IDs.mid * IDs.lid * Level) list 
   (* the current module *)
   val currentMod : unit -> IDs.mid
   (* true: current module is signature, false: current module is view *)
@@ -256,6 +260,9 @@ sig
   (* the current target signature: the current module if a signature, its codomain if a view *)
   val currentTargetSig : unit -> IDs.mid
 
+  (* gets the current level *)
+  val getCurrentLevel : unit -> Level
+  
   (* convenience methods to access components of an installed constant declaration *)
   val constType   : IDs.cid -> I.Exp		(* type of c or d *)
   val constDef    : IDs.cid -> I.Exp		(* definition of d *)

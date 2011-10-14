@@ -122,6 +122,15 @@ struct
       if checkArgNumber (M.sgnLookup (cid), n) then ()
       else raise Error ("Constant " ^ (IntSyn.conDecFoldName (M.sgnLookup cid)) ^ " takes too few explicit arguments for given fixity")
 
+  structure Role :> ROLE = struct
+     datatype role = Type | Constructor | Judgment | Rule
+     fun toString r = case r
+       of Type => "type"
+        | Constructor => "constructor"
+	| Judgment => "judgment"
+	| Rule => "rule"
+  end
+  
   (*******************************************************)
   (* Stateful data strcutures *)
 
@@ -174,6 +183,9 @@ struct
 
     (* the table for fixities *)
     val fixityTable : Fixity.fixity CH.Table = CH.new(4096)
+
+    (* the table for roles *)
+    val roleTable : Role.role CH.Table = CH.new(4096)
   in
 
   (*******************************************************)
@@ -399,6 +411,20 @@ struct
             | SOME fix => fix
         )
 
+   (*******************************************************)
+   (* interface methods for roles *)
+   
+    fun installRole (cid, role) = CH.insert roleTable (cid, role)
+    fun installConstantRole (cid, uni, lev) =
+      let val role = case (lev, uni)
+        of (ModSyn.SyntaxLevel, IntSyn.Kind) => Role.Type
+         | (ModSyn.SyntaxLevel, IntSyn.Type) => Role.Constructor
+         | (ModSyn.SemanticsLevel, IntSyn.Kind) => Role.Judgment
+         | (ModSyn.SemanticsLevel, IntSyn.Type) => Role.Rule
+      in installRole(cid, role)
+      end
+    fun roleLookup cid = CH.lookup roleTable cid
+
     (*******************************************************)
     (* interface methods for name preferences *)
     (* ePref is the name preference for existential variables of given type *)
@@ -431,7 +457,7 @@ struct
     (* the current namespace is initialized to the working directory so that file-based references can be resolved *)
     fun reset() = (MSH.clear nameTable; CH.clear shadowTable;
                     nscontext := nil;
-                    CH.clear fixityTable; CH.clear namePrefTable)
+                    CH.clear fixityTable; CH.clear roleTable; CH.clear namePrefTable)
 
     (* local names are more easily re-used: they don't increment the
        counter associated with a name

@@ -358,6 +358,7 @@ struct
 	  val cid = ModSyn.sgnAddC conDec
 	  val _ = Names.installNameC (cid, NONE, IntSyn.conDecName conDec)
 	          handle Names.Error(msg) => raise Names.Error(Paths.wrap(r, msg))
+	  val _ = Names.installConstantRole (cid, IntSyn.conDecUni conDec, ModSyn.getCurrentLevel())
 	  val _ = installConst fromCS (cid, fileNameocOpt)
 	          handle Subordinate.Error (msg) => raise Subordinate.Error (Paths.wrap (r, msg))
 	  val _ = Origins.installLinesInfo (fileName, Paths.getLinesInfo ())
@@ -1294,6 +1295,9 @@ struct
                   val _ = case Names.fixityLookup c'
                             of Names.Fixity.Nonfix => ()
                              | fix => Names.installFixity(c, fix)
+                  val _ = case Names.roleLookup c'
+                            of NONE => ()
+                             | SOME role => Names.installRole(c, role)
                   val _ = case Names.namePrefLookup c'
                             of NONE => ()
                              | SOME pref => Names.installNamePref(c, pref)
@@ -1477,6 +1481,10 @@ struct
                    ) | SOME _ =>
                       chmsg 3 (fn () => "%read \"" ^ file ^ "\". %% already read, skipping\n")
          end
+      | install1 (fileName, declr as (Parser.Level lev, r)) = (
+         ModSyn.setCurrentLevel lev;
+	      chmsg 3 (fn () => case lev of ModSyn.SyntaxLevel => "%syntax." | _ => "%semantics.\n")
+      )
 
     (* loadFile (fileName) = status
        reads and processes declarations from fileName in order, issuing

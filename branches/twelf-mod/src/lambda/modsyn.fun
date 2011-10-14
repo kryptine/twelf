@@ -71,6 +71,8 @@ struct
     | symRelOrg(StrCase(_, O, _)) = O
     | symRelOrg(InclCase(_, O, _)) = O
 
+  datatype Level = SyntaxLevel | SemanticsLevel
+
   (********************** Stateful data structures **********************)
 
   (* Invariants:
@@ -138,8 +140,8 @@ struct
   *)
   val structMapTable : IDs.cid CCH.Table = CCH.new(1999)
     
-  (* scope holds the list of the currently open modules and their next available lid (innermost to outermost) *)
-  type scopelist = (IDs.mid * IDs.lid) list 
+  (* scope holds the list of the currently open modules, their next available lid, and their level (innermost to outermost) *)
+  type scopelist = (IDs.mid * IDs.lid * Level) list 
   val scope : scopelist ref = ref nil
   (* savedScopes is a stack of scopes used in pushScope, popScope to temporarily switch back to the toplevel *)
   val savedScopes : (scopelist * (Declaration option)) list ref = ref nil
@@ -154,7 +156,7 @@ struct
   (* initialization: open toplevel signature *)
   fun init() = (
     nextMid := 1;                       (* initial mid *)
-    scope := [(0,0)];                   (* open toplevel signature *)
+    scope := [(0,0,SyntaxLevel)];       (* open toplevel signature *)
     MH.insert inclTable (0, [ObjSig(0,Self)])
   )
   val _ = init()
@@ -166,8 +168,8 @@ struct
       of NONE => raise UndefinedMid m
        | SOME (c,_) => c
   fun modSize(m) =
-     case List.find (fn (x,_) => x = m) (getScope())
-       of SOME (_,l) => l                             (* size of open module stored in scope *)
+     case List.find (fn (x,_,_) => x = m) (getScope())
+       of SOME (_,l,_) => l                             (* size of open module stored in scope *)
         | NONE => #2 (valOf (MH.lookup modTable m))   (* size of closed module stored in modTable *)
                   handle Option => raise UndefinedMid(m)
   fun cidToMid c = case CH.lookup declTable c
@@ -259,6 +261,7 @@ struct
                          | ViewDec _ => false
                          | RelDec _ => true
 
+  fun getCurrentLevel() = #3 (hd (getScope()))
   (********************** Convenience methods **********************)
   fun constDefOpt (d) =
       (case sgnLookup (d)
@@ -345,12 +348,12 @@ struct
   ) end
 
   fun pushContext() = let 
-     val (_,nextLid) :: saveMods = List.rev (getScope()) (* toplevel :: rest *)
+     val (_,nextLid,level) :: saveMods = List.rev (getScope()) (* toplevel :: rest *)
      (* saveModDecl = the toplevel module we are currently in, if any *)
      val saveModDecl = case saveMods
        of nil => NONE
-        | (m,_) :: _ => (
-          scope := [(0,nextLid - 1)];
+        | (m,_,_) :: _ => (
+          scope := [(0,nextLid - 1,level)];
           MH.delete modTable m;
           CH.lookup declTable (0,nextLid - 1)
         )
@@ -358,7 +361,7 @@ struct
   in () end
 
   fun popContext() = let
-     val nextLid = case getScope() of (_,l) :: nil => l | _ => raise Error("can only pop context on toplevel")
+     val (nextLid,level) = case getScope() of (_,lid,lev) :: nil => (lid,lev) | _ => raise Error("can only pop context on toplevel")
      val newCid = (0,nextLid)
      val (savedMods, savedModDecl) :: tl = ! savedScopes
      val _ = savedScopes := tl
@@ -366,16 +369,17 @@ struct
        of NONE => ()
         | SOME dec => let
             val mid = #1 (List.hd savedMods)
-            val _ = scope := List.rev ((0,nextLid + 1) :: savedMods)
+            val _ = scope := List.rev ((0,nextLid + 1, level) :: savedMods)
             val _ = MH.insert modTable (mid, (newCid, ~1))
             val _ = CH.insert declTable (newCid, dec)
           in () end
   in newCid end
 
   fun declAddC(dec : Declaration) : IDs.cid = let
-      val (c as (m,l)) :: scopetail = ! scope
+      val (m,l,lev) :: scopetail = ! scope
+      val c = (m,l)
       val _ = CH.insert declTable (c, dec)
-      val _ = scope := (m, l+1) :: scopetail
+      val _ = scope := (m, l+1,lev) :: scopetail
   in c
   end
 
@@ -386,7 +390,7 @@ struct
         val _ = nextMid := ! nextMid + 1
         val c = declAddC (SymMod (m,dec))
         val _ = MH.insert modTable (m, (c,~1))
-        val (p,l) = List.hd (! scope)
+        val (p,l,_) = List.hd (! scope)
         val pincls = modInclLookup p
         fun rewrite(Self) = Ancestor m
           | rewrite(Ancestor a) = Ancestor a
@@ -397,7 +401,7 @@ struct
           of SigDec _ => MH.insert inclTable (m, ObjSig(m, Self) :: incls)
           | ViewDec _ => MH.insert inclTable (m, incls)
           | RelDec _ => MH.insert inclTable (m, incls)
-        val _ = scope := (m,0) :: (! scope)
+        val _ = scope := (m,0, SyntaxLevel) :: (! scope)
      in
      	c
      end
@@ -405,7 +409,7 @@ struct
   fun modClose() =
      let
      	val _ = if onToplevel() then raise Error("no open module to close") else ()
-        val (m,l) :: tl = getScope()
+        val (m,l,_) :: tl = getScope()
         val _ = scope := tl
         val _ = MH.insert modTable (m, (midToCid m, l))
         val _ = case modLookup m
@@ -442,7 +446,7 @@ struct
      let
       val _ = if inSignature() then () else raise Error("inclusion only allowed in signature")
       val _ = if isMeta then case ! scope
-                of (_,0) :: _ :: nil => ()
+                of (_,0,_) :: _ :: nil => ()
                  | _ => raise Error("meta-theory declaration only allowed at beginning of signature")
                else ()
       val cod = currentMod()
@@ -471,7 +475,7 @@ struct
   fun instAddC(inst : SymInst) =
     let
       val _ = if inView() then () else raise Error("instantiations only allowed in view")
-      val (m,l) :: scopetail = ! scope
+      val (m,l,lev) :: scopetail = ! scope
       val c' = symInstCid inst
       val c = (m, IDs.lidOf c')
       (* make sure there are no clashes, i.e., symLookup must be undefined *)
@@ -487,7 +491,7 @@ struct
             MH.insert inclTable (m, (modInclLookup m) @ [ObjMor mor])
           )
       );
-      scope := (m, l+1) :: scopetail;
+      scope := (m, l+1,lev) :: scopetail;
       c
     end
 
@@ -496,7 +500,7 @@ struct
   fun caseAddC(rel : SymCase) =
     let
       val _ = if inRelation() then () else raise Error("declaration only allowed in logical relation")
-      val (m,l) :: scopetail = ! scope
+      val (m,l,lev) :: scopetail = ! scope
       val c' = symRelCid rel
       val c = (m, IDs.lidOf c')
       (* make sure there are no clashes, i.e., symLookup must be undefined *)
@@ -512,8 +516,13 @@ struct
             MH.insert inclTable (m, (modInclLookup m) @ [ObjRel r])
           )
       );
-      scope := (m, l+1) :: scopetail;
+      scope := (m, l+1, lev) :: scopetail;
       c 
+    end
+
+  fun setCurrentLevel lev =
+    let val (a,b,_) :: tail = ! scope
+    in scope := (a,b,lev) :: tail
     end
 
   fun reset () = (
