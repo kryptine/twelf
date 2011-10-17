@@ -84,10 +84,16 @@ struct
   fun MMTOMS(name) = OMS3(baseMMT, cdMMT,name)
   fun OMV(name) = ElemEmpty("om:OMV", [Attr("name", escapeName name)])
   fun OMA(func, args) = "<om:OMA>" ^ nl_ind() ^ func ^ nl() ^ IDs.mkString(args, "", nl(), "") ^ nl_unind() ^ "</om:OMA>"
-  fun OMBIND(bind, vars, scope) = "<om:OMBIND>" ^ nl_ind() ^ bind ^ nl() ^ vars ^ nl() ^ scope ^ nl_unind() ^ "</om:OMBIND>"
-  fun OM1ATTR(obj, key, value) = "<om:OMATTR><om:OMATP>" ^ nl_ind() ^ key ^ nl() ^ value ^ nl() ^ "</om:OMATP>" ^
-                                 obj ^ nl_unind() ^ "</om:OMATTR>"
-  fun OM1BVAR(var, key, value) = "<om:OMBVAR>" ^ nl_ind() ^ OM1ATTR(var, key, value) ^ nl_unind() ^ "</om:OMBVAR>"
+  fun OMBIND(bind, impl, vars, scope) =
+     ElemOpen("om:OMBIND", if impl > 0 then [Attr("implicit", Int.toString impl)] else nil) ^ nl_ind() ^
+        bind ^ nl() ^ vars ^ nl() ^ scope ^ nl_unind() ^
+     ElemClose("om:OMBIND")
+  fun OMVDecl(name, recon, typ) =
+     ElemOpen("om:OMV", [Attr("name", escapeName name)]) ^ nl_ind() ^
+       ElemOpen("type", nil) ^ nl_ind() ^ typ ^ nl_unind() ^ ElemClose("type") ^ nl_unind() ^
+       LFOMS(["omitted"]) ^ LFOMS(["omitted"]) ^
+     ElemClose("om:OMV")
+  fun OM1BVAR(name, recon, typ) = "<om:OMBVAR>" ^ nl_ind() ^ OMVDecl(name, recon, typ) ^ nl_unind() ^ "</om:OMBVAR>"
   
   type Path = {isAbs : bool, vol : string, arcs : string list}
   
@@ -194,9 +200,8 @@ struct
 			 val _ = ind(1)
 			 val fmtType = fmtExp (G, (V1', s), 0, params)
 			 val _ = unind(2)
-			 val pi = if (imp > 0) then "implicit_Pi" else "Pi"
 		       in
-				fmtBinder(pi, name, fmtType, r, fmtBody)
+				fmtBinder("Pi", if i then 1 else 0, name, fmtType, r, fmtBody)
 		       end
 	  | I.No => let
 		       val G' = I.Decl (G, D)
@@ -211,33 +216,23 @@ struct
 		out := !out ^ fmtCon (G, H, params)
 	else let
 		(* an application *)
-		val _ = out := !out ^ "<om:OMA>" ^ nl_ind()
-		(* If there are more than two explicit arguments to an infix operator,
-		   the implict and the first two explicit arguments have to be wrapped in their own om:OMA element.
-		   In this case, the output will not be in normal form. *)
-    		val cOpt =
-    			case H of
+      val cOpt = case H of
 		       	   I.Const(c) => SOME c
 		       	 | I.Skonst(c) => SOME c
-	  		 | I.Def(c) => SOME c
+                | I.Def(c) => SOME c
 		       	 | I.NSDef(c) => SOME c
 		       	 | _ => NONE
-      		val args = case cOpt
-      		     of SOME c => (case Names.fixityLookup c
-			  of Names.Fixity.Infix(_,_) => IntSyn.conDecImp (ModSyn.sgnLookup c) + 2
-		           | _ => 0
-		         )
-		      | NONE => 0
-		val _ = if args > 0 andalso (l > args)
-		        then out := !out ^ "<om:OMA>" ^ nl_ind()
-		        else ()
-	(* print constant and arguments,
-	   args is passed to fmtSpine so that fmtSpine can insert a closing tag after args arguments, 0 means no effect *)
-	in out := !out ^ fmtCon (G, H, params) ^ fmtSpine (G, (S, s), args, params) ^ "</om:OMA>"
+      val impl = case cOpt
+      		 of SOME c => IntSyn.conDecImp (ModSyn.sgnLookup c)
+           | NONE => 0
+		val implAtt = if impl > 0 then " implicit=\"" ^ Int.toString impl ^ "\"" else "" 
+		val _ = out := !out ^ "<om:OMA" ^ implAtt ^ ">" ^ nl_ind()
+	(* print function and arguments *)
+	in out := !out ^ fmtCon (G, H, params) ^ fmtSpine (G, (S, s), params) ^ "</om:OMA>"
 	end
-      in
-      	!out
-      end
+   in
+   	!out
+   end
     | fmtExpW (G, (I.Lam(D, U), s), imp, params) = 
       let
 	val (D' as I.Dec (I.VarInfo(SOME(name),r,e,i), V)) = Names.decLUName (G, D)
@@ -247,9 +242,8 @@ struct
 	val _ = ind(1)
 	val fmtType = fmtExp (G, (V, s), 0, params)
 	val _ = unind(2)
-	val lam = if (imp > 0) then "implicit_lambda" else "lambda"
       in
-      	fmtBinder(lam, name, fmtType, r, fmtBody)
+      	fmtBinder("lambda", if i then 1 else 0, name, fmtType, r, fmtBody)
       end
     | fmtExpW (G, (I.FgnExp csfe, s), 0, params) =
            fmtExp (G, (I.FgnExpStd.ToInternal.apply csfe (), s), 0, params)
@@ -263,33 +257,21 @@ struct
      context G which approximates G', where G' |- S[s] is valid
      args is the number of arguments after which </om:OMA> must be inserted, no effect if negative
   *)
-  and fmtSpine (G, (I.Nil, _),_,_) = nl_unind()
-    | fmtSpine (G, (I.SClo (S, s'), s), args, params) =
-        fmtSpine (G, (S, I.comp(s',s)), args, params)
-    | fmtSpine (G, (I.App(U, S), s), args, params) = let
+  and fmtSpine (G, (I.Nil, _),_) = nl_unind()
+    | fmtSpine (G, (I.SClo (S, s'), s), params) =
+        fmtSpine (G, (S, I.comp(s',s)), params)
+    | fmtSpine (G, (I.App(U, S), s), params) = let
     	(* print first argument, 0 is dummy value *)
     	val out = ref (nl() ^ fmtExp (G, (U, s), 0, params))
-    	(* close application if args reaches 0 *)
-    	val _ = if (args = 1) andalso (spineLength(S) > 0) then
-    			out := !out ^ nl_unind() ^ "</om:OMA>"
-    		else
-    			()
     	(* print remaining arguments *)
-      in !out ^ fmtSpine (G, (S, s), args-1, params)
+      in !out ^ fmtSpine (G, (S, s), params)
       end
     	
   and fmtExpTop (G, (U, s), imp, params)
       = "<om:OMOBJ>" ^ nl_ind() ^ fmtExp (G, (U, s), imp, params) ^ nl_unind() ^ "</om:OMOBJ>"
   
-  and fmtBinder(binder, name, typ, recon, scope) =
-    let
-    	val _ = ind(2)
-    	val typ' = if recon then OM1ATTR(typ, LFOMS(["omitted"]), LFOMS(["omitted"]))
-		  else typ
-	val _ = unind(2)
-    in
-       OMBIND(LFOMS([binder]), OM1BVAR(OMV(name), MMTOMS(["type"]), typ'), scope)
-    end
+  and fmtBinder(binder, impl, name, typ, recon, scope) =
+      OMBIND(LFOMS([(if impl > 0 then "implicit_" else "") ^ binder]), 0, OM1BVAR(name, recon, typ), scope)
 
   and signToStringTop(m, params) = ElemOpen("OMTHY",nil) ^ (signToString(m, params)) ^ "</OMTHY>"
   and signToString(ModSyn.Sign m, params) = relModOMS (m, params)
@@ -337,10 +319,13 @@ struct
   	fun fixatt(s) = Attr("fixity", s)
   	fun assocatt(s) = Attr("associativity", s)
   	fun precatt(Names.Fixity.Strength p) = Attr("precedence", Int.toString p)
+  	fun defaultFixity(SOME Names.Role.Rule) = "tree"
+  	  | defaultFixity(r) = "pre"
   	val imp = I.conDecImp (ModSyn.sgnLookup cid)
   	val fixity = Names.fixityLookup cid
+  	val rl = Names.roleLookup cid
 	val atts = case fixity
-	       of Names.Fixity.Nonfix => nil	(* case identified by @precedence = Names.Fixity.minPrefInt *)
+	  of Names.Fixity.Nonfix => [fixatt(defaultFixity rl)]  (* case identified by @precedence = Names.Fixity.minPrefInt *)
 		| Names.Fixity.Infix(p, assoc) => [fixatt "in", assocatt (
 			case assoc of
 			  Names.Fixity.Left => "left"
@@ -350,9 +335,9 @@ struct
 		| Names.Fixity.Prefix(p) => [fixatt "pre", precatt p]
 		| Names.Fixity.Postfix(p) => [fixatt "post", precatt p]
     in
-    	if (fixity = Names.Fixity.Nonfix andalso imp = 0)
+    	if (fixity = Names.Fixity.Nonfix andalso not(rl = SOME Names.Role.Rule) andalso imp = 0)
     	then ""
-        else ElemEmpty("notation", [Attr("for", "??" ^ localPath (I.conDecName(ModSyn.sgnLookup cid))),
+      else ElemEmpty("notation", [Attr("for", "??" ^ localPath (I.conDecName(ModSyn.sgnLookup cid))),
            Attr("role", "application")] @ atts @ [Attr("implicit", Int.toString imp)])
     end
 
