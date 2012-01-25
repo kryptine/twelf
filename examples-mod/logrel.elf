@@ -2,28 +2,39 @@
    tp : type.
    tm : tp -> type.                 %prefix 0 tm.
    o : tp.
-   ⇒ : tp -> tp -> tp.              %infix 5 right ⇒. 
-   @ : tm A ⇒ B -> tm A -> tm B.  %infix 5 left @.
+   ⇒ : tp -> tp -> tp.              %infix right 5 ⇒. 
+   @ : tm A ⇒ B -> tm A -> tm B.    %infix left 5 @.
    λ : (tm A -> tm B) -> tm A ⇒ B.
 }.
 
-%sig MT
+%sig MT = {
    %include TT.
    unit : type.
    * : unit.
    hc : tm A -> type.
-   ha : tm A -> type.
+   ha : tm A -> type = hc. %% conflating atomic and canonical forms for simplicity
    hc-⇒ : ({x} ha x -> hc (M @ x)) -> hc M.
    hc-o : ha (M:tm o) -> hc M.
    ha-@ : ha M -> hc N -> ha (M @ N).
+   %% ha-lam : ({x} hc x -> hc (F x)) -> hc (λ F).
+   %% It would work if we had this. But that's as hard to prove as the normalization theorem itself.
 }.
+
+%view id : TT -> MT = {
+   tp := tp.
+   tm := [x] tm x.
+   o  := o.
+   ⇒  := [x][y] x ⇒ y. 
+   @  := [A][B][x][y] x @ y.
+   λ  := [A][B] λ.
+}.   
 
 %rel normalization : id = {
    tp := [t: tp] unit.
-   tm := [t: tp] [a: tm t] hc a.
-   o := *.
-   ⇒ := [t: tp][p: unit] [t': tp][p': unit] *.
-   @ := [f: tm A ⇒ B][p: hc f] [a: tm A][p': hc a] ??needed: hc (f @ a)??
-   λ := [f: tm A -> tm B][p: {a: tm A}{q: hc a} hc (f a)]
-           hc-⇒ [a:tm A][q: ha a] ??needed: hc ((λ f) @ a)??
+   tm := [t: tp][_] [a: tm t] hc a.
+   o  := *.
+   ⇒  := [t: tp][p: unit] [t': tp][p': unit] *.
+   @  := [A][_][B][_][f: tm A ⇒ B][p: hc f] [a: tm A][p': hc a] ha-@ p p'.
+   λ  := [A][_][B][_][f: tm A -> tm B][p: {a: tm A}{q: hc a} hc (f a)]
+           hc-⇒ [a:tm A][q: ha a] ha-@ (ha-lam p) q. %% does not work because we do not have ha-lam, see above
 }.
