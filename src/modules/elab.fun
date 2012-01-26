@@ -217,11 +217,11 @@ functor Elab (structure Print : PRINT) : ELAB = struct
           | A(I.FgnExp(cs, F)) = raise UnimplementedCase
           | A(I.NVar n) = I.NVar n
         and AHead(I.BVar k) = headToExp(I.BVar k)
-          | AHead(I.Const c) = ACid c            (* apply morphism to constant *)
+          | AHead(I.Const c) = ACid(c,false)            (* apply morphism to constant *)
           | AHead(I.Proj(b,k)) = headToExp(I.Proj (ABlock b, k))
-          | AHead(I.Skonst c) = ACid c           (* apply morphism to constant *)
-          | AHead(I.Def d) = A (M.constDef d)
-          | AHead(I.NSDef d) = A (M.constDef d)
+          | AHead(I.Skonst c) = ACid(c, false)           (* apply morphism to constant *)
+          | AHead(I.Def d) = ACid(d,true)
+          | AHead(I.NSDef d) = ACid(d,true)
           | AHead(I.FVar(x, U, s)) = headToExp(I.FVar(x, A U, ASub s))
           | AHead(I.FgnConst(cs, condec)) = raise UnimplementedCase
         and ASpine(I.Nil) = I.Nil
@@ -242,8 +242,8 @@ functor Elab (structure Print : PRINT) : ELAB = struct
 (*          | ABlock(I.LVar(b,s,(c,s'))) = impossible by precondition  *)
           | ABlock(I.Inst l) = I.Inst (List.map A l)
 (*      and AConstr(_) = impossible by precondition  *)
-        (* apply morphism to constant *)
-        and ACid(c) =
+        (* apply morphism to constant, def is true iff c has a definiens *)
+        and ACid(c, def) =
            let val m = IDs.midOf c
            in
               case (mor, valOf (M.symVisible(c,dom))) (* if NONE, U would be ill-formed *)
@@ -256,9 +256,12 @@ functor Elab (structure Print : PRINT) : ELAB = struct
                  | (_, M.Ancestor _) => cidToExp c
                  (* symbol included into ancestor: identity *)
                  | (_, M.AncIncluded) => cidToExp c
-                 (* view applied to local symbol: apply morphism by looking up instantiation in view *)
+                 (* view applied to local symbol *)
                  | (M.MorView(v), M.Self) => (
-                     let val M.SymConInst (M.ConInst(_, _, exp)) = M.symLookup(v, IDs.lidOf c)
+                     if def
+                     then A (M.constDef c)  (* apply morphism to definiens *)
+                     (* else look up instantiation in view *)
+                     else let val M.SymConInst (M.ConInst(_, _, exp)) = M.symLookup(v, IDs.lidOf c)
                      in exp
                      end
                      handle Bind => raise missingCase(v,c)
