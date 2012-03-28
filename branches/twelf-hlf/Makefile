@@ -16,7 +16,6 @@ make = make
 
 twelfdir = `pwd`
 twelfserver = twelf-server
-version = TWELFVERSION
 
 # ---------------------------------------------------------------
 # You should not need to edit beyond this point
@@ -24,18 +23,27 @@ version = TWELFVERSION
 
 .PHONY: default
 default: ;
-	@echo "Options for building Twelf $(version):"
+	@echo "Options for building Twelf:"
 	@echo "   make smlnj   Make Twelf with SML/NJ"
 	@echo "   make mlton   Make Twelf with MLton"
 	@echo ""
 	@echo "To load Twelf in SML/NJ, use the \"sources.cm\" file in this directory."
 	@echo ""
 
+.PHONY: buildid
+buildid:
+	-rm -Rf src/frontend/buildid.sml
+	bin/buildid >src/frontend/buildid.sml
+
+
+.PHONY: twelf-server-announce
+twelf-server-announce:
+	@echo "*************************************************"
+	@echo "Twelf Server"
+	@echo "*************************************************"
+
 .PHONY: twelf-server-mlton
-twelf-server-mlton: ; 
-	@echo "*************************************************"
-	@echo "Twelf $(version): Server"
-	@echo "*************************************************"
+twelf-server-mlton:
 	mltonversion=`$(mlton) 2>&1 | awk 'NR==1 { print 0+$$2 }'`;	\
 	if   [ $$mltonversion -ge 20041109 ]; then			\
 		cmfileid="twelf-server-mlton.cm";			\
@@ -48,17 +56,14 @@ twelf-server-mlton: ;
 	$(mlton) -output bin/$(twelfserver) build/$${cmfileid}
 
 .PHONY: twelf-server-smlnj
-twelf-server-smlnj: ;
-	@echo "*************************************************"
-	@echo "Twelf $(version): Server"
-	@echo "*************************************************"	 
+twelf-server-smlnj:
 	$(smlnj) < build/twelf-server-smlnj.sml ;
 	bin/.mkexec "$(smlnj)" "$(twelfdir)" twelf-server "$(twelfserver)" ;
 
 .PHONY: twelf-emacs
 twelf-emacs: ; 
 	@echo "*************************************************"
-	@echo "Twelf $(version): Emacs instructions"
+	@echo "Twelf Emacs Integration"
 	@echo "*************************************************"	 
 	@echo "Add"
 	@echo ""
@@ -73,15 +78,17 @@ twelf-emacs: ;
 polyml : ;
 	@echo "This makefile not yet working with PolyML."
 
-smlnj : twelf-server-smlnj twelf-emacs
+smlnj : twelf-server-announce buildid twelf-server-smlnj twelf-emacs
 
+mlton : twelf-server-announce buildid twelf-server-mlton twelf-emacs 
 
-oldnj : ; # twelf-emacs twelf-server-smlnj-old
-	@echo "This makefile not yet working with old versions of SML/NJ."
-
-mlton : twelf-server-mlton twelf-emacs 
-
-.PHONY: check
-check :
+.PHONY: twelf-regression check
+twelf-regression: buildid
 	$(mlton) -output bin/twelf-regression TEST/mlton-regression.cm
+
+check : twelf-regression
 	$(make) -C TEST check
+
+install: 
+	cp bin/twelf-server $(DESTDIR)/bin/twelf-server.new
+	mv $(DESTDIR)/bin/twelf-server.new $(DESTDIR)/bin/twelf-server
