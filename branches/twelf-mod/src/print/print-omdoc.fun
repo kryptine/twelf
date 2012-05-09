@@ -273,17 +273,17 @@ struct
   and fmtBinder(binder, impl, name, typ, recon, scope) =
       OMBIND(LFOMS([(if impl > 0 then "implicit_" else "") ^ binder]), 0, OM1BVAR(name, recon, typ), scope)
 
-  and signToStringTop(m, params) = ElemOpen("OMTHY",nil) ^ (signToString(m, params)) ^ "</OMTHY>"
+  and signToStringTop(m, params) = ElemOpen("OMOBJ",nil) ^ (signToString(m, params)) ^ "</OMOBJ>"
   and signToString(ModSyn.Sign m, params) = relModOMS (m, params)
     | signToString(ModSyn.SignUnion(u,u'), params) = OMA(MMTOMS(["theory-union"]), [signToString(u, params), signToString(u', params)])
-  and morphToStringTop(m, params) = ElemOpen("OMMOR",nil) ^ (morphToString(m, params)) ^ "</OMMOR>"
+  and morphToStringTop(m, params) = ElemOpen("OMOBJ",nil) ^ (morphToString(m, params)) ^ "</OMOBJ>"
   and morphToString(ModSyn.MorStr(c), params) = relSymOMS (c, params)
     | morphToString(ModSyn.MorView(m), params) = relModOMS (m, params)
     | morphToString(ModSyn.MorComp(mor1,mor2), params) =
       OMA(MMTOMS(["composition"]), [morphToString(mor1, params), morphToString(mor2, params)])
     | morphToString(ModSyn.MorId(m), params) =
       OMA(MMTOMS(["identity"]), [signToString(ModSyn.Sign m, params)])
-  and relToStringTop(rel, params) = ElemOpen("OMREL",nil) ^ (relToString(rel, params)) ^ "</OMREL>"
+  and relToStringTop(rel, params) = ElemOpen("OMOBJ",nil) ^ (relToString(rel, params)) ^ "</OMOBJ>"
   and relToString(ModSyn.Rel(rel), params) = relModOMS (rel, params)
     | relToString(ModSyn.RelComp(mor,rel), params) =
       OMA(MMTOMS(["rel-mor-composition"]), [morphToString(mor, params), relToString(rel, params)])
