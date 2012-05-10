@@ -6,6 +6,8 @@ signature URISIG = sig
    type uri = {scheme: string option, authority: authority option, abs: bool, path: string list,
                query: string option, fragment: string option}
    val resolve     : uri * uri -> uri
+   (* makes the second URI relative to the first one; both must be absolute *) 
+   val makeRelative: uri * uri -> uri
    exception Error of string
    val parseURI    : string -> uri
    val uriToString : uri -> string
@@ -153,7 +155,19 @@ structure URI : URISIG = struct
                else if rabs      then makeURI(bs, ba, rabs, rem(rp, rabs), rq, rf)
                                  else makeURI(bs, ba, babs orelse (isSome ba), rem ((merge(bp, rp)), rabs), rq, rf)
       end
-
+   fun findRelativePath(nil, main) = main
+     | findRelativePath(basehd::basetl, nil) = List.tabulate(List.length basetl, fn i => "..")
+     | findRelativePath(basehd::basetl, mainhd::maintl) =
+          if basehd = mainhd then findRelativePath(basetl,maintl)
+          else List.tabulate(List.length basetl, fn i => "..") @ (mainhd :: maintl)
+   fun makeRelative(base: uri, main: uri) : uri =
+           if not(#scheme base = #scheme main andalso #authority base = #authority main)
+              then main
+     else if not(#path base = #path main) then
+         makeURI(NONE, NONE, false, findRelativePath(#path base, #path main), #query main, #fragment main)
+     else if not(#query base = #query main) then makeURI(NONE, NONE, false, nil, #query main, #fragment main)
+     else if not(#fragment base = #fragment main) then makeURI(NONE, NONE, false, nil, NONE, #fragment main)
+     else makeURI(NONE, NONE, false, nil, NONE, NONE)
    (* prints optional string with delimiters, "" if NONE *)
    fun po(bef: string, it: string option, aft: string) = case it
       of SOME s => bef ^ s ^ aft

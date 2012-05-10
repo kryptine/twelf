@@ -113,11 +113,8 @@ struct
   fun pathToArcList(p: Path) = if #isAbs p andalso not(#vol p = "") then #vol p :: #arcs p else #arcs p
   (* compute document reference (URI) relative to params *)
   fun relDocName(f, baseNS) = 
-    let
-       val file = OS.Path.fromString (URI.uriToString f)
-       val dif = diff(pathToArcList (OS.Path.fromString (URI.uriToString baseNS)), pathToArcList file)
-    in
-       IDs.mkString(dif, "", "/", "")
+    let val relURI = URI.makeRelative(baseNS, f)
+    in URI.uriToString relURI
     end
   (* compute module reference (URI) relative to params *)
   fun relModName(m, params : Params) =
