@@ -79,6 +79,8 @@ structure IDs = struct
    val Sep = "."
    fun foldQName l = mkString(l,"",sep,"")
    fun foldFQName(m, l) = foldQName m ^ Sep ^ foldQName l
+   fun makeComplexFragment(base: URI.uri, mods: string list) : string =
+     "[" ^ URI.uriToString base ^ "?" ^ mkString(mods, "", "/", "") ^ "]"
 
    type Qid = string list
    

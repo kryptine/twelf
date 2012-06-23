@@ -387,11 +387,11 @@ struct
 
   fun sigInclToString(ModSyn.SigIncl(m, _, opendec, _), params, md) =
      let val from = relModName(m, params)
-     in ElemEmpty("include", [Attr("from", from)]) ^ (openToString (opendec, NONE, params)) ^ nl()
+     in ElemEmpty("import", [Attr("from", from)]) ^ (openToString (opendec, NONE, params)) ^ nl()
      end
   
   fun strDecToString(ModSyn.StrDec(name, _, dom, insts, opendec, _), params, md) =
-     	ElemOpen("structure",
+     	ElemOpen("import",
      	  [Attr("name", localPath name),
      	   Attr("from", relModName(dom,params))]) ^ metaDataToString md ^ (
            case insts of nil => ""
@@ -400,22 +400,30 @@ struct
                dolist(fn inst => instToString(inst, params, NONE), insts, nl) ^ 
              nl_unind()
          ) ^
-      "</structure>" ^
+      "</import>" ^
       openToString(opendec, SOME name, params)
    | strDecToString(ModSyn.StrDef(name, _, dom, def, _), params, md) =
-     ElemOpen("structure", [Attr("name", localPath name), Attr("from", relModName(dom,params))]) ^ metaDataToString md ^
+     ElemOpen("import", [Attr("name", localPath name), Attr("from", relModName(dom,params))]) ^ metaDataToString md ^
      "<definition>" ^ nl_ind() ^ morphToStringTop(def, params) ^ nl_unind() ^ "</definition>" ^
-     "</structure>"
+     "</import>"
 
   and instToString(ModSyn.ConInst(c, _, U), params, md) = 
-         ElemOpen("conass", [Attr("name", localPath (ModSyn.symName c))]) ^ nl_ind() ^ metaDataToString md ^
-         fmtExpTop(I.Null, (U, I.id), 0, params) ^ nl_unind() ^ "</conass>"
+         ElemOpen("constant", [Attr("name", localPath (ModSyn.symName c))]) ^ nl_ind() ^ metaDataToString md ^
+         fmtExpTop(I.Null, (U, I.id), 0, params) ^ nl_unind() ^ "</constant>"
     | instToString(ModSyn.StrInst(c, _, mor), params, md) =
-         ElemOpen("strass", [Attr("name", localPath (ModSyn.symName c))]) ^ nl_ind() ^ metaDataToString md ^
-         morphToStringTop(mor, params) ^ nl_unind() ^ "</strass>"
+       let val dom = ModSyn.strDecDom (ModSyn.structLookup c)
+           val domAttr = Attr("domain", relModName(dom, params))
+           val nameAttr = Attr("name", localPath (ModSyn.symName c))
+       in ElemOpen("import", [nameAttr, domAttr]) ^ nl_ind() ^
+          metaDataToString md ^ nl() ^
+          ElemOpen("value", nil) ^ morphToStringTop(mor, params) ^ ElemClose("value") ^ nl_unind() ^
+          ElemClose("import")
+       end
     | instToString(ModSyn.InclInst(_,_,from,mor), params, md) =
-         ElemOpen("include", [Attr("from", relModName(from, params))]) ^ nl_ind() ^ metaDataToString md ^
-         morphToStringTop(mor, params) ^ nl_unind() ^ "</include>"
+         ElemOpen("import", [Attr("domain", relModName(from, params))]) ^ nl_ind() ^ 
+         metaDataToString md ^ nl() ^
+         ElemOpen("value", nil) ^ morphToStringTop(mor, params) ^ ElemClose("value") ^ nl_unind() ^
+         ElemClose("import")
 
   fun caseToString(ModSyn.ConCase(c, _, U), params, md) = 
          ElemOpen("concase", [Attr("name", localPath (ModSyn.symName c))]) ^ nl_ind() ^ metaDataToString md ^ 
@@ -424,8 +432,8 @@ struct
          ElemOpen("strcase", [Attr("name", localPath (ModSyn.symName c))]) ^ nl_ind() ^ metaDataToString md ^
          relToStringTop(rel, params) ^ nl_unind() ^ "</strcase>"
     | caseToString(ModSyn.InclCase(_,_,rel), params, md) =
-         ElemOpen("include", nil) ^ nl_ind() ^ metaDataToString md ^
-         relToStringTop(rel, params) ^ nl_unind() ^ "</include>"
+         ElemOpen("import", nil) ^ nl_ind() ^ metaDataToString md ^
+         relToStringTop(rel, params) ^ nl_unind() ^ "</import>"
 
   fun mapFind(nil, _) = NONE
     | mapFind(h::t, f) = case f h of SOME c => SOME c | NONE => mapFind(t, f)

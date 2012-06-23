@@ -212,6 +212,30 @@ struct
    fun openNamespace ns = openns := ns :: (! openns) (* let val (ps, os, c) :: tl = ! nscontext in nscontext := (ps, ns :: os, c) :: tl end *)
    fun setCurrentNS ns  = let val (ps, os, _) :: tl = ! nscontext in nscontext := (ps, os, SOME ns) :: tl end
 
+   (* replaces all occurrences of ["", names, ""] with [MMT-URI]
+      MMT-URI is obtained by treating the head of names as a namespace prefix determining the base,
+      and the tail as the segments of the module name
+      if the head is not a known namespace prefix, the current namespace is used
+      Together with the naming of generated structures in elab.fun, this means that
+      names of the form s..pf.Dom..c resolve to the constant c declared in pf.Dom and included into the domain of the structure s.
+    *)
+   fun handleComplexFragments(names: string list) : string list = handleComplexFragments'(nil, NONE, names)
+   and handleComplexFragments'(seenOverall, NONE, nil) = seenOverall
+     | handleComplexFragments'(seenOverall, SOME seenCurrent, nil) = seenOverall @ [introduceComplexFragment seenCurrent]
+     | handleComplexFragments'(seenOverall, NONE, hd::tl) = if hd = ""
+         then handleComplexFragments'(seenOverall, SOME nil, tl)
+         else handleComplexFragments'(seenOverall @ [hd], NONE, tl)
+     | handleComplexFragments'(seenOverall, SOME seenCurrent, hd::tl) = if hd = ""
+         then handleComplexFragments'(seenOverall @ [introduceComplexFragment seenCurrent], NONE, tl)
+         else handleComplexFragments'(seenOverall, SOME (seenCurrent @ [hd]), tl)
+   and introduceComplexFragment(names: string list) : string = case names
+        of nil => ""
+         | hd::nil => IDs.makeComplexFragment(getCurrentNS NONE, [hd])
+         | hd::tl => (case lookupPrefix hd
+            of NONE => IDs.makeComplexFragment(getCurrentNS NONE, hd :: tl)
+             | SOME ns => IDs.makeComplexFragment(ns, tl)
+         )
+         
    fun getDocNS fileName = case List.find (fn (f,_) => f = fileName) (! docNSs)
       of SOME (_, ns) => SOME ns
        | NONE => NONE
@@ -355,7 +379,7 @@ struct
       | concToString STRUC = "structure"
 
     fun nameLookupMain expected (m: mid, names: string list) : cid option =
-      case nameLookupS(m, names)
+      case nameLookupS(m, handleComplexFragments names)
         of SOME c =>
            let val found = case M.symLookup c
                  of M.SymCon _ => CON
