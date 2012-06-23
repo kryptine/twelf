@@ -699,8 +699,10 @@ functor Elab (structure Print : PRINT) : ELAB = struct
                | hd :: tl => (* check equality of all morphisms (only literal equality is checked at the moment) *)
                    case List.find (fn x => not(x = hd)) tl
                	    of NONE => ()
-                     | SOME _ => raise Error("conflicting translations for included signature " ^
-                                  M.modFoldName from ^ " (implementation restriction: equality of morphisms only checked up to associativity and definition expansion)")
+                     | SOME x => raise Error("conflicting translations for included signature " ^
+                                  M.modFoldName from ^ " (implementation restriction: equality of morphisms only checked up to associativity and definition expansion):\n" ^ 
+                                  Print.morphToString hd ^ "\n" ^ Print.morphToString x
+                                  )
             end
     in
     	 (* select the relevant includes and check them *)
@@ -904,7 +906,7 @@ functor Elab (structure Print : PRINT) : ELAB = struct
                 | M.SymIncl(M.SigIncl(dom', isMeta, _,_)) => (
                    (* If no inclMap is passed, all includes i' from dom' into Dom are elaborated recursively:
                       - a new structure s with domain dom' is created and flattened
-                      - name', the name of dom', is used as an identifier for s  (dot-separated, without prefix, one string)
+                      - name', the identifier for s, is obtained from dom' and of the form "[MMT-URI]"
                       - inclMap maps each dom' to s
                       - exception: the meta-theory and its includes are not flattened
                       Since includes are subject to the identify-semantics, the recurisve flattening should not happen again when flattening s.
@@ -914,7 +916,8 @@ functor Elab (structure Print : PRINT) : ELAB = struct
                   of NONE =>
                    let
                       val i' = c'
-                      val name' = M.modFoldName dom' 
+                      val dom'Dec = M.modLookup dom'
+                      val name' = IDs.makeComplexFragment(M.modDecBase dom'Dec, M.modDecName dom'Dec) 
                       val q = [(S, i')]
                       val s = case Str
                         of M.StrDec(_,_,_,insts,_,_) => (

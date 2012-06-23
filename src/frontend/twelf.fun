@@ -537,7 +537,7 @@ struct
           val _ = ReconTerm.resetErrors fileName
           val _ = Paths.setLinesInfo(valOf (Origins.linesInfoLookup fileName))
           val _ = if stat = ABORT
-                  then raise ModSyn.Error(Paths.wrap(r,"Error in dynamically loaded " ^ moduleText)) else ()
+                  then raise ModSyn.Error(Paths.wrap(r,"Error in the dynamically loaded file containing the " ^ moduleText)) else ()
           (* restore the context of ModSyn and Names, the former returns the new cid of M1 *)
           val cnew = ModSyn.popContext()
           val _ = Names.popContext()
