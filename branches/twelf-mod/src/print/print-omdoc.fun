@@ -223,7 +223,7 @@ struct
       		 of SOME c => IntSyn.conDecImp (ModSyn.sgnLookup c)
            | NONE => 0
 		val implAtt = if impl > 0 then " implicit=\"" ^ Int.toString impl ^ "\"" else "" 
-		val _ = out := !out ^ "<om:OMA" ^ implAtt ^ ">" ^ nl_ind()
+		val _ = out := !out ^ "<om:OMA" ^ implAtt ^ ">" ^ nl_ind() ^ LFOMS(["@"]) ^ nl()
 	(* print function and arguments *)
 	in out := !out ^ fmtCon (G, H, params) ^ fmtSpine (G, (S, s), params) ^ "</om:OMA>"
 	end
