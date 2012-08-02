@@ -765,7 +765,7 @@ functor Elab (structure Print : PRINT) : ELAB = struct
           (* check totality of relation: every undefined constant id of dom must have an instantiation in m *)
           fun checkDefined(c' : IDs.cid) = case M.symLookup c'
               of M.SymCon (I.ConDec _) => ((M.symLookup(m, IDs.lidOf c') ; ())
-                 handle M.UndefinedCid _ => raise MissingCase(m, c', "view not total: missing case for " ^ M.symFoldName c'))
+                 handle M.UndefinedCid _ => raise MissingCase(m, c', "relation not total: missing case for " ^ M.symFoldName c'))
                | _ => ()
         in
           M.sgnApp(dom, checkDefined)
