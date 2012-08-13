@@ -59,10 +59,10 @@ struct
 
   (* locations of meta theories *)
   val baseMMT = "http://cds.omdoc.org/omdoc/mmt.omdoc"
-  val baseLF = "http://cds.omdoc.org/foundations/lf/lf.omdoc"
+  val baseLF = "http://cds.omdoc.org/foundations"
   val cdMMT = ["mmt"]
-  val cdLF = ["lf"]
-  val cdTwelf = "twelf"
+  val cdLF = ["LF"]
+  val cdTyped = ["Typed"]
   (* val mdLang = "http://purl.org/dc/terms/?_" *)
   
   (* XML and OMDoc constructors, return string *)
@@ -80,7 +80,8 @@ struct
    in
       ElemEmpty("om:OMS", baseA @ modA @ nameA)
    end
-  fun LFOMS(name) = OMS3(baseLF, cdLF,name)
+  fun TypeKindOMS(name) = OMS3(baseLF, cdTyped, name)
+  fun LFOMS(name) = OMS3(baseLF, cdLF, name)
   fun MMTOMS(name) = OMS3(baseMMT, cdMMT,name)
   fun OMV(name) = ElemEmpty("om:OMV", [Attr("name", escapeName name)])
   fun OMA(func, args) = "<om:OMA>" ^ nl_ind() ^ func ^ nl() ^ IDs.mkString(args, "", nl(), "") ^ nl_unind() ^ "</om:OMA>"
@@ -173,8 +174,8 @@ struct
         end
     (* I.Skonst, I.FVar cases should be impossible *)
 
-  fun fmtUni (I.Type) = LFOMS(["type"])
-    | fmtUni (I.Kind) = LFOMS(["kind"])
+  fun fmtUni (I.Type) = TypeKindOMS(["type"])
+    | fmtUni (I.Kind) = TypeKindOMS(["kind"])
 
   (* fmtExpW (G, (U, s)) = fmt
      format the expression U[s].
