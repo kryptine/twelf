@@ -390,10 +390,10 @@ struct
      in ElemEmpty("import", [Attr("from", from)]) ^ (openToString (opendec, NONE, params)) ^ nl()
      end
   
-  fun strDecToString(ModSyn.StrDec(name, _, dom, insts, opendec, _), params, md) =
-     	ElemOpen("import",
-     	  [Attr("name", localPath name),
-     	   Attr("from", relModName(dom,params))]) ^ metaDataToString md ^ (
+  fun strDecToString(ModSyn.StrDec(name, _, dom, insts, opendec, implicit), params, md) =
+      let val implAttr = if implicit then [Attr("implicit", "true")] else nil
+     	in ElemOpen("import", Attr("name", localPath name) :: Attr("from", relModName(dom,params)) :: implAttr) ^
+     	   metaDataToString md ^ (
            case insts of nil => ""
            | _ =>
              nl_ind() ^
@@ -402,10 +402,14 @@ struct
          ) ^
       "</import>" ^
       openToString(opendec, SOME name, params)
-   | strDecToString(ModSyn.StrDef(name, _, dom, def, _), params, md) =
-     ElemOpen("import", [Attr("name", localPath name), Attr("from", relModName(dom,params))]) ^ metaDataToString md ^
+      end
+   | strDecToString(ModSyn.StrDef(name, _, dom, def, implicit), params, md) =
+     let val implAttr = if implicit then [Attr("implicit", "true")] else nil
+     in ElemOpen("import", Attr("name", localPath name) :: Attr("from", relModName(dom,params)) :: implAttr) ^
+     metaDataToString md ^
      "<definition>" ^ nl_ind() ^ morphToStringTop(def, params) ^ nl_unind() ^ "</definition>" ^
      "</import>"
+     end
 
   and instToString(ModSyn.ConInst(c, _, U), params, md) = 
          ElemOpen("constant", [Attr("name", localPath (ModSyn.symName c))]) ^ nl_ind() ^ metaDataToString md ^
@@ -455,18 +459,21 @@ struct
       in
          ElemOpen("theory", nbattr @ [Attr("meta", meta)]) ^ nl_ind() ^ metaDataToString md 
       end
-    | ModSyn.ViewDec(_, _, dom, cod, codOrg, _) => (
-        case codOrg
+    | ModSyn.ViewDec(_, _, dom, cod, codOrg, implicit) => (
+        let val implAttr = if implicit then [Attr("implicit", "true")] else nil 
+        in case codOrg
           of NONE =>
               ElemOpen("view", nbattr @
-                             [Attr("from", relModName(dom, headParams)),
-                             Attr("to", relModName(cod, headParams))]
+                             Attr("from", relModName(dom, headParams)) ::
+                             Attr("to", relModName(cod, headParams)) ::
+                             implAttr
               ) ^ nl_ind() ^ metaDataToString md
           | SOME sign => 
               ElemOpen("view", nbattr @
-                             [Attr("from", relModName(dom, headParams))]
+                             Attr("from", relModName(dom, headParams)) :: implAttr
               ) ^ nl_ind() ^ metaDataToString md ^ nl() ^
               ElemOpen("to", nil) ^ nl_ind() ^ signToString(sign, headParams) ^ nl_unind() ^ ElemClose("to") ^ nl()
+        end
       )
     | ModSyn.RelDec(_, _, dom, cod, mors) =>
            ElemOpen("rel", nbattr @
