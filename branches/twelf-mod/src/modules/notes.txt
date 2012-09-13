@@ -34,6 +34,7 @@ skolem constants
 
 --------
 done
+flattening of openend names
 added roles of constants: type, constructor, judgment, rule; infered using switches %syntax. and %semantics
 warnings and recoverable errors
 - problems with preserved comments cause warning
