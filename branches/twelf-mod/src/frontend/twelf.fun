@@ -397,7 +397,7 @@ struct
        end
 
     (* auxiliary method shared by install1(StrDec _) and install1(ModIncl _); dom is the current signature, origin is the cid of the include/structure *)
-    fun installOpen(dom : IDs.mid, opens : (IDs.cid * string) list, origin : IDs.cid, r) = (
+    fun installOpen(dom : IDs.mid, opens : (IDs.cid * string list) list, origin : IDs.cid, r) = (
        	  List.map (fn (c,new) =>
              let
                 val m = IDs.midOf c
@@ -408,9 +408,10 @@ struct
                        | _ => raise Names.Error("cannot open symbol " ^ ModSyn.symFoldName c)
                     )
                    | _ => c
-             in
-                Names.installNameC(c', SOME origin, [new])
-             end
+             in (
+                Names.installNameC(c', SOME origin, new);
+                Names.installOpenC(c', new)
+             ) end
           ) opens;
           ()
     ) handle Names.Error(msg) => raise Names.Error(Paths.wrap(r,msg))
@@ -1323,11 +1324,15 @@ struct
             val _ = Elab.flattenDec(c, callbackInstallConDec, callbackInstallStrDec)
                     handle Elab.Error msg => raise Elab.Error(Paths.wrap(r, msg))
                          | Elab.MissingCase(m,c,msg) => 
-	                     raise Elab.Error(Paths.wrap(r, msg ^ " (this is thrown when a partially defined view is used lateron)"))
+	                     raise Elab.Error(Paths.wrap(r, msg ^ " (this may mean that a partially defined view is used lateron)"))
                     (* this exception occurs if we recovered from a partial module error and the module is used now *)
-                    
             val _ = case NewStrDec
-	       of ModSyn.StrDec(_,_,dom,_, ModSyn.OpenDec opens, _) => installOpen(dom, opens, c, r)
+	       of ModSyn.StrDec(cn,_,dom,_, ModSyn.OpenDec opens, _) => (
+	            installOpen(dom, List.map (fn (c,n) => (c,[n])) opens, c, r);
+	            installOpen(dom,
+	               List.map (fn (c,ns) => (c, cn @ ns)) (Names.openLookup dom),
+	               c, r)
+	        )
 	        | ModSyn.StrDef _ => ()
 	         val _ = Comments.install(fileName, c)
          in
@@ -1425,7 +1430,8 @@ struct
                        handle Elab.Error(msg) => raise Elab.Error(Paths.wrap(r,msg))
             val c = ModSyn.inclAddC(Incl)
                        handle ModSyn.Error(msg) => raise ModSyn.Error(Paths.wrap(r,msg))
-            val _ = (case opendec of ModSyn.OpenDec(opens) => installOpen(from, opens, c, r);
+            val _ = (case opendec of ModSyn.OpenDec(opens) =>
+               installOpen(from, List.map (fn (c,n) => (c,[n])) opens, c, r);
 		               Subordinate.installInclude from (* no exception should be possible *)
 		      )
 		      	val _ = Comments.install(fileName, c)

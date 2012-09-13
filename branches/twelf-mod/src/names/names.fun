@@ -142,6 +142,7 @@ struct
              val hash = StringHash.stringListHash
              val eq = (op =));
     structure CH = CidHashTable
+    structure MH = MidHashTable
     type cid = IDs.cid
     type lid = IDs.lid
     type mid = IDs.mid
@@ -172,6 +173,7 @@ struct
        For toplevel names (m=0), name is prefixed with currentNS.
     *) 
     val nameTable : (cid * cid option) MSH.Table = MSH.new(4096)
+    val openTable : ((cid * string list) list) MH.Table = MH.new(128)
 
     (* shadowTable(c') = c means that c' was shadowed by c *)
     val shadowTable : cid CH.Table = CH.new(128)
@@ -412,7 +414,14 @@ struct
 
     fun isShadowed(c : cid) : bool = case CH.lookup shadowTable c of NONE => false | _ => true
     
-
+    (* install and retrieve open declarations *)
+    fun installOpenC(c: cid, name: string list) =
+       let val m = M.currentMod()
+           val current = Option.getOpt(MH.lookup openTable m, nil)
+       in MH.insert openTable (m, (c, name) :: current)
+       end
+    fun openLookup(m: mid) = Option.getOpt(MH.lookup openTable m, nil)
+    
    (*******************************************************)
    (* interface methods for fixities *)
    

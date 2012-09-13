@@ -54,6 +54,12 @@ sig
   (* uninstall name (must exist) and return its entry *)
   val uninstallName: IDs.mid * string list -> IDs.cid * (IDs.cid option)
 
+  (* map of module ids to list of opened names and their resolution *)
+  (* installs one opened name in the current signature *)
+  val installOpenC : IDs.cid * string list -> unit
+  (* retrieves all opened names of a signature *)
+  val openLookup  : IDs.mid -> (IDs.cid * string list) list
+  
   (* map between namespace prefixes and namespace identifiers (URIs) *)
   (* add (prefix,namespace) pair, prefix must be undeclared *)
   val installPrefix: string * URI.uri -> unit
