@@ -58,8 +58,8 @@ struct
   end
 
   (* locations of meta theories *)
-  val baseMMT = "http://cds.omdoc.org/omdoc/mmt.omdoc"
-  val baseLF = "http://cds.omdoc.org/foundations"
+  val baseMMT = "http://cds.omdoc.org/mmt"
+  val baseLF = "http://cds.omdoc.org/urtheories"
   val cdMMT = ["mmt"]
   val cdLF = ["LF"]
   val cdTyped = ["Typed"]
@@ -224,7 +224,7 @@ struct
       		 of SOME c => IntSyn.conDecImp (ModSyn.sgnLookup c)
            | NONE => 0
 		val implAtt = if impl > 0 then " implicit=\"" ^ Int.toString impl ^ "\"" else "" 
-		val _ = out := !out ^ "<om:OMA" ^ implAtt ^ ">" ^ nl_ind() ^ LFOMS(["@"]) ^ nl()
+		val _ = out := !out ^ "<om:OMA" ^ implAtt ^ ">" ^ nl_ind() ^ LFOMS(["apply"]) ^ nl()
 	(* print function and arguments *)
 	in out := !out ^ fmtCon (G, H, params) ^ fmtSpine (G, (S, s), params) ^ "</om:OMA>"
 	end
@@ -269,7 +269,7 @@ struct
       = "<om:OMOBJ>" ^ nl_ind() ^ fmtExp (G, (U, s), imp, params) ^ nl_unind() ^ "</om:OMOBJ>"
   
   and fmtBinder(binder, impl, name, typ, recon, scope) =
-      OMBIND(LFOMS([(if impl > 0 then "implicit_" else "") ^ binder]), 0, OM1BVAR(name, recon, typ), scope)
+      OMBIND(LFOMS([binder]), 0, OM1BVAR(name, recon, typ), scope)
 
   and signToStringTop(m, params) = ElemOpen("OMOBJ",nil) ^ (signToString(m, params)) ^ "</OMOBJ>"
   and signToString(ModSyn.Sign m, params) = relModOMS (m, params)
@@ -294,9 +294,25 @@ struct
         ElemOpen("meta", [Attr("property","??description")]) ^ (escapeXML c) ^ ElemClose("meta") ^ nl_unind() ^
         ElemClose("metadata") ^ nl()
   
-  fun fmtSymbol(name, V, Uopt, imp, params, role, md) =
-   let val roleAtts = case role of NONE => nil
+  fun fmtSymbol(name, V, Uopt, imp, params, role, fixity, md) =
+   let  val roleAtts = case role of NONE => nil
                                    | SOME r => [Attr("role", Names.Role.toString r)]
+  	fun fixatt(s) = Attr("fixity", s)
+  	fun assocatt(s) = Attr("associativity", s)
+  	fun precatt(Names.Fixity.Strength p) = Attr("precedence", Int.toString p)
+	val atts = case fixity
+	  of Names.Fixity.Nonfix => [fixatt(if role = SOME Names.Role.Rule then "tree" else "prefix")]  (* case identified by @precedence = Names.Fixity.minPrefInt *)
+           | Names.Fixity.Infix(p, assoc) => [fixatt (
+		case assoc of
+		  Names.Fixity.Left => "infix-left"
+		| Names.Fixity.Right => "infix-right"
+		| Names.Fixity.None => "infix"
+	    ), precatt p]
+	  | Names.Fixity.Prefix(p) => [fixatt "prefix", precatt p]
+	  | Names.Fixity.Postfix(p) => [fixatt "postfix", precatt p]
+        val notation = if (fixity = Names.Fixity.Nonfix andalso not(role = SOME Names.Role.Rule) andalso imp = 0)
+    	   then ""
+           else ElemOpen("notation",[]) ^ ElemEmpty("text-notation", atts @ [Attr("implicit", Int.toString imp)]) ^ ElemClose("notation")
    in ElemOpen("constant", Attr("name", name) :: roleAtts) ^ nl_ind() ^ metaDataToString md ^
   	   "<type>" ^ nl_ind() ^
   	      fmtExpTop (I.Null, (V, I.id), imp, params) ^ nl_unind() ^
@@ -308,63 +324,37 @@ struct
   	          "<definition>" ^ nl_ind() ^
   	             fmtExpTop (I.Null, (U, I.id), imp, params) ^ nl_unind() ^
   	          "</definition>"
-  	   ) ^ nl_unind() ^
+  	   ) ^ nl() ^ 
+	   notation ^ nl_unind() ^
   	"</constant>"
    end
    
-  fun fmtPresentation(cid) =
-     let
-  	fun fixatt(s) = Attr("fixity", s)
-  	fun assocatt(s) = Attr("associativity", s)
-  	fun precatt(Names.Fixity.Strength p) = Attr("precedence", Int.toString p)
-  	fun defaultFixity(SOME Names.Role.Rule) = "tree"
-  	  | defaultFixity(r) = "pre"
-  	val imp = I.conDecImp (ModSyn.sgnLookup cid)
-  	val fixity = Names.fixityLookup cid
-  	val rl = Names.roleLookup cid
-	val atts = case fixity
-	  of Names.Fixity.Nonfix => [fixatt(defaultFixity rl)]  (* case identified by @precedence = Names.Fixity.minPrefInt *)
-		| Names.Fixity.Infix(p, assoc) => [fixatt "in", assocatt (
-			case assoc of
-			  Names.Fixity.Left => "left"
-			| Names.Fixity.Right => "right"
-			| Names.Fixity.None => "none"
-		), precatt p]
-		| Names.Fixity.Prefix(p) => [fixatt "pre", precatt p]
-		| Names.Fixity.Postfix(p) => [fixatt "post", precatt p]
-    in
-    	if (fixity = Names.Fixity.Nonfix andalso not(rl = SOME Names.Role.Rule) andalso imp = 0)
-    	then ""
-      else ElemEmpty("notation", [Attr("for", "??" ^ localPath (I.conDecName(ModSyn.sgnLookup cid))),
-           Attr("role", "application")] @ atts @ [Attr("implicit", Int.toString imp)])
-    end
-
   (* fmtConDec (condec) = fmt
      formats a constant declaration (which must be closed and in normal form)
      This function prints the quantifiers and abstractions only if hide = false.
   *)
   
-  fun fmtConDec (I.ConDec (name, _, imp, _, V, L), params, role, md) =
+  fun fmtConDec (I.ConDec (name, _, imp, _, V, L), params, role, fixity, md) =
   let
     val _ = Names.varReset IntSyn.Null
   in
-    fmtSymbol(localPath name, V, NONE, imp, params, role, md)
+    fmtSymbol(localPath name, V, NONE, imp, params, role, fixity, md)
   end
-  | fmtConDec (I.ConDef (name, _, imp, U, V, L, _), params, role, md) =
+  | fmtConDec (I.ConDef (name, _, imp, U, V, L, _), params, role, fixity, md) =
   let
     val _ = Names.varReset IntSyn.Null
   in
-	 fmtSymbol(localPath name, V, SOME U, imp, params, role, md)
+	 fmtSymbol(localPath name, V, SOME U, imp, params, role, fixity, md)
   end
-  | fmtConDec (I.AbbrevDef (name, parent, imp, U, V, L), params, role, md) =
+  | fmtConDec (I.AbbrevDef (name, parent, imp, U, V, L), params, role, fixity, md) =
   let
     val _ = Names.varReset IntSyn.Null
   in
-	 fmtSymbol(localPath name, V, SOME U, imp, params, role, md)
+	 fmtSymbol(localPath name, V, SOME U, imp, params, role, fixity, md)
   end
-  | fmtConDec (I.SkoDec (name, _, imp, V, L), _, _, _) =
+  | fmtConDec (I.SkoDec (name, _, imp, V, L), _, _, _, _) =
       "<!-- Skipping Skolem constant " ^ localPath name ^ "-->"
-  | fmtConDec (I.BlockDec (name, _, _, _), _, _, _) =
+  | fmtConDec (I.BlockDec (name, _, _, _), _, _, _, _) =
       "<!-- Skipping block declaration constant " ^ localPath name ^ "-->"
 
   (* Printing structural levels *)
@@ -384,7 +374,7 @@ struct
       end
     
   fun conDecToString (cid, params, md) =
-     fmtConDec(ModSyn.sgnLookup cid, params, Names.roleLookup cid, md) ^ nl() ^ fmtPresentation(cid)
+     fmtConDec(ModSyn.sgnLookup cid, params, Names.roleLookup cid, Names.fixityLookup cid, md) ^ nl()
 
   fun sigInclToString(ModSyn.SigIncl(m, _, opendec, _), params, md) =
      let val from = relModName(m, params)
