@@ -78,7 +78,7 @@ hi link twelfSquare            twelfSquareFace
 "syn region myFold start="%{" end="}%" transparent fold 
 "syn sync fromstart
 
-set foldmethod=syntax
-set foldminlines=3
+"set foldmethod=syntax
+"set foldminlines=3
 " Set the current syntax name
 let b:current_syntax = "twelf"
