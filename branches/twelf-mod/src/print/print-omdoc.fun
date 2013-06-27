@@ -403,21 +403,25 @@ struct
      end
 
   and instToString(ModSyn.ConInst(c, _, U), params, md) = 
-         ElemOpen("constant", [Attr("name", localPath (ModSyn.symName c))]) ^ nl_ind() ^ metaDataToString md ^
-         fmtExpTop(I.Null, (U, I.id), 0, params) ^ nl_unind() ^ "</constant>"
+         ElemOpen("constant", [Attr("name", localPath (ModSyn.symName c))]) ^ nl_ind() ^
+           metaDataToString md ^
+           ElemOpen("definition", []) ^ nl_ind() ^
+             fmtExpTop(I.Null, (U, I.id), 0, params) ^ nl_unind() ^
+           ElemClose("definition") ^ nl_unind() ^
+         ElemClose("constant")
     | instToString(ModSyn.StrInst(c, _, mor), params, md) =
        let val dom = ModSyn.strDecDom (ModSyn.structLookup c)
-           val domAttr = Attr("domain", relModName(dom, params))
+           val domAttr = Attr("from", relModName(dom, params))
            val nameAttr = Attr("name", localPath (ModSyn.symName c))
        in ElemOpen("import", [nameAttr, domAttr]) ^ nl_ind() ^
           metaDataToString md ^ nl() ^
-          ElemOpen("value", nil) ^ morphToStringTop(mor, params) ^ ElemClose("value") ^ nl_unind() ^
+          ElemOpen("definition", nil) ^ morphToStringTop(mor, params) ^ ElemClose("definition") ^ nl_unind() ^
           ElemClose("import")
        end
     | instToString(ModSyn.InclInst(_,_,from,mor), params, md) =
-         ElemOpen("import", [Attr("domain", relModName(from, params))]) ^ nl_ind() ^ 
+         ElemOpen("import", [Attr("from", relModName(from, params))]) ^ nl_ind() ^ 
          metaDataToString md ^ nl() ^
-         ElemOpen("value", nil) ^ morphToStringTop(mor, params) ^ ElemClose("value") ^ nl_unind() ^
+         ElemOpen("definition", nil) ^ morphToStringTop(mor, params) ^ ElemClose("definition") ^ nl_unind() ^
          ElemClose("import")
 
   fun caseToString(ModSyn.ConCase(c, _, U), params, md) = 
