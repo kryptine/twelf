@@ -25,13 +25,17 @@ structure HTTP = struct
         of NONE => raise Error("lookup failed")
          | SOME ip => INetSock.toAddr(NetHostDB.addr ip, port)
      val sock = INetSock.TCP.socket()
-     val _ = Socket.connect(sock, addr) handle e => raise Error("Cannot connect to " ^ host)
+     fun close() = (Socket.shutdown(sock, Socket.NO_RECVS_OR_SENDS); Socket.close(sock))
+     val _ = Socket.connect(sock, addr)
+        handle OS.SysErr(msg,_) => (close(); raise Error("System Error (" ^ msg ^ ") when connecting (Socket.connect) to " ^ URI.uriToString(uri)))
      val sendData = "GET /" ^ requri ^ " HTTP/1.0\r\nHost: " ^ host ^ ":" ^ Int.toString(port) ^ "\r\nAccept: application/xml,text/html,text/plain\r\nAccept-Charset: ISO-8859-1,utf-8,utf8\r\nConnection: keep-alive\r\nCache-Control: max-age=0\r\n\r\n"
      val slice = Word8VectorSlice.full (Byte.stringToBytes sendData)
      val sent = Socket.sendVec(sock, slice)
+        handle OS.SysErr(msg,_) => (close(); raise Error("System Error (" ^ msg ^ ") when sending (Socket.sendVec) to " ^ URI.uriToString(uri)))
      val recslice = Socket.recvVec(sock, Word8Vector.maxLen)
+        handle OS.SysErr(msg,_) => (close(); raise Error("Sytem Error (" ^ msg ^ ") when receiving (Socket.recvVec) from " ^ URI.uriToString(uri)))  
      val response = (Byte.bytesToString recslice)
-     val _ = Socket.close(sock)
+     val _ = close() 
   in
      response
   end
