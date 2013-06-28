@@ -31,7 +31,9 @@ structure Catalog : CATALOG = struct
              let
                val modURI : URI.uri = setQuery(uri, modname)
                val requestURI : URI.uri = setQuery(cat, "uri=" ^ (encode (URI.uriToString modURI)))
-               val response : string = HTTP.getFromHeader("X-Source-url", requestURI) handle e => raise Error("Cannot connect to catalog server at " ^ URI.uriToString(cat))
+               val response : string = HTTP.getFromHeader("X-Source-url", requestURI)
+                  handle HTTP.Error(msg) => raise Error(msg)
+                       | e => raise Error("Unknown error when connecting to catalog server at " ^ URI.uriToString(cat))
                val _ = if response = "" then raise Error("catalog server did not return a source URL") else ()
                val errSize = String.size("Unknown URI: ")
                (* check whether the server answered with Unknown URI: ... *)
