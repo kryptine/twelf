@@ -1,4 +1,4 @@
-(* Printing to OMDoc *)
+   (* Printing to OMDoc *)
 (* Author: Florian Rabe, originally based on print.fun *)
 
 functor PrintOMDoc(
@@ -19,7 +19,7 @@ struct
      nl() : newline (keeping current indentation)
   *)
   val indent = ref 0
-  val tabstring = "   "
+  val tabstring = " "
   fun tabs(n) = if (n <= 0) then "" else tabstring ^ tabs(n-1)
   fun ind_reset() = (indent := 0)
   fun ind(n) = indent := !indent + n
@@ -566,7 +566,7 @@ struct
          val base = case fileNameOpt
              of NONE => URI.makeFileURI(true, OS.FileSys.getDir())
               | SOME fileName => Option.getOpt(Names.getDocNS fileName, URI.makeFileURI(false,fileName))
-         val params = {baseNS = base, current = 0, print = fn x => TextIO.output(file, x)}
+                  val params = {baseNS = base, current = 0, print = fn x => TextIO.output(file, x)}
          val md = case fileNameOpt 
            of SOME fileName => Comments.getDoc fileName
             | _ => NONE
