@@ -153,11 +153,15 @@ struct
 
   (* Printing expressions *)
   
-  (* check how many arguments there will be in an om:OMA element *)
+  (* the number of arguments in an application *)
   fun spineLength I.Nil = 0
     | spineLength (I.SClo (S, _)) = spineLength S
     | spineLength (I.App(_, S)) = 1 + (spineLength S)
 
+  (* the number of variables in a Pi type *)
+  fun bindingLength (I.Pi(_,V)) = bindingLength(V)+1
+    | bindingLength _ = 0
+    
   fun fmtCon (G, I.BVar(x), params) = 
       let
 	val I.Dec (I.VarInfo(SOME n,_,_,_), _) = I.ctxDec (G, x)
@@ -316,9 +320,12 @@ struct
 	    ), precatt p]
 	  | Names.Fixity.Prefix(p) => [fixatt "prefix", precatt p]
 	  | Names.Fixity.Postfix(p) => [fixatt "postfix", precatt p]
-        val notation = if (fixity = Names.Fixity.Nonfix andalso not(role = SOME Names.Role.Rule) andalso imp = 0)
-    	   then ""
-           else ElemOpen("notation",[]) ^ ElemEmpty("text-notation", atts @ [Attr("implicit", Int.toString imp)]) ^ ElemClose("notation")
+   val notation = if (fixity = Names.Fixity.Nonfix andalso not(role = SOME Names.Role.Rule) andalso imp = 0)
+     then ""
+     else ElemOpen("notation",[]) ^
+          ElemEmpty("text-notation",
+            atts @ [Attr("arguments", Int.toString imp ^ " " ^ Int.toString (bindingLength V))]) ^
+          ElemClose("notation")
    in ElemOpen("constant", Attr("name", name) :: roleAtts) ^ nl_ind() ^ metaDataToString md ^
   	   "<type>" ^ nl_ind() ^
   	      fmtExpTop (I.Null, (V, I.id), imp, params) ^ nl_unind() ^
