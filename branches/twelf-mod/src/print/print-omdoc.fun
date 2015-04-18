@@ -322,10 +322,10 @@ struct
 	  | Names.Fixity.Postfix(p) => [fixatt "postfix", precatt p]
    val notation = if (fixity = Names.Fixity.Nonfix andalso not(role = SOME Names.Role.Rule) andalso imp = 0)
      then ""
-     else ElemOpen("notation",[]) ^
-          ElemEmpty("text-notation",
-            atts @ [Attr("arguments", Int.toString imp ^ " " ^ Int.toString (bindingLength V))]) ^
-          ElemClose("notation")
+     else ElemOpen("notations",[]) ^
+          ElemEmpty("notation",
+            atts @ [Attr("arguments", Int.toString imp ^ " " ^ Int.toString ((bindingLength V) - imp))]) ^
+          ElemClose("notations")
    in ElemOpen("constant", Attr("name", name) :: roleAtts) ^ nl_ind() ^ metaDataToString md ^
   	   "<type>" ^ nl_ind() ^
   	      fmtExpTop (I.Null, (V, I.id), imp, params) ^ nl_unind() ^
