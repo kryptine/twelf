@@ -107,7 +107,11 @@ struct
   (* arguments of the recursion: baseNS, current identify the module relative to which addresses are given
      for theories the theory, for views (except for @from and @to) the codomain
    *)
-  type Params = {baseNS : URI.uri, current : IDs.mid, print : string -> unit}
+  type Params = {baseNS : URI.uri, current : IDs.mid, domain : IDs.mid option, print : string -> unit}
+  (* changes the domain field *)
+  fun paramsCopy(params:Params, dom: IDs.mid): Params = {
+    baseNS = #baseNS params, current = #current params, domain = SOME dom, print = #print params
+  }
   
   (* Printing references *)
   
@@ -150,6 +154,9 @@ struct
         val md = if m = #current params then nil else ModSyn.modDecName dec
     in OMS3(doc, md, ModSyn.symName c)
     end
+  (* [dom]/c, pre: #domain params defined *)
+  fun qualLocalPath(c, params) =
+     "["^(relModName(valOf (#domain params),params))^"]/" ^ (localPath (ModSyn.symName c))
 
   (* Printing expressions *)
   
@@ -276,7 +283,7 @@ struct
       end
     	
   and fmtExpTop (G, (U, s), imp, params)
-      = "<om:OMOBJ>" ^ nl_ind() ^ fmtExp (G, (U, s), imp, params) ^ nl_unind() ^ "</om:OMOBJ>"
+      = "<OMOBJ>" ^ nl_ind() ^ fmtExp (G, (U, s), imp, params) ^ nl_unind() ^ "</OMOBJ>"
   
   and fmtBinder(binder, impl, name, typ, recon, scope) =
       OMBIND(LFOMS([binder]), 0, OM1BVAR(name, recon, typ), scope)
@@ -379,33 +386,34 @@ struct
 
   fun openToString(ModSyn.OpenDec nil, _, _) = ""
     | openToString(ModSyn.OpenDec ((c,new)::tl), strOpt, params) =
-      let val old = case strOpt
-           of SOME s => "??" ^ localPath (s @ (ModSyn.symName c))
-            | NONE => relSymName(c, params)
-      in ElemEmpty("alias", [Attr("name", localPath [new]), Attr("for", old)])
+      ElemEmpty("constant", [Attr("name", qualLocalPath(c,params)), Attr("alias", new)])
           ^ openToString(ModSyn.OpenDec tl, strOpt, params)
-      end
-    
+
   fun conDecToString (cid, params, md) =
      fmtConDec(ModSyn.sgnLookup cid, params, Names.roleLookup cid, Names.fixityLookup cid, md) ^ nl()
 
   fun sigInclToString(ModSyn.SigIncl(m, _, opendec, _), params, md) =
      let val from = relModName(m, params)
-     in ElemEmpty("import", [Attr("from", from)]) ^ (openToString (opendec, NONE, params)) ^ nl()
+     in ElemOpen("import", [Attr("from", from)]) ^
+        (openToString (opendec, NONE, paramsCopy(params,m))) ^ ElemClose("import") ^ nl()
      end
   
-  fun strDecToString(ModSyn.StrDec(name, _, dom, insts, opendec, implicit), params, md) =
+  fun strDecToString(ModSyn.StrDec(name, _, dom, insts, ModSyn.OpenDec opens, implicit), params, md) =
       let val implAttr = if implicit then [Attr("implicit", "true")] else nil
+          fun isAssigned(c,_) =
+             List.exists (fn inst => ModSyn.symInstCid inst = c) insts
+          val (openAndAssigned, openOnly) = List.partition isAssigned opens
+          val innerParams = paramsCopy(params, dom)
      	in ElemOpen("import", Attr("name", localPath name) :: Attr("from", relModName(dom,params)) :: implAttr) ^
      	   metaDataToString md ^ (
            case insts of nil => ""
            | _ =>
              nl_ind() ^
-               dolist(fn inst => instToString(inst, params, NONE), insts, nl) ^ 
+               dolist(fn inst => instToString(inst, openAndAssigned, innerParams, NONE), insts, nl) ^ 
              nl_unind()
          ) ^
-      "</import>" ^
-      openToString(opendec, SOME name, params)
+         openToString(ModSyn.OpenDec openOnly, SOME name, innerParams) ^
+         ElemClose("import")
       end
    | strDecToString(ModSyn.StrDef(name, _, dom, def, implicit), params, md) =
      let val implAttr = if implicit then [Attr("implicit", "true")] else nil
@@ -415,30 +423,35 @@ struct
      "</import>"
      end
 
-  and instToString(ModSyn.ConInst(c, _, U), params, md) = 
-         ElemOpen("constant", [Attr("name", localPath (ModSyn.symName c))]) ^ nl_ind() ^
+  (* produces an alias="new" attribute if an "open c as new" is in opens *)
+  and aliasAttr(opens, c) = case List.find (fn (old,_) => old = c) opens of
+       NONE => []
+     | SOME (_,new) => [Attr("alias", new)] 
+  (* (#domain params) is always defined in a structure or view *)
+  and instToString(ModSyn.ConInst(c, _, U), opens, params, md) =
+         ElemOpen("constant", Attr("name", qualLocalPath(c, params)) :: aliasAttr(opens, c)) ^ nl_ind() ^
            metaDataToString md ^
            ElemOpen("definition", []) ^ nl_ind() ^
              fmtExpTop(I.Null, (U, I.id), 0, params) ^ nl_unind() ^
            ElemClose("definition") ^ nl_unind() ^
          ElemClose("constant")
-    | instToString(ModSyn.StrInst(c, _, mor), params, md) =
+    | instToString(ModSyn.StrInst(c, _, mor), opens, params, md) =
        let val dom = ModSyn.strDecDom (ModSyn.structLookup c)
            val domAttr = Attr("from", relModName(dom, params))
-           val nameAttr = Attr("name", localPath (ModSyn.symName c))
-       in ElemOpen("import", [nameAttr, domAttr]) ^ nl_ind() ^
+           val nameAttr = Attr("name", qualLocalPath(c, params))
+       in ElemOpen("import", [nameAttr, domAttr] @ aliasAttr(opens, c)) ^ nl_ind() ^
           metaDataToString md ^ nl() ^
           ElemOpen("definition", nil) ^ morphToStringTop(mor, params) ^ ElemClose("definition") ^ nl_unind() ^
           ElemClose("import")
        end
-    | instToString(ModSyn.InclInst(_,_,from,mor), params, md) =
+    | instToString(ModSyn.InclInst(_,_,from,mor), opens, params, md) =
          ElemOpen("import", [Attr("from", relModName(from, params))]) ^ nl_ind() ^ 
          metaDataToString md ^ nl() ^
          ElemOpen("definition", nil) ^ morphToStringTop(mor, params) ^ ElemClose("definition") ^ nl_unind() ^
          ElemClose("import")
 
   fun caseToString(ModSyn.ConCase(c, _, U), params, md) = 
-         ElemOpen("concase", [Attr("name", localPath (ModSyn.symName c))]) ^ nl_ind() ^ metaDataToString md ^ 
+         ElemOpen("concase", [Attr("name", qualLocalPath(c, params))]) ^ nl_ind() ^ metaDataToString md ^ 
          fmtExpTop(I.Null, (U, I.id), 0, params) ^ nl_unind() ^ "</concase>"
     | caseToString(ModSyn.StrCase(c, _, rel), params, md) =
          ElemOpen("strcase", [Attr("name", localPath (ModSyn.symName c))]) ^ nl_ind() ^ metaDataToString md ^
@@ -454,7 +467,7 @@ struct
     val nameattr = Attr("name", localPath (ModSyn.modDecName mb))
     val nbattr = if #baseNS params = base then [nameattr] else [nameattr, Attr("base", relDocName(base, #baseNS params))]
     (* to print, e.g., from and to relative to base rather than codomain *)
-    val headParams = {baseNS = base, current = #current params, print = #print params}
+    val headParams: Params = {baseNS = base, current = #current params, domain = #domain params, print = #print params}
   in case mb
     of ModSyn.SigDec _ =>
       let val meta = case mapFind(ModSyn.modInclLookup m,
@@ -518,15 +531,15 @@ struct
                                                          | _ => ()
                 )
               | ModSyn.SymConInst inst => (case ModSyn.symInstOrg inst
-                   of NONE => print (instToString(inst, params, md) ^ nl())
+                   of NONE => print (instToString(inst, nil, params, md) ^ nl())
                     | SOME _ => ()
                 )
               | ModSyn.SymStrInst inst => (case ModSyn.symInstOrg inst
-                   of NONE => print (instToString(inst, params, md) ^ nl())
+                   of NONE => print (instToString(inst, nil, params, md) ^ nl())
                     | SOME _ => ()
                 )
               | ModSyn.SymInclInst inst => (case ModSyn.symInstOrg inst
-                   of NONE => print (instToString(inst, params, md) ^ nl()) 
+                   of NONE => print (instToString(inst, nil, params, md) ^ nl()) 
                     | SOME _ => ()
                 )
               | ModSyn.SymConCase cas => (case ModSyn.symRelOrg cas
@@ -557,11 +570,11 @@ struct
      	 val mdec = ModSyn.modLookup m
      	 val bodyParams : Params = case mdec
      	   of ModSyn.SigDec(b,_,_) =>
-     	        {baseNS = b, current = m, print = print}
-     	    | ModSyn.ViewDec(_,_,_,cod,_,_) =>
-     	        {baseNS = ModSyn.modDecBase (ModSyn.modLookup cod), current = cod, print = print}
-     	    | ModSyn.RelDec(_,_,_,cod,_) =>
-     	        {baseNS = ModSyn.modDecBase (ModSyn.modLookup cod), current = cod, print = print}
+     	        {baseNS = b, current = m, domain = NONE, print = print}
+     	    | ModSyn.ViewDec(_,_,dom,cod,_,_) =>
+     	        {baseNS = ModSyn.modDecBase (ModSyn.modLookup cod), current = cod, domain = SOME dom, print = print}
+     	    | ModSyn.RelDec(_,_,dom,cod,_) =>
+     	        {baseNS = ModSyn.modDecBase (ModSyn.modLookup cod), current = cod, domain = SOME dom, print = print}
      	 val (fN, _) = Origins.mOriginLookup m
      	 val md = Comments.getMid m
      in
@@ -579,7 +592,7 @@ struct
          val base = case fileNameOpt
              of NONE => URI.makeFileURI(true, OS.FileSys.getDir())
               | SOME fileName => Option.getOpt(Names.getDocNS fileName, URI.makeFileURI(false,fileName))
-                  val params = {baseNS = base, current = 0, print = fn x => TextIO.output(file, x)}
+                  val params = {baseNS = base, current = 0, domain = NONE, print = fn x => TextIO.output(file, x)}
          val md = case fileNameOpt 
            of SOME fileName => Comments.getDoc fileName
             | _ => NONE
