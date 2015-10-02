@@ -59,7 +59,7 @@ struct
 
   (* locations of meta theories (using CURIEs for base attributes) *)
   val baseMMT = "mmt:"
-  val cdMMT = ["mmt"]
+  val cdModExp = ["ModExp"]
   val baseLF = "ur:"
   val cdTyped = ["Typed"]
   val cdLF = ["LF"]
@@ -80,7 +80,7 @@ struct
   fun localPath(comps) = IDs.mkString(List.map escapeName comps, "", "/", "")
   fun mpath(doc, module) = doc ^ "?" ^ (localPath module)
   fun spath(doc, module, name) = mpath(doc, module) ^ "?" ^ (localPath name)
-  fun tag(key) = ElemEmpty("tag", [Attr("property", spath(baseMMT, cdMMT, [key]))])
+  fun tag(key) = ElemEmpty("tag", [Attr("property", spath(baseMMT, ["mmt"], [key]))])
   val tagType = tag("inferred-type")
   val tagEta = tag("eta-expanded")
   val tagAbstracted = tag("abstracted")
@@ -93,7 +93,7 @@ struct
    end
   fun TypeKindOMS(name) = OMS3(baseLF, cdTyped, name)
   fun LFOMS(name) = OMS3(baseLF, cdLF, name)
-  fun MMTOMS(name) = OMS3(baseMMT, cdMMT,name)
+  fun MMTOMS(name) = OMS3(baseMMT, cdModExp, name)
   fun OMV(name) = ElemEmpty("om:OMV", [Attr("name", escapeName name)])
   fun OMA(func, args) = "<om:OMA>" ^ nl_ind() ^ func ^ nl() ^ IDs.mkString(args, "", nl(), "") ^ nl_unind() ^ "</om:OMA>"
   fun OMBIND(bind, vars, scope) =
