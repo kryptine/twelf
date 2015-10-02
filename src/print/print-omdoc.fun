@@ -70,15 +70,20 @@ struct
   fun ElemOpen(label, attrs) = ElemOpen'(label, attrs) ^ ">"
   fun ElemClose(label) = "</" ^ label ^ ">"
   fun ElemEmpty(label, attrs) = ElemOpen'(label, attrs) ^ "/>"
+  fun Elem(label, attrs, children) = ElemOpen(label, attrs) ^ IDs.mkString(children,"","","") ^ ElemClose(label)
   fun Attr(label, value) = label ^ "=\"" ^ value ^ "\""
 
   val namespacePrefixes = [Attr("xmlns", "http://omdoc.org/ns"),
                            Attr("xmlns:om", "http://www.openmath.org/OpenMath"),
                            Attr("xmlns:mmt", "http://cds.omdoc.org/mmt"),
                            Attr("xmlns:ur", "http://cds.omdoc.org/urtheories")]
-  
   fun localPath(comps) = IDs.mkString(List.map escapeName comps, "", "/", "")
   fun mpath(doc, module) = doc ^ "?" ^ (localPath module)
+  fun spath(doc, module, name) = mpath(doc, module) ^ "?" ^ (localPath name)
+  fun tag(key) = ElemEmpty("tag", [Attr("property", spath(baseMMT, cdMMT, [key]))])
+  val tagType = tag("inferred-type")
+  val tagEta = tag("eta-expanded")
+  val tagAbstracted = tag("abstracted")
   fun OMS3(base, module, name) = let
      val baseA = if base = "" then nil else [Attr("base", base)]
      val modA = if module = nil then nil else [Attr("module", localPath module)]
@@ -91,16 +96,18 @@ struct
   fun MMTOMS(name) = OMS3(baseMMT, cdMMT,name)
   fun OMV(name) = ElemEmpty("om:OMV", [Attr("name", escapeName name)])
   fun OMA(func, args) = "<om:OMA>" ^ nl_ind() ^ func ^ nl() ^ IDs.mkString(args, "", nl(), "") ^ nl_unind() ^ "</om:OMA>"
-  fun OMBIND(bind, impl, vars, scope) =
-     ElemOpen("om:OMBIND", if impl > 0 then [Attr("implicit", Int.toString impl)] else nil) ^ nl_ind() ^
+  fun OMBIND(bind, vars, scope) =
+     ElemOpen("om:OMBIND",nil) ^ nl_ind() ^
         bind ^ nl() ^ vars ^ nl() ^ scope ^ nl_unind() ^
      ElemClose("om:OMBIND")
-  fun OMVDecl(name, recon, typ) =
-     ElemOpen("om:OMV", [Attr("name", escapeName name)]) ^ nl_ind() ^
+  fun OMVDecl(I.VarInfo(SOME name, r, e, i), typ) =
+  let val tagList = map (fn(b,t) => if b then t else "") [(r,tagType),(e,tagEta),(i,tagAbstracted)]
+      val metadata = if tagList = nil then "" else Elem("metadata",nil,tagList) in
+     ElemOpen("om:OMV", [Attr("name", escapeName name)]) ^ metadata ^ nl_ind() ^
        ElemOpen("type", nil) ^ nl_ind() ^ typ ^ nl_unind() ^ ElemClose("type") ^ nl_unind() ^
-       LFOMS(["omitted"]) ^ LFOMS(["omitted"]) ^
      ElemClose("om:OMV")
-  fun OM1BVAR(name, recon, typ) = "<om:OMBVAR>" ^ nl_ind() ^ OMVDecl(name, recon, typ) ^ nl_unind() ^ "</om:OMBVAR>"
+  end
+  fun OM1BVAR(vi, typ) = "<om:OMBVAR>" ^ nl_ind() ^ OMVDecl(vi, typ) ^ nl_unind() ^ "</om:OMBVAR>"
   
   type Path = {isAbs : bool, vol : string, arcs : string list}
   
@@ -208,7 +215,7 @@ struct
     | fmtExpW (G, (I.Pi((D as I.Dec(_,V1),P),V2), s), imp, params) =
       (case P (* if Pi is dependent but anonymous, invent name here *)
 	 of I.Maybe => let
-			 val (D' as I.Dec (I.VarInfo(SOME(name),r,e,i), V1')) = Names.decLUName (G, D) (* could sometimes be EName *)
+			 val (D' as I.Dec (vi, V1')) = Names.decLUName (G, D) (* could sometimes be EName *)
 			 val G' = I.Decl (G, D')
 			 val _ = ind(1)  (* temporary indentation *)
 			 val fmtBody = fmtExp (G', (V2, I.dot1 s), Int.max(0,imp - 1), params)
@@ -216,7 +223,7 @@ struct
 			 val fmtType = fmtExp (G, (V1', s), 0, params)
 			 val _ = unind(2)
 		       in
-				fmtBinder("Pi", if i then 1 else 0, name, fmtType, r, fmtBody)
+				fmtBinder("Pi", vi, fmtType, fmtBody)
 		       end
 	  | I.No => let
 		       val G' = I.Decl (G, D)
@@ -250,7 +257,7 @@ struct
    end
     | fmtExpW (G, (I.Lam(D, U), s), imp, params) = 
       let
-	val (D' as I.Dec (I.VarInfo(SOME(name),r,e,i), V)) = Names.decLUName (G, D)
+	val (D' as I.Dec (vi, V)) = Names.decLUName (G, D)
 	val G' = I.Decl (G, D')
 	val _ = ind(1)  (* temporary indentation *)
 	val fmtBody = fmtExp (G', (U, I.dot1 s), Int.max(0,imp - 1), params)
@@ -258,7 +265,7 @@ struct
 	val fmtType = fmtExp (G, (V, s), 0, params)
 	val _ = unind(2)
       in
-      	fmtBinder("lambda", if i then 1 else 0, name, fmtType, r, fmtBody)
+      	fmtBinder("lambda", vi, fmtType, fmtBody)
       end
     | fmtExpW (G, (I.FgnExp csfe, s), 0, params) =
            fmtExp (G, (I.FgnExpStd.ToInternal.apply csfe (), s), 0, params)
@@ -285,8 +292,8 @@ struct
   and fmtExpTop (G, (U, s), imp, params)
       = "<OMOBJ>" ^ nl_ind() ^ fmtExp (G, (U, s), imp, params) ^ nl_unind() ^ "</OMOBJ>"
   
-  and fmtBinder(binder, impl, name, typ, recon, scope) =
-      OMBIND(LFOMS([binder]), 0, OM1BVAR(name, recon, typ), scope)
+  and fmtBinder(binder, vi, typ, scope) =
+      OMBIND(LFOMS([binder]), OM1BVAR(vi, typ), scope)
 
   and signToStringTop(m, params) = ElemOpen("OMOBJ",nil) ^ (signToString(m, params)) ^ "</OMOBJ>"
   and signToString(ModSyn.Sign m, params) = relModOMS (m, params)
@@ -386,7 +393,7 @@ struct
 
   fun openToString(ModSyn.OpenDec nil, _, _) = ""
     | openToString(ModSyn.OpenDec ((c,new)::tl), strOpt, params) =
-      ElemEmpty("constant", [Attr("name", qualLocalPath(c,params)), Attr("alias", new)])
+      ElemEmpty("constant", [Attr("name", qualLocalPath(c,params)), Attr("alias", localPath [new])])
           ^ openToString(ModSyn.OpenDec tl, strOpt, params)
 
   fun conDecToString (cid, params, md) =
