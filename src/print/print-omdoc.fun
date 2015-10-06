@@ -433,7 +433,7 @@ struct
   (* produces an alias="new" attribute if an "open c as new" is in opens *)
   and aliasAttr(opens, c) = case List.find (fn (old,_) => old = c) opens of
        NONE => []
-     | SOME (_,new) => [Attr("alias", new)] 
+     | SOME (_,new) => [Attr("alias", localPath [new])] 
   (* (#domain params) is always defined in a structure or view *)
   and instToString(ModSyn.ConInst(c, _, U), opens, params, md) =
          ElemOpen("constant", Attr("name", qualLocalPath(c, params)) :: aliasAttr(opens, c)) ^ nl_ind() ^
