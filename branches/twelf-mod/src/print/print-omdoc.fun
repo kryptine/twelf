@@ -63,6 +63,8 @@ struct
   val baseLF = "ur:"
   val cdTyped = ["Typed"]
   val cdLF = ["LF"]
+  val cdLFSym = ["LambdaPi"]
+
   (* val mdLang = "http://purl.org/dc/terms/?_" *)
   
   (* XML and OMDoc constructors, return string *)
@@ -92,7 +94,7 @@ struct
       ElemEmpty("om:OMS", baseA @ modA @ nameA)
    end
   fun TypeKindOMS(name) = OMS3(baseLF, cdTyped, name)
-  fun LFOMS(name) = OMS3(baseLF, cdLF, name)
+  fun LFOMS(name) = OMS3(baseLF, cdLFSym, name)
   fun MMTOMS(name) = OMS3(baseMMT, cdModExp, name)
   fun OMV(name) = ElemEmpty("om:OMV", [Attr("name", escapeName name)])
   fun OMA(func, args) = "<om:OMA>" ^ nl_ind() ^ func ^ nl() ^ IDs.mkString(args, "", nl(), "") ^ nl_unind() ^ "</om:OMA>"
